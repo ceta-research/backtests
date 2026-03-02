@@ -693,7 +693,7 @@ To reproduce any result in this repository:
 ### Steps
 
 1. **Get API key:** Sign up at [cetaresearch.com](https://cetaresearch.com) and create an API key at Settings > API Keys
-2. **Clone repo:** `git clone https://github.com/tradingstudio-hq/ts-backtests.git && cd ts-backtests`
+2. **Clone repo:** `git clone https://github.com/ceta-research/backtests.git && cd backtests`
 3. **Install dependencies:** `pip install -r requirements.txt` (requires Python 3.8+)
 4. **Set API key:** `export CR_API_KEY="your_key_here"`
 5. **Run backtest:** `python3 qarp/backtest.py` (or any other strategy)
