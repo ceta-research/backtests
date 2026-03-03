@@ -68,3 +68,14 @@ python3 qarp/backtest.py --global --output results_global.json
 | `--preset hongkong` | HKSE |
 
 Or pass any exchange with `--exchange EXCHANGE_CODE`.
+
+## Excluded Exchanges
+
+| Exchange | Reason |
+|----------|--------|
+| ASX | Broken adjClose data. 314 stocks have >1000x price ratios from incorrect stock split adjustments. |
+| SAO | Broken adjClose data. 20+ stocks with extreme price ratios from missed split adjustments. |
+| JPX | No FY data in key_metrics/financial_ratios tables. TTM has 4,016 symbols but FY has 0. Data pipeline gap. |
+| LSE | No FY data. Same as JPX. TTM has 3,745 symbols but FY has 0. |
+
+See [DATA_QUALITY_ISSUES.md](../DATA_QUALITY_ISSUES.md) for details.
