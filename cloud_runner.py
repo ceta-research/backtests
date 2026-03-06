@@ -34,6 +34,7 @@ STRATEGY_FILES = {
     "qarp": ["qarp/backtest.py", "qarp/screen.py"],
     "piotroski": ["piotroski/backtest.py", "piotroski/screen.py"],
     "low-pe": ["low-pe/backtest.py", "low-pe/screen.py"],
+    "asset-growth": ["asset-growth/backtest.py", "asset-growth/screen.py"],
 }
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -95,7 +96,7 @@ def run_backtest_cloud(strategy, args_str="", api_key=None, base_url=None,
     """Run a backtest on the cloud via the Projects API.
 
     Args:
-        strategy: Strategy name ("qarp", "piotroski", "low-pe").
+        strategy: Strategy name ("qarp", "piotroski", "low-pe", "asset-growth").
         args_str: CLI arguments as a string (e.g. "--preset us --verbose").
         api_key: API key (falls back to CR_API_KEY env var).
         base_url: API base URL.
@@ -150,7 +151,7 @@ def run_screen_cloud(strategy, args_str="", api_key=None, base_url=None,
     to upload them as a mini project.
 
     Args:
-        strategy: Strategy name ("qarp", "piotroski", "low-pe").
+        strategy: Strategy name ("qarp", "piotroski", "low-pe", "asset-growth").
         args_str: CLI arguments as a string.
         api_key: API key.
         base_url: API base URL.

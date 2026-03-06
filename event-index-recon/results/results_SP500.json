@@ -1,0 +1,210 @@
+{
+  "strategy": "Index Reconstitution Event Study",
+  "index": "S&P 500",
+  "table": "historical_sp500_constituent",
+  "benchmark": "SPY",
+  "period": "2000-2025",
+  "n_events": 679,
+  "n_additions": 465,
+  "n_removals": 214,
+  "hold_window_days": 21,
+  "car_summary": {
+    "addition": {
+      "n_events": 465,
+      "windows": {
+        "T+1": {
+          "mean_car_pct": -0.1433,
+          "median_car_pct": -0.1544,
+          "t_stat": -0.915,
+          "n": 465,
+          "hit_rate_pct": 46.0,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+5": {
+          "mean_car_pct": -0.9832,
+          "median_car_pct": -0.6079,
+          "t_stat": -3.679,
+          "n": 465,
+          "hit_rate_pct": 44.3,
+          "sig_5pct": true,
+          "sig_1pct": true
+        },
+        "T+21": {
+          "mean_car_pct": -1.0634,
+          "median_car_pct": -1.1405,
+          "t_stat": -2.105,
+          "n": 464,
+          "hit_rate_pct": 44.2,
+          "sig_5pct": true,
+          "sig_1pct": false
+        },
+        "T+63": {
+          "mean_car_pct": -1.2338,
+          "median_car_pct": -1.1366,
+          "t_stat": -1.561,
+          "n": 458,
+          "hit_rate_pct": 46.5,
+          "sig_5pct": false,
+          "sig_1pct": false
+        }
+      }
+    },
+    "removal": {
+      "n_events": 214,
+      "windows": {
+        "T+1": {
+          "mean_car_pct": 4.1999,
+          "median_car_pct": -0.0733,
+          "t_stat": 1.1,
+          "n": 196,
+          "hit_rate_pct": 46.9,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+5": {
+          "mean_car_pct": 3.7231,
+          "median_car_pct": -0.1534,
+          "t_stat": 0.968,
+          "n": 193,
+          "hit_rate_pct": 48.7,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+21": {
+          "mean_car_pct": 7.2209,
+          "median_car_pct": 0.7262,
+          "t_stat": 1.946,
+          "n": 191,
+          "hit_rate_pct": 53.9,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+63": {
+          "mean_car_pct": 8.5973,
+          "median_car_pct": -0.1911,
+          "t_stat": 2.157,
+          "n": 186,
+          "hit_rate_pct": 48.9,
+          "sig_5pct": true,
+          "sig_1pct": false
+        }
+      }
+    },
+    "all": {
+      "n_events": 679,
+      "windows": {
+        "T+1": {
+          "mean_car_pct": 1.1446,
+          "median_car_pct": -0.1429,
+          "t_stat": 1.006,
+          "n": 661,
+          "hit_rate_pct": 46.3,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+5": {
+          "mean_car_pct": 0.3972,
+          "median_car_pct": -0.4418,
+          "t_stat": 0.347,
+          "n": 658,
+          "hit_rate_pct": 45.6,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+21": {
+          "mean_car_pct": 1.3523,
+          "median_car_pct": -0.5959,
+          "t_stat": 1.179,
+          "n": 655,
+          "hit_rate_pct": 47.0,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+63": {
+          "mean_car_pct": 1.6056,
+          "median_car_pct": -0.7671,
+          "t_stat": 1.244,
+          "n": 644,
+          "hit_rate_pct": 47.2,
+          "sig_5pct": false,
+          "sig_1pct": false
+        }
+      }
+    }
+  },
+  "portfolio_simulation": {
+    "strategy": "Long removals at T+21",
+    "n_months": 117,
+    "avg_events_per_month": 1.6324786324786325,
+    "cagr_pct": 35.39,
+    "spy_cagr_pct": 7.05,
+    "excess_cagr_pct": 28.34,
+    "max_drawdown_pct": -97.02,
+    "sharpe_ratio": 0.159,
+    "sortino_ratio": 0.759,
+    "win_rate_pct": 51.3
+  },
+  "annual_returns": [
+    {
+      "year": 2008,
+      "portfolio_pct": -33.22,
+      "benchmark_pct": -27.01,
+      "excess_pct": -6.2
+    },
+    {
+      "year": 2009,
+      "portfolio_pct": 3573.94,
+      "benchmark_pct": 8.37,
+      "excess_pct": 3565.57
+    },
+    {
+      "year": 2013,
+      "portfolio_pct": 54.22,
+      "benchmark_pct": 8.99,
+      "excess_pct": 45.23
+    },
+    {
+      "year": 2014,
+      "portfolio_pct": 18.77,
+      "benchmark_pct": 3.61,
+      "excess_pct": 15.16
+    },
+    {
+      "year": 2016,
+      "portfolio_pct": 14.85,
+      "benchmark_pct": 7.16,
+      "excess_pct": 7.7
+    },
+    {
+      "year": 2017,
+      "portfolio_pct": -13.42,
+      "benchmark_pct": 5.64,
+      "excess_pct": -19.06
+    },
+    {
+      "year": 2019,
+      "portfolio_pct": 284.33,
+      "benchmark_pct": 26.51,
+      "excess_pct": 257.82
+    },
+    {
+      "year": 2020,
+      "portfolio_pct": -37.32,
+      "benchmark_pct": 5.62,
+      "excess_pct": -42.94
+    },
+    {
+      "year": 2023,
+      "portfolio_pct": -44.99,
+      "benchmark_pct": 11.85,
+      "excess_pct": -56.84
+    },
+    {
+      "year": 2024,
+      "portfolio_pct": 42.43,
+      "benchmark_pct": 3.33,
+      "excess_pct": 39.1
+    }
+  ]
+}

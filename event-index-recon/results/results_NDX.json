@@ -1,0 +1,156 @@
+{
+  "strategy": "Index Reconstitution Event Study",
+  "index": "NASDAQ-100",
+  "table": "historical_nasdaq_constituent",
+  "benchmark": "QQQ",
+  "period": "2000-2025",
+  "n_events": 406,
+  "n_additions": 237,
+  "n_removals": 169,
+  "hold_window_days": 21,
+  "car_summary": {
+    "addition": {
+      "n_events": 237,
+      "windows": {
+        "T+1": {
+          "mean_car_pct": -0.0288,
+          "median_car_pct": -0.1019,
+          "t_stat": -0.095,
+          "n": 237,
+          "hit_rate_pct": 47.3,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+5": {
+          "mean_car_pct": -0.7589,
+          "median_car_pct": -0.7223,
+          "t_stat": -1.989,
+          "n": 237,
+          "hit_rate_pct": 43.5,
+          "sig_5pct": true,
+          "sig_1pct": false
+        },
+        "T+21": {
+          "mean_car_pct": 0.1944,
+          "median_car_pct": -0.787,
+          "t_stat": 0.251,
+          "n": 235,
+          "hit_rate_pct": 46.0,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+63": {
+          "mean_car_pct": -1.0495,
+          "median_car_pct": -2.6479,
+          "t_stat": -0.804,
+          "n": 226,
+          "hit_rate_pct": 45.1,
+          "sig_5pct": false,
+          "sig_1pct": false
+        }
+      }
+    },
+    "removal": {
+      "n_events": 169,
+      "windows": {
+        "T+1": {
+          "mean_car_pct": 0.1194,
+          "median_car_pct": -0.1569,
+          "t_stat": 0.238,
+          "n": 168,
+          "hit_rate_pct": 44.6,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+5": {
+          "mean_car_pct": 0.8269,
+          "median_car_pct": 0.0072,
+          "t_stat": 1.063,
+          "n": 167,
+          "hit_rate_pct": 50.3,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+21": {
+          "mean_car_pct": 5.1287,
+          "median_car_pct": 2.6105,
+          "t_stat": 3.292,
+          "n": 163,
+          "hit_rate_pct": 63.2,
+          "sig_5pct": true,
+          "sig_1pct": true
+        },
+        "T+63": {
+          "mean_car_pct": 7.4066,
+          "median_car_pct": 6.3972,
+          "t_stat": 3.174,
+          "n": 154,
+          "hit_rate_pct": 61.0,
+          "sig_5pct": true,
+          "sig_1pct": true
+        }
+      }
+    },
+    "all": {
+      "n_events": 406,
+      "windows": {
+        "T+1": {
+          "mean_car_pct": 0.0326,
+          "median_car_pct": -0.1106,
+          "t_stat": 0.12,
+          "n": 405,
+          "hit_rate_pct": 46.2,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+5": {
+          "mean_car_pct": -0.1034,
+          "median_car_pct": -0.3323,
+          "t_stat": -0.263,
+          "n": 404,
+          "hit_rate_pct": 46.3,
+          "sig_5pct": false,
+          "sig_1pct": false
+        },
+        "T+21": {
+          "mean_car_pct": 2.2153,
+          "median_car_pct": 0.8289,
+          "t_stat": 2.791,
+          "n": 398,
+          "hit_rate_pct": 53.0,
+          "sig_5pct": true,
+          "sig_1pct": true
+        },
+        "T+63": {
+          "mean_car_pct": 2.3775,
+          "median_car_pct": 0.9748,
+          "t_stat": 1.917,
+          "n": 380,
+          "hit_rate_pct": 51.6,
+          "sig_5pct": false,
+          "sig_1pct": false
+        }
+      }
+    }
+  },
+  "portfolio_simulation": {
+    "strategy": "Long removals at T+21",
+    "n_months": 61,
+    "avg_events_per_month": 2.6721311475409837,
+    "cagr_pct": 107.75,
+    "spy_cagr_pct": 13.59,
+    "excess_cagr_pct": 94.16,
+    "max_drawdown_pct": -29.46,
+    "sharpe_ratio": 1.236,
+    "sortino_ratio": 6.148,
+    "win_rate_pct": 57.4
+  },
+  "annual_returns": [
+    {
+      "year": 2020,
+      "portfolio_pct": 8.63,
+      "benchmark_pct": 46.1,
+      "excess_pct": -37.47
+    }
+  ]
+}

@@ -29,24 +29,23 @@ from backtest import (
 )
 
 # Exchanges to test (sorted by expected qualifying stock count)
+# Excluded exchanges (see DATA_QUALITY_ISSUES.md):
+#   ASX, SAO — broken adjClose (unadjusted stock splits, >1000x price ratios)
+#   JPX, LSE — no FY fundamental data in warehouse
 EXCHANGE_CONFIGS = [
     {"name": "US_MAJOR", "exchanges": ["NYSE", "NASDAQ", "AMEX"]},
     {"name": "BSE", "exchanges": ["BSE"]},
     {"name": "NSE", "exchanges": ["NSE"]},
-    {"name": "JPX", "exchanges": ["JPX"]},
     {"name": "XETRA", "exchanges": ["XETRA"]},
-    {"name": "LSE", "exchanges": ["LSE"]},
     {"name": "HKSE", "exchanges": ["HKSE"]},
     {"name": "SHZ", "exchanges": ["SHZ"]},
     {"name": "SHH", "exchanges": ["SHH"]},
     {"name": "KSC", "exchanges": ["KSC"]},
-    {"name": "ASX", "exchanges": ["ASX"]},
     {"name": "TSX", "exchanges": ["TSX"]},
     {"name": "SET", "exchanges": ["SET"]},
     {"name": "TAI", "exchanges": ["TAI"]},
     {"name": "STO", "exchanges": ["STO"]},
     {"name": "SIX", "exchanges": ["SIX"]},
-    {"name": "SAO", "exchanges": ["SAO"]},
 ]
 
 

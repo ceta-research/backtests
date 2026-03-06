@@ -14,7 +14,9 @@ All seven criteria must be met simultaneously:
 | 4 | Current Ratio | > 1.5 |
 | 5 | Income Quality (OCF/NI) | > 1.0 |
 | 6 | Price-to-Earnings | 5 to 25 |
-| 7 | Market Cap | > $1B |
+| 7 | Market Cap | > 1B local currency* |
+
+*Exchange-specific thresholds (in local currency): $1B USD (NYSE/NASDAQ/AMEX), ₹20B (~$240M USD) India (BSE/NSE), €500M (~$545M USD) Germany (XETRA), ¥2B (~$276M USD) China (SHZ/SHH), HK$2B (~$256M USD) Hong Kong (HKSE). See cli_utils.py::MKTCAP_THRESHOLD_MAP for complete list.
 
 **Portfolio:** Equal weight all qualifying stocks. Cash if fewer than 10 qualify.
 **Rebalancing:** Semi-annual (January and July), 2000-2025.

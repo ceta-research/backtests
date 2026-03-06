@@ -82,6 +82,55 @@ REGIONAL_RISK_FREE_RATES = {
     "TLV": 0.030,    # Israel
 }
 
+# Market cap thresholds by exchange (local currency)
+#
+# FMP stores marketCap in LOCAL CURRENCY, not USD. These thresholds are set to
+# capture liquid mid-to-large cap stocks appropriate for each market structure.
+#
+# Target: ~$200-500M USD-equivalent for standard strategies
+#
+# For unlisted exchanges: target_local = target_usd_millions × exchange_rate
+# Example: New exchange XYZ with rate 25 XYZ/USD, target $300M
+#          → threshold = 300 × 25 = 7,500,000,000 (7.5B XYZ)
+#
+MKTCAP_THRESHOLD_MAP = {
+    # North America (USD) - large-cap focus
+    "NYSE": 1_000_000_000, "NASDAQ": 1_000_000_000, "AMEX": 1_000_000_000,  # $1B USD
+    "TSX": 500_000_000, "TSXV": 500_000_000,  # C$500M ≈ $362M USD
+
+    # Europe - mid-to-large cap
+    "LSE": 500_000_000,       # £500M ≈ $635M USD
+    "XETRA": 500_000_000, "FSX": 500_000_000,  # €500M ≈ $545M USD
+    "PAR": 500_000_000, "AMS": 500_000_000, "BRU": 500_000_000,  # €500M
+    "MIL": 500_000_000, "BME": 500_000_000,  # €500M
+    "SIX": 500_000_000,       # CHF 500M ≈ $568M USD
+    "STO": 5_000_000_000, "OSL": 5_000_000_000,  # SEK/NOK 5B ≈ $460M USD
+
+    # Asia-Pacific - liquid mid-cap
+    "BSE": 20_000_000_000, "NSE": 20_000_000_000,  # ₹20B ≈ $240M USD
+    "SHZ": 2_000_000_000, "SHH": 2_000_000_000,  # ¥2B ≈ $276M USD
+    "HKSE": 2_000_000_000,    # HK$2B ≈ $256M USD
+    "JPX": 100_000_000_000,   # ¥100B ≈ $667M USD
+    "KSC": 500_000_000_000, "KOE": 500_000_000_000,  # ₩500B ≈ $370M USD
+    "ASX": 500_000_000,       # A$500M ≈ $323M USD
+    "TAI": 10_000_000_000, "TWO": 10_000_000_000,  # NT$10B ≈ $312M USD
+    "SET": 10_000_000_000,    # ฿10B ≈ $286M USD
+    "SGX": 500_000_000, "SES": 500_000_000,  # S$500M ≈ $370M USD
+
+    # Other regions
+    "SAO": 1_000_000_000,     # R$1B ≈ $200M USD (limited universe)
+    "BMV": 2_000_000_000,     # MXN 2B ≈ $118M USD
+    "JSE": 10_000_000_000, "JNB": 10_000_000_000,  # R10B ≈ $550M USD
+    "SAU": 1_000_000_000,     # SAR 1B ≈ $267M USD
+    "TLV": 1_000_000_000,     # ₪1B ≈ $274M USD
+    "JKT": 5_000_000_000_000, # IDR 5T ≈ $310M USD
+    "KLS": 1_000_000_000,     # MYR 1B ≈ $224M USD
+}
+
+# Lower thresholds for asset-growth and stock-split strategies
+# Target: ~$100-250M USD-equivalent (half of standard)
+MKTCAP_THRESHOLD_MAP_LOW = {k: v // 2 for k, v in MKTCAP_THRESHOLD_MAP.items()}
+
 
 def add_common_args(parser):
     """Add common CLI arguments used by all backtest scripts.
@@ -181,6 +230,44 @@ def get_risk_free_rate(exchanges, user_override=None):
 
     # Multiple regions - return average (simple, equal-weighted)
     return sum(rates) / len(rates)
+
+
+def get_mktcap_threshold(exchanges, use_low_threshold=False):
+    """Get market cap threshold (local currency) for given exchanges.
+
+    FMP stores marketCap in local currency. Returns threshold in the
+    appropriate currency for the exchange(s) being backtested.
+
+    Args:
+        exchanges: list[str] or None - exchange codes (e.g. ["BSE", "NSE"])
+        use_low_threshold: bool - use low threshold map (for asset-growth, stock-split)
+
+    Returns:
+        int - threshold in local currency
+        Examples: 1_000_000_000 for NYSE ($1B USD)
+                  20_000_000_000 for BSE (₹20B ≈ $240M USD)
+                  10_000_000_000 for JSE (R10B ≈ $550M USD)
+
+    Logic:
+        1. If global mode (exchanges=None), use $1B USD default
+        2. If single exchange, use exchange-specific threshold
+        3. If multiple exchanges, use min() (most conservative filter)
+        4. If exchange unknown, default to 1B local (assumes USD-like scale)
+    """
+    threshold_map = MKTCAP_THRESHOLD_MAP_LOW if use_low_threshold else MKTCAP_THRESHOLD_MAP
+    default = 500_000_000 if use_low_threshold else 1_000_000_000
+
+    if not exchanges or len(exchanges) == 0:
+        return default  # Global mode
+
+    # Get thresholds for all exchanges
+    thresholds = []
+    for ex in exchanges:
+        threshold = threshold_map.get(ex, default)
+        thresholds.append(threshold)
+
+    # Use minimum (conservative: don't include tiny stocks when mixing currencies)
+    return min(thresholds)
 
 
 def save_results(metrics, period_results, output_dir, universe_name,

@@ -40,7 +40,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates
 from metrics import compute_metrics as _compute_metrics, compute_annual_returns, format_metrics
-from cli_utils import add_common_args, resolve_exchanges, print_header
+from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
 
 # --- Signal parameters ---
 PIOTROSKI_MIN = 7
@@ -50,7 +50,7 @@ PE_MIN = 5
 PE_MAX = 25
 CR_MIN = 1.5
 IQ_MIN = 1.0
-MKTCAP_MIN = 1_000_000_000
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 MIN_STOCKS = 10
 DEFAULT_FREQUENCY = "semi-annual"
 
@@ -167,7 +167,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date):
+def screen_stocks(con, target_date, mktcap_min):
     """Screen for QARP using cached data. Same logic as original backtest."""
     cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
     prev_year_epoch = int(datetime.combine(target_date - timedelta(days=445), datetime.min.time()).timestamp())
@@ -272,18 +272,18 @@ def screen_stocks(con, target_date):
           cutoff_epoch,
           cutoff_epoch,
           PIOTROSKI_MIN, ROE_MIN, DE_MAX, CR_MIN, IQ_MIN,
-          PE_MIN, PE_MAX, MKTCAP_MIN]).fetchall()
+          PE_MIN, PE_MAX, mktcap_min]).fetchall()
     return [r[0] for r in rows]
 
 
-def run_backtest(con, rebalance_dates, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, verbose=False):
     results = []
 
     for i in range(len(rebalance_dates) - 1):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date)
+        portfolio = screen_stocks(con, entry_date, mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
             spy_entry = get_prices(con, ["SPY"], entry_date)
@@ -444,16 +444,17 @@ def main():
     exchanges, universe_name = resolve_exchanges(args)
     frequency = args.frequency or DEFAULT_FREQUENCY
 
-    # Auto-detect risk-free rate from exchanges (or use user override)
+    # Auto-detect risk-free rate and market cap threshold from exchanges
     from cli_utils import get_risk_free_rate
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
+    mktcap_threshold = get_mktcap_threshold(exchanges)
 
     freq_map = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}
     periods_per_year = freq_map[frequency]
 
     signal_desc = (f"Piotroski >= {PIOTROSKI_MIN}, ROE > {ROE_MIN*100:.0f}%, "
                    f"D/E < {DE_MAX}, CR > {CR_MIN}, IQ > {IQ_MIN}, "
-                   f"P/E {PE_MIN}-{PE_MAX}, MCap > ${MKTCAP_MIN/1e9:.0f}B")
+                   f"P/E {PE_MIN}-{PE_MAX}, MCap > {mktcap_threshold/1e9:.0f}B local")
     print_header("QARP BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Risk-free rate: {risk_free_rate*100:.1f}%")
     print("=" * 65)
@@ -474,7 +475,7 @@ def main():
     # Phase 2: Run backtest locally
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    results = run_backtest(con, rebalance_dates, verbose=args.verbose)
+    results = run_backtest(con, rebalance_dates, mktcap_threshold, verbose=args.verbose)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 

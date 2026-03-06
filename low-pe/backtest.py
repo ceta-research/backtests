@@ -38,14 +38,14 @@ from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
-from cli_utils import add_common_args, resolve_exchanges, save_results, print_header
+from cli_utils import add_common_args, resolve_exchanges, save_results, print_header, get_mktcap_threshold
 
 # --- Signal parameters ---
 PE_MIN = 0
 PE_MAX = 15
 ROE_MIN = 0.10
 DE_MAX = 1.0
-MKTCAP_MIN = 1_000_000_000
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 MAX_STOCKS = 30
 MIN_STOCKS = 10
 DEFAULT_FREQUENCY = "quarterly"
@@ -88,39 +88,24 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     else:
         sym_filter_sql = "1=1"
 
-    # 2-3. Financial data (paginated to handle API 10K row cap)
+    # 2-3. Financial data
     queries = [
-        ("metrics_cache", """
+        ("metrics_cache", f"""
             SELECT symbol, returnOnEquity, marketCap, dateEpoch as filing_epoch, period
             FROM key_metrics
-            WHERE period = 'FY' AND returnOnEquity IS NOT NULL AND {sym_filter}
+            WHERE period = 'FY' AND returnOnEquity IS NOT NULL AND {sym_filter_sql}
         """, "key metrics (ROE, market cap)"),
-        ("ratios_cache", """
+        ("ratios_cache", f"""
             SELECT symbol, priceToEarningsRatio, debtToEquityRatio, dateEpoch as filing_epoch, period
             FROM financial_ratios
-            WHERE period = 'FY' AND priceToEarningsRatio IS NOT NULL AND {sym_filter}
+            WHERE period = 'FY' AND priceToEarningsRatio IS NOT NULL AND {sym_filter_sql}
         """, "financial ratios (P/E, D/E)"),
     ]
 
-    PAGE_SIZE = 9999
-    for table_name, sql_template, label in queries:
+    for table_name, sql, label in queries:
         print(f"  Fetching {label}...")
-        total_rows = 0
-        page = 0
-        while True:
-            paged_sql = sql_template.format(sym_filter=sym_filter_sql) + f" LIMIT {PAGE_SIZE} OFFSET {page * PAGE_SIZE}"
-            page_table = f"{table_name}_page{page}"
-            count = query_parquet(client, paged_sql, con, page_table, verbose=verbose)
-            if page == 0:
-                con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM {page_table}")
-            elif count > 0:
-                con.execute(f"INSERT INTO {table_name} SELECT * FROM {page_table}")
-            con.execute(f"DROP TABLE {page_table}")
-            total_rows += count
-            if count < PAGE_SIZE:
-                break
-            page += 1
-        print(f"    -> {total_rows} rows ({page + 1} pages)")
+        count = query_parquet(client, sql, con, table_name, verbose=verbose)
+        print(f"    -> {count} rows")
 
     # 4. Prices (only at rebalance dates)
     print("  Fetching prices...")
@@ -150,7 +135,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date):
+def screen_stocks(con, target_date, mktcap_min):
     """Screen for Low P/E stocks. Returns list of (symbol, market_cap) tuples."""
     cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
 
@@ -178,12 +163,12 @@ def screen_stocks(con, target_date):
         ORDER BY r.priceToEarningsRatio ASC
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
-          PE_MIN, PE_MAX, ROE_MIN, DE_MAX, MKTCAP_MIN, MAX_STOCKS]).fetchall()
+          PE_MIN, PE_MAX, ROE_MIN, DE_MAX, mktcap_min, MAX_STOCKS]).fetchall()
 
     return [(r[0], r[1]) for r in rows]
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
     """Run Low P/E backtest. Returns list of period result dicts."""
     results = []
 
@@ -191,7 +176,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date)
+        portfolio = screen_stocks(con, entry_date, mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
             spy_prices_entry = get_prices(con, ["SPY"], entry_date)
@@ -279,16 +264,17 @@ def main():
     exchanges, universe_name = resolve_exchanges(args)
     frequency = args.frequency or DEFAULT_FREQUENCY
     use_costs = not args.no_costs
-    # Auto-detect risk-free rate from exchanges (or use user override)
+    # Auto-detect risk-free rate and market cap threshold from exchanges
     from cli_utils import get_risk_free_rate
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
+    mktcap_threshold = get_mktcap_threshold(exchanges)
 
     # Determine periods per year
     freq_map = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}
     periods_per_year = freq_map[frequency]
 
     signal_desc = (f"P/E {PE_MIN}-{PE_MAX}, ROE > {ROE_MIN*100:.0f}%, "
-                   f"D/E < {DE_MAX}, MCap > ${MKTCAP_MIN/1e9:.0f}B, top {MAX_STOCKS}")
+                   f"D/E < {DE_MAX}, MCap > {mktcap_threshold/1e9:.0f}B local, top {MAX_STOCKS}")
     print_header("LOW P/E BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
@@ -310,7 +296,7 @@ def main():
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=args.verbose)
+    results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs, verbose=args.verbose)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
