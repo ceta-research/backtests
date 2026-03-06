@@ -5,7 +5,7 @@ PEG Ratio (GARP) Backtest
 Quarterly rebalancing, equal weight, top 30 by lowest PEG.
 Fetches data via configurable provider, caches in DuckDB, runs locally.
 
-Signal: PEG 0-1.0, P/E 8-30, ROE > 12%, D/E < 1.5, Market Cap > $1B
+Signal: PEG 0-1.0, P/E 8-30, ROE > 12%, D/E < 1.5, Market Cap > local currency threshold
 Portfolio: Top 30 by lowest PEG, equal weight. Cash if < 10 qualify.
 Rebalancing: Quarterly (Jan/Apr/Jul/Oct), 2000-2025.
 
@@ -42,7 +42,7 @@ from data_utils import query_parquet, get_prices, generate_rebalance_dates, filt
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
-                       get_risk_free_rate)
+                       get_risk_free_rate, get_mktcap_threshold)
 
 # --- Signal parameters ---
 PEG_MAX = 1.0              # PEG < 1.0 (paying less than growth warrants)
@@ -51,7 +51,7 @@ PE_MIN = 8                 # Exclude distressed / deeply cyclical
 PE_MAX = 30                # Exclude speculative
 ROE_MIN = 0.12             # Return on equity > 12% (quality filter)
 DE_MAX = 1.5               # Debt-to-equity < 1.5 (manageable leverage)
-MKTCAP_MIN = 1_000_000_000 # $1B minimum market cap
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 MAX_STOCKS = 30            # Top 30 by PEG, equal weight
 MIN_STOCKS = 10            # Hold cash if fewer qualify
 DEFAULT_FREQUENCY = "quarterly"
@@ -158,7 +158,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date):
+def screen_stocks(con, target_date, mktcap_min):
     """Screen for GARP stocks (low PEG + quality filters).
 
     Returns list of (symbol, market_cap) tuples sorted by PEG ascending.
@@ -195,13 +195,13 @@ def screen_stocks(con, target_date):
         ORDER BY r.priceToEarningsGrowthRatio ASC
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
-          PEG_MIN, PEG_MAX, PE_MIN, PE_MAX, ROE_MIN, DE_MAX, MKTCAP_MIN,
+          PEG_MIN, PEG_MAX, PE_MIN, PE_MAX, ROE_MIN, DE_MAX, mktcap_min,
           MAX_STOCKS]).fetchall()
 
     return [(r[0], r[1]) for r in rows]
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
     """Run PEG ratio backtest. Returns list of period result dicts."""
     results = []
 
@@ -209,7 +209,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date)
+        portfolio = screen_stocks(con, entry_date, mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
             spy_prices_entry = get_prices(con, ["SPY"], entry_date)
@@ -339,13 +339,13 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
 
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, verbose, output_path=None):
+               risk_free_rate, mktcap_threshold, verbose, output_path=None):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
     signal_desc = (f"PEG {PEG_MIN}-{PEG_MAX}, P/E {PE_MIN}-{PE_MAX}, "
                    f"ROE > {ROE_MIN*100:.0f}%, D/E < {DE_MAX}, "
-                   f"MCap > ${MKTCAP_MIN/1e9:.0f}B, top {MAX_STOCKS}")
+                   f"MCap > {mktcap_threshold/1e9:.0f}B local, top {MAX_STOCKS}")
     print_header("PEG RATIO (GARP) BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
@@ -366,7 +366,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=verbose)
+    results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs, verbose=verbose)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -469,6 +469,7 @@ def main():
         for preset_name, preset_exchanges in presets_to_run:
             uni_name = "_".join(preset_exchanges)
             rfr = get_risk_free_rate(preset_exchanges, args.risk_free_rate)
+            mktcap_threshold = get_mktcap_threshold(preset_exchanges)
             output_path = None
             if args.output:
                 out_dir = os.path.dirname(args.output) or "."
@@ -480,7 +481,7 @@ def main():
 
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
-                                    use_costs, rfr, args.verbose, output_path)
+                                    use_costs, rfr, mktcap_threshold, args.verbose, output_path)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -526,9 +527,10 @@ def main():
 
     # Single exchange mode
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
+    mktcap_threshold = get_mktcap_threshold(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, args.verbose, args.output)
+               risk_free_rate, mktcap_threshold, args.verbose, args.output)
 
 
 if __name__ == "__main__":

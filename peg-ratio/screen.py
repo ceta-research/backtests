@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from cli_utils import add_common_args, resolve_exchanges
+from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold
 
 # Signal parameters (match backtest.py)
 PEG_MAX = 1.0
@@ -28,11 +28,11 @@ PE_MIN = 8
 PE_MAX = 30
 ROE_MIN = 0.12
 DE_MAX = 1.5
-MKTCAP_MIN = 1_000_000_000
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 MAX_STOCKS = 30
 
 
-def run_screen(client, exchanges, verbose=False):
+def run_screen(client, exchanges, mktcap_min, verbose=False):
     """Run live screen using TTM data. Returns list of dicts."""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
@@ -61,7 +61,7 @@ def run_screen(client, exchanges, verbose=False):
           AND k.returnOnEquityTTM > {ROE_MIN}
           AND f.debtToEquityRatioTTM >= 0
           AND f.debtToEquityRatioTTM < {DE_MAX}
-          AND k.marketCap > {MKTCAP_MIN}
+          AND k.marketCap > {mktcap_min}
           {exchange_filter}
         QUALIFY ROW_NUMBER() OVER (PARTITION BY f.symbol ORDER BY f.priceToEarningsGrowthRatioTTM ASC) = 1
         ORDER BY f.priceToEarningsGrowthRatioTTM ASC
@@ -93,14 +93,15 @@ def main():
         return
 
     exchanges, universe_name = resolve_exchanges(args)
+    mktcap_min = get_mktcap_threshold(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
 
     print(f"PEG Ratio (GARP) Screen | Universe: {universe_name}")
     print(f"Filters: PEG {PEG_MIN}-{PEG_MAX}, P/E {PE_MIN}-{PE_MAX}, "
-          f"ROE > {ROE_MIN*100:.0f}%, D/E < {DE_MAX}, MCap > ${MKTCAP_MIN/1e9:.0f}B")
+          f"ROE > {ROE_MIN*100:.0f}%, D/E < {DE_MAX}, MCap > {mktcap_min/1e9:.1f}B local")
     print("=" * 80)
 
-    results = run_screen(cr, exchanges, verbose=args.verbose)
+    results = run_screen(cr, exchanges, mktcap_min, verbose=args.verbose)
 
     if not results:
         print("No qualifying stocks found.")
