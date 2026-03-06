@@ -46,7 +46,7 @@ EXCHANGE_PRESETS = {
     # Other
     "brazil": {"name": "SAO", "exchanges": ["SAO"]},
     "mexico": {"name": "BMV", "exchanges": ["BMV"]},
-    "southafrica": {"name": "JSE", "exchanges": ["JSE"]},
+    "southafrica": {"name": "JSE", "exchanges": ["JNB"]},
     "saudi": {"name": "SAU", "exchanges": ["SAU"]},
     "israel": {"name": "TLV", "exchanges": ["TLV"]},
 }
@@ -77,7 +77,7 @@ REGIONAL_RISK_FREE_RATES = {
     # Other
     "SAO": 0.105,    # Brazil (high inflation)
     "BMV": 0.080,    # Mexico
-    "JSE": 0.090,    # South Africa
+    "JSE": 0.090, "JNB": 0.090,    # South Africa
     "SAU": 0.035,    # Saudi Arabia
     "TLV": 0.030,    # Israel
 }
