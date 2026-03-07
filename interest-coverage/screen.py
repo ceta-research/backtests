@@ -19,18 +19,18 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from cli_utils import add_common_args, resolve_exchanges, EXCHANGE_PRESETS
+from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold, EXCHANGE_PRESETS
 
 # Signal parameters (same as backtest)
 COVERAGE_MIN = 5.0
 DE_MIN = 0.0
 DE_MAX = 1.5
 ROE_MIN = 0.08
-MKTCAP_MIN = 1_000_000_000
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 LIMIT = 30
 
 
-def build_screen_sql(exchanges=None):
+def build_screen_sql(exchanges=None, mktcap_min=1_000_000_000):
     """Build the TTM screening SQL query."""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
@@ -54,7 +54,7 @@ WHERE r.interestCoverageRatioTTM > {COVERAGE_MIN}
   AND r.debtToEquityRatioTTM >= {DE_MIN}
   AND r.debtToEquityRatioTTM < {DE_MAX}
   AND k.returnOnEquityTTM > {ROE_MIN}
-  AND k.marketCap > {MKTCAP_MIN}
+  AND k.marketCap > {mktcap_min}
   {exchange_clause}
 ORDER BY r.interestCoverageRatioTTM DESC
 LIMIT {LIMIT}
@@ -72,10 +72,12 @@ def main():
     args = parser.parse_args()
 
     exchanges, universe_name = resolve_exchanges(args)
+    mktcap_threshold = get_mktcap_threshold(exchanges)
+    mktcap_label = f"{mktcap_threshold/1e9:.0f}B" if mktcap_threshold >= 1e9 else f"{mktcap_threshold/1e6:.0f}M"
 
     if args.cloud:
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
-        sql = build_screen_sql(exchanges)
+        sql = build_screen_sql(exchanges, mktcap_threshold)
         code = f"""
 from cr_client import CetaResearch
 cr = CetaResearch()
@@ -92,11 +94,11 @@ for r in results:
         return
 
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
-    sql = build_screen_sql(exchanges)
+    sql = build_screen_sql(exchanges, mktcap_threshold)
 
     print(f"Interest Coverage Screen: {universe_name}")
     print(f"Signal: Coverage > {COVERAGE_MIN}, D/E {DE_MIN}-{DE_MAX}, "
-          f"ROE > {ROE_MIN*100:.0f}%, MCap > ${MKTCAP_MIN/1e9:.0f}B")
+          f"ROE > {ROE_MIN*100:.0f}%, MCap > {mktcap_label} local")
     print(f"Top {LIMIT} by highest coverage\n")
 
     results = cr.query(sql, timeout=120)

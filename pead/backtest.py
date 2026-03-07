@@ -45,10 +45,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, REGIONAL_BENCHMARKS
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
-                       EXCHANGE_PRESETS)
+                       get_mktcap_threshold, EXCHANGE_PRESETS)
 
 # --- Parameters ---
-MKTCAP_MIN = 500_000_000      # $500M minimum market cap
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 MIN_ESTIMATE = 0.01           # |epsEstimated| > $0.01 (avoid extreme ratios)
 MAX_SURPRISE = 2.0            # Cap surprise at 200% to reduce outlier noise
 MAX_RETURN = 2.0              # Cap individual event returns at 200%
@@ -58,7 +58,7 @@ START_YEAR = 2000
 END_YEAR = 2025
 
 
-def fetch_data(client, exchanges, verbose=False):
+def fetch_data(client, exchanges, mktcap_min, verbose=False):
     """Fetch earnings surprises, prices, and market cap data into DuckDB."""
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -137,7 +137,7 @@ def fetch_data(client, exchanges, verbose=False):
         SELECT symbol, event_date, surprise_pct, category
         FROM matched
         WHERE rn = 1
-          AND (marketCap IS NULL OR marketCap > {MKTCAP_MIN})
+          AND (marketCap IS NULL OR marketCap > {mktcap_min})
     """)
     # Deduplicate (one event per symbol per date)
     con.execute("""
@@ -460,7 +460,7 @@ def compute_yearly_stats(results):
     return yearly
 
 
-def build_output(car_metrics, quintiles, yearly, results, universe_name, benchmark):
+def build_output(car_metrics, quintiles, yearly, results, universe_name, benchmark, mktcap_min):
     """Build JSON output."""
     return {
         "strategy": "PEAD (Post-Earnings Announcement Drift)",
@@ -469,7 +469,7 @@ def build_output(car_metrics, quintiles, yearly, results, universe_name, benchma
         "study_type": "event_study",
         "period": f"{START_YEAR}-{END_YEAR}",
         "filters": {
-            "min_market_cap": MKTCAP_MIN,
+            "min_market_cap": mktcap_min,
             "min_estimate": MIN_ESTIMATE,
             "max_surprise": MAX_SURPRISE,
         },
@@ -534,14 +534,15 @@ def print_results(car_metrics, quintiles, universe_name):
     print(f"{'=' * 70}")
 
 
-def run_single(cr, exchanges, universe_name, verbose=False, output_path=None, max_surprise=None):
+def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_path=None, max_surprise=None):
     """Run PEAD event study for a single exchange set."""
     global MAX_SURPRISE
     if max_surprise is not None:
         MAX_SURPRISE = max_surprise
 
+    mktcap_label = f"{mktcap_min/1e9:.0f}B" if mktcap_min >= 1e9 else f"{mktcap_min/1e6:.0f}M"
     signal_desc = (f"Surprise = (actual - est) / |est|, "
-                   f"MCap > ${MKTCAP_MIN/1e6:.0f}M, |est| > ${MIN_ESTIMATE}")
+                   f"MCap > {mktcap_label} local, |est| > ${MIN_ESTIMATE}")
     print_header("PEAD EVENT STUDY", universe_name, exchanges, signal_desc)
     print(f"  Windows: {', '.join(f'T+{w}' for w in WINDOWS)}")
     print(f"  Max surprise: {MAX_SURPRISE*100:.0f}%")
@@ -550,7 +551,7 @@ def run_single(cr, exchanges, universe_name, verbose=False, output_path=None, ma
     # Phase 1: Fetch data
     print("\nPhase 1: Fetching data via API...")
     t0 = time.time()
-    con = fetch_data(cr, exchanges, verbose=verbose)
+    con = fetch_data(cr, exchanges, mktcap_min, verbose=verbose)
     if con is None:
         return None
     fetch_time = time.time() - t0
@@ -591,7 +592,7 @@ def run_single(cr, exchanges, universe_name, verbose=False, output_path=None, ma
     total_time = time.time() - t0
     print(f"\n  Total time: {total_time:.0f}s (fetch: {fetch_time:.0f}s, compute: {compute_time:.0f}s)")
 
-    output = build_output(car_metrics, quintiles, yearly, results, universe_name, benchmark)
+    output = build_output(car_metrics, quintiles, yearly, results, universe_name, benchmark, mktcap_min)
 
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
@@ -674,8 +675,10 @@ def main():
             print(f"# {preset_name.upper()} ({uni_name})")
             print(f"{'#' * 65}")
 
+            mktcap_threshold = get_mktcap_threshold(preset_exchanges)
+
             try:
-                result = run_single(cr, preset_exchanges, uni_name,
+                result = run_single(cr, preset_exchanges, uni_name, mktcap_threshold,
                                     verbose=args.verbose, output_path=output_path,
                                     max_surprise=args.max_surprise)
                 if result:
@@ -734,8 +737,9 @@ def main():
         return
 
     # Single exchange mode
+    mktcap_threshold = get_mktcap_threshold(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
-    run_single(cr, exchanges, universe_name, verbose=args.verbose,
+    run_single(cr, exchanges, universe_name, mktcap_threshold, verbose=args.verbose,
                output_path=args.output, max_surprise=args.max_surprise)
 
 

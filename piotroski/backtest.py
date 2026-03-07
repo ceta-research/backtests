@@ -39,10 +39,10 @@ from cr_client import CetaResearch
 from data_utils import query_parquet, generate_rebalance_dates
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
-from cli_utils import add_common_args, resolve_exchanges, print_header
+from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
 
 # --- Config ---
-MKTCAP_MIN = 100_000_000  # $100M
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 PB_QUINTILE = 0.20  # Bottom 20% by P/B
 DEFAULT_FREQUENCY = "annual"
 
@@ -159,7 +159,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_and_score(con, target_date):
+def screen_and_score(con, target_date, mktcap_min):
     """Compute Piotroski scores for value universe at a given rebalance date.
 
     Returns dict: {symbol: (score, market_cap)}
@@ -258,7 +258,7 @@ def screen_and_score(con, target_date):
         cutoff_epoch, prev_year_epoch,
         cutoff_epoch,
         cutoff_epoch,
-        MKTCAP_MIN,
+        mktcap_min,
         PB_QUINTILE,
     ]).fetchall()
 
@@ -277,7 +277,7 @@ def get_price(con, symbol, target_date):
     return row[0] if row else None
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
     """Run the full Piotroski backtest with three portfolio tracks."""
     print(f"Phase 2: Running annual backtest ({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
     periods = []
@@ -286,7 +286,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        scored = screen_and_score(con, entry_date)
+        scored = screen_and_score(con, entry_date, mktcap_min)
         if not scored:
             if verbose:
                 print(f"  {entry_date.year}: No scored stocks found, skipping")
@@ -561,10 +561,12 @@ def main():
     # Auto-detect risk-free rate from exchanges (or use user override)
     from cli_utils import get_risk_free_rate
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
+    mktcap_threshold = get_mktcap_threshold(exchanges)
+    mktcap_label = f"{mktcap_threshold/1e9:.0f}B" if mktcap_threshold >= 1e9 else f"{mktcap_threshold/1e6:.0f}M"
     use_costs = not args.no_costs
     periods_per_year = 1  # Annual only for Piotroski
 
-    signal_desc = f"Bottom {int(PB_QUINTILE*100)}% P/B, MCap > ${MKTCAP_MIN//1_000_000}M"
+    signal_desc = f"Bottom {int(PB_QUINTILE*100)}% P/B, MCap > {mktcap_label} local"
     print_header("PIOTROSKI F-SCORE BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Portfolios: Score 8-9 (long), Score 0-2 (avoid), All Value (baseline)")
     print(f"  Rebalancing: Annual (April 1), 1985-2025")
@@ -586,7 +588,7 @@ def main():
 
     # Phase 2: Run backtest locally
     t1 = time.time()
-    periods = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=args.verbose)
+    periods = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs, verbose=args.verbose)
     bt_time = time.time() - t1
 
     # Phase 3: Compute and display metrics

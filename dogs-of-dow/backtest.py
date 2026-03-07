@@ -36,14 +36,14 @@ from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
-from cli_utils import add_common_args, resolve_exchanges, print_header
+from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
 
 # --- Signal parameters ---
 DOGS_COUNT = 10          # Top 10 by yield
 BLUECHIP_COUNT = 30      # Blue-chip universe size (non-US)
 MIN_STOCKS = 5           # Hold cash if fewer qualify
 DEFAULT_FREQUENCY = "annual"
-MKTCAP_MIN = 1_000_000_000  # $1B min for non-US blue-chip filter
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 
 
 def is_us_exchange(exchanges):
@@ -156,7 +156,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_dogs(con, target_date, use_dow=True):
+def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
     """Screen for Dogs (top yielders in blue-chip universe).
 
     For US (use_dow=True): Rank all Dow 30 members by yield, pick top 10.
@@ -218,12 +218,12 @@ def screen_dogs(con, target_date, use_dow=True):
             JOIN latest_ratios r ON b.symbol = r.symbol AND r.rn = 1
             ORDER BY r.dividendYield DESC
             LIMIT ?
-        """, [cutoff_epoch, MKTCAP_MIN, BLUECHIP_COUNT, cutoff_epoch, DOGS_COUNT]).fetchall()
+        """, [cutoff_epoch, mktcap_min, BLUECHIP_COUNT, cutoff_epoch, DOGS_COUNT]).fetchall()
 
     return [(r[0], r[1]) for r in rows]
 
 
-def run_backtest(con, rebalance_dates, use_dow=True, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, use_dow=True, use_costs=True, verbose=False, mktcap_min=1_000_000_000):
     """Run Dogs backtest. Returns list of period result dicts."""
     results = []
 
@@ -231,7 +231,7 @@ def run_backtest(con, rebalance_dates, use_dow=True, use_costs=True, verbose=Fal
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_dogs(con, entry_date, use_dow=use_dow)
+        portfolio = screen_dogs(con, entry_date, use_dow=use_dow, mktcap_min=mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
             spy_prices_entry = get_prices(con, ["SPY"], entry_date)
@@ -325,6 +325,7 @@ def main():
     frequency = args.frequency or DEFAULT_FREQUENCY
     use_costs = not args.no_costs
     use_dow = is_us_exchange(exchanges)
+    mktcap_threshold = get_mktcap_threshold(exchanges)
 
     from cli_utils import get_risk_free_rate
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
@@ -335,7 +336,7 @@ def main():
     if use_dow:
         signal_desc = f"Dow 30, top {DOGS_COUNT} by dividend yield"
     else:
-        signal_desc = f"Top {BLUECHIP_COUNT} by market cap, top {DOGS_COUNT} by dividend yield"
+        signal_desc = f"Top {BLUECHIP_COUNT} by MCap > {mktcap_threshold/1e9:.0f}B local, top {DOGS_COUNT} by dividend yield"
     print_header("DOGS OF THE DOW BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
@@ -358,7 +359,8 @@ def main():
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
     results = run_backtest(con, rebalance_dates, use_dow=use_dow,
-                           use_costs=use_costs, verbose=args.verbose)
+                           use_costs=use_costs, verbose=args.verbose,
+                           mktcap_min=mktcap_threshold)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 

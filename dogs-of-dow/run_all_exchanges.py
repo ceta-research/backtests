@@ -21,7 +21,7 @@ from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates
 from metrics import compute_metrics, compute_annual_returns
 from costs import tiered_cost, apply_costs
-from cli_utils import get_risk_free_rate, REGIONAL_RISK_FREE_RATES
+from cli_utils import get_risk_free_rate, get_mktcap_threshold, REGIONAL_RISK_FREE_RATES
 
 from backtest import (
     fetch_data_via_api, run_backtest, is_us_exchange,
@@ -73,6 +73,7 @@ def main():
         name = config["name"]
         exchanges = config["exchanges"]
         risk_free_rate = get_risk_free_rate(exchanges)
+        mktcap_threshold = get_mktcap_threshold(exchanges)
         use_dow = is_us_exchange(exchanges)
 
         strategy_label = "Dogs of the Dow" if use_dow else "High Yield Blue Chips"
@@ -93,7 +94,8 @@ def main():
                 continue
 
             results = run_backtest(con, rebalance_dates, use_dow=use_dow,
-                                    use_costs=use_costs, verbose=args.verbose)
+                                    use_costs=use_costs, verbose=args.verbose,
+                                    mktcap_min=mktcap_threshold)
 
             valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
             if not valid:

@@ -32,10 +32,11 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet
+from cli_utils import get_mktcap_threshold
 
 # ─── Parameters ───────────────────────────────────────────────────────────────
 STRATEGY_NAME = "Post-Stock Split Performance"
-DEFAULT_MKTCAP_MIN = 500_000_000    # $500M minimum market cap
+# DEFAULT_MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold(use_low_threshold=True)
 DEFAULT_MIN_RATIO = 1.5             # Minimum forward split ratio
 DEFAULT_START_YEAR = 2000
 DEFAULT_END_YEAR = 2025
@@ -431,14 +432,16 @@ def main():
     parser.add_argument("--output", type=str, default="stock-split/results",
                         help="Output directory (default: stock-split/results)")
     parser.add_argument("--verbose", "-v", action="store_true")
-    parser.add_argument("--min-mktcap", type=float, default=DEFAULT_MKTCAP_MIN,
-                        help=f"Minimum market cap in USD (default: {DEFAULT_MKTCAP_MIN:,.0f})")
+    parser.add_argument("--min-mktcap", type=float, default=None,
+                        help="Minimum market cap in local currency (default: auto per exchange)")
     parser.add_argument("--min-ratio", type=float, default=DEFAULT_MIN_RATIO,
                         help=f"Minimum split ratio (default: {DEFAULT_MIN_RATIO})")
     parser.add_argument("--start-year", type=int, default=DEFAULT_START_YEAR)
     parser.add_argument("--end-year", type=int, default=DEFAULT_END_YEAR)
     args = parser.parse_args()
     args.exchanges = [e.strip().upper() for e in args.exchange.split(",")] if args.exchange else None
+    if args.min_mktcap is None:
+        args.min_mktcap = get_mktcap_threshold(args.exchanges, use_low_threshold=True)
 
     client = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     con = duckdb.connect(":memory:")
@@ -448,7 +451,8 @@ def main():
     period = f"{args.start_year}-{args.end_year}"
     exch = " | ".join(args.exchanges) if args.exchanges else "All exchanges"
     print(f"  Period: {period} | Exchange: {exch}")
-    print(f"  Min mktcap: ${args.min_mktcap/1e6:.0f}M | Min split ratio: {args.min_ratio}x")
+    mktcap_label = f"{args.min_mktcap/1e9:.0f}B" if args.min_mktcap >= 1e9 else f"{args.min_mktcap/1e6:.0f}M"
+    print(f"  Min mktcap: {mktcap_label} local | Min split ratio: {args.min_ratio}x")
     print("=" * 65)
 
     all_windows = PRE_WINDOWS + WINDOWS

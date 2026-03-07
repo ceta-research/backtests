@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from cli_utils import add_common_args, resolve_exchanges, EXCHANGE_PRESETS
+from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold, EXCHANGE_PRESETS
 
 # Signal parameters (match backtest.py)
 ASSET_GROWTH_MAX = 0.10
@@ -27,11 +27,11 @@ ASSET_GROWTH_MIN = -0.20
 ROE_MIN = 0.08
 ROA_MIN = 0.05
 OPM_MIN = 0.10
-MKTCAP_MIN = 500_000_000
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold(use_low_threshold=True)
 MAX_STOCKS = 30
 
 
-def run_screen(client, exchanges, verbose=False):
+def run_screen(client, exchanges, mktcap_min, verbose=False):
     """Run live screen using TTM data. Returns list of dicts."""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
@@ -78,7 +78,7 @@ def run_screen(client, exchanges, verbose=False):
           AND k.returnOnEquityTTM > {ROE_MIN}
           AND k.returnOnAssetsTTM > {ROA_MIN}
           AND f.operatingProfitMarginTTM > {OPM_MIN}
-          AND k.marketCap > {MKTCAP_MIN}
+          AND k.marketCap > {mktcap_min}
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Asset Management%')
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Shell Companies%')
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Closed-End Fund%')
@@ -110,15 +110,17 @@ def main():
         return
 
     exchanges, universe_name = resolve_exchanges(args)
+    mktcap_threshold = get_mktcap_threshold(exchanges, use_low_threshold=True)
+    mktcap_label = f"{mktcap_threshold/1e9:.0f}B" if mktcap_threshold >= 1e9 else f"{mktcap_threshold/1e6:.0f}M"
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
 
     print(f"Asset Growth Anomaly Screen - {universe_name}")
     print(f"Signal: AG {ASSET_GROWTH_MIN*100:.0f}% to {ASSET_GROWTH_MAX*100:.0f}%, "
           f"ROE > {ROE_MIN*100:.0f}%, ROA > {ROA_MIN*100:.0f}%, "
-          f"OPM > {OPM_MIN*100:.0f}%, MCap > ${MKTCAP_MIN/1e6:.0f}M")
+          f"OPM > {OPM_MIN*100:.0f}%, MCap > {mktcap_label} local")
     print("-" * 90)
 
-    results = run_screen(cr, exchanges, verbose=args.verbose)
+    results = run_screen(cr, exchanges, mktcap_threshold, verbose=args.verbose)
 
     if not results:
         print("No stocks qualify.")

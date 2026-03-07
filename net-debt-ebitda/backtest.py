@@ -5,7 +5,7 @@ Net Debt to EBITDA Screen Backtest
 Quarterly rebalancing, equal weight, top 30 by lowest Net Debt/EBITDA.
 Fetches data via configurable provider, caches in DuckDB, runs locally.
 
-Signal: Net Debt/EBITDA < 2x AND > -5x, ROE > 10%, Market Cap > $1B
+Signal: Net Debt/EBITDA < 2x AND > -5x, ROE > 10%, Market Cap > local currency threshold
 Portfolio: Top 30 by lowest Net Debt/EBITDA, equal weight. Cash if < 10 qualify.
 Rebalancing: Quarterly (Jan/Apr/Jul/Oct), 2000-2025.
 
@@ -42,13 +42,13 @@ from data_utils import query_parquet, get_prices, generate_rebalance_dates, filt
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
-                       get_risk_free_rate, EXCHANGE_PRESETS)
+                       get_risk_free_rate, get_mktcap_threshold, EXCHANGE_PRESETS)
 
 # --- Signal parameters ---
 NET_DEBT_EBITDA_MAX = 2.0    # Select stocks with Net Debt/EBITDA < 2x
 NET_DEBT_EBITDA_MIN = -5.0   # Exclude extreme net-cash (tiny EBITDA denominator artifacts)
 ROE_MIN = 0.10               # Return on equity > 10% (quality filter)
-MKTCAP_MIN = 1_000_000_000   # $1B minimum market cap
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 MAX_STOCKS = 30
 MIN_STOCKS = 10
 DEFAULT_FREQUENCY = "quarterly"
@@ -161,7 +161,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date):
+def screen_stocks(con, target_date, mktcap_min):
     """Screen for low Net Debt/EBITDA quality stocks.
 
     45-day lag for point-in-time: annual filings available ~2-3 months after FY end.
@@ -187,13 +187,13 @@ def screen_stocks(con, target_date):
         ORDER BY m.netDebtToEBITDA ASC
         LIMIT ?
     """, [cutoff_epoch,
-          NET_DEBT_EBITDA_MAX, NET_DEBT_EBITDA_MIN, ROE_MIN, MKTCAP_MIN,
+          NET_DEBT_EBITDA_MAX, NET_DEBT_EBITDA_MIN, ROE_MIN, mktcap_min,
           MAX_STOCKS]).fetchall()
 
     return [(r[0], r[1]) for r in rows]
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
     """Run Net Debt/EBITDA backtest. Returns list of period result dicts."""
     results = []
 
@@ -201,7 +201,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date)
+        portfolio = screen_stocks(con, entry_date, mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
             spy_prices_entry = get_prices(con, ["SPY"], entry_date)
@@ -331,12 +331,13 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, verbose, output_path=None):
+               risk_free_rate, mktcap_min, verbose, output_path=None):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
+    mktcap_label = f"{mktcap_min/1e9:.0f}B" if mktcap_min >= 1e9 else f"{mktcap_min/1e6:.0f}M"
     signal_desc = (f"Net Debt/EBITDA < {NET_DEBT_EBITDA_MAX}x and > {NET_DEBT_EBITDA_MIN}x, "
-                   f"ROE > {ROE_MIN*100:.0f}%, MCap > ${MKTCAP_MIN/1e9:.0f}B, top {MAX_STOCKS}")
+                   f"ROE > {ROE_MIN*100:.0f}%, MCap > {mktcap_label} local, top {MAX_STOCKS}")
     print_header("NET DEBT/EBITDA BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
@@ -354,7 +355,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=verbose)
+    results = run_backtest(con, rebalance_dates, mktcap_min, use_costs=use_costs, verbose=verbose)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -437,6 +438,7 @@ def main():
         for preset_name, preset_exchanges in GLOBAL_PRESETS:
             uni_name = "_".join(preset_exchanges)
             rfr = get_risk_free_rate(preset_exchanges, args.risk_free_rate)
+            mktcap_threshold = get_mktcap_threshold(preset_exchanges)
             output_path = None
             if args.output:
                 out_dir = os.path.dirname(args.output) or "."
@@ -448,7 +450,7 @@ def main():
 
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
-                                    use_costs, rfr, args.verbose, output_path)
+                                    use_costs, rfr, mktcap_threshold, args.verbose, output_path)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -493,9 +495,10 @@ def main():
 
     # Single exchange mode
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
+    mktcap_threshold = get_mktcap_threshold(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, args.verbose, args.output)
+               risk_free_rate, mktcap_threshold, args.verbose, args.output)
 
 
 if __name__ == "__main__":

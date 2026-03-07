@@ -8,10 +8,10 @@ results_dir = Path(__file__).parent / "results"
 # Charts go to the content directory, not backtests
 content_charts_dir = (
     Path(__file__).parent.parent.parent
-    / "ts-content-creator" / "content" / "_current"
+    / "ts-content-creator" / "content" / "_ready"
     / "factor-01-magic-formula" / "charts"
 )
-content_charts_dir.mkdir(exist_ok=True)
+content_charts_dir.mkdir(parents=True, exist_ok=True)
 
 # Load exchange comparison (nested under 'exchanges')
 with open(results_dir / "exchange_comparison.json") as f:

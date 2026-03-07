@@ -19,12 +19,12 @@ from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates
 from metrics import compute_metrics, compute_annual_returns
 from costs import tiered_cost, apply_costs
-from cli_utils import get_risk_free_rate, REGIONAL_RISK_FREE_RATES
+from cli_utils import get_risk_free_rate, get_mktcap_threshold, REGIONAL_RISK_FREE_RATES
 
 # Import backtest functions from our module
 from backtest import (
     fetch_data_via_api, run_backtest,
-    COVERAGE_MIN, DE_MIN, DE_MAX, ROE_MIN, MKTCAP_MIN, MAX_STOCKS, MIN_STOCKS,
+    COVERAGE_MIN, DE_MIN, DE_MAX, ROE_MIN, MAX_STOCKS, MIN_STOCKS,
     DEFAULT_FREQUENCY,
 )
 
@@ -58,6 +58,8 @@ def main():
     parser.add_argument("--base-url", type=str)
     parser.add_argument("--no-costs", action="store_true")
     parser.add_argument("--frequency", type=str, default=DEFAULT_FREQUENCY)
+    parser.add_argument("--resume", action="store_true",
+                        help="Skip exchanges already completed in output file")
     args = parser.parse_args()
 
     freq_map = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}
@@ -66,13 +68,26 @@ def main():
 
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
 
+    # Load existing results if resuming
     all_results = {}
+    if args.resume and os.path.exists(args.output):
+        with open(args.output) as f:
+            all_results = json.load(f)
+        completed = [k for k, v in all_results.items() if v.get("status") == "completed"]
+        print(f"Resuming: {len(completed)} already completed: {completed}")
+
     total_start = time.time()
 
     for config in EXCHANGE_CONFIGS:
         name = config["name"]
         exchanges = config["exchanges"]
         risk_free_rate = get_risk_free_rate(exchanges)
+        mktcap_threshold = get_mktcap_threshold(exchanges)
+
+        # Skip if already completed in resume mode
+        if args.resume and all_results.get(name, {}).get("status") == "completed":
+            print(f"\n  SKIPPING {name} (already completed)")
+            continue
 
         print(f"\n{'='*65}")
         print(f"  {name} ({', '.join(exchanges)})")
@@ -89,7 +104,7 @@ def main():
                 all_results[name] = {"status": "no_data"}
                 continue
 
-            results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=args.verbose)
+            results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs, verbose=args.verbose)
 
             valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
             if not valid:

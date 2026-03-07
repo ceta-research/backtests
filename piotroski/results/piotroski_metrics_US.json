@@ -1,0 +1,101 @@
+{
+  "universe": "US Value (bottom 20% P/B, >$100M)",
+  "period": "1985-2025 (32 years)",
+  "rebalancing": "annual (April 1)",
+  "weighting": "equal weight",
+  "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+  "portfolios": {
+    "score_8_9": {
+      "cagr": 10.35,
+      "total_return": 2239.29,
+      "volatility": 29.65,
+      "sharpe": 0.282,
+      "sortino": 0.616,
+      "calmar": 0.192,
+      "max_drawdown": -53.8,
+      "var_95": -42.5,
+      "pct_negative_years": 31.0,
+      "max_consecutive_losses": 2
+    },
+    "score_0_2": {
+      "cagr": 11.02,
+      "total_return": 2732.94,
+      "volatility": 47.63,
+      "sharpe": 0.189,
+      "sortino": 0.609,
+      "calmar": 0.163,
+      "max_drawdown": -67.8,
+      "var_95": -30.6,
+      "pct_negative_years": 38.0,
+      "max_consecutive_losses": 3
+    },
+    "all_value": {
+      "cagr": 12.83,
+      "total_return": 4655.58,
+      "volatility": 36.67,
+      "sharpe": 0.295,
+      "sortino": 0.846,
+      "calmar": 0.243,
+      "max_drawdown": -52.7,
+      "var_95": -38.8,
+      "pct_negative_years": 25.0,
+      "max_consecutive_losses": 2
+    },
+    "sp500": {
+      "cagr": 10.18,
+      "total_return": 2127.52,
+      "volatility": 21.05,
+      "sharpe": 0.389,
+      "sortino": 0.803,
+      "calmar": 0.25,
+      "max_drawdown": -40.8,
+      "var_95": -23.7,
+      "pct_negative_years": 19.0,
+      "max_consecutive_losses": 2
+    }
+  },
+  "spread_cagr": -0.67,
+  "alpha_decomposition": {
+    "selection_alpha": -2.5,
+    "avoidance_alpha": 1.8
+  },
+  "decade_breakdown": [
+    {
+      "decade": "1990s",
+      "high_return": 12.5,
+      "low_return": 21.1,
+      "spread": -8.5
+    },
+    {
+      "decade": "2000s",
+      "high_return": 17.8,
+      "low_return": 18.8,
+      "spread": -1.0
+    },
+    {
+      "decade": "2010s",
+      "high_return": 3.7,
+      "low_return": 5.0,
+      "spread": -1.3
+    },
+    {
+      "decade": "2020-25",
+      "high_return": 30.6,
+      "low_return": 41.9,
+      "spread": -11.2
+    }
+  ],
+  "publication_effect": {
+    "pre_2000_spread": -8.5,
+    "post_2000_spread": -3.2
+  },
+  "high_vs_spy": {
+    "excess_cagr": 0.17,
+    "information_ratio": 0.109,
+    "tracking_error": 18.62,
+    "up_capture": 112.9,
+    "down_capture": 99.2,
+    "beta": 1.101,
+    "alpha": -0.66
+  }
+}

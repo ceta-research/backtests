@@ -50,7 +50,7 @@ from data_utils import query_parquet, get_prices, generate_rebalance_dates, filt
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
-                       get_risk_free_rate, EXCHANGE_PRESETS)
+                       get_risk_free_rate, get_mktcap_threshold, EXCHANGE_PRESETS)
 
 # --- Signal parameters ---
 GROWTH_RATE = 0.025         # g = 2.5% terminal growth
@@ -61,7 +61,7 @@ DISCOUNT_THRESHOLD = 0.20   # 20% discount to computed DCF
 # Equivalent FCF yield: (1 + DISCOUNT_THRESHOLD) / DCF_MULTIPLE
 FCF_YIELD_MIN = (1 + DISCOUNT_THRESHOLD) / DCF_MULTIPLE  # ~8.78%
 
-MKTCAP_MIN = 1_000_000_000  # $1B minimum market cap
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 MAX_STOCKS = 50
 MIN_STOCKS = 10
 DEFAULT_FREQUENCY = "annual"
@@ -161,7 +161,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date):
+def screen_stocks(con, target_date, mktcap_min):
     """Screen for high FCF yield (= deep DCF discount) stocks.
 
     Signal: FCF/MarketCap >= FCF_YIELD_MIN (equivalent to 20% DCF discount).
@@ -199,12 +199,12 @@ def screen_stocks(con, target_date):
         ORDER BY fcf_yield DESC
         LIMIT ?
     """, [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,
-          MKTCAP_MIN, FCF_YIELD_MIN, MAX_STOCKS]).fetchall()
+          mktcap_min, FCF_YIELD_MIN, MAX_STOCKS]).fetchall()
 
     return [(r[0], r[1]) for r in rows]
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
     """Run DCF Discount backtest. Returns list of period result dicts."""
     results = []
 
@@ -212,7 +212,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date)
+        portfolio = screen_stocks(con, entry_date, mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
             spy_entry = get_prices(con, ["SPY"], entry_date)
@@ -346,8 +346,9 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
+    mktcap_min = get_mktcap_threshold(exchanges)
     signal_desc = (f"FCF yield >= {FCF_YIELD_MIN*100:.2f}% (= {DISCOUNT_THRESHOLD*100:.0f}% DCF discount), "
-                   f"MCap >= ${MKTCAP_MIN/1e9:.0f}B, top {MAX_STOCKS} by FCF yield")
+                   f"MCap >= {mktcap_min/1e9:.0f}B local, top {MAX_STOCKS} by FCF yield")
     print_header("DCF DISCOUNT BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Gordon Growth Model: g={GROWTH_RATE*100:.1f}%, r={DISCOUNT_RATE*100:.0f}%, "
           f"multiple={DCF_MULTIPLE:.2f}x")
@@ -370,7 +371,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=verbose)
+    results = run_backtest(con, rebalance_dates, mktcap_min, use_costs=use_costs, verbose=verbose)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 

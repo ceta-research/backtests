@@ -5,7 +5,7 @@ Classic Low P/E Backtest
 Quarterly rebalancing, equal weight, top 30 by lowest P/E.
 Fetches data via configurable provider, caches in DuckDB, runs locally.
 
-Signal: P/E between 0-15, ROE > 10%, D/E < 1.0, Market Cap > $1B
+Signal: P/E between 0-15, ROE > 10%, D/E < 1.0, Market Cap > local currency threshold
 Portfolio: Top 30 by lowest P/E, equal weight. Cash if < 10 qualify.
 Rebalancing: Quarterly (Jan/Apr/Jul/Oct), 2000-2025.
 

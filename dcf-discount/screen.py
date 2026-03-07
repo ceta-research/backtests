@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from cli_utils import add_common_args, resolve_exchanges
+from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold
 
 # Gordon Growth Model
 GROWTH_RATE = 0.025
@@ -28,11 +28,11 @@ DCF_MULTIPLE = (1 + GROWTH_RATE) / (DISCOUNT_RATE - GROWTH_RATE)  # 13.67
 DISCOUNT_THRESHOLD = 0.20
 FCF_YIELD_MIN = (1 + DISCOUNT_THRESHOLD) / DCF_MULTIPLE  # ~8.78%
 
-MKTCAP_MIN = 1_000_000_000
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 TOP_N = 30
 
 
-def run_screen(cr, exchanges, quality=False, verbose=False):
+def run_screen(cr, exchanges, mktcap_min, quality=False, verbose=False):
     """Run live DCF discount screen. Returns list of matching stocks."""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
@@ -64,7 +64,7 @@ def run_screen(cr, exchanges, quality=False, verbose=False):
         SELECT symbol, marketCap,
             ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY dateEpoch DESC) AS rn
         FROM key_metrics
-        WHERE period = 'FY' AND marketCap > {MKTCAP_MIN}
+        WHERE period = 'FY' AND marketCap > {mktcap_min}
     )
     SELECT
         cfs.symbol,
@@ -114,16 +114,18 @@ def main():
         return
 
     exchanges, universe_name = resolve_exchanges(args)
+    mktcap_threshold = get_mktcap_threshold(exchanges)
+    mktcap_label = f"{mktcap_threshold/1e9:.0f}B" if mktcap_threshold >= 1e9 else f"{mktcap_threshold/1e6:.0f}M"
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
 
     quality_label = " (quality-filtered)" if args.quality else ""
     print(f"\nDCF Discount Screen: {universe_name}{quality_label}")
     print(f"Signal: FCF yield >= {FCF_YIELD_MIN*100:.2f}% (= {DISCOUNT_THRESHOLD*100:.0f}% DCF discount)")
-    print(f"Universe: MCap >= ${MKTCAP_MIN/1e9:.0f}B")
+    print(f"Universe: MCap >= {mktcap_label} local")
     print(f"Gordon Growth Model: g={GROWTH_RATE*100:.1f}%, r={DISCOUNT_RATE*100:.0f}%, "
           f"multiple={DCF_MULTIPLE:.2f}x\n")
 
-    rows = run_screen(cr, exchanges, quality=args.quality, verbose=args.verbose)
+    rows = run_screen(cr, exchanges, mktcap_threshold, quality=args.quality, verbose=args.verbose)
 
     if not rows:
         print("No results returned.")

@@ -5,7 +5,7 @@ Asset Growth Anomaly Backtest
 Annual rebalancing (July), equal weight, top 30 by lowest asset growth.
 Fetches data via configurable provider, caches in DuckDB, runs locally.
 
-Signal: Asset growth -20% to +10%, ROE > 8%, ROA > 5%, OPM > 10%, MCap > $500M
+Signal: Asset growth -20% to +10%, ROE > 8%, ROA > 5%, OPM > 10%, MCap > local-currency threshold (low)
 Portfolio: Top 30 by lowest asset growth, equal weight. Cash if < 10 qualify.
 Rebalancing: Annual (July), 2000-2025.
 
@@ -42,7 +42,7 @@ from data_utils import query_parquet, get_prices, generate_rebalance_dates, filt
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
-                       get_risk_free_rate, EXCHANGE_PRESETS)
+                       get_risk_free_rate, get_mktcap_threshold, EXCHANGE_PRESETS)
 
 # --- Signal parameters ---
 ASSET_GROWTH_MAX = 0.10    # Buy stocks with asset growth < 10%
@@ -50,7 +50,7 @@ ASSET_GROWTH_MIN = -0.20   # Exclude shrinking companies (> -20%)
 ROE_MIN = 0.08             # Return on equity > 8%
 ROA_MIN = 0.05             # Return on assets > 5%
 OPM_MIN = 0.10             # Operating profit margin > 10%
-MKTCAP_MIN = 500_000_000   # $500M minimum market cap
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold(use_low_threshold=True)
 MAX_STOCKS = 30
 MIN_STOCKS = 10
 DEFAULT_FREQUENCY = "annual"
@@ -159,7 +159,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date):
+def screen_stocks(con, target_date, mktcap_min):
     """Screen for low asset growth quality stocks.
 
     Computes YoY asset growth from two consecutive FY balance sheets.
@@ -218,12 +218,12 @@ def screen_stocks(con, target_date):
         LIMIT ?
     """, [cutoff_epoch, prior_cutoff_epoch, cutoff_epoch, cutoff_epoch,
           ASSET_GROWTH_MAX, ASSET_GROWTH_MIN, ROE_MIN, ROA_MIN, OPM_MIN,
-          MKTCAP_MIN, MAX_STOCKS]).fetchall()
+          mktcap_min, MAX_STOCKS]).fetchall()
 
     return [(r[0], r[1]) for r in rows]
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
     """Run Asset Growth backtest. Returns list of period result dicts."""
     results = []
 
@@ -231,7 +231,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date)
+        portfolio = screen_stocks(con, entry_date, mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
             spy_prices_entry = get_prices(con, ["SPY"], entry_date)
@@ -365,9 +365,11 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
+    mktcap_threshold = get_mktcap_threshold(exchanges, use_low_threshold=True)
+    mktcap_label = f"{mktcap_threshold/1e9:.0f}B" if mktcap_threshold >= 1e9 else f"{mktcap_threshold/1e6:.0f}M"
     signal_desc = (f"AG {ASSET_GROWTH_MIN*100:.0f}% to {ASSET_GROWTH_MAX*100:.0f}%, "
                    f"ROE > {ROE_MIN*100:.0f}%, ROA > {ROA_MIN*100:.0f}%, "
-                   f"OPM > {OPM_MIN*100:.0f}%, MCap > ${MKTCAP_MIN/1e6:.0f}M, top {MAX_STOCKS}")
+                   f"OPM > {OPM_MIN*100:.0f}%, MCap > {mktcap_label} local, top {MAX_STOCKS}")
     print_header("ASSET GROWTH ANOMALY BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
@@ -388,7 +390,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=verbose)
+    results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs, verbose=verbose)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 

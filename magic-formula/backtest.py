@@ -40,10 +40,10 @@ from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
-from cli_utils import add_common_args, resolve_exchanges, print_header
+from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
 
 # --- Signal parameters ---
-MKTCAP_MIN = 1_000_000_000
+# MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 MAX_STOCKS = 30
 MIN_STOCKS = 10
 DEFAULT_FREQUENCY = "quarterly"
@@ -155,7 +155,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, exclude_sectors=True,
     return con
 
 
-def screen_stocks(con, target_date):
+def screen_stocks(con, target_date, mktcap_min):
     """Screen using Magic Formula: combined rank of EY + ROCE.
 
     Returns list of (symbol, market_cap) tuples, ordered by combined rank.
@@ -187,12 +187,12 @@ def screen_stocks(con, target_date):
         FROM ranked
         ORDER BY combined_rank ASC
         LIMIT ?
-    """, [cutoff_epoch, MKTCAP_MIN, MAX_STOCKS]).fetchall()
+    """, [cutoff_epoch, mktcap_min, MAX_STOCKS]).fetchall()
 
     return [(r[0], r[1]) for r in rows]
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
     """Run Magic Formula backtest. Returns list of period result dicts."""
     results = []
 
@@ -200,7 +200,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date)
+        portfolio = screen_stocks(con, entry_date, mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
             spy_prices_entry = get_prices(con, ["SPY"], entry_date)
@@ -296,6 +296,7 @@ def main():
     frequency = args.frequency or DEFAULT_FREQUENCY
     use_costs = not args.no_costs
     exclude_sectors = not args.no_sector_filter
+    mktcap_min = get_mktcap_threshold(exchanges)
 
     from cli_utils import get_risk_free_rate
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
@@ -305,7 +306,7 @@ def main():
 
     sector_note = " (ex. Financials/Utilities)" if exclude_sectors else ""
     signal_desc = (f"Rank(EY) + Rank(ROCE), top {MAX_STOCKS}, "
-                   f"MCap > ${MKTCAP_MIN/1e9:.0f}B{sector_note}")
+                   f"MCap > {mktcap_min:,} (local currency){sector_note}")
     print_header("MAGIC FORMULA BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
@@ -328,7 +329,7 @@ def main():
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=args.verbose)
+    results = run_backtest(con, rebalance_dates, mktcap_min, use_costs=use_costs, verbose=args.verbose)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 

@@ -36,7 +36,7 @@ import base64
 import requests
 
 DEFAULT_BASE_URL = "https://api.cetaresearch.com/api/v1"
-DEFAULT_POLL_INTERVAL = 2.0  # seconds
+DEFAULT_POLL_INTERVAL = 5.0  # seconds (keep low to avoid 1000 req/hr rate limit on polls)
 DEFAULT_TIMEOUT = 300  # seconds
 
 
@@ -158,8 +158,16 @@ class CetaResearch:
     def _poll(self, task_id, timeout=300, verbose=False):
         """Poll task status until completion or timeout."""
         deadline = time.time() + timeout + 30  # extra buffer for poll overhead
+        backoff = DEFAULT_POLL_INTERVAL
         while time.time() < deadline:
             resp = self.session.get(f"{self.base_url}/data-explorer/tasks/{task_id}")
+            if resp.status_code == 429:
+                wait = int(resp.headers.get("Retry-After", 60))
+                if verbose:
+                    print(f"  Rate limited on poll, waiting {wait}s...")
+                time.sleep(wait)
+                backoff = min(backoff * 2, 30)  # increase poll interval after rate limit
+                continue
             if resp.status_code != 200:
                 raise CetaResearchError(f"Poll failed ({resp.status_code}): {resp.text[:500]}")
             task = resp.json()
@@ -170,7 +178,7 @@ class CetaResearch:
 
             if verbose:
                 print(f"  Status: {status}...")
-            time.sleep(DEFAULT_POLL_INTERVAL)
+            time.sleep(backoff)
 
         return {"status": "poll_timeout"}
 
