@@ -73,7 +73,11 @@ REGIONAL_RISK_FREE_RATES = {
     "ASX": 0.035,    # Australia
     "TAI": 0.010, "TWO": 0.010,  # Taiwan
     "SET": 0.025,    # Thailand
-    "SGX": 0.025,    # Singapore
+    "SGX": 0.025, "SES": 0.025,  # Singapore
+    # Other Europe
+    "WSE": 0.050,    # Poland 10Y
+    "BME": 0.030,    # Spain
+    "HEL": 0.025,    # Finland
     # Other
     "SAO": 0.105,    # Brazil (high inflation)
     "BMV": 0.080,    # Mexico
@@ -125,6 +129,9 @@ MKTCAP_THRESHOLD_MAP = {
     "TLV": 1_000_000_000,     # ₪1B ≈ $274M USD
     "JKT": 5_000_000_000_000, # IDR 5T ≈ $310M USD
     "KLS": 1_000_000_000,     # MYR 1B ≈ $224M USD
+    "WSE": 1_000_000_000,     # PLN 1B ≈ $250M USD (Poland)
+    "BME": 500_000_000,       # €500M ≈ $545M USD (Spain)
+    "HEL": 500_000_000,       # €500M ≈ $545M USD (Finland)
 }
 
 # Lower thresholds for asset-growth and stock-split strategies
