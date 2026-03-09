@@ -2,7 +2,7 @@
 
 Known data quality issues affecting backtests. All strategies in this repo are affected unless noted otherwise.
 
-Last updated: 2026-03-03
+Last updated: 2026-03-09
 
 ---
 
@@ -70,53 +70,34 @@ ORDER BY price_ratio DESC
 
 ## JPX (Japan Exchange Group)
 
-**Status:** Excluded from all backtests
-**Issue:** No FY (annual) financial data in warehouse
-**Severity:** Fatal (0 qualifying stocks across all periods)
+**Status:** Data quality issue resolved. Not yet added to backtests — adjClose quality unverified.
+**Previously excluded for:** No FY (annual) financial data in warehouse
+**Resolved:** 2026-03-09 — FY data confirmed present (4,016 symbols, 2,645 qualifying on EV/EBITDA screen)
 
-**Evidence:**
-- TTM tables: 4,016 symbols with data
-- FY tables (key_metrics, financial_ratios where period='FY'): 0 rows
-- Profile table correctly maps `.T` suffix to JPX exchange
+**Evidence of fix:**
+- FY tables (key_metrics where period='FY'): 4,016 distinct JPX symbols
+- EV/EBITDA screen (evToEBITDA > 0 < 10, ROE > 10%): 2,645 qualifying symbols — sufficient universe
 
-**Root cause:** FMP data pipeline ingests TTM data from one endpoint and FY data from a different endpoint. JPX was never included in the FY ingestion pipeline.
-
-**Impact on backtests:** All strategies using FY data (QARP, Low P/E, Interest Coverage) return 0 qualifying stocks, producing 100% cash periods and 0% CAGR.
-
-**Fix required:** Add JPX to `ts-data-pipeline/workers/` FMP bulk financial statements download.
-
-**Verification query:**
-```sql
--- TTM data exists
-SELECT COUNT(DISTINCT k.symbol) as ttm_symbols
-FROM key_metrics_ttm k
-JOIN profile p ON k.symbol = p.symbol
-WHERE p.exchange = 'JPX';
--- Result: 4,016
-
--- FY data does NOT exist
-SELECT COUNT(DISTINCT k.symbol) as fy_symbols
-FROM key_metrics k
-JOIN profile p ON k.symbol = p.symbol
-WHERE p.exchange = 'JPX' AND k.period = 'FY';
--- Result: 0
-```
+**Remaining before adding to backtests:**
+- Verify adjClose data quality (check for split/consolidation artifacts, same test as ASX/SAO)
+- Run price ratio check: `MAX(adjClose)/MIN(adjClose)` for JPX symbols, flag any > 1,000x
+- If clean, add `("japan", ["JPX"])` to GLOBAL_PRESETS in backtest.py scripts
 
 ---
 
 ## LSE (London Stock Exchange)
 
-**Status:** Excluded from all backtests
-**Issue:** No FY financial data in warehouse (same as JPX)
-**Severity:** Fatal (0 qualifying stocks)
+**Status:** Data quality issue resolved. Not yet added to backtests — adjClose quality unverified.
+**Previously excluded for:** No FY financial data in warehouse
+**Resolved:** 2026-03-09 — FY data confirmed present (3,701 symbols, 2,378 qualifying on EV/EBITDA screen)
 
-**Evidence:**
-- TTM tables: 3,745 symbols with data
-- FY tables: 0 rows
+**Evidence of fix:**
+- FY tables: 3,701 distinct LSE symbols
+- EV/EBITDA screen: 2,378 qualifying symbols
 
-**Root cause:** Same as JPX. FY data pipeline doesn't include LSE.
-
-**Fix required:** Same as JPX. Add LSE to FMP FY ingestion pipeline.
+**Remaining before adding to backtests:**
+- Verify adjClose data quality (same test as JPX above)
+- If clean, add `("uk", ["LSE"])` to GLOBAL_PRESETS in backtest.py scripts
 
 ---
 
@@ -138,6 +119,9 @@ WHERE p.exchange = 'JPX' AND k.period = 'FY';
 
 ### Exchanges confirmed clean
 US_MAJOR (NYSE+NASDAQ+AMEX), BSE, NSE, STO, TSX, SHZ, HKSE, SET, XETRA, SHH, SIX, TAI, KSC, SES, OSL, MIL, KLS, JKT
+
+### JPX and LSE — FY data fixed, adjClose unverified
+FY data now exists for both exchanges (resolved 2026-03-09). adjClose quality check still needed before adding to backtests. See JPX and LSE sections above.
 
 ### JNB (Johannesburg Stock Exchange) — moderate quality concern
 **Status:** Included with documented caveat

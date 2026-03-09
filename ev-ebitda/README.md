@@ -68,8 +68,8 @@ SPY benchmark: 7.64% CAGR.
 |----------|--------|
 | ASX (Australia) | adjClose price data artifacts — fatal data quality issue |
 | SAO (Brazil) | adjClose price data artifacts — fatal data quality issue |
-| JPX (Japan) | FY key_metrics data availability unverified for consistent backtest |
-| LSE (UK) | FY key_metrics data availability unverified for consistent backtest |
+| JPX (Japan) | FY data confirmed present (2026-03-09). adjClose quality unverified — excluded pending price data check. |
+| LSE (UK) | FY data confirmed present (2026-03-09). adjClose quality unverified — excluded pending price data check. |
 
 See `backtests/DATA_QUALITY_ISSUES.md` for full documentation.
 
