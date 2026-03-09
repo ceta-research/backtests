@@ -1,0 +1,292 @@
+{
+  "strategy": "M&A Announcement Return Patterns",
+  "data_source": "mergers_acquisitions_latest (FMP / SEC filings)",
+  "universe": "US (NYSE/NASDAQ/AMEX)",
+  "benchmark": "SPY",
+  "study_type": "event_study",
+  "period": "2000-2025",
+  "filters": {
+    "min_market_cap_usd": 1000000000,
+    "deduplication": "one event per (symbol, transactionDate)"
+  },
+  "windows": [
+    1,
+    5,
+    21,
+    63
+  ],
+  "car_metrics": {
+    "overall": {
+      "n_events": 2064,
+      "car_1d": {
+        "mean": 0.2861,
+        "median": 0.0246,
+        "t_stat": 3.701,
+        "significant": true,
+        "hit_rate": 50.48,
+        "n_obs": 2064
+      },
+      "car_5d": {
+        "mean": 0.3227,
+        "median": -0.1033,
+        "t_stat": 2.357,
+        "significant": true,
+        "hit_rate": 48.76,
+        "n_obs": 2049
+      },
+      "car_21d": {
+        "mean": -0.4935,
+        "median": -0.8323,
+        "t_stat": -1.866,
+        "significant": false,
+        "hit_rate": 45.08,
+        "n_obs": 2034
+      },
+      "car_63d": {
+        "mean": -0.5532,
+        "median": -1.5958,
+        "t_stat": -1.023,
+        "significant": false,
+        "hit_rate": 43.35,
+        "n_obs": 1926
+      }
+    },
+    "target": {
+      "n_events": 425,
+      "car_1d": {
+        "mean": 0.2554,
+        "median": 0.0408,
+        "t_stat": 1.585,
+        "significant": false,
+        "hit_rate": 50.59,
+        "n_obs": 425
+      },
+      "car_5d": {
+        "mean": -0.0452,
+        "median": -0.2039,
+        "t_stat": -0.193,
+        "significant": false,
+        "hit_rate": 46.79,
+        "n_obs": 421
+      },
+      "car_21d": {
+        "mean": -1.1293,
+        "median": -0.6247,
+        "t_stat": -2.525,
+        "significant": true,
+        "hit_rate": 44.82,
+        "n_obs": 415
+      },
+      "car_63d": {
+        "mean": -3.0073,
+        "median": -1.8628,
+        "t_stat": -2.85,
+        "significant": true,
+        "hit_rate": 40.8,
+        "n_obs": 326
+      }
+    },
+    "acquirer": {
+      "n_events": 1639,
+      "car_1d": {
+        "mean": 0.2798,
+        "median": 0.0194,
+        "t_stat": 3.269,
+        "significant": true,
+        "hit_rate": 50.46,
+        "n_obs": 1639
+      },
+      "car_5d": {
+        "mean": 0.4438,
+        "median": -0.0666,
+        "t_stat": 2.705,
+        "significant": true,
+        "hit_rate": 49.26,
+        "n_obs": 1628
+      },
+      "car_21d": {
+        "mean": -0.3067,
+        "median": -0.8622,
+        "t_stat": -0.971,
+        "significant": false,
+        "hit_rate": 45.15,
+        "n_obs": 1619
+      },
+      "car_63d": {
+        "mean": 0.035,
+        "median": -1.5166,
+        "t_stat": 0.055,
+        "significant": false,
+        "hit_rate": 43.88,
+        "n_obs": 1600
+      }
+    }
+  },
+  "yearly_stats": [
+    {
+      "year": 2000,
+      "total": 85,
+      "target": 8,
+      "acquirer": 77
+    },
+    {
+      "year": 2001,
+      "total": 80,
+      "target": 9,
+      "acquirer": 71
+    },
+    {
+      "year": 2002,
+      "total": 42,
+      "target": 5,
+      "acquirer": 37
+    },
+    {
+      "year": 2003,
+      "total": 38,
+      "target": 6,
+      "acquirer": 32
+    },
+    {
+      "year": 2004,
+      "total": 41,
+      "target": 4,
+      "acquirer": 37
+    },
+    {
+      "year": 2005,
+      "total": 43,
+      "target": 3,
+      "acquirer": 40
+    },
+    {
+      "year": 2006,
+      "total": 49,
+      "target": 8,
+      "acquirer": 41
+    },
+    {
+      "year": 2007,
+      "total": 35,
+      "target": 5,
+      "acquirer": 30
+    },
+    {
+      "year": 2008,
+      "total": 45,
+      "target": 7,
+      "acquirer": 38
+    },
+    {
+      "year": 2009,
+      "total": 17,
+      "target": 1,
+      "acquirer": 16
+    },
+    {
+      "year": 2010,
+      "total": 26,
+      "target": 2,
+      "acquirer": 24
+    },
+    {
+      "year": 2011,
+      "total": 35,
+      "target": 5,
+      "acquirer": 30
+    },
+    {
+      "year": 2012,
+      "total": 24,
+      "target": 1,
+      "acquirer": 23
+    },
+    {
+      "year": 2013,
+      "total": 44,
+      "target": 7,
+      "acquirer": 37
+    },
+    {
+      "year": 2014,
+      "total": 52,
+      "target": 6,
+      "acquirer": 46
+    },
+    {
+      "year": 2015,
+      "total": 75,
+      "target": 14,
+      "acquirer": 61
+    },
+    {
+      "year": 2016,
+      "total": 88,
+      "target": 26,
+      "acquirer": 62
+    },
+    {
+      "year": 2017,
+      "total": 86,
+      "target": 24,
+      "acquirer": 62
+    },
+    {
+      "year": 2018,
+      "total": 140,
+      "target": 42,
+      "acquirer": 98
+    },
+    {
+      "year": 2019,
+      "total": 83,
+      "target": 11,
+      "acquirer": 72
+    },
+    {
+      "year": 2020,
+      "total": 123,
+      "target": 12,
+      "acquirer": 111
+    },
+    {
+      "year": 2021,
+      "total": 285,
+      "target": 72,
+      "acquirer": 213
+    },
+    {
+      "year": 2022,
+      "total": 147,
+      "target": 38,
+      "acquirer": 109
+    },
+    {
+      "year": 2023,
+      "total": 167,
+      "target": 44,
+      "acquirer": 123
+    },
+    {
+      "year": 2024,
+      "total": 131,
+      "target": 35,
+      "acquirer": 96
+    },
+    {
+      "year": 2025,
+      "total": 83,
+      "target": 30,
+      "acquirer": 53
+    }
+  ],
+  "n_total_events": 2064,
+  "n_target_events": 425,
+  "n_acquirer_events": 1639,
+  "data_notes": [
+    "transactionDate = SEC filing date, may differ from press announcement date",
+    "No deal price, premium, or deal type in source data",
+    "Coverage selective: not all public M&A deals are captured",
+    "Targets with no US price data (private/foreign) excluded by default"
+  ]
+}
