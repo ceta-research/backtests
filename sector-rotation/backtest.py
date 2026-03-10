@@ -534,6 +534,9 @@ def main():
             ("sweden", ["STO"]),
             ("thailand", ["SET"]),
             ("southafrica", ["JNB"]),
+            ("japan", ["JPX"]),
+            ("china", ["SHH", "SHZ"]),
+            # SES excluded: 61% cash periods (not enough sector diversity for strategy to run)
         ]
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
