@@ -115,6 +115,34 @@ ORDER BY price_ratio DESC
 
 ---
 
+## XLY (Consumer Discretionary ETF) — Split Artifact Dec 2010
+
+**Status:** Handled via divergence guard in sector-pe-compression backtest
+**Affects:** `sector-pe-compression/backtest.py` (and any other sector ETF strategies)
+**Issue:** FMP `stock_eod` XLY `adjClose` drops from ~$31.22 to ~$15.70 on Dec 20, 2010 — a 2:1 stock split with no backward price adjustment
+**Severity:** Produces spurious -43% quarterly return (Q4 2010: XLY -43.2% vs SPY +11.4%, -54% divergence)
+
+**Evidence:**
+- Dec 20, 2010: adjClose goes from $31.22 (Dec 17) → $15.70 (Dec 20)
+- Exact 2:1 ratio ($31.22 / $15.70 = 1.989... ≈ 2.0)
+- Creates Q4 2010 XLY return of -43.2% — physically impossible for a diversified sector ETF
+
+**Root cause:** FMP `adjClose` for XLY is split-forward adjusted from some dates but the Dec 2010 2:1 split was not applied retroactively to pre-split prices.
+
+**Fix:** Divergence guard in `sector-pe-compression/backtest.py`:
+```python
+MAX_ETF_DIVERGENCE = 0.45  # skip ETF if |ETF_return - SPY_return| > 45% in a quarter
+if abs(raw_return - spy_ret) > MAX_ETF_DIVERGENCE:
+    continue  # skip this ETF for this quarter, fall back to SPY
+```
+Q4 2010: |XLY -43.2% - SPY +11.4%| = 54.6% > 45% threshold → correctly filtered.
+
+**Impact without fix:** 2010 annual return -17.8%; with fix: +6.65% (SPY held for Q4 2010).
+
+**Checked:** 2026-03-10
+
+---
+
 ## Notes
 
 ### Exchanges confirmed clean
