@@ -70,34 +70,29 @@ ORDER BY price_ratio DESC
 
 ## JPX (Japan Exchange Group)
 
-**Status:** Data quality issue resolved. Not yet added to backtests — adjClose quality unverified.
+**Status:** Clean — included in backtests with filter_returns() protection
 **Previously excluded for:** No FY (annual) financial data in warehouse
-**Resolved:** 2026-03-09 — FY data confirmed present (4,016 symbols, 2,645 qualifying on EV/EBITDA screen)
+**Resolved:** 2026-03-09 — FY data confirmed present (4,016 symbols)
+**adjClose verified:** 2026-03-10 — 10 stocks above ¥100B threshold have bad ratios, handled by market cap filter + filter_returns()
 
-**Evidence of fix:**
+**Evidence:**
 - FY tables (key_metrics where period='FY'): 4,016 distinct JPX symbols
-- EV/EBITDA screen (evToEBITDA > 0 < 10, ROE > 10%): 2,645 qualifying symbols — sufficient universe
-
-**Remaining before adding to backtests:**
-- Verify adjClose data quality (check for split/consolidation artifacts, same test as ASX/SAO)
-- Run price ratio check: `MAX(adjClose)/MIN(adjClose)` for JPX symbols, flag any > 1,000x
-- If clean, add `("japan", ["JPX"])` to GLOBAL_PRESETS in backtest.py scripts
+- 10 stocks above market cap threshold with extreme adjClose ratios — all filtered by filter_returns(max_single_return=200%)
+- Confirmed clean in pe-compression backtest (2026-03-10) and defensive-quality backtest (2026-03-10)
 
 ---
 
 ## LSE (London Stock Exchange)
 
-**Status:** Data quality issue resolved. Not yet added to backtests — adjClose quality unverified.
+**Status:** Clean — included in backtests with filter_returns() protection
 **Previously excluded for:** No FY financial data in warehouse
-**Resolved:** 2026-03-09 — FY data confirmed present (3,701 symbols, 2,378 qualifying on EV/EBITDA screen)
+**Resolved:** 2026-03-09 — FY data confirmed present (3,701 symbols)
+**adjClose verified:** 2026-03-10 — 17 stocks above £500M threshold have bad ratios, handled by market cap filter + filter_returns()
 
-**Evidence of fix:**
+**Evidence:**
 - FY tables: 3,701 distinct LSE symbols
-- EV/EBITDA screen: 2,378 qualifying symbols
-
-**Remaining before adding to backtests:**
-- Verify adjClose data quality (same test as JPX above)
-- If clean, add `("uk", ["LSE"])` to GLOBAL_PRESETS in backtest.py scripts
+- 17 stocks above market cap threshold with extreme adjClose ratios — all filtered by filter_returns()
+- Confirmed clean in pe-compression backtest (2026-03-10) and defensive-quality backtest (2026-03-10)
 
 ---
 
@@ -174,6 +169,8 @@ GROUP BY symbol HAVING ratio > 100 ORDER BY ratio DESC LIMIT 20
 
 **Content action:** JNB included in PEG ratio backtest and dedicated regional blog with data quality disclosure.
 **Checked:** 2026-03-05
+
+**defensive-quality strategy (sector-04):** JNB excluded entirely. Not a data quality issue — the defensive sector universe (Consumer Defensive, Utilities, Healthcare) historically never produced 10+ qualifying stocks per July rebalance period. Max: ~8 qualifying stocks (2018-2019 peak). Strategy correctly stayed 100% cash all 25 periods. JNB removed from `presets_to_run` in `defensive-quality/backtest.py`. Excluded from all content (blog, LinkedIn, Reddit).
 
 ### KSC (Korea) transient error
 KSC had a transient parquet download error ("No magic bytes found at end of file") during initial testing. Re-run succeeded. Full data exists (1,022 symbols, 152,626 FY rows). No data quality issue.
