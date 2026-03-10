@@ -1,0 +1,86 @@
+strategy:
+  name: "DCF Discount + Quality (DCF Threshold)"
+  slug: "dcf-threshold"
+  content_slug: "timing-04-dcf-threshold"
+  description: "Gordon Growth Model DCF screen with quality filters. Buys stocks trading
+    20%+ below intrinsic value (FCF yield >= 8.78%) while avoiding value traps via ROE,
+    D/E, and positive cash flow filters."
+  academic_reference: "Gordon (1959) Dividends, Earnings, and Stock Prices. Graham & Dodd
+    (1934) Security Analysis (margin of safety). Piotroski (2000) value trap avoidance."
+
+signal:
+  filters:
+    - {name: "FCF Yield (DCF discount signal)", operator: ">=", threshold: "8.78% (= 20% discount to Gordon Growth DCF)"}
+    - {name: "Operating Cash Flow", operator: ">", threshold: "0"}
+    - {name: "Return on Equity (ROE)", operator: ">", threshold: "8%"}
+    - {name: "Debt-to-Equity Ratio", operator: "<", threshold: "1.5 (or NULL — not penalized)"}
+    - {name: "Market Cap", operator: ">", threshold: "Exchange-specific (see MKTCAP_THRESHOLD_MAP)"}
+  scoring: "FCF yield DESC (deepest discount first)"
+  selection: "Top 30 by FCF yield, equal weight. Cash if < 10 qualify."
+
+signal_math: |
+  Gordon Growth Model:
+    DCF_value  = FCF * (1+g) / (r-g) = FCF * 13.67
+    discount%  = 1 - marketCap / (FCF * 13.67)
+  Threshold condition (price-independent):
+    FCF / marketCap >= (1 + 0.20) / 13.67 = 8.78%
+  Parameters:
+    g = 2.5%  (terminal growth rate)
+    r = 10.0% (discount rate)
+    threshold = 20% (margin of safety)
+
+parameters:
+  rebalancing: "annual"
+  rebalance_months: [1]      # January (post-tax-loss-selling entry point)
+  min_stocks: 10
+  max_stocks: 30
+  weighting: "equal"
+  filing_lag_days: 45
+  staleness_months: 18
+  min_market_cap: "Exchange-specific via get_mktcap_threshold()"
+  transaction_costs: true    # Size-tiered model from costs.py
+  backtest_years: "2000-2025"
+  max_single_return: 2.0     # 200% cap for data quality
+  min_entry_price: 1.0       # Skip penny stocks
+
+data_sources:
+  - table: "cash_flow_statement (FY)"
+    columns: [freeCashFlow, operatingCashFlow]
+  - table: "key_metrics (FY)"
+    columns: [marketCap, returnOnEquity]
+  - table: "financial_ratios (FY)"
+    columns: [debtToEquityRatio]
+  - table: "stock_eod"
+    columns: [adjClose]
+
+benchmarks:
+  primary: "SPY"
+  factor: "IWD"     # Russell 1000 Value (DCF-based value strategy)
+  regional: "auto"
+
+exchanges:
+  exclude_always: ["ASX", "SAO"]  # Broken adjClose data (DATA_QUALITY_ISSUES.md)
+  eligible: []                     # Filled after Phase 4 results
+  excluded: []
+
+differentiation_from_dcf_discount: |
+  dcf-discount: No quality filters, top 50, April rebalance.
+    Captures deep value including value traps.
+  dcf-threshold (this): ROE + D/E + OCF > 0 filters, top 30, January rebalance.
+    Avoids value traps. More concentrated, higher quality on the value dimension.
+
+content:
+  blog_posts:
+    - "DCF Threshold: Buying Intrinsic Value Without Getting Burned by Value Traps"
+    - "DCF Threshold in India: Why Quality + Value Outperforms"
+    - "DCF Threshold Across 14 Exchanges: Where Intrinsic Value Timing Works"
+  comparison_post: true   # If 8+ exchanges qualify
+  charts_needed:
+    - cumulative_growth per exchange
+    - annual_returns per exchange
+    - comparison_cagr
+    - comparison_drawdown
+
+results:
+  status: "pending"
+  files: []
