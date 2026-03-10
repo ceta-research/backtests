@@ -526,9 +526,9 @@ def main():
             ("uk", ["LSE"]),
             ("canada", ["TSX"]),
             ("korea", ["KSC"]),
-            ("australia", ["ASX"]),
+            # ASX excluded: adjClose split/consolidation artifacts (see DATA_QUALITY_ISSUES.md)
             ("taiwan", ["TAI", "TWO"]),
-            ("brazil", ["SAO"]),
+            # SAO excluded: adjClose split/consolidation artifacts (see DATA_QUALITY_ISSUES.md)
             ("hongkong", ["HKSE"]),
             ("switzerland", ["SIX"]),
             ("sweden", ["STO"]),
