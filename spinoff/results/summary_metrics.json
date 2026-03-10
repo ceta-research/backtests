@@ -1,0 +1,193 @@
+{
+  "strategy": "Corporate Spinoff Event Study",
+  "benchmark": "SPY",
+  "n_spinoffs": 30,
+  "windows": [
+    1,
+    5,
+    21,
+    63,
+    126,
+    252
+  ],
+  "methodology": "Curated list of major US corporate spinoffs, 2011-2024",
+  "categories": {
+    "all": {
+      "n": 58,
+      "windows": {
+        "T+1": {
+          "mean_car": -0.346,
+          "median_car": -0.431,
+          "t_stat": -0.57,
+          "n": 58,
+          "hit_rate": 46.6,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+5": {
+          "mean_car": -1.182,
+          "median_car": -0.839,
+          "t_stat": -1.28,
+          "n": 58,
+          "hit_rate": 46.6,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+21": {
+          "mean_car": -0.725,
+          "median_car": -0.253,
+          "t_stat": -0.57,
+          "n": 58,
+          "hit_rate": 48.3,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+63": {
+          "mean_car": 1.021,
+          "median_car": 0.279,
+          "t_stat": 0.53,
+          "n": 58,
+          "hit_rate": 55.2,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+126": {
+          "mean_car": 4.679,
+          "median_car": 0.519,
+          "t_stat": 1.47,
+          "n": 58,
+          "hit_rate": 51.7,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+252": {
+          "mean_car": 3.061,
+          "median_car": -2.994,
+          "t_stat": 0.61,
+          "n": 58,
+          "hit_rate": 46.6,
+          "significant_5pct": false,
+          "significant_1pct": false
+        }
+      }
+    },
+    "parent": {
+      "n": 29,
+      "windows": {
+        "T+1": {
+          "mean_car": 0.937,
+          "median_car": 0.741,
+          "t_stat": 1.63,
+          "n": 29,
+          "hit_rate": 58.6,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+5": {
+          "mean_car": 1.116,
+          "median_car": 0.766,
+          "t_stat": 1.3,
+          "n": 29,
+          "hit_rate": 58.6,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+21": {
+          "mean_car": -0.386,
+          "median_car": -0.383,
+          "t_stat": -0.25,
+          "n": 29,
+          "hit_rate": 44.8,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+63": {
+          "mean_car": 0.351,
+          "median_car": -0.19,
+          "t_stat": 0.15,
+          "n": 29,
+          "hit_rate": 48.3,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+126": {
+          "mean_car": 3.428,
+          "median_car": 0.389,
+          "t_stat": 0.88,
+          "n": 29,
+          "hit_rate": 51.7,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+252": {
+          "mean_car": 3.072,
+          "median_car": -2.324,
+          "t_stat": 0.52,
+          "n": 29,
+          "hit_rate": 44.8,
+          "significant_5pct": false,
+          "significant_1pct": false
+        }
+      }
+    },
+    "child": {
+      "n": 29,
+      "windows": {
+        "T+1": {
+          "mean_car": -1.629,
+          "median_car": -1.314,
+          "t_stat": -1.59,
+          "n": 29,
+          "hit_rate": 34.5,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+5": {
+          "mean_car": -3.479,
+          "median_car": -2.724,
+          "t_stat": -2.28,
+          "n": 29,
+          "hit_rate": 34.5,
+          "significant_5pct": true,
+          "significant_1pct": false
+        },
+        "T+21": {
+          "mean_car": -1.065,
+          "median_car": 2.738,
+          "t_stat": -0.52,
+          "n": 29,
+          "hit_rate": 51.7,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+63": {
+          "mean_car": 1.691,
+          "median_car": 6.988,
+          "t_stat": 0.55,
+          "n": 29,
+          "hit_rate": 62.1,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+126": {
+          "mean_car": 5.93,
+          "median_car": 0.65,
+          "t_stat": 1.16,
+          "n": 29,
+          "hit_rate": 51.7,
+          "significant_5pct": false,
+          "significant_1pct": false
+        },
+        "T+252": {
+          "mean_car": 3.05,
+          "median_car": -3.97,
+          "t_stat": 0.37,
+          "n": 29,
+          "hit_rate": 48.3,
+          "significant_5pct": false,
+          "significant_1pct": false
+        }
+      }
+    }
+  }
+}
