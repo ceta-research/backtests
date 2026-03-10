@@ -245,7 +245,7 @@ def main():
     chart_3_annual_returns(data, CHARTS_DIR)
 
     print("\nDone. Move charts to ts-content-creator blog dirs before publishing.")
-    print("  mv backtests/sector-correlation/charts/*.png ../ts-content-creator/content/_current/sector-02-correlation/blogs/us/")
+    print("  mv backtests/sector-correlation/charts/*.png ../ts-content-creator/content/_ready/sector-02-correlation/blogs/us/")
 
 
 if __name__ == "__main__":
