@@ -227,7 +227,7 @@ def chart_exchange_comparison(comparison_data, output_dir):
     ax.set_yticklabels(labels)
     ax.set_xlabel("Beats Mean CAR at T+63 (%)")
     ax.set_title("Post-Earnings Drift — Beats at T+63: 16 Global Exchanges\n"
-                 "(Market cap > $500M, 2000–2025, abnormal return vs regional ETF)",
+                 "(Exchange-specific MCap filters, 2000–2025, abnormal return vs regional ETF)",
                  fontsize=11, fontweight="bold")
     ax.grid(axis="x", alpha=0.3)
     ax.spines["top"].set_visible(False)
@@ -241,6 +241,65 @@ def chart_exchange_comparison(comparison_data, output_dir):
              ha="right", va="bottom", fontsize=7, color="gray")
 
     return save(fig, output_dir, "3_global_exchange_comparison.png")
+
+
+# ---------------------------------------------------------------------------
+# Chart 4+: Regional CAR by window charts (India, Canada, Japan, China, Taiwan)
+# ---------------------------------------------------------------------------
+def chart_regional_car(exchange_key, label, benchmark_label, output_dir, filename):
+    """Grouped bar chart: beats and misses CAR at each event window for a given exchange."""
+    path = os.path.join(RESULTS_DIR, f"pead_{exchange_key}.json")
+    if not os.path.exists(path):
+        print(f"  Skipping {label} — file not found: {path}")
+        return
+
+    with open(path) as f:
+        data = json.load(f)
+
+    windows = ["T+1", "T+5", "T+21", "T+63"]
+    keys    = ["car_1d", "car_5d", "car_21d", "car_63d"]
+
+    beats  = [data["car_metrics"]["positive"][k]["mean"] for k in keys]
+    misses = [data["car_metrics"]["negative"][k]["mean"] for k in keys]
+
+    x = np.arange(len(windows))
+    width = 0.35
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+
+    rects1 = ax.bar(x - width / 2, beats,  width, color=COL_BEAT, label="Beats")
+    rects2 = ax.bar(x + width / 2, misses, width, color=COL_MISS, label="Misses")
+
+    ax.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
+
+    for rect in rects1:
+        v = rect.get_height()
+        ax.text(rect.get_x() + rect.get_width() / 2, v + 0.05 if v >= 0 else v - 0.15,
+                f"{v:+.2f}%", ha="center", va="bottom" if v >= 0 else "top",
+                fontsize=8, color=COL_BEAT, fontweight="bold")
+    for rect in rects2:
+        v = rect.get_height()
+        ax.text(rect.get_x() + rect.get_width() / 2, v + 0.05 if v >= 0 else v - 0.15,
+                f"{v:+.2f}%", ha="center", va="bottom" if v >= 0 else "top",
+                fontsize=8, color=COL_MISS, fontweight="bold")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(windows)
+    ax.set_ylabel(f"Mean CAR vs {benchmark_label} (%)")
+    n_total = data.get("n_total_events", "")
+    period  = data.get("period", "2000–2025")
+    ax.set_title(f"Post-Earnings Drift: {label} Beats vs Misses\n"
+                 f"({label}, {period}, N={n_total:,})",
+                 fontsize=11, fontweight="bold")
+    ax.legend()
+    ax.grid(axis="y", alpha=0.3)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    fig.text(0.99, 0.01, "Data: Ceta Research (FMP warehouse) · cetaresearch.com",
+             ha="right", va="bottom", fontsize=7, color="gray")
+
+    return save(fig, output_dir, filename)
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +321,13 @@ def main():
     chart_car_by_window(us_data, args.output)
     chart_quintile_heatmap(us_data, args.output)
     chart_exchange_comparison(comparison, args.output)
+
+    # Regional charts
+    chart_regional_car("BSE_NSE",  "India",  "INDA", args.output, "1_india_car_by_window.png")
+    chart_regional_car("TSX",      "Canada", "EWC",  args.output, "1_canada_car_by_window.png")
+    chart_regional_car("JPX",      "Japan",  "EWJ",  args.output, "1_japan_car_by_window.png")
+    chart_regional_car("SHZ_SHH",  "China",  "MCHI", args.output, "1_china_car_by_window.png")
+    chart_regional_car("TAI",      "Taiwan", "EWT",  args.output, "1_taiwan_car_by_window.png")
 
     print(f"\nDone. Charts saved to: {args.output}/")
 
