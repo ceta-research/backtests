@@ -1,0 +1,136 @@
+strategy:
+  name: "Graham Number Timing"
+  slug: "graham-timing"
+  description: "Benjamin Graham's intrinsic value formula as a timing signal. Buy stocks trading below their Graham Number (sqrt(22.5 × EPS × BVPS)), filtered for quality (ROE > 10%, positive book value, positive earnings)."
+  academic_reference: "Graham, Benjamin (1949). 'The Intelligent Investor' - Graham Number formula for conservative stock valuation"
+
+signal:
+  filters:
+    - {name: "Price-to-Graham-Number Ratio", operator: "<", threshold: "1.0"}
+    - {name: "Return on Equity (ROE)", operator: ">", threshold: "10%"}
+    - {name: "Net Income", operator: ">", threshold: "0"}
+    - {name: "Total Equity", operator: ">", threshold: "0"}
+    - {name: "Market Cap", operator: ">", threshold: "Exchange-specific (see MKTCAP_THRESHOLD_MAP)"}
+
+  scoring: "Price-to-Graham-Number ASC (most undervalued first)"
+
+  selection: "Top 30 stocks by deepest discount to Graham Number. Equal weight."
+
+  technical_notes: |
+    Graham Number = sqrt(22.5 × EPS × BVPS)
+    Where:
+      - EPS = Net Income / Shares Outstanding
+      - BVPS = Total Stockholders Equity / Shares Outstanding
+      - 22.5 = Graham's magic constant (P/E of 15 × P/B of 1.5)
+
+    Price/Graham < 1.0 means stock trades below Graham's fair value estimate.
+
+    Filters ensure quality:
+      - ROE > 10% ensures profitability
+      - Positive net income and equity prevent division by zero
+      - Market cap filter ensures liquidity
+
+parameters:
+  defaults:
+    rebalancing: "quarterly"
+    rebalance_months: [1, 4, 7, 10]  # Jan, Apr, Jul, Oct
+    min_stocks: 10
+    max_stocks: 30
+    weighting: "equal"
+    min_market_cap: "Exchange-specific via get_mktcap_threshold()"
+    transaction_costs: true
+
+  sensitivity_test:
+    frequencies: [quarterly, semi-annual, annual]
+    min_stocks_variants: [10]
+    notes: "Quarterly is canonical (Graham Number changes with quarterly earnings). Test semi/annual for lower-turnover versions."
+
+exchanges:
+  eligibility_criteria:
+    min_symbols_with_financials: 50
+    min_years_of_data: 10
+    min_avg_qualifying_stocks: 30  # Need 30 to fill portfolio
+
+  eligible:
+    # 30 exchanges with 100+ qualifying stocks (Tier 1)
+    # Selected 14 for backtest based on data quality and market diversity
+    - AMEX+NASDAQ+NYSE  # US (combined: 7,715 stocks)
+    - BSE+NSE           # India (5,200 stocks)
+    - XETRA             # Germany (807 stocks)
+    - SHZ+SHH           # China (4,449 stocks)
+    - HKSE              # Hong Kong (2,478 stocks)
+    - KSC               # Korea (897 stocks)
+    - TSX               # Canada (692 stocks)
+    - SET               # Thailand (938 stocks)
+    - TAI               # Taiwan (956 stocks)
+    - JPX               # Japan (3,064 stocks) - FY data now available
+    - LSE               # UK (2,443 stocks) - FY data now available
+    - SIX               # Switzerland (364 stocks)
+    - STO               # Sweden (586 stocks)
+    - JKT               # Indonesia (737 stocks)
+
+  excluded:
+    - exchange: "ASX"
+      reason: "Broken adjClose data (stock split artifacts per DATA_QUALITY_ISSUES.md)"
+    - exchange: "SAO"
+      reason: "Broken adjClose data (missed split adjustments per DATA_QUALITY_ISSUES.md)"
+
+  notes: |
+    Graham Number requires:
+      - Net Income (income_statement.netIncome)
+      - Total Stockholders Equity (balance_sheet.totalStockholdersEquity)
+      - Shares Outstanding (key_metrics.numberOfShares or derived from marketCap/price)
+      - Current Price (stock_eod.adjClose)
+      - Market Cap (key_metrics.marketCap)
+      - ROE (key_metrics.returnOnEquity)
+
+    Expected: Most tier-1 exchanges should work (less strict than QARP).
+
+    Exclude ASX/SAO (broken adjClose data per DATA_QUALITY_ISSUES.md).
+    JPX/LSE: No FY data available (TTM only).
+
+  inspection_query: |
+    -- Count stocks where Graham Number can be computed
+    SELECT p.exchange, COUNT(DISTINCT k.symbol) as n_qualifying
+    FROM key_metrics k
+    JOIN financial_ratios f ON k.symbol = f.symbol
+    JOIN income_statement i ON k.symbol = i.symbol
+    JOIN balance_sheet b ON k.symbol = b.symbol
+    JOIN profile p ON k.symbol = p.symbol
+    WHERE k.period = 'FY'
+      AND f.period = 'FY'
+      AND i.period = 'FY'
+      AND b.period = 'FY'
+      AND i.netIncome > 0
+      AND b.totalStockholdersEquity > 0
+      AND k.numberOfShares > 0
+      AND k.returnOnEquity > 0.10
+      AND k.marketCap > 100000000  -- Rough filter, will use exchange-specific later
+    GROUP BY p.exchange
+    ORDER BY n_qualifying DESC
+
+benchmarks:
+  primary: "SPY"
+  factor: "IWD"  # Russell 1000 Value (Graham is value-oriented)
+  regional: "auto"
+
+content:
+  blog_posts:
+    - "Graham Number Timing: When Price Crosses Below Fair Value"
+    - "Graham Number Across Exchanges: Where Does Value Timing Work?"
+    - "Graham vs Low P/E: Intrinsic Value vs Multiple Compression"
+
+  comparison_post: true  # If 8+ exchanges qualify
+
+  charts_needed:
+    - cumulative_growth per exchange
+    - annual_returns per exchange
+    - comparison_cagr
+    - comparison_drawdown
+    - price_to_graham_distribution (shows discount distribution)
+
+results:
+  target_date: "2026-03-10"
+  location: "graham-timing/results/"
+  status: "in_progress"
+  files: []

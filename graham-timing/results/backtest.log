@@ -1,0 +1,58 @@
+
+######################################################################
+# Running preset: US
+######################################################################
+
+======================================================================
+Graham Number Timing Backtest
+Exchanges: NYSE, NASDAQ, AMEX
+Period: 2000-2025 (quarterly rebalancing)
+======================================================================
+
+Market cap threshold: 1,000,000,000 (local currency)
+
+  Fetching exchange membership...
+  Query submitted (task: 0671c229...)
+  Status: assigned...
+  Universe: 22184 symbols
+  Fetching key metrics...
+  Query submitted (task: 0a45a112...)
+  Status: queued...
+    -> 266171 rows
+  Fetching income statements...
+  Query submitted (task: 87e8d68e...)
+  Status: queued...
+    -> 213828 rows
+  Fetching balance sheets...
+  Query submitted (task: 1de6b379...)
+  Status: queued...
+    -> 246120 rows
+  Fetching prices...
+  Query submitted (task: f589456d...)
+  Status: assigned...
+  Status: executing...
+  Status: executing...
+  Status: executing...
+    -> 3642694 price rows
+
+======================================================================
+Running backtest (104 periods)...
+======================================================================
+
+  Period 1/103: 2000-01-01 -> 2000-04-01
+Traceback (most recent call last):
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/graham-timing/backtest.py", line 464, in <module>
+    main()
+    ~~~~^^
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/graham-timing/backtest.py", line 411, in main
+    result = run_backtest(
+        preset_exchanges,
+    ...<5 lines>...
+        verbose=args.verbose
+    )
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/graham-timing/backtest.py", line 274, in run_backtest
+    stocks = screen_stocks(con, target_date, mktcap_min)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/graham-timing/backtest.py", line 203, in screen_stocks
+    int(target_date.timestamp()),
+        ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'datetime.date' object has no attribute 'timestamp'. Did you mean: 'fromtimestamp'?

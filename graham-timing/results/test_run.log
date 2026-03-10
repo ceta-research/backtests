@@ -1,0 +1,51 @@
+
+======================================================================
+Graham Number Timing Backtest
+Exchanges: NYSE, NASDAQ, AMEX
+Period: 2000-2025 (quarterly rebalancing)
+======================================================================
+
+Market cap threshold: 1,000,000,000 (local currency)
+Risk-free rate: 2.0%
+
+  Fetching exchange membership...
+  Universe: 22184 symbols
+  Fetching key metrics...
+    -> 266171 rows
+  Fetching income statements...
+    -> 213828 rows
+  Fetching balance sheets...
+    -> 246120 rows
+  Fetching prices...
+    -> 3642694 price rows
+
+======================================================================
+Running backtest (104 periods)...
+======================================================================
+
+  Period 1/103: 2000-01-01 -> 2000-04-01
+  Period 11/103: 2002-07-01 -> 2002-10-01
+  Period 21/103: 2005-01-01 -> 2005-04-01
+  Period 31/103: 2007-07-01 -> 2007-10-01
+  Period 41/103: 2010-01-01 -> 2010-04-01
+  Period 51/103: 2012-07-01 -> 2012-10-01
+  Period 61/103: 2015-01-01 -> 2015-04-01
+  Period 71/103: 2017-07-01 -> 2017-10-01
+  Period 81/103: 2020-01-01 -> 2020-04-01
+  Period 91/103: 2022-07-01 -> 2022-10-01
+  Period 101/103: 2025-01-01 -> 2025-04-01
+
+======================================================================
+✅ BACKTEST COMPLETE
+======================================================================
+Universe: AMEX+NASDAQ+NYSE
+CAGR: 0.00% (vs SPY 0.08%)
+Excess: -0.08%
+Traceback (most recent call last):
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/graham-timing/backtest.py", line 480, in <module>
+    main()
+    ~~~~^^
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/graham-timing/backtest.py", line 472, in main
+    print(f"Sharpe: {result['portfolio']['sharpe_ratio']:.3f}")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: unsupported format string passed to NoneType.__format__
