@@ -61,9 +61,9 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(exchange_key="NYSE_NASDAQ_AMEX", initial=10000):
-    """Get SPY cumulative from the given exchange's data."""
-    ex = data[exchange_key]
+def get_spy_cumulative(initial=10000):
+    """Get SPY cumulative from any exchange."""
+    ex = data["NYSE_NASDAQ_AMEX"]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
     for ar in ex["annual_returns"]:
@@ -109,7 +109,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     ax.set_axisbelow(True)
 
     fig.text(0.5, -0.02,
-             f"Data: Ceta Research | {footer_universe}, annual rebalance (July), 2000-2024",
+             f"Data: Ceta Research | {footer_universe}, annual rebalance (July), 2000-2025",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
@@ -149,7 +149,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     ax.grid(True, alpha=0.2, axis="y", linestyle="--")
 
     fig.text(0.5, -0.06,
-             f"Data: Ceta Research | {footer_universe}, annual rebalance (July), 2000-2024",
+             f"Data: Ceta Research | {footer_universe}, annual rebalance (July), 2000-2025",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
@@ -160,19 +160,16 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
 
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange (15 exchanges, excl JNB+SES)."""
-    exclude = {"JNB", "SES"}
+    """Horizontal bar chart: CAGR by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if v.get("invested_periods", 0) > 0
-        and k not in exclude
-        and "error" not in v
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
-    names = [k for k, v in exchanges_with_data]
+    names = [EXCHANGE_LABELS.get(k, k) for k, v in exchanges_with_data]
     cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k in names]
+    colors = [COLORS.get(k, "#95a5a6") for k, v in exchanges_with_data]
 
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
@@ -185,16 +182,60 @@ def chart_comparison_cagr(filename):
     ax.set_yticklabels(names, fontsize=11)
     ax.invert_yaxis()
     ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Market Share Gain CAGR by Exchange (2000-2024)", fontsize=14, fontweight="bold", pad=15)
+    ax.set_title("Market Share Gain CAGR by Exchange (2000-2025)",
+                 fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10)
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
 
     for i, cagr in enumerate(cagrs):
-        x_pos = cagr + 0.3 if cagr >= 0 else 0.3
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
+        x_pos = max(cagr, 0) + 0.15
+        color = "red" if cagr < 0 else "black"
+        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10,
+                fontweight="bold", color=color)
 
     fig.text(0.5, -0.02,
-             "Data: Ceta Research | Excess rev growth >= 10pp, ROE > 8%, OPM > 5%, annual rebalance",
+             "Data: Ceta Research | Excess Rev Growth >=10pp vs sector median, annual rebalance",
+             ha="center", fontsize=8, color="#7f8c8d")
+
+    plt.tight_layout()
+    out = charts_dir / filename
+    plt.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
+    print(f"  Saved: {out}")
+    plt.close()
+
+
+def chart_regime(exchange_key, filename, title, footer_universe, split_year=2010):
+    """Before/after regime comparison bar chart."""
+    ex = data[exchange_key]
+    annual = ex["annual_returns"]
+
+    before = [ar for ar in annual if ar["year"] < split_year]
+    after = [ar for ar in annual if ar["year"] >= split_year]
+
+    def avg(lst, key):
+        vals = [x[key] for x in lst if x.get("portfolio", 0) != 0 or key != "portfolio"]
+        return sum(vals) / len(vals) if vals else 0
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    periods = [f"2000-{split_year-1}", f"{split_year}-2024"]
+    port_avgs = [avg(before, "portfolio"), avg(after, "portfolio")]
+    spy_avgs = [avg(before, "spy"), avg(after, "spy")]
+
+    x = [0, 1]
+    width = 0.35
+    for ax, period, port_avg, spy_avg in zip(axes, periods, port_avgs, spy_avgs):
+        ax.bar([-width/2], [spy_avg], width, label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+        ax.bar([width/2], [port_avg], width,
+               label=EXCHANGE_LABELS[exchange_key], color=COLORS[exchange_key], alpha=0.85)
+        ax.set_title(period, fontsize=12, fontweight="bold")
+        ax.set_ylabel("Avg Annual Return (%)")
+        ax.axhline(0, color="black", linewidth=0.5)
+        ax.legend(fontsize=9)
+        ax.set_xticks([])
+
+    fig.suptitle(title, fontsize=14, fontweight="bold")
+    fig.text(0.5, -0.02,
+             f"Data: Ceta Research | {footer_universe}, annual rebalance",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
@@ -210,84 +251,81 @@ print("Generating charts for Market Share Gain blogs...")
 print("US charts...")
 chart_cumulative(
     ["NYSE_NASDAQ_AMEX"], "us_cumulative_growth.png",
-    "Growth of $10,000: Market Share Gain US vs S&P 500 (2000-2024)",
+    "Growth of $10,000: Market Share Gainers US vs S&P 500 (2000-2025)",
     "NYSE + NASDAQ + AMEX"
 )
 chart_annual_bars(
     ["NYSE_NASDAQ_AMEX"], "us_annual_returns.png",
-    "Market Share Gain US: Year-by-Year Returns (2000-2024)",
+    "Market Share Gainers US: Year-by-Year Returns (2000-2024)",
+    "NYSE + NASDAQ + AMEX"
+)
+chart_regime(
+    "NYSE_NASDAQ_AMEX", "us_regime.png",
+    "Market Share US: Alpha Regime Shift (2000-2009 vs 2010-2024)",
     "NYSE + NASDAQ + AMEX"
 )
 
 print("India charts...")
 chart_cumulative(
     ["BSE_NSE"], "india_cumulative_growth.png",
-    "Growth of $10,000: Market Share Gain India vs S&P 500 (2000-2024)",
+    "Growth of $10,000: Market Share Gainers India vs S&P 500 (2000-2025)",
     "BSE + NSE (returns in INR)"
 )
 chart_annual_bars(
     ["BSE_NSE"], "india_annual_returns.png",
-    "Market Share Gain India: Year-by-Year Returns (2000-2024)",
+    "Market Share Gainers India: Year-by-Year Returns (2000-2024)",
     "BSE + NSE (returns in INR)"
 )
 
 print("Canada charts...")
 chart_cumulative(
     ["TSX"], "canada_cumulative_growth.png",
-    "Growth of $10,000: Market Share Gain Canada vs S&P 500 (2000-2024)",
+    "Growth of $10,000: Market Share Gainers Canada vs S&P 500 (2000-2025)",
     "TSX"
 )
 chart_annual_bars(
     ["TSX"], "canada_annual_returns.png",
-    "Market Share Gain Canada: Year-by-Year Returns (2000-2024)",
+    "Market Share Gainers Canada: Year-by-Year Returns (2000-2024)",
     "TSX"
 )
 
 print("UK charts...")
 chart_cumulative(
     ["LSE"], "uk_cumulative_growth.png",
-    "Growth of $10,000: Market Share Gain UK vs S&P 500 (2000-2024)",
+    "Growth of $10,000: Market Share Gainers UK vs S&P 500 (2000-2025)",
     "LSE"
 )
 chart_annual_bars(
     ["LSE"], "uk_annual_returns.png",
-    "Market Share Gain UK: Year-by-Year Returns (2000-2024)",
+    "Market Share Gainers UK: Year-by-Year Returns (2000-2024)",
     "LSE"
 )
 
 print("Germany charts...")
 chart_cumulative(
     ["XETRA"], "germany_cumulative_growth.png",
-    "Growth of $10,000: Market Share Gain Germany vs S&P 500 (2000-2024)",
+    "Growth of $10,000: Market Share Gainers Germany vs S&P 500 (2000-2025)",
     "XETRA"
 )
 chart_annual_bars(
     ["XETRA"], "germany_annual_returns.png",
-    "Market Share Gain Germany: Year-by-Year Returns (2000-2024)",
+    "Market Share Gainers Germany: Year-by-Year Returns (2000-2024)",
     "XETRA"
 )
 
 print("Switzerland charts...")
 chart_cumulative(
     ["SIX"], "switzerland_cumulative_growth.png",
-    "Growth of $10,000: Market Share Gain Switzerland vs S&P 500 (2000-2024)",
+    "Growth of $10,000: Market Share Gainers Switzerland vs S&P 500 (2000-2025)",
     "SIX Swiss Exchange"
 )
 chart_annual_bars(
     ["SIX"], "switzerland_annual_returns.png",
-    "Market Share Gain Switzerland: Year-by-Year Returns (2000-2024)",
+    "Market Share Gainers Switzerland: Year-by-Year Returns (2000-2024)",
     "SIX Swiss Exchange"
 )
 
-print("Comparison chart...")
-chart_comparison_cagr("comparison_cagr_excess.png")
+print("Comparison charts...")
+chart_comparison_cagr("comparison_cagr.png")
 
 print(f"\nDone. Charts generated in {charts_dir}/")
-print("\nNext: copy charts to blog directories:")
-print("  cp charts/us_*.png ../ts-content-creator/content/_current/growth-06-market-share/blogs/us/")
-print("  cp charts/india_*.png ../ts-content-creator/content/_current/growth-06-market-share/blogs/india/")
-print("  cp charts/canada_*.png ../ts-content-creator/content/_current/growth-06-market-share/blogs/canada/")
-print("  cp charts/uk_*.png ../ts-content-creator/content/_current/growth-06-market-share/blogs/uk/")
-print("  cp charts/germany_*.png ../ts-content-creator/content/_current/growth-06-market-share/blogs/germany/")
-print("  cp charts/switzerland_*.png ../ts-content-creator/content/_current/growth-06-market-share/blogs/switzerland/")
-print("  cp charts/comparison_*.png ../ts-content-creator/content/_current/growth-06-market-share/blogs/comparison/")
