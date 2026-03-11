@@ -1,0 +1,320 @@
+{
+  "strategy": "Analyst Rating Revision Momentum",
+  "universe": "Canada",
+  "benchmark": "EWC",
+  "study_type": "event_study",
+  "period": "2012-2025",
+  "filters": {
+    "cluster_window_days": 30,
+    "min_cluster_analysts": 2,
+    "min_market_cap": 500000000,
+    "start_year": 2012,
+    "end_year": 2025
+  },
+  "windows": [
+    1,
+    5,
+    21,
+    63
+  ],
+  "car_metrics": {
+    "upgrade_all": {
+      "n": 2232,
+      "T+1": {
+        "mean_car": 0.5133,
+        "median_car": 0.287,
+        "t_stat": 8.41,
+        "n": 2232,
+        "hit_rate": 56.5,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+5": {
+        "mean_car": 0.695,
+        "median_car": 0.4913,
+        "t_stat": 6.255,
+        "n": 2162,
+        "hit_rate": 55.6,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 0.5431,
+        "median_car": 0.1663,
+        "t_stat": 2.602,
+        "n": 2202,
+        "hit_rate": 50.59,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+63": {
+        "mean_car": 1.2473,
+        "median_car": 0.8735,
+        "t_stat": 3.375,
+        "n": 2173,
+        "hit_rate": 52.28,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    },
+    "upgrade_single": {
+      "n": 1452,
+      "T+1": {
+        "mean_car": 0.537,
+        "median_car": 0.3085,
+        "t_stat": 7.502,
+        "n": 1452,
+        "hit_rate": 57.51,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+5": {
+        "mean_car": 0.729,
+        "median_car": 0.435,
+        "t_stat": 5.368,
+        "n": 1406,
+        "hit_rate": 55.55,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 0.5494,
+        "median_car": 0.0178,
+        "t_stat": 2.223,
+        "n": 1437,
+        "hit_rate": 50.17,
+        "significant_5pct": true,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": 0.8602,
+        "median_car": 0.4076,
+        "t_stat": 1.989,
+        "n": 1414,
+        "hit_rate": 51.34,
+        "significant_5pct": true,
+        "significant_1pct": false
+      }
+    },
+    "upgrade_clustered": {
+      "n": 780,
+      "T+1": {
+        "mean_car": 0.4659,
+        "median_car": 0.2327,
+        "t_stat": 4.133,
+        "n": 780,
+        "hit_rate": 54.62,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+5": {
+        "mean_car": 0.6624,
+        "median_car": 0.5948,
+        "t_stat": 3.397,
+        "n": 756,
+        "hit_rate": 55.69,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 0.5618,
+        "median_car": 0.4677,
+        "t_stat": 1.449,
+        "n": 765,
+        "hit_rate": 51.37,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": 1.9038,
+        "median_car": 1.5575,
+        "t_stat": 2.733,
+        "n": 759,
+        "hit_rate": 54.02,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    },
+    "upgrade_small": {
+      "n": 2191,
+      "T+1": {
+        "mean_car": 0.497,
+        "median_car": 0.279,
+        "t_stat": 8.115,
+        "n": 2191,
+        "hit_rate": 56.23,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+5": {
+        "mean_car": 0.6628,
+        "median_car": 0.4521,
+        "t_stat": 5.928,
+        "n": 2122,
+        "hit_rate": 55.37,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 0.4934,
+        "median_car": 0.1365,
+        "t_stat": 2.342,
+        "n": 2162,
+        "hit_rate": 50.42,
+        "significant_5pct": true,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": 1.2136,
+        "median_car": 0.8604,
+        "t_stat": 3.268,
+        "n": 2132,
+        "hit_rate": 52.16,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    },
+    "downgrade_all": {
+      "n": 2109,
+      "T+1": {
+        "mean_car": -0.7309,
+        "median_car": -0.4665,
+        "t_stat": -11.686,
+        "n": 2109,
+        "hit_rate": 60.64,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+5": {
+        "mean_car": -0.5907,
+        "median_car": -0.4938,
+        "t_stat": -4.552,
+        "n": 2040,
+        "hit_rate": 55.83,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": -0.2429,
+        "median_car": -0.2171,
+        "t_stat": -1.05,
+        "n": 2085,
+        "hit_rate": 50.98,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": 0.795,
+        "median_car": 0.0238,
+        "t_stat": 1.842,
+        "n": 2047,
+        "hit_rate": 49.98,
+        "significant_5pct": false,
+        "significant_1pct": false
+      }
+    }
+  },
+  "yearly_stats": [
+    {
+      "year": 2012,
+      "upgrades": 93,
+      "downgrades": 95,
+      "upgrade_clustered": 25,
+      "upgrade_single": 68
+    },
+    {
+      "year": 2013,
+      "upgrades": 227,
+      "downgrades": 260,
+      "upgrade_clustered": 109,
+      "upgrade_single": 118
+    },
+    {
+      "year": 2014,
+      "upgrades": 146,
+      "downgrades": 164,
+      "upgrade_clustered": 58,
+      "upgrade_single": 88
+    },
+    {
+      "year": 2015,
+      "upgrades": 219,
+      "downgrades": 159,
+      "upgrade_clustered": 90,
+      "upgrade_single": 129
+    },
+    {
+      "year": 2016,
+      "upgrades": 263,
+      "downgrades": 241,
+      "upgrade_clustered": 121,
+      "upgrade_single": 142
+    },
+    {
+      "year": 2017,
+      "upgrades": 165,
+      "downgrades": 150,
+      "upgrade_clustered": 58,
+      "upgrade_single": 107
+    },
+    {
+      "year": 2018,
+      "upgrades": 171,
+      "downgrades": 94,
+      "upgrade_clustered": 43,
+      "upgrade_single": 128
+    },
+    {
+      "year": 2019,
+      "upgrades": 172,
+      "downgrades": 211,
+      "upgrade_clustered": 61,
+      "upgrade_single": 111
+    },
+    {
+      "year": 2020,
+      "upgrades": 152,
+      "downgrades": 156,
+      "upgrade_clustered": 43,
+      "upgrade_single": 109
+    },
+    {
+      "year": 2021,
+      "upgrades": 217,
+      "downgrades": 177,
+      "upgrade_clustered": 56,
+      "upgrade_single": 161
+    },
+    {
+      "year": 2022,
+      "upgrades": 168,
+      "downgrades": 151,
+      "upgrade_clustered": 38,
+      "upgrade_single": 130
+    },
+    {
+      "year": 2023,
+      "upgrades": 133,
+      "downgrades": 117,
+      "upgrade_clustered": 51,
+      "upgrade_single": 82
+    },
+    {
+      "year": 2024,
+      "upgrades": 50,
+      "downgrades": 65,
+      "upgrade_clustered": 13,
+      "upgrade_single": 37
+    },
+    {
+      "year": 2025,
+      "upgrades": 56,
+      "downgrades": 69,
+      "upgrade_clustered": 14,
+      "upgrade_single": 42
+    }
+  ],
+  "n_total_upgrades": 2232,
+  "n_total_downgrades": 2109,
+  "n_clustered_upgrades": 780
+}
