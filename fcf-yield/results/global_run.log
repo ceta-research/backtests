@@ -1,0 +1,1726 @@
+=================================================================
+  FCF YIELD BACKTEST
+  Universe: Global
+  Signal: FCF Yield > 8%, ROE > 10%, IC > 3x, OPM > 10%, MCap > 1B local, top 30
+=================================================================
+  Frequency: annual, Costs: size-tiered
+  Risk-free rate: 2.0%
+=================================================================
+
+=================================================================
+  Running: US_MAJOR (NYSE, NASDAQ, AMEX)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 355278c3...)
+  Status: queued...
+  Universe: 22184 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: e701ac78...)
+  Status: queued...
+    -> 266317 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 78bad9d8...)
+  Status: queued...
+    -> 266317 rows
+  Fetching prices...
+  Query submitted (task: 96ae2188...)
+  Status: assigned...
+  Status: executing...
+  Status: executing...
+    -> 752923 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 13 stocks, port=27.3%, spy=-14.8%  ex=+42.1%
+    2001-07-01: 21 stocks, port=1.7%, spy=-20.8%  ex=+22.5%
+    2002-07-01: 18 stocks, port=5.9%, spy=3.3%  ex=+2.6%
+    2003-07-01: 28 stocks, port=32.0%, spy=16.4%  ex=+15.5%
+    2004-07-01: 23 stocks, port=23.1%, spy=7.9%  ex=+15.2%
+    2005-07-01: 20 stocks, port=17.5%, spy=8.9%  ex=+8.6%
+    2006-07-01: 26 stocks, port=24.6%, spy=20.9%  ex=+3.7%
+    2007-07-01: 23 stocks, port=-21.4%, spy=-13.7%  ex=-7.7%
+    2008-07-01: 22 stocks, port=-32.8%, spy=-26.1%  ex=-6.7%
+    2009-07-01: 28 stocks, port=26.6%, spy=13.4%  ex=+13.2%
+    2010-07-01: 27 stocks, port=31.3%, spy=32.9%  ex=-1.6%
+    2011-07-01: 20 stocks, port=0.9%, spy=4.1%  ex=-3.2%
+    2012-07-01: 25 stocks, port=27.1%, spy=20.9%  ex=+6.2%
+    2013-07-01: 20 stocks, port=29.9%, spy=24.5%  ex=+5.4%
+    2014-07-01: 19 stocks, port=3.7%, spy=7.4%  ex=-3.7%
+    2015-07-01: 24 stocks, port=-6.6%, spy=3.4%  ex=-10.0%
+    2016-07-01: 23 stocks, port=28.4%, spy=17.7%  ex=+10.6%
+    2017-07-01: 22 stocks, port=3.4%, spy=14.3%  ex=-11.0%
+    2018-07-01: 27 stocks, port=-1.1%, spy=10.9%  ex=-12.0%
+    2019-07-01: 22 stocks, port=-22.7%, spy=7.1%  ex=-29.8%
+    2020-07-01: 21 stocks, port=64.2%, spy=40.7%  ex=+23.5%
+    2021-07-01: 27 stocks, port=-6.4%, spy=-10.2%  ex=+3.8%
+    2022-07-01: 23 stocks, port=26.8%, spy=18.3%  ex=+8.5%
+    2023-07-01: 25 stocks, port=25.1%, spy=24.6%  ex=+0.5%
+    2024-07-01: 25 stocks, port=23.5%, spy=14.7%  ex=+8.9%
+  Backtest completed in 1s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                             11.17%      7.83%
+  Total Return                    1311.3%     558.7%
+  Max Drawdown                    -47.21%    -36.27%
+  Volatility (ann.)                21.55%     16.22%
+  VaR 95%                         -22.70%    -20.77%
+  Sharpe Ratio                      0.425      0.360
+  Sortino Ratio                     0.912      0.654
+  Calmar Ratio                      0.237      0.216
+
+  --- Relative ---            
+  Excess CAGR                       3.34%
+  Win Rate                          64.0%
+  Information Ratio                 0.296
+  Tracking Error                   14.22%
+  Up Capture                       116.4%
+  Down Capture                      36.9%
+  Beta                              0.999
+  Alpha (Jensen)                    3.35%
+=================================================================
+
+  Cash periods: 0 / 25
+  Avg stocks (invested): 22.9
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000          27.3%     -14.8%     +42.1%
+  2001           1.7%     -20.8%     +22.5%
+  2002           5.9%       3.3%      +2.6%
+  2003          32.0%      16.4%     +15.5%
+  2004          23.1%       7.9%     +15.2%
+  2005          17.5%       8.9%      +8.6%
+  2006          24.6%      20.9%      +3.7%
+  2007         -21.4%     -13.7%      -7.7%
+  2008         -32.8%     -26.1%      -6.7%
+  2009          26.6%      13.4%     +13.2%
+  2010          31.3%      32.9%      -1.6%
+  2011           0.9%       4.1%      -3.2%
+  2012          27.1%      20.9%      +6.2%
+  2013          29.9%      24.5%      +5.4%
+  2014           3.7%       7.4%      -3.7%
+  2015          -6.6%       3.4%     -10.0%
+  2016          28.4%      17.7%     +10.6%
+  2017           3.4%      14.3%     -11.0%
+  2018          -1.1%      10.9%     -12.0%
+  2019         -22.7%       7.1%     -29.8%
+  2020          64.2%      40.7%     +23.5%
+  2021          -6.4%     -10.2%      +3.8%
+  2022          26.8%      18.3%      +8.5%
+  2023          25.1%      24.6%      +0.5%
+  2024          23.5%      14.7%      +8.9%
+
+  Total time: 33s (fetch: 32s, backtest: 1s)
+
+Skipping NYSE (NYSE) - excluded
+
+Skipping NASDAQ (NASDAQ) - excluded
+
+=================================================================
+  Running: Canada (TSX, TSXV)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 9cc8d371...)
+  Status: queued...
+  Universe: 3163 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: 0c67469b...)
+  Status: queued...
+    -> 40104 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 8600d706...)
+  Status: executing...
+    -> 40104 rows
+  Fetching prices...
+  Query submitted (task: 2002aa8b...)
+  Status: queued...
+  Status: executing...
+  Status: executing...
+    -> 111249 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 3 passed (< 10), CASH
+    2001-07-01: 3 passed (< 10), CASH
+    2002-07-01: 3 passed (< 10), CASH
+    2003-07-01: 8 passed (< 10), CASH
+    2004-07-01: 6 passed (< 10), CASH
+    2005-07-01: 10 stocks, port=12.4%, spy=8.9%  ex=+3.5%
+    2006-07-01: 14 stocks, port=15.6%, spy=20.9%  ex=-5.4%
+    2007-07-01: 10 stocks, port=-2.5%, spy=-13.7%  ex=+11.3%
+    2008-07-01: 14 stocks, port=-25.6%, spy=-26.1%  ex=+0.5%
+    2009-07-01: 15 stocks, port=37.8%, spy=13.4%  ex=+24.4%
+    2010-07-01: 19 stocks, port=27.7%, spy=32.9%  ex=-5.3%
+    2011-07-01: 12 stocks, port=-5.5%, spy=4.1%  ex=-9.6%
+    2012-07-01: 12 stocks, port=23.5%, spy=20.9%  ex=+2.6%
+    2013-07-01: 8 stocks, port=31.8%, spy=24.5%  ex=+7.3%
+    2014-07-01: 20 stocks, port=3.2%, spy=7.4%  ex=-4.2%
+    2015-07-01: 12 stocks, port=1.7%, spy=3.4%  ex=-1.6%
+    2016-07-01: 14 stocks, port=16.0%, spy=17.7%  ex=-1.7%
+    2017-07-01: 17 stocks, port=1.4%, spy=14.3%  ex=-12.9%
+    2018-07-01: 15 stocks, port=-3.1%, spy=10.9%  ex=-14.0%
+    2019-07-01: 25 stocks, port=-12.9%, spy=7.1%  ex=-20.0%
+    2020-07-01: 19 stocks, port=53.8%, spy=40.7%  ex=+13.1%
+    2021-07-01: 29 stocks, port=-10.2%, spy=-10.2%  ex=-0.1%
+    2022-07-01: 27 stocks, port=6.3%, spy=18.3%  ex=-12.0%
+    2023-07-01: 25 stocks, port=11.5%, spy=24.6%  ex=-13.1%
+    2024-07-01: 26 stocks, port=32.0%, spy=14.7%  ex=+17.3%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              7.24%      7.83%
+  Total Return                     474.3%     558.7%
+  Max Drawdown                    -27.47%    -36.27%
+  Volatility (ann.)                17.85%     16.22%
+  VaR 95%                         -12.90%    -20.77%
+  Sharpe Ratio                      0.266      0.329
+  Sortino Ratio                     0.647      0.584
+  Calmar Ratio                      0.264      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -0.59%
+  Win Rate                          40.0%
+  Information Ratio                -0.039
+  Tracking Error                   12.09%
+  Up Capture                        81.1%
+  Down Capture                      44.8%
+  Beta                              0.828
+  Alpha (Jensen)                    0.33%
+=================================================================
+
+  Cash periods: 5 / 25
+  Avg stocks (invested): 17.1
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005          12.4%       8.9%      +3.5%
+  2006          15.6%      20.9%      -5.4%
+  2007          -2.5%     -13.7%     +11.3%
+  2008         -25.6%     -26.1%      +0.5%
+  2009          37.8%      13.4%     +24.4%
+  2010          27.7%      32.9%      -5.3%
+  2011          -5.5%       4.1%      -9.6%
+  2012          23.5%      20.9%      +2.6%
+  2013          31.8%      24.5%      +7.3%
+  2014           3.2%       7.4%      -4.2%
+  2015           1.7%       3.4%      -1.6%
+  2016          16.0%      17.7%      -1.7%
+  2017           1.4%      14.3%     -12.9%
+  2018          -3.1%      10.9%     -14.0%
+  2019         -12.9%       7.1%     -20.0%
+  2020          53.8%      40.7%     +13.1%
+  2021         -10.2%     -10.2%      -0.1%
+  2022           6.3%      18.3%     -12.0%
+  2023          11.5%      24.6%     -13.1%
+  2024          32.0%      14.7%     +17.3%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: LSE (LSE)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: c0a92db8...)
+  Status: queued...
+  Universe: 6848 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: 1d9dd6ba...)
+  Status: queued...
+    -> 73737 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 304ea80f...)
+  Status: queued...
+    -> 73737 rows
+  Fetching prices...
+  Query submitted (task: 2aa5ef06...)
+  Status: assigned...
+  Status: executing...
+  Status: executing...
+    -> 302079 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 2 passed (< 10), CASH
+    2001-07-01: 4 passed (< 10), CASH
+    2002-07-01: 6 passed (< 10), CASH
+    2003-07-01: 5 stocks, port=35.6%, spy=16.4%  ex=+19.1%
+    2004-07-01: 5 stocks, port=-4.9%, spy=7.9%  ex=-12.9%
+    2005-07-01: 13 stocks, port=22.2%, spy=8.9%  ex=+13.3%
+    2006-07-01: 12 stocks, port=24.5%, spy=20.9%  ex=+3.5%
+    2007-07-01: 17 stocks, port=-3.0%, spy=-13.7%  ex=+10.7%
+    2008-07-01: 13 stocks, port=-9.8%, spy=-26.1%  ex=+16.3%
+    2009-07-01: 13 stocks, port=39.2%, spy=13.4%  ex=+25.8%
+    2010-07-01: 11 stocks, port=34.8%, spy=32.9%  ex=+1.9%
+    2011-07-01: 15 stocks, port=-9.5%, spy=4.1%  ex=-13.6%
+    2012-07-01: 12 stocks, port=25.6%, spy=20.9%  ex=+4.7%
+    2013-07-01: 11 stocks, port=20.0%, spy=24.5%  ex=-4.5%
+    2014-07-01: 12 stocks, port=-14.3%, spy=7.4%  ex=-21.7%
+    2015-07-01: 17 stocks, port=4.4%, spy=3.4%  ex=+1.1%
+    2016-07-01: 11 stocks, port=17.1%, spy=17.7%  ex=-0.7%
+    2017-07-01: 16 stocks, port=17.2%, spy=14.3%  ex=+2.8%
+    2018-07-01: 23 stocks, port=8.1%, spy=10.9%  ex=-2.8%
+    2019-07-01: 19 stocks, port=-9.2%, spy=7.1%  ex=-16.3%
+    2020-07-01: 17 stocks, port=61.7%, spy=40.7%  ex=+21.0%
+    2021-07-01: 26 stocks, port=-20.9%, spy=-10.2%  ex=-10.7%
+    2022-07-01: 15 stocks, port=-7.2%, spy=18.3%  ex=-25.5%
+    2023-07-01: 21 stocks, port=23.4%, spy=24.6%  ex=-1.2%
+    2024-07-01: 20 stocks, port=13.3%, spy=14.7%  ex=-1.3%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              9.08%      7.83%
+  Total Return                     777.6%     558.7%
+  Max Drawdown                    -26.58%    -36.27%
+  Volatility (ann.)                19.88%     16.22%
+  VaR 95%                         -14.35%    -20.77%
+  Sharpe Ratio                      0.281      0.267
+  Sortino Ratio                     0.679      0.453
+  Calmar Ratio                      0.341      0.216
+
+  --- Relative ---            
+  Excess CAGR                       1.24%
+  Win Rate                          52.0%
+  Information Ratio                 0.120
+  Tracking Error                   13.78%
+  Up Capture                        96.6%
+  Down Capture                      39.4%
+  Beta                              0.890
+  Alpha (Jensen)                    1.72%
+=================================================================
+
+  Cash periods: 3 / 25
+  Avg stocks (invested): 14.7
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003          35.6%      16.4%     +19.1%
+  2004          -4.9%       7.9%     -12.9%
+  2005          22.2%       8.9%     +13.3%
+  2006          24.5%      20.9%      +3.5%
+  2007          -3.0%     -13.7%     +10.7%
+  2008          -9.8%     -26.1%     +16.3%
+  2009          39.2%      13.4%     +25.8%
+  2010          34.8%      32.9%      +1.9%
+  2011          -9.5%       4.1%     -13.6%
+  2012          25.6%      20.9%      +4.7%
+  2013          20.0%      24.5%      -4.5%
+  2014         -14.3%       7.4%     -21.7%
+  2015           4.4%       3.4%      +1.1%
+  2016          17.1%      17.7%      -0.7%
+  2017          17.2%      14.3%      +2.8%
+  2018           8.1%      10.9%      -2.8%
+  2019          -9.2%       7.1%     -16.3%
+  2020          61.7%      40.7%     +21.0%
+  2021         -20.9%     -10.2%     -10.7%
+  2022          -7.2%      18.3%     -25.5%
+  2023          23.4%      24.6%      -1.2%
+  2024          13.3%      14.7%      -1.3%
+
+  Total time: 33s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: XETRA (XETRA)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 9e214b31...)
+  Status: executing...
+  Universe: 2682 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: e1a1b8b9...)
+  Status: queued...
+    -> 42405 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 5f709651...)
+  Status: executing...
+    -> 42405 rows
+  Fetching prices...
+  Query submitted (task: 275daadf...)
+  Status: executing...
+  Status: executing...
+  Status: executing...
+    -> 127883 price rows
+
+  Data fetched in 33s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 5 passed (< 10), CASH
+    2001-07-01: 3 passed (< 10), CASH
+    2002-07-01: 0 passed (< 10), CASH
+    2003-07-01: 6 passed (< 10), CASH
+    2004-07-01: 9 passed (< 10), CASH
+    2005-07-01: 9 stocks, port=14.6%, spy=8.9%  ex=+5.7%
+    2006-07-01: 8 stocks, port=9.2%, spy=20.9%  ex=-11.7%
+    2007-07-01: 15 stocks, port=-29.8%, spy=-13.7%  ex=-16.1%
+    2008-07-01: 21 stocks, port=-14.3%, spy=-26.1%  ex=+11.9%
+    2009-07-01: 26 stocks, port=41.7%, spy=13.4%  ex=+28.3%
+    2010-07-01: 28 stocks, port=20.5%, spy=32.9%  ex=-12.5%
+    2011-07-01: 24 stocks, port=5.6%, spy=4.1%  ex=+1.5%
+    2012-07-01: 28 stocks, port=18.6%, spy=20.9%  ex=-2.2%
+    2013-07-01: 25 stocks, port=22.5%, spy=24.5%  ex=-2.0%
+    2014-07-01: 23 stocks, port=27.7%, spy=7.4%  ex=+20.3%
+    2015-07-01: 29 stocks, port=8.7%, spy=3.4%  ex=+5.4%
+    2016-07-01: 26 stocks, port=18.5%, spy=17.7%  ex=+0.7%
+    2017-07-01: 27 stocks, port=52.9%, spy=14.3%  ex=+38.6%
+    2018-07-01: 27 stocks, port=5.1%, spy=10.9%  ex=-5.9%
+    2019-07-01: 26 stocks, port=265.5%, spy=7.1%  ex=+258.4%
+    2020-07-01: 25 stocks, port=100.6%, spy=40.7%  ex=+59.9%
+    2021-07-01: 24 stocks, port=-4.5%, spy=-10.2%  ex=+5.7%
+    2022-07-01: 24 stocks, port=10.1%, spy=18.3%  ex=-8.2%
+    2023-07-01: 25 stocks, port=22.1%, spy=24.6%  ex=-2.5%
+    2024-07-01: 21 stocks, port=24.8%, spy=14.7%  ex=+10.1%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                             17.89%      7.83%
+  Total Return                    6022.1%     558.7%
+  Max Drawdown                    -39.82%    -36.27%
+  Volatility (ann.)                55.87%     16.22%
+  VaR 95%                         -14.26%    -20.77%
+  Sharpe Ratio                      0.284      0.360
+  Sortino Ratio                     2.171      0.654
+  Calmar Ratio                      0.449      0.216
+
+  --- Relative ---            
+  Excess CAGR                      10.06%
+  Win Rate                          56.0%
+  Information Ratio                 0.294
+  Tracking Error                   53.58%
+  Up Capture                       214.1%
+  Down Capture                      56.8%
+  Beta                              0.978
+  Alpha (Jensen)                   10.19%
+=================================================================
+
+  Cash periods: 5 / 25
+  Avg stocks (invested): 23.1
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005          14.6%       8.9%      +5.7%
+  2006           9.2%      20.9%     -11.7%
+  2007         -29.8%     -13.7%     -16.1%
+  2008         -14.3%     -26.1%     +11.9%
+  2009          41.7%      13.4%     +28.3%
+  2010          20.5%      32.9%     -12.5%
+  2011           5.6%       4.1%      +1.5%
+  2012          18.6%      20.9%      -2.2%
+  2013          22.5%      24.5%      -2.0%
+  2014          27.7%       7.4%     +20.3%
+  2015           8.7%       3.4%      +5.4%
+  2016          18.5%      17.7%      +0.7%
+  2017          52.9%      14.3%     +38.6%
+  2018           5.1%      10.9%      -5.9%
+  2019         265.5%       7.1%    +258.4%
+  2020         100.6%      40.7%     +59.9%
+  2021          -4.5%     -10.2%      +5.7%
+  2022          10.1%      18.3%      -8.2%
+  2023          22.1%      24.6%      -2.5%
+  2024          24.8%      14.7%     +10.1%
+
+  Total time: 33s (fetch: 33s, backtest: 0s)
+
+Skipping PAR (PAR) - excluded
+
+=================================================================
+  Running: SIX (SIX)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 53441e19...)
+  Status: executing...
+  Universe: 648 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: bf5c0504...)
+  Status: queued...
+    -> 16780 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: d369b786...)
+  Status: queued...
+    -> 16780 rows
+  Fetching prices...
+  Query submitted (task: 0c462ffb...)
+  Status: queued...
+  Status: executing...
+  Status: executing...
+    -> 47737 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 0 passed (< 10), CASH
+    2001-07-01: 0 passed (< 10), CASH
+    2002-07-01: 2 passed (< 10), CASH
+    2003-07-01: 1 passed (< 10), CASH
+    2004-07-01: 4 passed (< 10), CASH
+    2005-07-01: 8 passed (< 10), CASH
+    2006-07-01: 8 passed (< 10), CASH
+    2007-07-01: 8 passed (< 10), CASH
+    2008-07-01: 9 stocks, port=-25.7%, spy=-26.1%  ex=+0.4%
+    2009-07-01: 12 stocks, port=24.5%, spy=13.4%  ex=+11.1%
+    2010-07-01: 12 stocks, port=11.5%, spy=32.9%  ex=-21.4%
+    2011-07-01: 12 stocks, port=6.4%, spy=4.1%  ex=+2.3%
+    2012-07-01: 9 stocks, port=24.4%, spy=20.9%  ex=+3.6%
+    2013-07-01: 8 stocks, port=16.5%, spy=24.5%  ex=-8.0%
+    2014-07-01: 9 stocks, port=30.1%, spy=7.4%  ex=+22.7%
+    2015-07-01: 12 stocks, port=8.3%, spy=3.4%  ex=+5.0%
+    2016-07-01: 10 stocks, port=24.9%, spy=17.7%  ex=+7.2%
+    2017-07-01: 11 stocks, port=12.7%, spy=14.3%  ex=-1.7%
+    2018-07-01: 7 stocks, port=0.4%, spy=10.9%  ex=-10.5%
+    2019-07-01: 9 stocks, port=0.6%, spy=7.1%  ex=-6.6%
+    2020-07-01: 13 stocks, port=12.7%, spy=40.7%  ex=-28.0%
+    2021-07-01: 9 stocks, port=-4.9%, spy=-10.2%  ex=+5.3%
+    2022-07-01: 9 stocks, port=7.4%, spy=18.3%  ex=-10.9%
+    2023-07-01: 6 stocks, port=15.7%, spy=24.6%  ex=-8.9%
+    2024-07-01: 3 stocks, port=0.2%, spy=14.7%  ex=-14.4%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              5.96%      7.83%
+  Total Return                     325.4%     558.7%
+  Max Drawdown                    -25.70%    -36.27%
+  Volatility (ann.)                11.98%     16.22%
+  VaR 95%                          -4.87%    -20.77%
+  Sharpe Ratio                      0.456      0.452
+  Sortino Ratio                     1.020      0.886
+  Calmar Ratio                      0.232      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -1.87%
+  Win Rate                          44.0%
+  Information Ratio                -0.185
+  Tracking Error                   13.20%
+  Up Capture                        62.8%
+  Down Capture                      35.7%
+  Beta                              0.442
+  Alpha (Jensen)                    2.22%
+=================================================================
+
+  Cash periods: 8 / 25
+  Avg stocks (invested): 9.4
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005           0.0%       8.9%      -8.9%
+  2006           0.0%      20.9%     -20.9%
+  2007           0.0%     -13.7%     +13.7%
+  2008         -25.7%     -26.1%      +0.4%
+  2009          24.5%      13.4%     +11.1%
+  2010          11.5%      32.9%     -21.4%
+  2011           6.4%       4.1%      +2.3%
+  2012          24.4%      20.9%      +3.6%
+  2013          16.5%      24.5%      -8.0%
+  2014          30.1%       7.4%     +22.7%
+  2015           8.3%       3.4%      +5.0%
+  2016          24.9%      17.7%      +7.2%
+  2017          12.7%      14.3%      -1.7%
+  2018           0.4%      10.9%     -10.5%
+  2019           0.6%       7.1%      -6.6%
+  2020          12.7%      40.7%     -28.0%
+  2021          -4.9%     -10.2%      +5.3%
+  2022           7.4%      18.3%     -10.9%
+  2023          15.7%      24.6%      -8.9%
+  2024           0.2%      14.7%     -14.4%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: STO (STO)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 06d1d195...)
+  Status: executing...
+  Universe: 982 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: 888c5f3a...)
+  Status: queued...
+    -> 23952 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 3e13230d...)
+  Status: executing...
+    -> 23952 rows
+  Fetching prices...
+  Query submitted (task: 0de3a4e7...)
+  Status: queued...
+  Status: executing...
+  Status: executing...
+    -> 85052 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 0 passed (< 10), CASH
+    2001-07-01: 0 passed (< 10), CASH
+    2002-07-01: 0 passed (< 10), CASH
+    2003-07-01: 4 passed (< 10), CASH
+    2004-07-01: 1 passed (< 10), CASH
+    2005-07-01: 3 passed (< 10), CASH
+    2006-07-01: 3 passed (< 10), CASH
+    2007-07-01: 4 passed (< 10), CASH
+    2008-07-01: 7 passed (< 10), CASH
+    2009-07-01: 8 passed (< 10), CASH
+    2010-07-01: 10 stocks, port=31.4%, spy=32.9%  ex=-1.6%
+    2011-07-01: 11 stocks, port=-6.7%, spy=4.1%  ex=-10.8%
+    2012-07-01: 8 passed (< 10), CASH
+    2013-07-01: 6 passed (< 10), CASH
+    2014-07-01: 8 passed (< 10), CASH
+    2015-07-01: 6 passed (< 10), CASH
+    2016-07-01: 5 passed (< 10), CASH
+    2017-07-01: 6 passed (< 10), CASH
+    2018-07-01: 8 passed (< 10), CASH
+    2019-07-01: 8 passed (< 10), CASH
+    2020-07-01: 5 passed (< 10), CASH
+    2021-07-01: 10 stocks, port=-13.4%, spy=-10.2%  ex=-3.2%
+    2022-07-01: 21 stocks, port=11.6%, spy=18.3%  ex=-6.7%
+    2023-07-01: 8 passed (< 10), CASH
+    2024-07-01: 11 stocks, port=2.9%, spy=14.7%  ex=-11.8%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              0.79%      7.83%
+  Total Return                      21.9%     558.7%
+  Max Drawdown                    -19.21%    -36.27%
+  Volatility (ann.)                 7.43%     16.22%
+  VaR 95%                          -6.73%    -20.77%
+  Sharpe Ratio                     -0.162      0.360
+  Sortino Ratio                    -0.304      0.654
+  Calmar Ratio                      0.041      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -7.04%
+  Win Rate                          16.0%
+  Information Ratio                -0.541
+  Tracking Error                   14.87%
+  Up Capture                        12.5%
+  Down Capture                      15.6%
+  Beta                              0.184
+  Alpha (Jensen)                   -2.28%
+=================================================================
+
+  Cash periods: 20 / 25
+  Avg stocks (invested): 12.6
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005           0.0%       8.9%      -8.9%
+  2006           0.0%      20.9%     -20.9%
+  2007           0.0%     -13.7%     +13.7%
+  2008           0.0%     -26.1%     +26.1%
+  2009           0.0%      13.4%     -13.4%
+  2010          31.4%      32.9%      -1.6%
+  2011          -6.7%       4.1%     -10.8%
+  2012           0.0%      20.9%     -20.9%
+  2013           0.0%      24.5%     -24.5%
+  2014           0.0%       7.4%      -7.4%
+  2015           0.0%       3.4%      -3.4%
+  2016           0.0%      17.7%     -17.7%
+  2017           0.0%      14.3%     -14.3%
+  2018           0.0%      10.9%     -10.9%
+  2019           0.0%       7.1%      -7.1%
+  2020           0.0%      40.7%     -40.7%
+  2021         -13.4%     -10.2%      -3.2%
+  2022          11.6%      18.3%      -6.7%
+  2023           0.0%      24.6%     -24.6%
+  2024           2.9%      14.7%     -11.8%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: OSL (OSL)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 2ca08309...)
+  Status: queued...
+  Universe: 335 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: ac37fb24...)
+  Status: executing...
+    -> 8436 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 898a2e0f...)
+  Status: queued...
+    -> 8436 rows
+  Fetching prices...
+  Query submitted (task: f8a2ff0a...)
+  Status: queued...
+  Status: executing...
+  Status: executing...
+    -> 30006 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 0 passed (< 10), CASH
+    2001-07-01: 0 passed (< 10), CASH
+    2002-07-01: 0 passed (< 10), CASH
+    2003-07-01: 0 passed (< 10), CASH
+    2004-07-01: 0 passed (< 10), CASH
+    2005-07-01: 0 passed (< 10), CASH
+    2006-07-01: 1 passed (< 10), CASH
+    2007-07-01: 1 passed (< 10), CASH
+    2008-07-01: 2 passed (< 10), CASH
+    2009-07-01: 1 passed (< 10), CASH
+    2010-07-01: 3 passed (< 10), CASH
+    2011-07-01: 5 passed (< 10), CASH
+    2012-07-01: 2 passed (< 10), CASH
+    2013-07-01: 2 passed (< 10), CASH
+    2014-07-01: 3 passed (< 10), CASH
+    2015-07-01: 0 passed (< 10), CASH
+    2016-07-01: 0 passed (< 10), CASH
+    2017-07-01: 1 passed (< 10), CASH
+    2018-07-01: 3 passed (< 10), CASH
+    2019-07-01: 4 passed (< 10), CASH
+    2020-07-01: 2 passed (< 10), CASH
+    2021-07-01: 4 passed (< 10), CASH
+    2022-07-01: 12 stocks, port=7.4%, spy=18.3%  ex=-10.9%
+    2023-07-01: 12 stocks, port=25.0%, spy=24.6%  ex=+0.4%
+    2024-07-01: 9 passed (< 10), CASH
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              1.18%      7.83%
+  Total Return                      34.2%     558.7%
+  Max Drawdown                      0.00%    -36.27%
+  Volatility (ann.)                 5.15%     16.22%
+  VaR 95%                           0.00%    -20.77%
+  Sharpe Ratio                     -0.353      0.298
+  Sortino Ratio                    -0.631      0.517
+  Calmar Ratio                        N/A      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -6.65%
+  Win Rate                          24.0%
+  Information Ratio                -0.490
+  Tracking Error                   15.86%
+  Up Capture                        10.4%
+  Down Capture                      -0.0%
+  Beta                              0.072
+  Alpha (Jensen)                   -2.17%
+=================================================================
+
+  Cash periods: 23 / 25
+  Avg stocks (invested): 12.0
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005           0.0%       8.9%      -8.9%
+  2006           0.0%      20.9%     -20.9%
+  2007           0.0%     -13.7%     +13.7%
+  2008           0.0%     -26.1%     +26.1%
+  2009           0.0%      13.4%     -13.4%
+  2010           0.0%      32.9%     -32.9%
+  2011           0.0%       4.1%      -4.1%
+  2012           0.0%      20.9%     -20.9%
+  2013           0.0%      24.5%     -24.5%
+  2014           0.0%       7.4%      -7.4%
+  2015           0.0%       3.4%      -3.4%
+  2016           0.0%      17.7%     -17.7%
+  2017           0.0%      14.3%     -14.3%
+  2018           0.0%      10.9%     -10.9%
+  2019           0.0%       7.1%      -7.1%
+  2020           0.0%      40.7%     -40.7%
+  2021           0.0%     -10.2%     +10.2%
+  2022           7.4%      18.3%     -10.9%
+  2023          25.0%      24.6%      +0.4%
+  2024           0.0%      14.7%     -14.7%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+Skipping India (BSE, NSE) - excluded
+
+=================================================================
+  Running: China (SHZ, SHH)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 6a2a621e...)
+  Status: queued...
+  Universe: 4526 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: c4982a92...)
+  Status: queued...
+    -> 152572 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 4501b746...)
+  Status: queued...
+    -> 152572 rows
+  Fetching prices...
+  Query submitted (task: 075971ec...)
+  Status: assigned...
+  Status: executing...
+  Status: executing...
+    -> 496547 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 6 passed (< 10), CASH
+    2001-07-01: 7 passed (< 10), CASH
+    2002-07-01: 7 passed (< 10), CASH
+    2003-07-01: 13 stocks, port=-2.3%, spy=16.4%  ex=-18.7%
+    2004-07-01: 7 stocks, port=-21.1%, spy=7.9%  ex=-29.1%
+    2005-07-01: 17 stocks, port=48.3%, spy=8.9%  ex=+39.4%
+    2006-07-01: 17 stocks, port=186.6%, spy=20.9%  ex=+165.6%
+    2007-07-01: 17 stocks, port=-17.5%, spy=-13.7%  ex=-3.7%
+    2008-07-01: 4 passed (< 10), CASH
+    2009-07-01: 26 stocks, port=-15.8%, spy=13.4%  ex=-29.3%
+    2010-07-01: 13 stocks, port=15.8%, spy=32.9%  ex=-17.1%
+    2011-07-01: 27 stocks, port=-16.9%, spy=4.1%  ex=-21.0%
+    2012-07-01: 21 stocks, port=-12.7%, spy=20.9%  ex=-33.5%
+    2013-07-01: 29 stocks, port=1.9%, spy=24.5%  ex=-22.6%
+    2014-07-01: 29 stocks, port=134.6%, spy=7.4%  ex=+127.2%
+    2015-07-01: 24 stocks, port=-24.2%, spy=3.4%  ex=-27.5%
+    2016-07-01: 19 stocks, port=8.7%, spy=17.7%  ex=-9.1%
+    2017-07-01: 24 stocks, port=-23.3%, spy=14.3%  ex=-37.7%
+    2018-07-01: 28 stocks, port=11.8%, spy=10.9%  ex=+0.9%
+    2019-07-01: 28 stocks, port=-3.8%, spy=7.1%  ex=-10.9%
+    2020-07-01: 30 stocks, port=15.0%, spy=40.7%  ex=-25.7%
+    2021-07-01: 29 stocks, port=6.9%, spy=-10.2%  ex=+17.1%
+    2022-07-01: 30 stocks, port=-12.5%, spy=18.3%  ex=-30.8%
+    2023-07-01: 30 stocks, port=10.8%, spy=24.6%  ex=-13.8%
+    2024-07-01: 29 stocks, port=3.7%, spy=14.7%  ex=-10.9%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              5.53%      7.83%
+  Total Return                     283.8%     558.7%
+  Max Drawdown                    -41.64%    -36.27%
+  Volatility (ann.)                48.06%     16.22%
+  VaR 95%                         -23.35%    -20.77%
+  Sharpe Ratio                      0.063      0.329
+  Sortino Ratio                     0.252      0.584
+  Calmar Ratio                      0.133      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -2.31%
+  Win Rate                          32.0%
+  Information Ratio                 0.056
+  Tracking Error                   48.03%
+  Up Capture                        97.5%
+  Down Capture                      12.3%
+  Beta                              0.505
+  Alpha (Jensen)                    0.33%
+=================================================================
+
+  Cash periods: 4 / 25
+  Avg stocks (invested): 23.2
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003          -2.3%      16.4%     -18.7%
+  2004         -21.1%       7.9%     -29.1%
+  2005          48.3%       8.9%     +39.4%
+  2006         186.6%      20.9%    +165.6%
+  2007         -17.5%     -13.7%      -3.7%
+  2008           0.0%     -26.1%     +26.1%
+  2009         -15.8%      13.4%     -29.3%
+  2010          15.8%      32.9%     -17.1%
+  2011         -16.9%       4.1%     -21.0%
+  2012         -12.7%      20.9%     -33.5%
+  2013           1.9%      24.5%     -22.6%
+  2014         134.6%       7.4%    +127.2%
+  2015         -24.2%       3.4%     -27.5%
+  2016           8.7%      17.7%      -9.1%
+  2017         -23.3%      14.3%     -37.7%
+  2018          11.8%      10.9%      +0.9%
+  2019          -3.8%       7.1%     -10.9%
+  2020          15.0%      40.7%     -25.7%
+  2021           6.9%     -10.2%     +17.1%
+  2022         -12.5%      18.3%     -30.8%
+  2023          10.8%      24.6%     -13.8%
+  2024           3.7%      14.7%     -10.9%
+
+  Total time: 33s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: HKSE (HKSE)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 4a66cbc5...)
+  Status: assigned...
+  Universe: 2944 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: 8cb1b930...)
+  Status: assigned...
+    -> 80625 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 8e70cd57...)
+  Status: queued...
+    -> 80625 rows
+  Fetching prices...
+  Query submitted (task: 58b05041...)
+  Status: queued...
+  Status: executing...
+  Status: executing...
+    -> 264919 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 3 passed (< 10), CASH
+    2001-07-01: 8 passed (< 10), CASH
+    2002-07-01: 7 passed (< 10), CASH
+    2003-07-01: 9 passed (< 10), CASH
+    2004-07-01: 9 passed (< 10), CASH
+    2005-07-01: 13 stocks, port=23.7%, spy=8.9%  ex=+14.8%
+    2006-07-01: 11 stocks, port=86.3%, spy=20.9%  ex=+65.3%
+    2007-07-01: 8 stocks, port=-12.4%, spy=-13.7%  ex=+1.3%
+    2008-07-01: 19 stocks, port=-5.5%, spy=-26.1%  ex=+20.6%
+    2009-07-01: 24 stocks, port=37.7%, spy=13.4%  ex=+24.3%
+    2010-07-01: 18 stocks, port=7.5%, spy=32.9%  ex=-25.5%
+    2011-07-01: 28 stocks, port=-15.4%, spy=4.1%  ex=-19.5%
+    2012-07-01: 28 stocks, port=26.6%, spy=20.9%  ex=+5.7%
+    2013-07-01: 24 stocks, port=14.6%, spy=24.5%  ex=-9.9%
+    2014-07-01: 27 stocks, port=22.1%, spy=7.4%  ex=+14.7%
+    2015-07-01: 25 stocks, port=-20.5%, spy=3.4%  ex=-23.9%
+    2016-07-01: 23 stocks, port=40.9%, spy=17.7%  ex=+23.1%
+    2017-07-01: 26 stocks, port=62.5%, spy=14.3%  ex=+48.2%
+    2018-07-01: 27 stocks, port=5.3%, spy=10.9%  ex=-5.6%
+    2019-07-01: 27 stocks, port=-1.9%, spy=7.1%  ex=-9.0%
+    2020-07-01: 26 stocks, port=21.7%, spy=40.7%  ex=-19.0%
+    2021-07-01: 24 stocks, port=-5.8%, spy=-10.2%  ex=+4.4%
+    2022-07-01: 27 stocks, port=-16.5%, spy=18.3%  ex=-34.8%
+    2023-07-01: 28 stocks, port=21.5%, spy=24.6%  ex=-3.1%
+    2024-07-01: 29 stocks, port=131.0%, spy=14.7%  ex=+116.4%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                             13.02%      7.83%
+  Total Return                    2031.0%     558.7%
+  Max Drawdown                    -21.39%    -36.27%
+  Volatility (ann.)                34.51%     16.22%
+  VaR 95%                         -16.54%    -20.77%
+  Sharpe Ratio                      0.290      0.298
+  Sortino Ratio                     1.203      0.517
+  Calmar Ratio                      0.609      0.216
+
+  --- Relative ---            
+  Excess CAGR                       5.18%
+  Win Rate                          52.0%
+  Information Ratio                 0.243
+  Tracking Error                   32.28%
+  Up Capture                       143.0%
+  Down Capture                      27.8%
+  Beta                              0.783
+  Alpha (Jensen)                    6.23%
+=================================================================
+
+  Cash periods: 5 / 25
+  Avg stocks (invested): 23.1
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005          23.7%       8.9%     +14.8%
+  2006          86.3%      20.9%     +65.3%
+  2007         -12.4%     -13.7%      +1.3%
+  2008          -5.5%     -26.1%     +20.6%
+  2009          37.7%      13.4%     +24.3%
+  2010           7.5%      32.9%     -25.5%
+  2011         -15.4%       4.1%     -19.5%
+  2012          26.6%      20.9%      +5.7%
+  2013          14.6%      24.5%      -9.9%
+  2014          22.1%       7.4%     +14.7%
+  2015         -20.5%       3.4%     -23.9%
+  2016          40.9%      17.7%     +23.1%
+  2017          62.5%      14.3%     +48.2%
+  2018           5.3%      10.9%      -5.6%
+  2019          -1.9%       7.1%      -9.0%
+  2020          21.7%      40.7%     -19.0%
+  2021          -5.8%     -10.2%      +4.4%
+  2022         -16.5%      18.3%     -34.8%
+  2023          21.5%      24.6%      -3.1%
+  2024         131.0%      14.7%    +116.4%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: JPX (JPX)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 0dfeb5a3...)
+  Status: queued...
+  Universe: 4057 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: 59cbeec9...)
+  Status: queued...
+    -> 58107 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 910181f0...)
+  Status: executing...
+    -> 58107 rows
+  Fetching prices...
+  Query submitted (task: 1939f042...)
+  Status: queued...
+  Status: executing...
+  Status: executing...
+    -> 589092 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 0 passed (< 10), CASH
+    2001-07-01: 1 passed (< 10), CASH
+    2002-07-01: 2 passed (< 10), CASH
+    2003-07-01: 2 passed (< 10), CASH
+    2004-07-01: 4 passed (< 10), CASH
+    2005-07-01: 16 stocks, port=43.3%, spy=8.9%  ex=+34.5%
+    2006-07-01: 8 stocks, port=66.8%, spy=20.9%  ex=+45.8%
+    2007-07-01: 12 stocks, port=-24.2%, spy=-13.7%  ex=-10.5%
+    2008-07-01: 14 stocks, port=-26.8%, spy=-26.1%  ex=-0.7%
+    2009-07-01: 11 stocks, port=1.6%, spy=13.4%  ex=-11.8%
+    2010-07-01: 11 stocks, port=9.7%, spy=32.9%  ex=-23.2%
+    2011-07-01: 26 stocks, port=-3.2%, spy=4.1%  ex=-7.3%
+    2012-07-01: 16 stocks, port=45.7%, spy=20.9%  ex=+24.8%
+    2013-07-01: 13 stocks, port=14.8%, spy=24.5%  ex=-9.7%
+    2014-07-01: 16 stocks, port=20.1%, spy=7.4%  ex=+12.7%
+    2015-07-01: 14 stocks, port=-28.6%, spy=3.4%  ex=-32.0%
+    2016-07-01: 20 stocks, port=24.2%, spy=17.7%  ex=+6.5%
+    2017-07-01: 19 stocks, port=-0.2%, spy=14.3%  ex=-14.6%
+    2018-07-01: 21 stocks, port=-11.7%, spy=10.9%  ex=-22.7%
+    2019-07-01: 18 stocks, port=-1.7%, spy=7.1%  ex=-8.8%
+    2020-07-01: 20 stocks, port=17.1%, spy=40.7%  ex=-23.6%
+    2021-07-01: 19 stocks, port=3.5%, spy=-10.2%  ex=+13.6%
+    2022-07-01: 26 stocks, port=27.1%, spy=18.3%  ex=+8.7%
+    2023-07-01: 29 stocks, port=32.1%, spy=24.6%  ex=+7.5%
+    2024-07-01: 30 stocks, port=7.9%, spy=14.7%  ex=-6.8%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              6.50%      7.83%
+  Total Return                     383.1%     558.7%
+  Max Drawdown                    -44.55%    -36.27%
+  Volatility (ann.)                22.59%     16.22%
+  VaR 95%                         -26.82%    -20.77%
+  Sharpe Ratio                      0.283      0.477
+  Sortino Ratio                     0.668      0.954
+  Calmar Ratio                      0.146      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -1.33%
+  Win Rate                          40.0%
+  Information Ratio                -0.020
+  Tracking Error                   19.13%
+  Up Capture                        84.8%
+  Down Capture                      55.6%
+  Beta                              0.774
+  Alpha (Jensen)                    0.42%
+=================================================================
+
+  Cash periods: 5 / 25
+  Avg stocks (invested): 17.9
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005          43.3%       8.9%     +34.5%
+  2006          66.8%      20.9%     +45.8%
+  2007         -24.2%     -13.7%     -10.5%
+  2008         -26.8%     -26.1%      -0.7%
+  2009           1.6%      13.4%     -11.8%
+  2010           9.7%      32.9%     -23.2%
+  2011          -3.2%       4.1%      -7.3%
+  2012          45.7%      20.9%     +24.8%
+  2013          14.8%      24.5%      -9.7%
+  2014          20.1%       7.4%     +12.7%
+  2015         -28.6%       3.4%     -32.0%
+  2016          24.2%      17.7%      +6.5%
+  2017          -0.2%      14.3%     -14.6%
+  2018         -11.7%      10.9%     -22.7%
+  2019          -1.7%       7.1%      -8.8%
+  2020          17.1%      40.7%     -23.6%
+  2021           3.5%     -10.2%     +13.6%
+  2022          27.1%      18.3%      +8.7%
+  2023          32.1%      24.6%      +7.5%
+  2024           7.9%      14.7%      -6.8%
+
+  Total time: 33s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: KSC (KSC)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 6ba001ce...)
+  Status: executing...
+  Universe: 1407 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: bc8558a5...)
+  Status: queued...
+    -> 31274 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 58aa64d3...)
+  Status: queued...
+    -> 31274 rows
+  Fetching prices...
+  Query submitted (task: 2354cefb...)
+  Status: assigned...
+  Status: executing...
+  Status: executing...
+    -> 159641 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 0 passed (< 10), CASH
+    2001-07-01: 1 passed (< 10), CASH
+    2002-07-01: 0 passed (< 10), CASH
+    2003-07-01: 0 passed (< 10), CASH
+    2004-07-01: 2 passed (< 10), CASH
+    2005-07-01: 3 passed (< 10), CASH
+    2006-07-01: 2 passed (< 10), CASH
+    2007-07-01: 1 passed (< 10), CASH
+    2008-07-01: 7 passed (< 10), CASH
+    2009-07-01: 11 stocks, port=15.7%, spy=13.4%  ex=+2.2%
+    2010-07-01: 14 stocks, port=68.9%, spy=32.9%  ex=+36.0%
+    2011-07-01: 14 stocks, port=-29.3%, spy=4.1%  ex=-33.4%
+    2012-07-01: 10 stocks, port=14.1%, spy=20.9%  ex=-6.8%
+    2013-07-01: 3 passed (< 10), CASH
+    2014-07-01: 5 passed (< 10), CASH
+    2015-07-01: 5 passed (< 10), CASH
+    2016-07-01: 10 stocks, port=6.9%, spy=17.7%  ex=-10.8%
+    2017-07-01: 14 stocks, port=-10.6%, spy=14.3%  ex=-25.0%
+    2018-07-01: 8 passed (< 10), CASH
+    2019-07-01: 16 stocks, port=-7.4%, spy=7.1%  ex=-14.5%
+    2020-07-01: 9 stocks, port=21.5%, spy=40.7%  ex=-19.2%
+    2021-07-01: 15 stocks, port=-16.0%, spy=-10.2%  ex=-5.9%
+    2022-07-01: 28 stocks, port=0.5%, spy=18.3%  ex=-17.8%
+    2023-07-01: 22 stocks, port=14.3%, spy=24.6%  ex=-10.3%
+    2024-07-01: 20 stocks, port=12.6%, spy=14.7%  ex=-2.1%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              2.47%      7.83%
+  Total Return                      84.1%     558.7%
+  Max Drawdown                    -29.27%    -36.27%
+  Volatility (ann.)                17.10%     16.22%
+  VaR 95%                         -16.02%    -20.77%
+  Sharpe Ratio                     -0.031      0.298
+  Sortino Ratio                    -0.062      0.517
+  Calmar Ratio                      0.084      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -5.36%
+  Win Rate                          24.0%
+  Information Ratio                -0.325
+  Tracking Error                   16.67%
+  Up Capture                        34.3%
+  Down Capture                      18.7%
+  Beta                              0.527
+  Alpha (Jensen)                   -3.08%
+=================================================================
+
+  Cash periods: 13 / 25
+  Avg stocks (invested): 15.2
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005           0.0%       8.9%      -8.9%
+  2006           0.0%      20.9%     -20.9%
+  2007           0.0%     -13.7%     +13.7%
+  2008           0.0%     -26.1%     +26.1%
+  2009          15.7%      13.4%      +2.2%
+  2010          68.9%      32.9%     +36.0%
+  2011         -29.3%       4.1%     -33.4%
+  2012          14.1%      20.9%      -6.8%
+  2013           0.0%      24.5%     -24.5%
+  2014           0.0%       7.4%      -7.4%
+  2015           0.0%       3.4%      -3.4%
+  2016           6.9%      17.7%     -10.8%
+  2017         -10.6%      14.3%     -25.0%
+  2018           0.0%      10.9%     -10.9%
+  2019          -7.4%       7.1%     -14.5%
+  2020          21.5%      40.7%     -19.2%
+  2021         -16.0%     -10.2%      -5.9%
+  2022           0.5%      18.3%     -17.8%
+  2023          14.3%      24.6%     -10.3%
+  2024          12.6%      14.7%      -2.1%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+Skipping ASX (ASX) - excluded
+
+=================================================================
+  Running: Taiwan (TAI, TWO)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 124d0eb3...)
+  Status: assigned...
+  Universe: 2206 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: 66a87ae4...)
+  Status: executing...
+    -> 30652 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 265ea72a...)
+  Status: assigned...
+    -> 30652 rows
+  Fetching prices...
+  Query submitted (task: 41068cd1...)
+  Status: assigned...
+  Status: executing...
+  Status: executing...
+    -> 161137 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 0 passed (< 10), CASH
+    2001-07-01: 0 passed (< 10), CASH
+    2002-07-01: 0 passed (< 10), CASH
+    2003-07-01: 0 passed (< 10), CASH
+    2004-07-01: 1 passed (< 10), CASH
+    2005-07-01: 5 passed (< 10), CASH
+    2006-07-01: 2 passed (< 10), CASH
+    2007-07-01: 15 stocks, port=2.4%, spy=-13.7%  ex=+16.1%
+    2008-07-01: 15 stocks, port=-11.2%, spy=-26.1%  ex=+15.0%
+    2009-07-01: 18 stocks, port=13.6%, spy=13.4%  ex=+0.2%
+    2010-07-01: 30 stocks, port=26.2%, spy=32.9%  ex=-6.7%
+    2011-07-01: 27 stocks, port=-14.4%, spy=4.1%  ex=-18.5%
+    2012-07-01: 14 stocks, port=-0.6%, spy=20.9%  ex=-21.5%
+    2013-07-01: 13 stocks, port=10.7%, spy=24.5%  ex=-13.8%
+    2014-07-01: 16 stocks, port=-0.8%, spy=7.4%  ex=-8.2%
+    2015-07-01: 17 stocks, port=-15.9%, spy=3.4%  ex=-19.2%
+    2016-07-01: 25 stocks, port=27.7%, spy=17.7%  ex=+9.9%
+    2017-07-01: 24 stocks, port=42.6%, spy=14.3%  ex=+28.2%
+    2018-07-01: 12 stocks, port=-7.4%, spy=10.9%  ex=-18.3%
+    2019-07-01: 27 stocks, port=9.3%, spy=7.1%  ex=+2.2%
+    2020-07-01: 28 stocks, port=38.2%, spy=40.7%  ex=-2.5%
+    2021-07-01: 29 stocks, port=-24.1%, spy=-10.2%  ex=-14.0%
+    2022-07-01: 30 stocks, port=18.8%, spy=18.3%  ex=+0.5%
+    2023-07-01: 29 stocks, port=53.4%, spy=24.6%  ex=+28.8%
+    2024-07-01: 30 stocks, port=-5.6%, spy=14.7%  ex=-20.3%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              5.03%      7.83%
+  Total Return                     241.0%     558.7%
+  Max Drawdown                    -24.14%    -36.27%
+  Volatility (ann.)                18.84%     16.22%
+  VaR 95%                         -15.87%    -20.77%
+  Sharpe Ratio                      0.214      0.421
+  Sortino Ratio                     0.533      0.805
+  Calmar Ratio                      0.208      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -2.80%
+  Win Rate                          40.0%
+  Information Ratio                -0.162
+  Tracking Error                   15.79%
+  Up Capture                        62.7%
+  Down Capture                      38.5%
+  Beta                              0.701
+  Alpha (Jensen)                   -0.76%
+=================================================================
+
+  Cash periods: 7 / 25
+  Avg stocks (invested): 22.2
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005           0.0%       8.9%      -8.9%
+  2006           0.0%      20.9%     -20.9%
+  2007           2.4%     -13.7%     +16.1%
+  2008         -11.2%     -26.1%     +15.0%
+  2009          13.6%      13.4%      +0.2%
+  2010          26.2%      32.9%      -6.7%
+  2011         -14.4%       4.1%     -18.5%
+  2012          -0.6%      20.9%     -21.5%
+  2013          10.7%      24.5%     -13.8%
+  2014          -0.8%       7.4%      -8.2%
+  2015         -15.9%       3.4%     -19.2%
+  2016          27.7%      17.7%      +9.9%
+  2017          42.6%      14.3%     +28.2%
+  2018          -7.4%      10.9%     -18.3%
+  2019           9.3%       7.1%      +2.2%
+  2020          38.2%      40.7%      -2.5%
+  2021         -24.1%     -10.2%     -14.0%
+  2022          18.8%      18.3%      +0.5%
+  2023          53.4%      24.6%     +28.8%
+  2024          -5.6%      14.7%     -20.3%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: SET (SET)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 93b80249...)
+  Status: executing...
+  Universe: 1042 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: 3e18de3e...)
+  Status: queued...
+    -> 30813 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: c7e5254c...)
+  Status: executing...
+    -> 30813 rows
+  Fetching prices...
+  Query submitted (task: 19b2518f...)
+  Status: queued...
+  Status: executing...
+  Status: executing...
+    -> 101271 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 0 passed (< 10), CASH
+    2001-07-01: 0 passed (< 10), CASH
+    2002-07-01: 0 passed (< 10), CASH
+    2003-07-01: 3 passed (< 10), CASH
+    2004-07-01: 7 passed (< 10), CASH
+    2005-07-01: 16 stocks, port=9.1%, spy=8.9%  ex=+0.2%
+    2006-07-01: 12 stocks, port=53.7%, spy=20.9%  ex=+32.7%
+    2007-07-01: 13 stocks, port=-13.8%, spy=-13.7%  ex=-0.1%
+    2008-07-01: 13 stocks, port=-26.0%, spy=-26.1%  ex=+0.1%
+    2009-07-01: 15 stocks, port=11.9%, spy=13.4%  ex=-1.5%
+    2010-07-01: 22 stocks, port=34.3%, spy=32.9%  ex=+1.4%
+    2011-07-01: 14 stocks, port=27.8%, spy=4.1%  ex=+23.7%
+    2012-07-01: 11 stocks, port=24.7%, spy=20.9%  ex=+3.9%
+    2013-07-01: 12 stocks, port=16.3%, spy=24.5%  ex=-8.2%
+    2014-07-01: 10 stocks, port=-9.8%, spy=7.4%  ex=-17.2%
+    2015-07-01: 8 passed (< 10), CASH
+    2016-07-01: 12 stocks, port=18.4%, spy=17.7%  ex=+0.7%
+    2017-07-01: 27 stocks, port=-9.1%, spy=14.3%  ex=-23.4%
+    2018-07-01: 10 stocks, port=4.9%, spy=10.9%  ex=-6.0%
+    2019-07-01: 14 stocks, port=-20.8%, spy=7.1%  ex=-27.9%
+    2020-07-01: 12 stocks, port=42.8%, spy=40.7%  ex=+2.1%
+    2021-07-01: 27 stocks, port=-5.5%, spy=-10.2%  ex=+4.6%
+    2022-07-01: 17 stocks, port=-9.0%, spy=18.3%  ex=-27.3%
+    2023-07-01: 20 stocks, port=5.9%, spy=24.6%  ex=-18.7%
+    2024-07-01: 15 stocks, port=-22.8%, spy=14.7%  ex=-37.4%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              3.59%      7.83%
+  Total Return                     141.3%     558.7%
+  Max Drawdown                    -36.25%    -36.27%
+  Volatility (ann.)                19.96%     16.22%
+  VaR 95%                         -22.76%    -20.77%
+  Sharpe Ratio                      0.054      0.329
+  Sortino Ratio                     0.103      0.584
+  Calmar Ratio                      0.099      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -4.25%
+  Win Rate                          44.0%
+  Information Ratio                -0.227
+  Tracking Error                   16.53%
+  Up Capture                        57.1%
+  Down Capture                      53.0%
+  Beta                              0.738
+  Alpha (Jensen)                   -2.85%
+=================================================================
+
+  Cash periods: 6 / 25
+  Avg stocks (invested): 15.4
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005           9.1%       8.9%      +0.2%
+  2006          53.7%      20.9%     +32.7%
+  2007         -13.8%     -13.7%      -0.1%
+  2008         -26.0%     -26.1%      +0.1%
+  2009          11.9%      13.4%      -1.5%
+  2010          34.3%      32.9%      +1.4%
+  2011          27.8%       4.1%     +23.7%
+  2012          24.7%      20.9%      +3.9%
+  2013          16.3%      24.5%      -8.2%
+  2014          -9.8%       7.4%     -17.2%
+  2015           0.0%       3.4%      -3.4%
+  2016          18.4%      17.7%      +0.7%
+  2017          -9.1%      14.3%     -23.4%
+  2018           4.9%      10.9%      -6.0%
+  2019         -20.8%       7.1%     -27.9%
+  2020          42.8%      40.7%      +2.1%
+  2021          -5.5%     -10.2%      +4.6%
+  2022          -9.0%      18.3%     -27.3%
+  2023           5.9%      24.6%     -18.7%
+  2024         -22.8%      14.7%     -37.4%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: SGX (SGX)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: ebfdd4ae...)
+  Status: queued...
+  No symbols found for these exchanges.
+  No data available. Skipping.
+
+Skipping SAO (SAO) - excluded
+
+=================================================================
+  Running: BMV (BMV)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 1491f060...)
+  Status: queued...
+  No symbols found for these exchanges.
+  No data available. Skipping.
+
+Skipping JSE (JNB) - excluded
+
+=================================================================
+  Running: SAU (SAU)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: b62f400d...)
+  Status: queued...
+  Universe: 418 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: f1438be6...)
+  Status: executing...
+    -> 7958 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 72708973...)
+  Status: queued...
+    -> 7958 rows
+  Fetching prices...
+  Query submitted (task: 83cd878d...)
+  Status: assigned...
+  Status: executing...
+  Status: executing...
+    -> 24427 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 0 passed (< 10), CASH
+    2001-07-01: 0 passed (< 10), CASH
+    2002-07-01: 0 passed (< 10), CASH
+    2003-07-01: 0 passed (< 10), CASH
+    2004-07-01: 0 passed (< 10), CASH
+    2005-07-01: 0 passed (< 10), CASH
+    2006-07-01: 0 passed (< 10), CASH
+    2007-07-01: 3 passed (< 10), CASH
+    2008-07-01: 1 passed (< 10), CASH
+    2009-07-01: 3 passed (< 10), CASH
+    2010-07-01: 4 passed (< 10), CASH
+    2011-07-01: 6 passed (< 10), CASH
+    2012-07-01: 9 passed (< 10), CASH
+    2013-07-01: 9 passed (< 10), CASH
+    2014-07-01: 7 passed (< 10), CASH
+    2015-07-01: 9 stocks, port=-28.2%, spy=3.4%  ex=-31.6%
+    2016-07-01: 8 stocks, port=-1.6%, spy=17.7%  ex=-19.3%
+    2017-07-01: 8 passed (< 10), CASH
+    2018-07-01: 7 passed (< 10), CASH
+    2019-07-01: 8 passed (< 10), CASH
+    2020-07-01: 6 stocks, port=41.4%, spy=40.7%  ex=+0.7%
+    2021-07-01: 8 passed (< 10), CASH
+    2022-07-01: 8 stocks, port=-0.7%, spy=18.3%  ex=-19.0%
+    2023-07-01: 11 stocks, port=-0.5%, spy=24.6%  ex=-25.1%
+    2024-07-01: 6 passed (< 10), CASH
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                             -0.05%      7.83%
+  Total Return                      -1.3%     558.7%
+  Max Drawdown                    -29.37%    -36.27%
+  Volatility (ann.)                10.22%     16.22%
+  VaR 95%                          -1.61%    -20.77%
+  Sharpe Ratio                     -0.347      0.267
+  Sortino Ratio                    -0.491      0.453
+  Calmar Ratio                     -0.002      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -7.88%
+  Win Rate                          24.0%
+  Information Ratio                -0.550
+  Tracking Error                   15.73%
+  Up Capture                         3.3%
+  Down Capture                      -0.0%
+  Beta                              0.228
+  Alpha (Jensen)                   -4.54%
+=================================================================
+
+  Cash periods: 20 / 25
+  Avg stocks (invested): 8.4
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005           0.0%       8.9%      -8.9%
+  2006           0.0%      20.9%     -20.9%
+  2007           0.0%     -13.7%     +13.7%
+  2008           0.0%     -26.1%     +26.1%
+  2009           0.0%      13.4%     -13.4%
+  2010           0.0%      32.9%     -32.9%
+  2011           0.0%       4.1%      -4.1%
+  2012           0.0%      20.9%     -20.9%
+  2013           0.0%      24.5%     -24.5%
+  2014           0.0%       7.4%      -7.4%
+  2015         -28.2%       3.4%     -31.6%
+  2016          -1.6%      17.7%     -19.3%
+  2017           0.0%      14.3%     -14.3%
+  2018           0.0%      10.9%     -10.9%
+  2019           0.0%       7.1%      -7.1%
+  2020          41.4%      40.7%      +0.7%
+  2021           0.0%     -10.2%     +10.2%
+  2022          -0.7%      18.3%     -19.0%
+  2023          -0.5%      24.6%     -25.1%
+  2024           0.0%      14.7%     -14.7%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+=================================================================
+  Running: TLV (TLV)
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Query submitted (task: 680ffe78...)
+  Status: queued...
+  Universe: 595 symbols
+  Fetching key metrics (FCF yield, ROE, market cap)...
+  Query submitted (task: 0e31e1c8...)
+  Status: executing...
+    -> 13248 rows
+  Fetching financial ratios (interest coverage, operating margin)...
+  Query submitted (task: 0b7ede69...)
+  Status: queued...
+    -> 13248 rows
+  Fetching prices...
+  Query submitted (task: 66034348...)
+  Status: queued...
+  Status: executing...
+  Status: executing...
+    -> 61999 price rows
+
+  Data fetched in 32s
+
+Phase 2: Running annual backtest (2000-2025)...
+    2000-07-01: 0 passed (< 10), CASH
+    2001-07-01: 0 passed (< 10), CASH
+    2002-07-01: 0 passed (< 10), CASH
+    2003-07-01: 1 passed (< 10), CASH
+    2004-07-01: 0 passed (< 10), CASH
+    2005-07-01: 2 passed (< 10), CASH
+    2006-07-01: 2 passed (< 10), CASH
+    2007-07-01: 6 passed (< 10), CASH
+    2008-07-01: 6 passed (< 10), CASH
+    2009-07-01: 4 passed (< 10), CASH
+    2010-07-01: 4 passed (< 10), CASH
+    2011-07-01: 3 passed (< 10), CASH
+    2012-07-01: 3 passed (< 10), CASH
+    2013-07-01: 6 passed (< 10), CASH
+    2014-07-01: 5 passed (< 10), CASH
+    2015-07-01: 10 stocks, port=0.6%, spy=3.4%  ex=-2.7%
+    2016-07-01: 10 stocks, port=4.6%, spy=17.7%  ex=-13.1%
+    2017-07-01: 11 stocks, port=-4.3%, spy=14.3%  ex=-18.6%
+    2018-07-01: 11 stocks, port=-1.1%, spy=10.9%  ex=-12.0%
+    2019-07-01: 11 stocks, port=-19.2%, spy=7.1%  ex=-26.3%
+    2020-07-01: 12 stocks, port=106.8%, spy=40.7%  ex=+66.1%
+    2021-07-01: 11 stocks, port=16.1%, spy=-10.2%  ex=+26.3%
+    2022-07-01: 24 stocks, port=-7.1%, spy=18.3%  ex=-25.4%
+    2023-07-01: 22 stocks, port=-2.1%, spy=24.6%  ex=-26.7%
+    2024-07-01: 19 stocks, port=84.4%, spy=14.7%  ex=+69.7%
+  Backtest completed in 0s
+
+=================================================================
+  FCF Yield vs S&P 500
+=================================================================
+  Metric                          FCF Yield      S&P 500
+  ------------------------------------------------------
+  CAGR                              4.82%      7.83%
+  Total Return                     224.2%     558.7%
+  Max Drawdown                    -23.51%    -36.27%
+  Volatility (ann.)                27.37%     16.22%
+  VaR 95%                          -7.08%    -20.77%
+  Sharpe Ratio                      0.066      0.298
+  Sortino Ratio                     0.315      0.517
+  Calmar Ratio                      0.205      0.216
+
+  --- Relative ---            
+  Excess CAGR                      -3.01%
+  Win Rate                          28.0%
+  Information Ratio                -0.072
+  Tracking Error                   26.86%
+  Up Capture                        52.1%
+  Down Capture                     -18.9%
+  Beta                              0.553
+  Alpha (Jensen)                   -0.85%
+=================================================================
+
+  Cash periods: 15 / 25
+  Avg stocks (invested): 14.1
+
+  Year      FCF Yield        SPY     Excess
+  ----------------------------------------
+  2000           0.0%     -14.8%     +14.8%
+  2001           0.0%     -20.8%     +20.8%
+  2002           0.0%       3.3%      -3.3%
+  2003           0.0%      16.4%     -16.4%
+  2004           0.0%       7.9%      -7.9%
+  2005           0.0%       8.9%      -8.9%
+  2006           0.0%      20.9%     -20.9%
+  2007           0.0%     -13.7%     +13.7%
+  2008           0.0%     -26.1%     +26.1%
+  2009           0.0%      13.4%     -13.4%
+  2010           0.0%      32.9%     -32.9%
+  2011           0.0%       4.1%      -4.1%
+  2012           0.0%      20.9%     -20.9%
+  2013           0.0%      24.5%     -24.5%
+  2014           0.0%       7.4%      -7.4%
+  2015           0.6%       3.4%      -2.7%
+  2016           4.6%      17.7%     -13.1%
+  2017          -4.3%      14.3%     -18.6%
+  2018          -1.1%      10.9%     -12.0%
+  2019         -19.2%       7.1%     -26.3%
+  2020         106.8%      40.7%     +66.1%
+  2021          16.1%     -10.2%     +26.3%
+  2022          -7.1%      18.3%     -25.4%
+  2023          -2.1%      24.6%     -26.7%
+  2024          84.4%      14.7%     +69.7%
+
+  Total time: 32s (fetch: 32s, backtest: 0s)
+
+  Global results saved to fcf-yield/results/exchange_comparison.json
