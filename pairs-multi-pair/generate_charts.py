@@ -419,6 +419,56 @@ def chart_exchange_comparison(all_data, output_path):
     print(f"Chart 4 saved: {output_path}")
 
 
+def chart_india_alpha_dilution(all_data, output_path):
+    """Chart 5: India CAGR vs portfolio size (equal weight vs inv-vol).
+
+    Shows the alpha-dilution curve — how India CAGR drops as more pairs are added.
+    SPY reference line included.
+    """
+    india_data = all_data.get("BSE_NSE", {})
+    div_analysis = india_data.get("diversification_analysis", [])
+    if not div_analysis:
+        print("WARNING: No India diversification data, skipping Chart 5.")
+        return
+
+    spy_cagr = (india_data.get("spy") or {}).get("cagr", 9.81)
+    lookup   = {(d["n_pairs"], d["allocation"]): d for d in div_analysis}
+    sizes    = sorted(set(d["n_pairs"] for d in div_analysis))
+
+    cagr_eq = [lookup.get((n, "equal"), {}).get("cagr_pct") for n in sizes]
+    cagr_iv = [lookup.get((n, "inverse_vol"), {}).get("cagr_pct") for n in sizes]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    ax.plot(sizes, cagr_eq, color=COLOR_EQUAL, linewidth=2.5, marker="o",
+            label="Equal weight")
+    ax.plot(sizes, cagr_iv, color=COLOR_INV_VOL, linewidth=2.5, marker="s",
+            linestyle="--", label="Inverse-vol")
+    ax.axhline(y=spy_cagr, color=COLOR_SPY, linewidth=1.8, linestyle=":",
+               label=f"SPY benchmark ({spy_cagr:.2f}% CAGR)")
+
+    ax.set_xlabel("Portfolio Size (N pairs)", fontsize=11)
+    ax.set_ylabel("CAGR (%)", fontsize=11)
+    ax.set_title(
+        "India (BSE+NSE): CAGR vs Portfolio Size — The Alpha-Dilution Curve\n"
+        "2005-2024 | Equal weight vs Inverse-vol",
+        fontsize=12, pad=14,
+    )
+    ax.set_xticks(sizes)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:+.1f}%"))
+    ax.legend(fontsize=10)
+    ax.grid(alpha=0.3, linestyle="--")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    fig.text(0.5, -0.02, FOOTER_TEXT, ha="center", fontsize=8, color="#666666")
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Chart 5 saved: {output_path}")
+
+
 def print_diversification_table(div_analysis):
     """Print console summary of diversification analysis."""
     if not div_analysis:
@@ -474,6 +524,10 @@ def main():
     chart_exchange_comparison(
         data,
         os.path.join(CHARTS_DIR, "4_exchange_comparison.png"),
+    )
+    chart_india_alpha_dilution(
+        data,
+        os.path.join(CHARTS_DIR, "5_india_alpha_dilution.png"),
     )
 
     print()
