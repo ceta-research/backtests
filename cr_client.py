@@ -35,7 +35,7 @@ import json
 import base64
 import requests
 
-DEFAULT_BASE_URL = "https://tradingstudio.finance/api/v1"
+DEFAULT_BASE_URL = "https://api.cetaresearch.com/api/v1"
 DEFAULT_POLL_INTERVAL = 5.0  # seconds (keep low to avoid 1000 req/hr rate limit on polls)
 DEFAULT_TIMEOUT = 300  # seconds
 
