@@ -1,10 +1,10 @@
 # Piotroski F-Score Backtest
 
-A 40-year backtest of Joseph Piotroski's 9-point quality checklist applied to value stocks. Annual rebalancing, three portfolio tracks, with decade-by-decade analysis.
+A multi-exchange backtest of Joseph Piotroski's 9-point quality checklist applied to value stocks. Annual rebalancing, three portfolio tracks, with decade-by-decade analysis.
 
 ## Strategy
 
-**Universe:** Bottom 20% by price-to-book ratio, market cap > $100M.
+**Universe:** Bottom 20% by price-to-book ratio, exchange-specific market cap thresholds.
 **Signal:** Piotroski F-Score (9 binary criteria from financial statements).
 **Portfolios:** Score 8-9 (long quality), Score 0-2 (avoid), All Value (baseline).
 **Rebalancing:** Annual (April 1, after annual reports filed).
@@ -28,65 +28,58 @@ A 40-year backtest of Joseph Piotroski's 9-point quality checklist applied to va
 8. Gross margin improved
 9. Asset turnover improved
 
+## Key Finding
+
+The F-Score doesn't consistently produce raw CAGR alpha on large-cap exchanges. The US spread (Score 8-9 minus Score 0-2) is -0.7%. But Score 8-9 has a better Sharpe ratio (0.282 vs 0.189) and lower max drawdown (-53.8% vs -67.8%). The F-Score is a risk filter, not a return booster.
+
+| Exchange | Score 8-9 CAGR | Score 0-2 CAGR | Spread | Sharpe (8-9) |
+|----------|---------------|---------------|--------|-------------|
+| US (NYSE+NASDAQ+AMEX) | 10.3% | 11.0% | -0.7% | 0.282 |
+| Japan (JPX) | 6.2% | 2.2% | +3.9% | 0.228 |
+| India (BSE+NSE) | 1.7% | 8.1% | -6.4% | -0.110 |
+| UK (LSE) | 7.4% | 9.2% | -1.8% | 0.129 |
+| Australia (ASX) | 1.3% | -0.9% | +2.2% | -0.087 |
+| Hong Kong (HKSE) | 18.8% | -5.6% | +24.4% | 0.192 |
+| Korea (KSC) | 11.3% | 5.7% | +5.5% | 0.215 |
+
 ## Usage
 
 ```bash
-# Configure your data source (see root README)
 export CR_API_KEY="your_key_here"
 
 # Screen current US stocks with F-Score >= 8
 python3 piotroski/screen.py
 
-# Value screen: F-Score >= 7, P/B < 1.5, P/E < 20
-python3 piotroski/screen.py --value
+# Full backtest on US stocks
+python3 piotroski/backtest.py --preset us --verbose
 
-# Screen with lower threshold
-python3 piotroski/screen.py --min-score 7
+# Backtest Japanese stocks
+python3 piotroski/backtest.py --preset japan --output results.json
 
-# Full 40-year backtest on US stocks
-python3 piotroski/backtest.py
+# Run all eligible exchanges
+python3 piotroski/run_all_exchanges.py
 
-# Backtest with verbose year-by-year output
-python3 piotroski/backtest.py --verbose
-
-# Backtest Indian stocks, save results
-python3 piotroski/backtest.py --exchange BSE,NSE --output results_india.json
+# Generate charts
+python3 piotroski/generate_charts.py
 ```
 
 ## Files
 
-- `backtest.py` - Full 40-year historical backtest. Fetches data via API, caches in DuckDB, runs locally.
-- `screen.py` - Instant screen on current data. Two modes: simple (high F-Score) and value (F-Score + P/B + P/E filters).
+- `backtest.py` - Historical backtest (fetches data via API, caches in DuckDB, runs locally)
+- `screen.py` - Current stock screener (simple + value modes)
+- `generate_charts.py` - Chart generation from result JSONs
+- `run_all_exchanges.py` - Batch runner for all exchanges
+- `results/` - Output JSONs and exchange_comparison.json
 
-## How the backtest works
-
-1. **Fetch** (30-60s): 7 SQL queries pull historical financials, ratios, and prices
-2. **Cache**: All data loaded into in-memory DuckDB
-3. **Screen**: At each April 1 rebalance date:
-   - Build value universe (bottom 20% P/B, > $100M market cap)
-   - Compute Piotroski F-Score from raw financial statements
-   - Split into Score 8-9, Score 0-2, and All Value portfolios
-4. **Returns**: Equal-weight returns with size-tiered transaction costs
-
-### Transaction costs
+## Transaction costs
 
 | Market Cap | Cost per trade |
 |-----------|---------------|
 | > $10B | 0.1% |
 | $2-10B | 0.3% |
-| $100M-2B | 0.5% |
+| < $2B | 0.5% |
 
 Applied on both buy and sell (round-trip).
-
-## Exchange presets
-
-| Preset | Exchanges |
-|--------|-----------|
-| `--preset us` | NYSE, NASDAQ, AMEX |
-| `--preset india` | BSE, NSE |
-| `--preset germany` | XETRA |
-| `--preset china` | SHZ, SHH |
-| `--preset hongkong` | HKSE |
 
 ## References
 

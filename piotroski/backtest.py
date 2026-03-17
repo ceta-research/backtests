@@ -478,6 +478,21 @@ def build_output(periods, universe_name, risk_free_rate, periods_per_year):
     if "high_vs_spy" in results:
         output["high_vs_spy"] = results["high_vs_spy"]
 
+    # Include period-level data for chart generation
+    output["annual_returns"] = [
+        {
+            "year": p["year"],
+            "high": round(p["high_return"] * 100, 2),
+            "low": round(p["low_return"] * 100, 2),
+            "all": round(p["all_return"] * 100, 2),
+            "spy": round(p["spy_return"] * 100, 2) if p["spy_return"] is not None else None,
+            "high_count": p["high_count"],
+            "low_count": p["low_count"],
+            "all_count": p["all_count"],
+        }
+        for p in valid
+    ]
+
     return output
 
 
