@@ -69,7 +69,8 @@ LOCAL_INDEX_BENCHMARKS = {
     "SAO": "^BVSP",                                   # Bovespa (BRL)
     "TSX": "^GSPTSE", "TSXV": "^GSPTSE",             # TSX Composite (CAD)
     "JNB": "^J203.JO",                                # JSE All Share (ZAR)
-    "SHH": "000001.SS", "SHZ": "399001.SZ",          # Shanghai/Shenzhen Composite (CNY)
+    "SHH": "000001.SS",                                # Shanghai Composite (CNY)
+    # SHZ: 399001.SZ has no price data in FMP stock_eod. Falls back to SPY.
 }
 
 # Human-readable names for local benchmarks
