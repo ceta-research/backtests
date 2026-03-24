@@ -31,8 +31,8 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet
-from cli_utils import get_mktcap_threshold
+from data_utils import query_parquet, get_local_benchmark, LOCAL_INDEX_BENCHMARKS
+from cli_utils import get_mktcap_threshold, EXCHANGE_PRESETS
 
 # ─── Parameters ───────────────────────────────────────────────────────────────
 STRATEGY_NAME = "Post-Stock Split Performance"
@@ -59,8 +59,8 @@ def classify_split_ratio(ratio: float) -> str:
 
 # ─── Data Fetching ────────────────────────────────────────────────────────────
 
-def fetch_splits_and_prices(client, con, args, verbose):
-    """Load split events, market cap filter, SPY prices, and stock prices into DuckDB."""
+def fetch_splits_and_prices(client, con, args, verbose, benchmark_symbol="SPY"):
+    """Load split events, market cap filter, benchmark prices, and stock prices into DuckDB."""
 
     # 1. Load splits events
     exchange_filter = ""
@@ -126,19 +126,19 @@ def fetch_splits_and_prices(client, con, args, verbose):
     cat_str = ", ".join(f"{cat}: {n}" for cat, n in cat_rows)
     print(f"    -> {n_events} events after market cap filter ({cat_str})")
 
-    # 3. SPY prices
-    print("  Loading SPY benchmark prices...")
-    spy_sql = f"""
+    # 3. Benchmark prices
+    print(f"  Loading benchmark prices ({benchmark_symbol})...")
+    bench_sql = f"""
         SELECT CAST(date AS DATE) AS trade_date, adjClose
         FROM stock_eod
-        WHERE symbol = 'SPY'
+        WHERE symbol = '{benchmark_symbol}'
           AND CAST(date AS DATE) >= '{args.start_year - 1}-01-01'
           AND CAST(date AS DATE) <= '{args.end_year + 1}-12-31'
           AND adjClose IS NOT NULL AND adjClose > 0
     """
-    n_spy = query_parquet(client, spy_sql, con, "spy_prices",
+    n_bench = query_parquet(client, bench_sql, con, "benchmark_prices",
                           verbose=verbose, memory_mb=4096, threads=2)
-    print(f"    -> {n_spy} SPY price records")
+    print(f"    -> {n_bench} {benchmark_symbol} price records")
 
     # 4. Stock prices in batches
     unique_syms = [r[0] for r in con.execute("SELECT DISTINCT symbol FROM events").fetchall()]
@@ -174,13 +174,18 @@ def fetch_splits_and_prices(client, con, args, verbose):
 
 # ─── Event Study (DuckDB SQL) ─────────────────────────────────────────────────
 
-def run_event_study(con, all_windows, verbose):
-    """Compute CAR for all events at all windows using DuckDB SQL."""
+def run_event_study(con, all_windows, verbose, offset_days=0):
+    """Compute CAR for all events at all windows using DuckDB SQL.
+
+    Args:
+        offset_days: int - for post-event windows, shift base price forward by N
+                     trading days (1 = MOC execution, 0 = same-day legacy)
+    """
     print("  Building trading day index...")
     con.execute("""
         CREATE TABLE trading_days AS
         SELECT trade_date, ROW_NUMBER() OVER (ORDER BY trade_date) AS day_num
-        FROM spy_prices
+        FROM benchmark_prices
         ORDER BY trade_date
     """)
 
@@ -201,21 +206,40 @@ def run_event_study(con, all_windows, verbose):
         FROM nearest WHERE rn = 1
     """)
 
-    print("  Getting T0 prices...")
-    con.execute("""
-        CREATE TABLE event_t0_prices AS
-        SELECT t.symbol, t.event_date, t.split_ratio, t.t0_num, t.t0_date,
-               sp.adjClose AS t0_stock, spy.adjClose AS t0_spy
-        FROM event_t0 t
-        JOIN stock_prices sp ON sp.symbol = t.symbol AND sp.trade_date = t.t0_date
-        JOIN spy_prices spy ON spy.trade_date = t.t0_date
-        WHERE sp.adjClose > 0 AND spy.adjClose > 0
-    """)
+    print(f"  Getting base prices (offset={offset_days})...")
+    if offset_days > 0:
+        con.execute(f"""
+            CREATE TABLE event_base_prices AS
+            SELECT t.symbol, t.event_date, t.split_ratio, t.t0_num, t.t0_date,
+                   sp_t0.adjClose AS t0_stock, bench_t0.adjClose AS t0_bench,
+                   sp_t1.adjClose AS t1_stock, bench_t1.adjClose AS t1_bench
+            FROM event_t0 t
+            JOIN stock_prices sp_t0 ON sp_t0.symbol = t.symbol AND sp_t0.trade_date = t.t0_date
+            JOIN benchmark_prices bench_t0 ON bench_t0.trade_date = t.t0_date
+            JOIN trading_days td_t1 ON td_t1.day_num = t.t0_num + {offset_days}
+            JOIN stock_prices sp_t1 ON sp_t1.symbol = t.symbol AND sp_t1.trade_date = td_t1.trade_date
+            JOIN benchmark_prices bench_t1 ON bench_t1.trade_date = td_t1.trade_date
+            WHERE sp_t0.adjClose > 0 AND bench_t0.adjClose > 0
+              AND sp_t1.adjClose > 0 AND bench_t1.adjClose > 0
+        """)
+    else:
+        con.execute("""
+            CREATE TABLE event_base_prices AS
+            SELECT t.symbol, t.event_date, t.split_ratio, t.t0_num, t.t0_date,
+                   sp.adjClose AS t0_stock, bench.adjClose AS t0_bench,
+                   sp.adjClose AS t1_stock, bench.adjClose AS t1_bench
+            FROM event_t0 t
+            JOIN stock_prices sp ON sp.symbol = t.symbol AND sp.trade_date = t.t0_date
+            JOIN benchmark_prices bench ON bench.trade_date = t.t0_date
+            WHERE sp.adjClose > 0 AND bench.adjClose > 0
+        """)
 
-    n_with_t0 = con.execute("SELECT COUNT(*) FROM event_t0_prices").fetchone()[0]
-    print(f"    -> {n_with_t0} events with T0 prices")
+    n_with_base = con.execute("SELECT COUNT(*) FROM event_base_prices").fetchone()[0]
+    print(f"    -> {n_with_base} events with base prices")
 
     # Compute CAR for each event at each window
+    # Pre-event windows (offset < 0): base = T0 prices (event date close)
+    # Post-event windows (offset >= 0): base = T1 prices (MOC execution base)
     windows_values = ", ".join(f"({w})" for w in all_windows)
     print(f"  Computing CAR for windows {all_windows}...")
     con.execute(f"""
@@ -224,34 +248,46 @@ def run_event_study(con, all_windows, verbose):
             SELECT * FROM (VALUES {windows_values}) t(window_offset)
         ),
         event_windows AS (
-            SELECT t.symbol, t.event_date, t.split_ratio, t.t0_num, t.t0_stock, t.t0_spy,
+            SELECT t.symbol, t.event_date, t.split_ratio, t.t0_num,
+                   t.t0_stock, t.t0_bench, t.t1_stock, t.t1_bench,
                    w.window_offset
-            FROM event_t0_prices t CROSS JOIN windows w
+            FROM event_base_prices t CROSS JOIN windows w
         ),
         window_dates AS (
             SELECT ew.*, td.trade_date AS window_date
             FROM event_windows ew
             JOIN trading_days td ON td.day_num = ew.t0_num + ew.window_offset
+        ),
+        raw_returns AS (
+            SELECT
+                wd.symbol, wd.event_date, wd.split_ratio, wd.window_offset,
+                CASE WHEN wd.window_offset < 0
+                     THEN (sp.adjClose - wd.t0_stock) / wd.t0_stock
+                     ELSE (sp.adjClose - wd.t1_stock) / wd.t1_stock
+                END * 100 AS stock_ret,
+                CASE WHEN wd.window_offset < 0
+                     THEN (bench.adjClose - wd.t0_bench) / wd.t0_bench
+                     ELSE (bench.adjClose - wd.t1_bench) / wd.t1_bench
+                END * 100 AS bench_ret,
+                CASE
+                    WHEN ABS(wd.split_ratio - 2.0) < 0.01 THEN '2-for-1'
+                    WHEN ABS(wd.split_ratio - 3.0) < 0.01 THEN '3-for-1'
+                    WHEN ABS(wd.split_ratio - 4.0) < 0.01 THEN '4-for-1'
+                    WHEN wd.split_ratio >= 5.0 THEN '5-for-1+'
+                    ELSE 'other'
+                END AS category
+            FROM window_dates wd
+            JOIN stock_prices sp ON sp.symbol = wd.symbol AND sp.trade_date = wd.window_date
+            JOIN benchmark_prices bench ON bench.trade_date = wd.window_date
+            WHERE sp.adjClose > 0 AND bench.adjClose > 0
         )
-        SELECT
-            wd.symbol, wd.event_date, wd.split_ratio, wd.window_offset,
-            (sp.adjClose - wd.t0_stock) / wd.t0_stock * 100 AS stock_ret,
-            (spy.adjClose - wd.t0_spy) / wd.t0_spy * 100 AS spy_ret,
-            ((sp.adjClose - wd.t0_stock) / wd.t0_stock
-             - (spy.adjClose - wd.t0_spy) / wd.t0_spy) * 100 AS car,
-            CASE
-                WHEN ABS(wd.split_ratio - 2.0) < 0.01 THEN '2-for-1'
-                WHEN ABS(wd.split_ratio - 3.0) < 0.01 THEN '3-for-1'
-                WHEN ABS(wd.split_ratio - 4.0) < 0.01 THEN '4-for-1'
-                WHEN wd.split_ratio >= 5.0 THEN '5-for-1+'
-                ELSE 'other'
-            END AS category
-        FROM window_dates wd
-        JOIN stock_prices sp ON sp.symbol = wd.symbol AND sp.trade_date = wd.window_date
-        JOIN spy_prices spy ON spy.trade_date = wd.window_date
-        WHERE ABS((sp.adjClose - wd.t0_stock) / wd.t0_stock) <= {MAX_RETURN_CAP}
-          AND ABS((spy.adjClose - wd.t0_spy) / wd.t0_spy) <= {MAX_RETURN_CAP}
-          AND sp.adjClose > 0 AND spy.adjClose > 0
+        SELECT symbol, event_date, split_ratio, window_offset,
+               stock_ret, bench_ret,
+               stock_ret - bench_ret AS car,
+               category
+        FROM raw_returns
+        WHERE ABS(stock_ret / 100) <= {MAX_RETURN_CAP}
+          AND ABS(bench_ret / 100) <= {MAX_RETURN_CAP}
     """)
 
     n_results = con.execute("SELECT COUNT(*) FROM car_results").fetchone()[0]
@@ -329,7 +365,8 @@ def aggregate(con, all_windows):
 
 # ─── Output ──────────────────────────────────────────────────────────────────
 
-def save_results(con, overall, by_cat, all_windows, output_dir, args):
+def save_results(con, overall, by_cat, all_windows, output_dir, args,
+                 benchmark_symbol="SPY", benchmark_name="S&P 500", offset_days=0):
     """Save summary_metrics.json and event_returns.csv."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -352,7 +389,12 @@ def save_results(con, overall, by_cat, all_windows, output_dir, args):
             "min_ratio": args.min_ratio,
             "start_year": args.start_year,
             "end_year": args.end_year,
+            "exchanges": args.exchanges,
             "windows": all_windows,
+            "benchmark": benchmark_symbol,
+            "benchmark_name": benchmark_name,
+            "offset_days": offset_days,
+            "execution": "MOC (next-day base)" if offset_days > 0 else "Same-day",
         },
         "cumulative_abnormal_returns": overall,
         "by_category": by_cat,
@@ -363,19 +405,19 @@ def save_results(con, overall, by_cat, all_windows, output_dir, args):
         json.dump(summary, f, indent=2, default=str)
     print(f"  Saved {json_path}")
 
-    # event_returns.csv (sample - T+63 for all events)
+    # event_returns.csv (all events, all windows)
     csv_path = os.path.join(output_dir, "event_returns.csv")
     rows = con.execute("""
         SELECT symbol, CAST(event_date AS VARCHAR) as event_date, split_ratio, category,
                window_offset, ROUND(stock_ret, 4) as stock_ret,
-               ROUND(spy_ret, 4) as spy_ret, ROUND(car, 4) as car
+               ROUND(bench_ret, 4) as bench_ret, ROUND(car, 4) as car
         FROM car_results
         ORDER BY event_date, symbol, window_offset
     """).fetchall()
     with open(csv_path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["symbol", "event_date", "split_ratio", "category",
-                    "window", "stock_ret_pct", "spy_ret_pct", "car_pct"])
+                    "window", "stock_ret_pct", "bench_ret_pct", "car_pct"])
         w.writerows(rows)
     print(f"  Saved {csv_path}")
 
@@ -402,10 +444,10 @@ def save_results(con, overall, by_cat, all_windows, output_dir, args):
     print(f"  Saved {freq_path}")
 
 
-def print_summary(overall, all_windows):
+def print_summary(overall, all_windows, benchmark_name="S&P 500"):
     """Print results table to console."""
     print("\n" + "=" * 65)
-    print("  RESULTS: Post-Split CAR")
+    print(f"  RESULTS: Post-Split CAR (vs {benchmark_name})")
     print("=" * 65)
     print(f"  {'Window':<8}  {'Mean CAR':>9}  {'t-stat':>7}  {'N':>7}  {'Hit%':>6}  Sig")
     print(f"  {'-'*8}  {'-'*9}  {'-'*7}  {'-'*7}  {'-'*6}  ---")
@@ -415,7 +457,8 @@ def print_summary(overall, all_windows):
         if not s:
             continue
         sig = "**" if s["significant_1pct"] else ("*" if s["significant_5pct"] else "  ")
-        print(f"  {lbl:<8}  {s['mean_car']:>+9.3f}%  {s['t_stat']:>+7.2f}  {s['n']:>7,}  "
+        t_str = f"{s['t_stat']:>+7.2f}" if s['t_stat'] is not None else "    N/A"
+        print(f"  {lbl:<8}  {s['mean_car']:>+9.3f}%  {t_str}  {s['n']:>7,}  "
               f"{s['hit_rate']:>5.1f}%  {sig}")
     print(f"\n  * p<0.05  ** p<0.01")
 
@@ -429,6 +472,8 @@ def main():
     parser.add_argument("--exchange", type=str,
                         help="Exchange filter, comma-separated (e.g. NYSE,NASDAQ,AMEX). "
                              "Default: all exchanges with splits data")
+    parser.add_argument("--preset", type=str, choices=sorted(EXCHANGE_PRESETS.keys()),
+                        help="Use a preset exchange group (e.g. us, india, uk)")
     parser.add_argument("--output", type=str, default="stock-split/results",
                         help="Output directory (default: stock-split/results)")
     parser.add_argument("--verbose", "-v", action="store_true")
@@ -438,10 +483,28 @@ def main():
                         help=f"Minimum split ratio (default: {DEFAULT_MIN_RATIO})")
     parser.add_argument("--start-year", type=int, default=DEFAULT_START_YEAR)
     parser.add_argument("--end-year", type=int, default=DEFAULT_END_YEAR)
+    parser.add_argument("--no-next-day", action="store_true",
+                        help="Use same-day close as base (legacy biased behavior)")
     args = parser.parse_args()
-    args.exchanges = [e.strip().upper() for e in args.exchange.split(",")] if args.exchange else None
+
+    # Resolve exchanges from --preset or --exchange
+    if args.preset:
+        preset = EXCHANGE_PRESETS[args.preset]
+        args.exchanges = preset["exchanges"]
+    elif args.exchange:
+        args.exchanges = [e.strip().upper() for e in args.exchange.split(",")]
+    else:
+        args.exchanges = None
+
     if args.min_mktcap is None:
         args.min_mktcap = get_mktcap_threshold(args.exchanges, use_low_threshold=True)
+
+    # Execution model
+    offset_days = 0 if args.no_next_day else 1
+    exec_model = "Same-day (legacy)" if args.no_next_day else "MOC (next-day base)"
+
+    # Benchmark
+    benchmark_symbol, benchmark_name = get_local_benchmark(args.exchanges)
 
     client = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     con = duckdb.connect(":memory:")
@@ -453,23 +516,27 @@ def main():
     print(f"  Period: {period} | Exchange: {exch}")
     mktcap_label = f"{args.min_mktcap/1e9:.0f}B" if args.min_mktcap >= 1e9 else f"{args.min_mktcap/1e6:.0f}M"
     print(f"  Min mktcap: {mktcap_label} local | Min split ratio: {args.min_ratio}x")
+    print(f"  Execution: {exec_model} | Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 65)
 
     all_windows = PRE_WINDOWS + WINDOWS
 
     print("\nPhase 1: Loading data...")
-    fetch_splits_and_prices(client, con, args, args.verbose)
+    fetch_splits_and_prices(client, con, args, args.verbose,
+                            benchmark_symbol=benchmark_symbol)
 
     print("\nPhase 2: Running event study...")
-    run_event_study(con, all_windows, args.verbose)
+    run_event_study(con, all_windows, args.verbose, offset_days=offset_days)
 
     print("\nPhase 3: Aggregating results...")
     overall, by_cat = aggregate(con, all_windows)
 
-    print_summary(overall, all_windows)
+    print_summary(overall, all_windows, benchmark_name)
 
     print("\nPhase 4: Saving results...")
-    save_results(con, overall, by_cat, all_windows, args.output, args)
+    save_results(con, overall, by_cat, all_windows, args.output, args,
+                 benchmark_symbol=benchmark_symbol, benchmark_name=benchmark_name,
+                 offset_days=offset_days)
     print("\nDone.")
 
 
