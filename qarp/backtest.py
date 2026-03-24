@@ -38,7 +38,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return
 from metrics import compute_metrics as _compute_metrics, compute_annual_returns, format_metrics
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
 
@@ -144,12 +144,22 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
+    # Build benchmark symbol list (SPY + local index)
+    from data_utils import LOCAL_INDEX_BENCHMARKS
+    bench_symbols = {"'SPY'"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(f"'{sym}'")
+    bench_list = ", ".join(bench_symbols)
+
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
-            symbol = 'SPY'
+            symbol IN ({bench_list})
             OR symbol IN (
                 SELECT DISTINCT symbol FROM income_statement WHERE period = 'FY'
                     {f"AND {sym_filter_sql}" if sym_filter_sql != "1=1" else ""}
@@ -276,7 +286,14 @@ def screen_stocks(con, target_date, mktcap_min):
     return [r[0] for r in rows]
 
 
-def run_backtest(con, rebalance_dates, mktcap_min, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, verbose=False,
+                 offset_days=1, benchmark_symbol="SPY"):
+    """Run QARP backtest. Returns list of period result dicts.
+
+    Args:
+        offset_days: int - 1 = MOC execution (next-day close), 0 = legacy same-bar
+        benchmark_symbol: str - local index symbol (e.g. "^BSESN") or "SPY"
+    """
     results = []
 
     for i in range(len(rebalance_dates) - 1):
@@ -286,17 +303,14 @@ def run_backtest(con, rebalance_dates, mktcap_min, verbose=False):
         portfolio = screen_stocks(con, entry_date, mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
-            spy_entry = get_prices(con, ["SPY"], entry_date)
-            spy_exit = get_prices(con, ["SPY"], exit_date)
-            spy_return = None
-            if "SPY" in spy_entry and "SPY" in spy_exit and spy_entry["SPY"] > 0:
-                spy_return = (spy_exit["SPY"] - spy_entry["SPY"]) / spy_entry["SPY"]
+            bench_return = get_benchmark_return(
+                con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
             results.append({
                 "rebalance_date": entry_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
                 "portfolio_return": 0.0,
-                "spy_return": round(spy_return, 6) if spy_return is not None else None,
+                "spy_return": round(bench_return, 6) if bench_return is not None else None,
                 "stocks_held": 0,
                 "holdings": f"CASH ({len(portfolio)} passed)",
             })
@@ -304,7 +318,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, verbose=False):
                 print(f"    {entry_date}: {len(portfolio)} passed (< {MIN_STOCKS}), CASH")
             continue
 
-        entry_prices = get_prices(con, portfolio, entry_date)
+        entry_prices = get_prices(con, portfolio, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, portfolio, exit_date)
 
         returns = []
@@ -316,27 +330,24 @@ def run_backtest(con, rebalance_dates, mktcap_min, verbose=False):
 
         port_return = sum(returns) / len(returns) if returns else 0.0
 
-        spy_entry = get_prices(con, ["SPY"], entry_date)
-        spy_exit = get_prices(con, ["SPY"], exit_date)
-        spy_return = None
-        if "SPY" in spy_entry and "SPY" in spy_exit and spy_entry["SPY"] > 0:
-            spy_return = (spy_exit["SPY"] - spy_entry["SPY"]) / spy_entry["SPY"]
+        bench_return = get_benchmark_return(
+            con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
         results.append({
             "rebalance_date": entry_date.isoformat(),
             "exit_date": exit_date.isoformat(),
             "portfolio_return": round(port_return, 6),
-            "spy_return": round(spy_return, 6) if spy_return is not None else None,
+            "spy_return": round(bench_return, 6) if bench_return is not None else None,
             "stocks_held": len(returns),
             "holdings": ",".join(portfolio),
         })
 
         if verbose:
             excess = ""
-            if spy_return is not None:
-                excess = f"  ex={((port_return - spy_return) * 100):+.1f}%"
+            if bench_return is not None:
+                excess = f"  ex={((port_return - bench_return) * 100):+.1f}%"
             print(f"    {entry_date}: {len(returns)} stocks, "
-                  f"port={port_return * 100:.1f}%, spy={spy_return * 100 if spy_return else 0:.1f}%{excess}")
+                  f"port={port_return * 100:.1f}%, bench={bench_return * 100 if bench_return else 0:.1f}%{excess}")
 
     return results
 
@@ -443,11 +454,15 @@ def main():
 
     exchanges, universe_name = resolve_exchanges(args)
     frequency = args.frequency or DEFAULT_FREQUENCY
+    offset_days = 0 if args.no_next_day else 1
 
     # Auto-detect risk-free rate and market cap threshold from exchanges
     from cli_utils import get_risk_free_rate
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     mktcap_threshold = get_mktcap_threshold(exchanges)
+
+    # Auto-detect local benchmark
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
 
     freq_map = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}
     periods_per_year = freq_map[frequency]
@@ -456,7 +471,9 @@ def main():
                    f"D/E < {DE_MAX}, CR > {CR_MIN}, IQ > {IQ_MIN}, "
                    f"P/E {PE_MIN}-{PE_MAX}, MCap > {mktcap_threshold/1e9:.0f}B local")
     print_header("QARP BACKTEST", universe_name, exchanges, signal_desc)
-    print(f"  Frequency: {frequency}, Risk-free rate: {risk_free_rate*100:.1f}%")
+    exec_model = "next-day close (MOC)" if offset_days else "same-day close (legacy)"
+    print(f"  Frequency: {frequency}, Execution: {exec_model}")
+    print(f"  Benchmark: {benchmark_name} ({benchmark_symbol}), Risk-free rate: {risk_free_rate*100:.1f}%")
     print("=" * 65)
 
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
@@ -475,7 +492,8 @@ def main():
     # Phase 2: Run backtest locally
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    results = run_backtest(con, rebalance_dates, mktcap_threshold, verbose=args.verbose)
+    results = run_backtest(con, rebalance_dates, mktcap_threshold, verbose=args.verbose,
+                           offset_days=offset_days, benchmark_symbol=benchmark_symbol)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -488,7 +506,7 @@ def main():
                                    risk_free_rate=risk_free_rate)
 
     # Display
-    print(format_metrics(raw_metrics, "QARP", "S&P 500"))
+    print(format_metrics(raw_metrics, "QARP", benchmark_name))
 
     cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
     invested = [r["stocks_held"] for r in results if r["stocks_held"] > 0]
@@ -499,7 +517,8 @@ def main():
     period_dates = [r["rebalance_date"] for r in valid]
     annual = compute_annual_returns(port_returns, spy_returns, period_dates, periods_per_year)
     if annual:
-        print(f"\n  {'Year':<8} {'QARP':>10} {'SPY':>10} {'Excess':>10}")
+        bench_label = benchmark_name[:10]
+        print(f"\n  {'Year':<8} {'QARP':>10} {bench_label:>10} {'Excess':>10}")
         print("  " + "-" * 40)
         for ar in annual:
             print(f"  {ar['year']:<8} {ar['portfolio']*100:>9.1f}% {ar['benchmark']*100:>9.1f}% "
