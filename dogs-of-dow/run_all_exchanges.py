@@ -31,7 +31,6 @@ from backtest import (
 # Exchanges to test — ordered by expected data quality
 # Excluded exchanges (see DATA_QUALITY_ISSUES.md):
 #   ASX, SAO — broken adjClose (unadjusted stock splits, >1000x price ratios)
-#   JPX, LSE — no FY fundamental data in warehouse
 EXCHANGE_CONFIGS = [
     {"name": "US_MAJOR", "exchanges": ["NYSE", "NASDAQ", "AMEX"]},
     {"name": "BSE", "exchanges": ["BSE"]},
@@ -46,6 +45,8 @@ EXCHANGE_CONFIGS = [
     {"name": "TAI", "exchanges": ["TAI"]},
     {"name": "STO", "exchanges": ["STO"]},
     {"name": "SIX", "exchanges": ["SIX"]},
+    {"name": "JPX", "exchanges": ["JPX"]},
+    {"name": "LSE", "exchanges": ["LSE"]},
 ]
 
 

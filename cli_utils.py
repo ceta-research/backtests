@@ -173,6 +173,8 @@ def add_common_args(parser):
                         help="Rebalancing frequency (overrides strategy default)")
     parser.add_argument("--no-costs", action="store_true",
                         help="Disable transaction costs (academic baseline)")
+    parser.add_argument("--no-next-day", action="store_true",
+                        help="Use same-day close for entry (legacy biased behavior)")
 
 
 def resolve_exchanges(args, default_exchanges=None, default_name="US_MAJOR"):

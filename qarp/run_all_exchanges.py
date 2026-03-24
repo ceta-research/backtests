@@ -19,7 +19,6 @@ RESULTS_DIR.mkdir(exist_ok=True)
 
 # Excluded exchanges (see DATA_QUALITY_ISSUES.md):
 #   ASX, SAO — broken adjClose (unadjusted stock splits, >1000x price ratios)
-#   JPX, LSE — no FY fundamental data in warehouse
 EXCHANGES = [
     ("BSE", ["--exchange", "BSE"]),
     ("NSE", ["--exchange", "NSE"]),
@@ -33,6 +32,8 @@ EXCHANGES = [
     ("AMEX", ["--exchange", "AMEX"]),
     ("KSC", ["--exchange", "KSC"]),
     ("TSX", ["--exchange", "TSX"]),
+    ("JPX", ["--preset", "japan"]),
+    ("LSE", ["--preset", "uk"]),
 ]
 
 SCRIPT = str(Path(__file__).parent / "backtest.py")

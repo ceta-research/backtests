@@ -53,6 +53,158 @@ FACTOR_BENCHMARKS = {
 }
 
 
+# Local currency index benchmarks (same currency as portfolio stocks)
+# These are the correct benchmarks for measuring alpha. SPY is kept as secondary.
+LOCAL_INDEX_BENCHMARKS = {
+    "BSE": "^BSESN", "NSE": "^BSESN",              # Sensex (INR, 1979+)
+    "JPX": "^N225",                                   # Nikkei 225 (JPY, 1970+)
+    "LSE": "^FTSE",                                   # FTSE 100 (GBP, 1984+)
+    "XETRA": "^GDAXI", "FSX": "^GDAXI",             # DAX (EUR, 1987+)
+    "HKSE": "^HSI",                                   # Hang Seng (HKD, 1986+)
+    "KSC": "^KS11", "KOE": "^KS11",                  # KOSPI (KRW, 1980+)
+    "TAI": "^TWII", "TWO": "^TWII",                  # Taiwan Weighted (TWD, 1997+)
+    "SGX": "^STI", "SES": "^STI",                     # Straits Times (SGD, 1987+)
+    "ASX": "^AXJO",                                   # ASX 200 (AUD, 1992+)
+    "NYSE": "SPY", "NASDAQ": "SPY", "AMEX": "SPY",         # SPY ETF (USD, dividend-adjusted)
+    "SAO": "^BVSP",                                   # Bovespa (BRL)
+    "TSX": "^GSPTSE", "TSXV": "^GSPTSE",             # TSX Composite (CAD)
+    "JNB": "^J203.JO",                                # JSE All Share (ZAR)
+    "SHH": "000001.SS", "SHZ": "399001.SZ",          # Shanghai/Shenzhen Composite (CNY)
+}
+
+# Human-readable names for local benchmarks
+LOCAL_INDEX_NAMES = {
+    "^BSESN": "Sensex", "^NSEI": "Nifty 50",
+    "^N225": "Nikkei 225", "^FTSE": "FTSE 100",
+    "^GDAXI": "DAX", "^HSI": "Hang Seng",
+    "^KS11": "KOSPI", "^TWII": "TAIEX",
+    "^STI": "STI", "^AXJO": "ASX 200",
+    "SPY": "S&P 500", "^GSPC": "S&P 500", "^BVSP": "Bovespa",
+    "^GSPTSE": "TSX Composite", "^J203.JO": "JSE All Share",
+    "000001.SS": "SSE Composite", "399001.SZ": "SZSE Component",
+}
+
+
+def get_local_benchmark(exchanges):
+    """Get the local currency index symbol for a set of exchanges.
+
+    For single-region exchanges, returns the local index.
+    For mixed regions or unknown exchanges, falls back to SPY.
+
+    Args:
+        exchanges: list[str] or None - exchange codes
+
+    Returns:
+        tuple(str, str) - (benchmark_symbol, benchmark_name)
+    """
+    if not exchanges:
+        return "SPY", "S&P 500"
+
+    # Collect unique benchmark symbols for all exchanges
+    symbols = set()
+    for ex in exchanges:
+        sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+        if sym:
+            symbols.add(sym)
+
+    if len(symbols) == 1:
+        sym = symbols.pop()
+        return sym, LOCAL_INDEX_NAMES.get(sym, sym)
+
+    # Mixed regions or unknown: fall back to SPY
+    return "SPY", "S&P 500"
+
+
+def get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
+                         offset_days=0, window_days=10):
+    """Get benchmark return for a period.
+
+    Convenience wrapper around get_prices() for the common 8-line benchmark
+    lookup pattern repeated in every strategy.
+
+    Args:
+        con: duckdb.Connection with prices_cache table
+        benchmark_symbol: str - e.g. "SPY", "^BSESN"
+        entry_date: date - period start
+        exit_date: date - period end
+        offset_days: int - days to shift for MOC execution
+        window_days: int - price lookup window
+
+    Returns:
+        float or None - benchmark return for the period
+    """
+    entry = get_prices(con, [benchmark_symbol], entry_date,
+                       window_days=window_days, offset_days=offset_days)
+    exit_ = get_prices(con, [benchmark_symbol], exit_date,
+                       window_days=window_days, offset_days=offset_days)
+    ep = entry.get(benchmark_symbol)
+    xp = exit_.get(benchmark_symbol)
+    if ep and xp and ep > 0:
+        return (xp - ep) / ep
+    return None
+
+
+def filter_by_liquidity(con, symbols, target_date, lookback_days=90,
+                        min_avg_turnover=0):
+    """Filter symbols by average daily turnover.
+
+    Requires prices_cache to have 'volume' column. If volume is missing or
+    min_avg_turnover is 0, returns all symbols unchanged (graceful degradation).
+
+    Args:
+        con: duckdb.Connection with prices_cache table
+        symbols: list[str] - candidate symbols
+        target_date: date - compute turnover up to this date
+        lookback_days: int - days of history to average (default 90)
+        min_avg_turnover: float - minimum avg(volume * adjClose) to pass.
+            0 = no filter (default). Reasonable values:
+            US: 10_000_000, India: 5_000_000, Japan: 500_000_000
+
+    Returns:
+        tuple(list[str], list[str]) - (passed, filtered_out)
+    """
+    if not symbols or min_avg_turnover <= 0:
+        return list(symbols), []
+
+    # Check if volume column exists
+    from datetime import datetime
+    try:
+        con.execute("SELECT volume FROM prices_cache LIMIT 0")
+    except Exception:
+        return list(symbols), []
+
+    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
+    start_epoch = int(datetime.combine(
+        target_date - timedelta(days=lookback_days), datetime.min.time()
+    ).timestamp())
+    sym_list = ",".join(f"'{s}'" for s in symbols)
+
+    try:
+        rows = con.execute(f"""
+            SELECT symbol, AVG(volume * adjClose) as avg_turnover
+            FROM prices_cache
+            WHERE symbol IN ({sym_list})
+              AND trade_epoch >= {start_epoch}
+              AND trade_epoch <= {target_epoch}
+              AND volume > 0 AND adjClose > 0
+            GROUP BY symbol
+        """).fetchall()
+    except Exception:
+        return list(symbols), []
+
+    turnover_map = {r[0]: r[1] for r in rows}
+    passed = []
+    filtered = []
+    for s in symbols:
+        t = turnover_map.get(s, 0)
+        if t >= min_avg_turnover:
+            passed.append(s)
+        else:
+            filtered.append(s)
+
+    return passed, filtered
+
+
 def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, timeout=300,
                   memory_mb=None, threads=None):
     """Query API as parquet, load directly into DuckDB. Returns row count.
@@ -151,10 +303,11 @@ def load_into_duckdb(con, table_name, rows, schema):
         con.execute(insert_sql, values)
 
 
-def get_prices(con, symbols, target_date, window_days=10):
+def get_prices(con, symbols, target_date, window_days=10, offset_days=0):
     """Get adjusted close prices for symbols at/near a target date.
 
-    Uses the first available price in [target_date, target_date + window_days].
+    Uses the first available price in [target_date + offset_days,
+    target_date + offset_days + window_days].
     Handles both epoch-based (trade_epoch) and date-based (trade_date) schemas.
 
     Args:
@@ -162,6 +315,7 @@ def get_prices(con, symbols, target_date, window_days=10):
         symbols: list[str] - stock symbols
         target_date: date - target rebalance date
         window_days: int - number of days to search forward
+        offset_days: int - days to shift forward (1 = next-day / MOC execution)
 
     Returns:
         dict[str, float] - {symbol: price}
@@ -170,8 +324,9 @@ def get_prices(con, symbols, target_date, window_days=10):
         return {}
 
     from datetime import datetime
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(target_date + timedelta(days=window_days), datetime.min.time()).timestamp())
+    shifted_date = target_date + timedelta(days=offset_days)
+    target_epoch = int(datetime.combine(shifted_date, datetime.min.time()).timestamp())
+    end_epoch = int(datetime.combine(shifted_date + timedelta(days=window_days), datetime.min.time()).timestamp())
     sym_list = ",".join(f"'{s}'" for s in symbols)
 
     # Try epoch-based schema first (used by most backtests)
@@ -190,8 +345,8 @@ def get_prices(con, symbols, target_date, window_days=10):
 
     # Fallback: date-based schema
     try:
-        target_str = target_date.isoformat()
-        end_str = (target_date + timedelta(days=window_days)).isoformat()
+        target_str = shifted_date.isoformat()
+        end_str = (shifted_date + timedelta(days=window_days)).isoformat()
         rows = con.execute(f"""
             SELECT symbol, trade_date, adjClose
             FROM prices_cache
