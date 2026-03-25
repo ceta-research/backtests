@@ -9,7 +9,6 @@ Signal: Net Debt/EBITDA < 2x AND > -5x, ROE > 10%, Market Cap > local currency t
 Portfolio: Top 30 by lowest Net Debt/EBITDA, equal weight. Cash if < 10 qualify.
 Rebalancing: Quarterly (Jan/Apr/Jul/Oct), 2000-2025.
 
-JPX (Japan) and LSE (UK) are excluded: zero FY key_metrics data in the warehouse.
 Singapore uses exchange code SES (not SGX) — FMP data convention.
 
 Usage:
@@ -57,10 +56,11 @@ MAX_SINGLE_RETURN = 2.0      # Cap individual stock returns at 200% (data qualit
 MIN_ENTRY_PRICE = 1.0        # Skip stocks with entry price < $1 (price data artifact)
 
 # Exchanges confirmed to have FY key_metrics data for this signal
-# JPX (Japan) and LSE (UK) have zero FY records — excluded from global run
 GLOBAL_PRESETS = [
     ("us",          ["NYSE", "NASDAQ", "AMEX"]),
     ("india",       ["BSE", "NSE"]),
+    ("japan",       ["JPX"]),
+    ("uk",          ["LSE"]),
     ("china",       ["SHZ", "SHH"]),
     ("hongkong",    ["HKSE"]),
     ("taiwan",      ["TAI"]),
@@ -439,7 +439,6 @@ def main():
     if exchanges is None and universe_name in ("Global", "GLOBAL"):
         print("=" * 65)
         print("  GLOBAL MODE: Running all exchange presets")
-        print("  Note: JPX (Japan) and LSE (UK) excluded — zero FY key_metrics data")
         print("=" * 65)
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
