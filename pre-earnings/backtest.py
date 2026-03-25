@@ -49,7 +49,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, REGIONAL_BENCHMARKS
+from data_utils import query_parquet, get_local_benchmark, LOCAL_INDEX_BENCHMARKS
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -223,13 +223,8 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     event_symbols = [r[0] for r in con.execute("SELECT DISTINCT symbol FROM filtered_events").fetchall()]
     print(f"  Fetching prices for {len(event_symbols)} symbols + benchmark...")
 
-    # Determine benchmark
-    benchmark = "SPY"
-    if exchanges:
-        for ex in exchanges:
-            if ex in REGIONAL_BENCHMARKS:
-                benchmark = REGIONAL_BENCHMARKS[ex]
-                break
+    # Determine benchmark — use local currency index (same calendar + currency as stocks)
+    benchmark, benchmark_name = get_local_benchmark(exchanges)
 
     # 6. Fetch prices for event symbols + benchmark
     sym_list = event_symbols + [benchmark]
@@ -260,7 +255,7 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     n_trading_days = con.execute("SELECT COUNT(*) FROM trading_days").fetchone()[0]
     print(f"    -> {n_trading_days} trading days from {benchmark}")
 
-    con.execute(f"CREATE TABLE config AS SELECT '{benchmark}' AS benchmark")
+    con.execute(f"CREATE TABLE config AS SELECT '{benchmark}' AS benchmark, '{benchmark_name}' AS benchmark_name")
 
     return con
 
@@ -565,12 +560,13 @@ def compute_yearly_stats(results):
     ]
 
 
-def build_output(metrics, quintiles, yearly, results, universe_name, benchmark, mktcap_min):
+def build_output(metrics, quintiles, yearly, results, universe_name, benchmark, benchmark_name, mktcap_min):
     """Build JSON output."""
     return {
         "strategy": "Pre-Earnings Announcement Runup",
         "universe": universe_name,
         "benchmark": benchmark,
+        "benchmark_name": benchmark_name,
         "study_type": "event_study",
         "period": f"{START_YEAR}-{END_YEAR}",
         "filters": {
@@ -668,7 +664,8 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
         return None
     fetch_time = time.time() - t0
 
-    benchmark = con.execute("SELECT benchmark FROM config").fetchone()[0]
+    row = con.execute("SELECT benchmark, benchmark_name FROM config").fetchone()
+    benchmark, benchmark_name = row[0], row[1]
 
     print(f"\nPhase 2: Computing returns...")
     t1 = time.time()
@@ -699,7 +696,7 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
     total_time = time.time() - t0
     print(f"\n  Total time: {total_time:.0f}s (fetch: {fetch_time:.0f}s, compute: {compute_time:.0f}s)")
 
-    output = build_output(metrics, quintiles, yearly, results, universe_name, benchmark, mktcap_min)
+    output = build_output(metrics, quintiles, yearly, results, universe_name, benchmark, benchmark_name, mktcap_min)
 
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
@@ -802,10 +799,10 @@ def main():
         print(f"\n\n{'=' * 110}")
         print("PRE-EARNINGS RUNUP: EXCHANGE COMPARISON SUMMARY")
         print(f"{'=' * 110}")
-        print(f"{'Exchange':<18} {'Events':>8} {'Beat%':>6} "
+        print(f"{'Exchange':<18} {'Bench':>10} {'Events':>8} {'Beat%':>6} "
               f"{'All T-10':>10} {'Beat T-10':>10} {'All T-5':>10} "
               f"{'t(T-10)':>8} {'Sig':>4}")
-        print("-" * 110)
+        print("-" * 120)
 
         for uni, r in sorted(all_results.items(),
                               key=lambda x: (x[1].get("car_metrics", {}).get("habitual_beater", {}).get("car_pre_10d", {}).get("mean", -99)
@@ -821,6 +818,7 @@ def main():
             n = overall.get("n_events", 0)
             n_beaters = beater.get("n_events", 0)
             beater_pct = round(n_beaters / n * 100, 1) if n > 0 else 0
+            bench_name = r.get("benchmark_name", r.get("benchmark", "?"))
 
             all_t10 = overall.get("car_pre_10d", {}).get("mean", 0) if isinstance(overall.get("car_pre_10d"), dict) else 0
             beat_t10 = beater.get("car_pre_10d", {}).get("mean", 0) if isinstance(beater.get("car_pre_10d"), dict) else 0
@@ -828,7 +826,7 @@ def main():
             t_stat = overall.get("car_pre_10d", {}).get("t_stat", 0) if isinstance(overall.get("car_pre_10d"), dict) else 0
             sig = "**" if abs(t_stat) > 1.96 else ""
 
-            print(f"{uni:<18} {n:>8} {beater_pct:>5.1f}% "
+            print(f"{uni:<18} {bench_name:>10} {n:>8} {beater_pct:>5.1f}% "
                   f"{all_t10:>+9.3f}% {beat_t10:>+9.3f}% {all_t5:>+9.3f}% "
                   f"{t_stat:>+7.2f} {sig:>4}")
 

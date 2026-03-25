@@ -68,9 +68,13 @@ LOCAL_INDEX_BENCHMARKS = {
     "NYSE": "SPY", "NASDAQ": "SPY", "AMEX": "SPY",         # SPY ETF (USD, dividend-adjusted)
     "SAO": "^BVSP",                                   # Bovespa (BRL)
     "TSX": "^GSPTSE", "TSXV": "^GSPTSE",             # TSX Composite (CAD)
-    "JNB": "^J203.JO",                                # JSE All Share (ZAR)
+    # "JNB": "^J203.JO" — no price data in FMP stock_eod. Falls back to SPY.
     "SHH": "000001.SS",                                # Shanghai Composite (CNY)
     # SHZ: 399001.SZ has no price data in FMP stock_eod. Falls back to SPY.
+    "STO": "^OMXS30",                                   # OMX Stockholm 30 (SEK, 1986+)
+    "SIX": "^SSMI",                                     # Swiss Market Index (CHF, 1990+)
+    "OSL": "^OSEAX",                                    # Oslo All Share (NOK, 2013+)
+    "SET": "^SET.BK",                                   # SET Index (THB, 1982+)
 }
 
 # Human-readable names for local benchmarks
@@ -83,6 +87,8 @@ LOCAL_INDEX_NAMES = {
     "SPY": "S&P 500", "^GSPC": "S&P 500", "^BVSP": "Bovespa",
     "^GSPTSE": "TSX Composite", "^J203.JO": "JSE All Share",
     "000001.SS": "SSE Composite", "399001.SZ": "SZSE Component",
+    "^OMXS30": "OMX Stockholm 30", "^SSMI": "SMI",
+    "^OSEAX": "Oslo All Share", "^SET.BK": "SET Index",
 }
 
 

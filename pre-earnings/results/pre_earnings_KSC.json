@@ -1,0 +1,326 @@
+{
+  "strategy": "Pre-Earnings Announcement Runup",
+  "universe": "KSC",
+  "benchmark": "^KS11",
+  "benchmark_name": "KOSPI",
+  "study_type": "event_study",
+  "period": "2000-2025",
+  "filters": {
+    "min_market_cap": 500000000000,
+    "min_estimate": 0.01,
+    "min_prior_reports": 4,
+    "min_prior_for_habitual": 8,
+    "habitual_beater_threshold": 0.75,
+    "habitual_misser_threshold": 0.25
+  },
+  "pre_windows": [
+    10,
+    5,
+    1
+  ],
+  "post_windows": [
+    1
+  ],
+  "car_metrics": {
+    "overall": {
+      "n_events": 6626,
+      "car_pre_10d": {
+        "mean": 0.7087,
+        "median": 0.1553,
+        "std": 6.3963,
+        "t_stat": 9.019,
+        "significant": true,
+        "hit_rate": 51.03,
+        "n_obs": 6626
+      },
+      "car_pre_5d": {
+        "mean": 0.6084,
+        "median": 0.2357,
+        "std": 4.7342,
+        "t_stat": 10.408,
+        "significant": true,
+        "hit_rate": 52.75,
+        "n_obs": 6559
+      },
+      "car_pre_1d": {
+        "mean": 0.2571,
+        "median": 0.07,
+        "std": 2.7127,
+        "t_stat": 7.66,
+        "significant": true,
+        "hit_rate": 51.35,
+        "n_obs": 6533
+      },
+      "car_post_1d": {
+        "mean": -0.0546,
+        "median": -0.1932,
+        "std": 3.612,
+        "t_stat": -1.219,
+        "significant": false,
+        "hit_rate": 47.22,
+        "n_obs": 6495
+      }
+    },
+    "habitual_beater": {
+      "n_events": 91,
+      "car_pre_10d": {
+        "mean": 0.6363,
+        "median": 0.234,
+        "std": 5.836,
+        "t_stat": 1.04,
+        "significant": false,
+        "hit_rate": 52.75,
+        "n_obs": 91
+      },
+      "car_pre_5d": {
+        "mean": 0.4253,
+        "median": 0.0316,
+        "std": 5.137,
+        "t_stat": 0.777,
+        "significant": false,
+        "hit_rate": 50.0,
+        "n_obs": 88
+      },
+      "car_pre_1d": {
+        "mean": 0.5929,
+        "median": 0.4255,
+        "std": 2.79,
+        "t_stat": 1.982,
+        "significant": true,
+        "hit_rate": 57.47,
+        "n_obs": 87
+      },
+      "car_post_1d": {
+        "mean": -0.414,
+        "median": -0.0408,
+        "std": 3.8571,
+        "t_stat": -0.984,
+        "significant": false,
+        "hit_rate": 47.62,
+        "n_obs": 84
+      }
+    },
+    "mixed": {
+      "n_events": 5650,
+      "car_pre_10d": {
+        "mean": 0.7284,
+        "median": 0.1854,
+        "std": 6.3391,
+        "t_stat": 8.637,
+        "significant": true,
+        "hit_rate": 51.35,
+        "n_obs": 5650
+      },
+      "car_pre_5d": {
+        "mean": 0.6508,
+        "median": 0.2684,
+        "std": 4.656,
+        "t_stat": 10.456,
+        "significant": true,
+        "hit_rate": 53.15,
+        "n_obs": 5595
+      },
+      "car_pre_1d": {
+        "mean": 0.2585,
+        "median": 0.0697,
+        "std": 2.6552,
+        "t_stat": 7.266,
+        "significant": true,
+        "hit_rate": 51.37,
+        "n_obs": 5571
+      },
+      "car_post_1d": {
+        "mean": -0.0667,
+        "median": -0.1722,
+        "std": 3.5531,
+        "t_stat": -1.396,
+        "significant": false,
+        "hit_rate": 47.45,
+        "n_obs": 5536
+      }
+    },
+    "habitual_misser": {
+      "n_events": 885,
+      "car_pre_10d": {
+        "mean": 0.6104,
+        "median": -0.1228,
+        "std": 6.9845,
+        "t_stat": 2.6,
+        "significant": true,
+        "hit_rate": 48.81,
+        "n_obs": 885
+      },
+      "car_pre_5d": {
+        "mean": 0.3922,
+        "median": 0.0743,
+        "std": 5.1451,
+        "t_stat": 2.256,
+        "significant": true,
+        "hit_rate": 50.46,
+        "n_obs": 876
+      },
+      "car_pre_1d": {
+        "mean": 0.2249,
+        "median": 0.0493,
+        "std": 3.1072,
+        "t_stat": 2.141,
+        "significant": true,
+        "hit_rate": 50.63,
+        "n_obs": 875
+      },
+      "car_post_1d": {
+        "mean": 0.0677,
+        "median": -0.3008,
+        "std": 4.0392,
+        "t_stat": 0.496,
+        "significant": false,
+        "hit_rate": 45.71,
+        "n_obs": 875
+      }
+    }
+  },
+  "quintile_analysis": {
+    "Q1": {
+      "n_events": 1325,
+      "beat_rate_range": "0.0% to 25.0%",
+      "mean_beat_rate": 15.3,
+      "car_pre_10d": 0.5929,
+      "car_pre_5d": 0.424,
+      "car_pre_1d": 0.3059,
+      "car_post_1d": -0.0998
+    },
+    "Q2": {
+      "n_events": 1325,
+      "beat_rate_range": "25.0% to 36.0%",
+      "mean_beat_rate": 30.65,
+      "car_pre_10d": 1.0129,
+      "car_pre_5d": 0.8545,
+      "car_pre_1d": 0.3347,
+      "car_post_1d": -0.1188
+    },
+    "Q3": {
+      "n_events": 1325,
+      "beat_rate_range": "36.0% to 45.0%",
+      "mean_beat_rate": 40.33,
+      "car_pre_10d": 0.7553,
+      "car_pre_5d": 0.6218,
+      "car_pre_1d": 0.2203,
+      "car_post_1d": 0.1074
+    },
+    "Q4": {
+      "n_events": 1325,
+      "beat_rate_range": "45.0% to 55.6%",
+      "mean_beat_rate": 50.03,
+      "car_pre_10d": 0.5907,
+      "car_pre_5d": 0.5214,
+      "car_pre_1d": 0.2116,
+      "car_post_1d": -0.3009
+    },
+    "Q5": {
+      "n_events": 1326,
+      "beat_rate_range": "55.6% to 100.0%",
+      "mean_beat_rate": 65.7,
+      "car_pre_10d": 0.577,
+      "car_pre_5d": 0.6319,
+      "car_pre_1d": 0.2094,
+      "car_post_1d": 0.1113
+    }
+  },
+  "yearly_stats": [
+    {
+      "year": 2013,
+      "total_events": 1,
+      "habitual_beater": 0,
+      "mixed": 1,
+      "habitual_misser": 0
+    },
+    {
+      "year": 2014,
+      "total_events": 2,
+      "habitual_beater": 0,
+      "mixed": 2,
+      "habitual_misser": 0
+    },
+    {
+      "year": 2015,
+      "total_events": 63,
+      "habitual_beater": 0,
+      "mixed": 63,
+      "habitual_misser": 0
+    },
+    {
+      "year": 2016,
+      "total_events": 299,
+      "habitual_beater": 2,
+      "mixed": 282,
+      "habitual_misser": 15
+    },
+    {
+      "year": 2017,
+      "total_events": 577,
+      "habitual_beater": 11,
+      "mixed": 487,
+      "habitual_misser": 79
+    },
+    {
+      "year": 2018,
+      "total_events": 711,
+      "habitual_beater": 14,
+      "mixed": 583,
+      "habitual_misser": 114
+    },
+    {
+      "year": 2019,
+      "total_events": 720,
+      "habitual_beater": 3,
+      "mixed": 564,
+      "habitual_misser": 153
+    },
+    {
+      "year": 2020,
+      "total_events": 706,
+      "habitual_beater": 3,
+      "mixed": 555,
+      "habitual_misser": 148
+    },
+    {
+      "year": 2021,
+      "total_events": 683,
+      "habitual_beater": 2,
+      "mixed": 561,
+      "habitual_misser": 120
+    },
+    {
+      "year": 2022,
+      "total_events": 715,
+      "habitual_beater": 7,
+      "mixed": 626,
+      "habitual_misser": 82
+    },
+    {
+      "year": 2023,
+      "total_events": 726,
+      "habitual_beater": 12,
+      "mixed": 649,
+      "habitual_misser": 65
+    },
+    {
+      "year": 2024,
+      "total_events": 801,
+      "habitual_beater": 26,
+      "mixed": 718,
+      "habitual_misser": 57
+    },
+    {
+      "year": 2025,
+      "total_events": 622,
+      "habitual_beater": 11,
+      "mixed": 559,
+      "habitual_misser": 52
+    }
+  ],
+  "n_total_events": 6626,
+  "n_habitual_beater": 91,
+  "n_habitual_misser": 885,
+  "n_mixed": 5650
+}
