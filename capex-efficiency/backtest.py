@@ -37,7 +37,8 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns
+from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
+                        get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, save_results,
@@ -143,12 +144,21 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
+    # Build benchmark symbol list (SPY + local index)
+    bench_symbols = {"'SPY'"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(f"'{sym}'")
+    bench_list = ", ".join(bench_symbols)
+
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
-            symbol = 'SPY'
+            symbol IN ({bench_list})
             OR symbol IN (
                 SELECT DISTINCT symbol FROM key_metrics WHERE period = 'FY'
                     {f"AND {sym_filter_sql}" if sym_filter_sql != "1=1" else ""}
@@ -200,7 +210,8 @@ def screen_stocks(con, target_date, mktcap_min):
     return [(r[0], r[1], r[2]) for r in rows]
 
 
-def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
+                 offset_days=1, benchmark_symbol="SPY"):
     """Run capex efficiency backtest. Returns list of period result dicts."""
     results = []
 
@@ -220,6 +231,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "end_date": next_rdate.isoformat(),
                 "n_stocks": 0,
                 "return": 0.0,
+                "spy_return": 0.0,
                 "msg": f"cash (< {MIN_STOCKS} stocks)"
             })
             continue
@@ -229,13 +241,17 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         mcaps = {sym: mcap for sym, mcap, _ in qualifying}
         roics = {sym: roic for sym, _, roic in qualifying}
 
-        # Get prices
-        px_start = get_prices(con, symbols, rdate)
-        px_end = get_prices(con, symbols, next_rdate)
+        # Get prices (MOC execution: offset_days=1 means next-day close)
+        px_start = get_prices(con, symbols, rdate, offset_days=offset_days)
+        px_end = get_prices(con, symbols, next_rdate, offset_days=offset_days)
 
         if not px_start or not px_end:
             print("    → Missing prices, skipping period")
             continue
+
+        # Benchmark return
+        bench_return = get_benchmark_return(
+            con, benchmark_symbol, rdate, next_rdate, offset_days=offset_days)
 
         # Collect raw returns for filtering
         raw_data = []
@@ -272,10 +288,12 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "end_date": next_rdate.isoformat(),
             "n_stocks": len(clean),
             "return": port_return,
+            "spy_return": bench_return if bench_return is not None else 0.0,
             "avg_roic": avg_roic,
             "msg": "invested"
         })
-        print(f"    → Return: {port_return*100:.2f}% ({len(clean)} stocks, avg ROIC: {avg_roic*100:.1f}%)")
+        bench_str = f"{bench_return*100:.2f}%" if bench_return is not None else "N/A"
+        print(f"    → Return: {port_return*100:.2f}% ({len(clean)} stocks, bench: {bench_str})")
 
     return results
 
@@ -288,9 +306,14 @@ def main():
     client = CetaResearch()
     use_costs = not args.no_costs
 
+    # Execution model
+    offset_days = 0 if args.no_next_day else 1
+    exec_model = "Same-day close (legacy)" if offset_days == 0 else "Next-day close (MOC)"
+
     # Global mode: loop all eligible exchanges
     if args.global_bt:
         print("Running global mode (all eligible exchanges)...")
+        print(f"  Execution: {exec_model}")
         all_results = {}
 
         for preset_name, preset_data in EXCHANGE_PRESETS.items():
@@ -301,6 +324,9 @@ def main():
 
             print(f"\n{'='*70}")
             print(f"  Backtest: {preset_name.upper()} ({', '.join(exchanges)})")
+
+            benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+            print(f"  Benchmark: {benchmark_name} ({benchmark_symbol})")
             print(f"{'='*70}")
 
             try:
@@ -312,22 +338,23 @@ def main():
                     print(f"  Skipping {preset_name}: no data")
                     continue
 
-                period_results = run_backtest(con, rebalance_dates, mktcap_min, use_costs, args.verbose)
+                period_results = run_backtest(con, rebalance_dates, mktcap_min, use_costs, args.verbose,
+                                              offset_days=offset_days, benchmark_symbol=benchmark_symbol)
                 if not period_results:
                     print(f"  Skipping {preset_name}: no valid periods")
                     continue
 
                 returns = [r["return"] for r in period_results if r.get("msg") == "invested"]
+                bench_returns = [r["spy_return"] for r in period_results if r.get("msg") == "invested"]
 
                 if not returns:
                     print(f"  Skipping {preset_name}: no valid returns")
                     continue
 
                 rfr = get_risk_free_rate(exchanges)
-                spy_returns = [0.08] * len(returns)  # TODO: fetch actual SPY returns
-                metrics = compute_metrics(returns, spy_returns, periods_per_year=1, risk_free_rate=rfr)
+                metrics = compute_metrics(returns, bench_returns, periods_per_year=1, risk_free_rate=rfr)
                 period_dates = [r["start_date"] for r in period_results if r.get("msg") == "invested"]
-                annual_returns = compute_annual_returns(returns, spy_returns, period_dates, periods_per_year=1)
+                annual_returns = compute_annual_returns(returns, bench_returns, period_dates, periods_per_year=1)
 
                 all_results[preset_name.upper()] = {
                     "portfolio": metrics,
@@ -354,11 +381,13 @@ def main():
 
     # Single exchange mode
     exchanges, exchange_label = resolve_exchanges(args)
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
 
     print("=" * 70)
     print(f"  CAPEX EFFICIENCY BACKTEST - {exchange_label}")
     if exchanges:
         print(f"  Exchanges: {', '.join(exchanges)}")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 70)
 
     mktcap_min = get_mktcap_threshold(exchanges)
@@ -373,7 +402,8 @@ def main():
         return
 
     print("\nRunning backtest...")
-    period_results = run_backtest(con, rebalance_dates, mktcap_min, use_costs, args.verbose)
+    period_results = run_backtest(con, rebalance_dates, mktcap_min, use_costs, args.verbose,
+                                  offset_days=offset_days, benchmark_symbol=benchmark_symbol)
 
     if not period_results:
         print("No valid periods. Exiting.")
@@ -381,6 +411,7 @@ def main():
 
     # Extract returns from invested periods
     returns = [r["return"] for r in period_results if r.get("msg") == "invested"]
+    bench_returns = [r["spy_return"] for r in period_results if r.get("msg") == "invested"]
 
     if not returns:
         print("No valid returns. Exiting.")
@@ -388,11 +419,9 @@ def main():
 
     # Compute metrics
     rfr = get_risk_free_rate(exchanges)
-    # For now, use SPY as the benchmark (periods_per_year=1 for annual rebalancing)
-    spy_returns = [0.08] * len(returns)  # TODO: fetch actual SPY returns
-    metrics = compute_metrics(returns, spy_returns, periods_per_year=1, risk_free_rate=rfr)
+    metrics = compute_metrics(returns, bench_returns, periods_per_year=1, risk_free_rate=rfr)
     period_dates = [r["start_date"] for r in period_results if r.get("msg") == "invested"]
-    annual_returns = compute_annual_returns(returns, spy_returns, period_dates, periods_per_year=1)
+    annual_returns = compute_annual_returns(returns, bench_returns, period_dates, periods_per_year=1)
 
     # Print results
     print("\n" + "="*60)
