@@ -43,7 +43,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, REGIONAL_BENCHMARKS
+from data_utils import query_parquet, LOCAL_INDEX_BENCHMARKS, get_local_benchmark
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -58,7 +58,7 @@ START_YEAR = 2000
 END_YEAR = 2025
 
 
-def fetch_data(client, exchanges, mktcap_min, verbose=False):
+def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=False):
     """Fetch earnings surprises, prices, and market cap data into DuckDB."""
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -163,22 +163,14 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     event_symbols = [r[0] for r in con.execute("SELECT DISTINCT symbol FROM unique_events").fetchall()]
 
     # 5. Fetch price data for event symbols + benchmark
-    print(f"  Fetching prices for {len(event_symbols)} symbols + benchmark...")
-
-    # Determine benchmark
-    benchmark = "SPY"
-    if exchanges:
-        for ex in exchanges:
-            if ex in REGIONAL_BENCHMARKS:
-                benchmark = REGIONAL_BENCHMARKS[ex]
-                break
+    benchmark = benchmark_symbol
+    print(f"  Fetching prices for {len(event_symbols)} symbols + {benchmark}...")
 
     # Fetch prices only for event symbols + benchmark (not entire exchange)
-    # Use subquery to filter by event symbols
     sym_list = event_symbols + [benchmark]
     sym_in = ", ".join(f"'{s}'" for s in sym_list)
     price_sql = f"""
-        SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose
+        SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose, volume
         FROM stock_eod
         WHERE symbol IN ({sym_in})
           AND CAST(date AS DATE) >= '{START_YEAR-1}-01-01'
@@ -209,10 +201,13 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     return con
 
 
-def compute_event_returns(con, windows=WINDOWS, verbose=False):
+def compute_event_returns(con, windows=WINDOWS, offset_days=1, verbose=False):
     """Compute abnormal returns at each window for all events.
 
     Uses vectorized DuckDB SQL for performance (handles 200K+ events).
+
+    Args:
+        offset_days: int - 1 = MOC execution (entry at T+1 close), 0 = same-day (legacy)
     Returns list of event dicts with returns at each window.
     """
     benchmark = con.execute("SELECT benchmark FROM config").fetchone()[0]
@@ -229,16 +224,19 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
     n_mapped = con.execute("SELECT COUNT(*) FROM event_t0").fetchone()[0]
     print(f"    -> {n_mapped} events mapped to trading days")
 
-    # Step 2: Get T+0 prices for all events (stock + benchmark)
-    print("    Getting T+0 prices...")
+    # Step 2: Get entry prices (T+offset for MOC execution)
+    entry_label = f"T+{offset_days}" if offset_days > 0 else "T+0"
+    print(f"    Getting {entry_label} prices (entry)...")
     con.execute(f"""
         CREATE TABLE event_base AS
         SELECT et.symbol, et.event_date, et.surprise_pct, et.category,
             et.t0_num, et.t0_date,
+            td_entry.day_num AS entry_num, td_entry.trade_date AS entry_date,
             sp.adjClose AS stock_t0, bp.adjClose AS bench_t0
         FROM event_t0 et
-        JOIN prices sp ON et.symbol = sp.symbol AND et.t0_date = sp.trade_date
-        JOIN prices bp ON bp.symbol = '{benchmark}' AND et.t0_date = bp.trade_date
+        JOIN trading_days td_entry ON td_entry.day_num = et.t0_num + {offset_days}
+        JOIN prices sp ON et.symbol = sp.symbol AND td_entry.trade_date = sp.trade_date
+        JOIN prices bp ON bp.symbol = '{benchmark}' AND td_entry.trade_date = bp.trade_date
         WHERE sp.adjClose > 0 AND bp.adjClose > 0
     """)
     n_priced = con.execute("SELECT COUNT(*) FROM event_base").fetchone()[0]
@@ -252,6 +250,7 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
         print(f"    Computing T+{w} returns...")
 
         # Join event_base -> trading_days (target day_num) -> prices
+        # Windows measured from entry (T+offset), so target = entry_num + w
         con.execute(f"""
             CREATE OR REPLACE TABLE window_{w}_returns AS
             SELECT eb.symbol, eb.event_date,
@@ -260,7 +259,7 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
                 ROUND((sp.adjClose - eb.stock_t0) / eb.stock_t0
                      - (bp.adjClose - eb.bench_t0) / eb.bench_t0, 8) AS abnormal_ret
             FROM event_base eb
-            JOIN trading_days td ON td.day_num = eb.t0_num + {w}
+            JOIN trading_days td ON td.day_num = eb.entry_num + {w}
             JOIN prices sp ON eb.symbol = sp.symbol AND td.trade_date = sp.trade_date
             JOIN prices bp ON bp.symbol = '{benchmark}' AND td.trade_date = bp.trade_date
         """)
@@ -534,24 +533,33 @@ def print_results(car_metrics, quintiles, universe_name):
     print(f"{'=' * 70}")
 
 
-def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_path=None, max_surprise=None):
+def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_path=None,
+               max_surprise=None, offset_days=1, benchmark_symbol=None, benchmark_name=None):
     """Run PEAD event study for a single exchange set."""
     global MAX_SURPRISE
     if max_surprise is not None:
         MAX_SURPRISE = max_surprise
 
+    # Resolve benchmark if not passed
+    if benchmark_symbol is None:
+        benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+    if benchmark_name is None:
+        benchmark_name = benchmark_symbol
+
+    exec_model = "Next-day close (MOC)" if offset_days > 0 else "Same-day close (legacy)"
     mktcap_label = f"{mktcap_min/1e9:.0f}B" if mktcap_min >= 1e9 else f"{mktcap_min/1e6:.0f}M"
     signal_desc = (f"Surprise = (actual - est) / |est|, "
                    f"MCap > {mktcap_label} local, |est| > ${MIN_ESTIMATE}")
     print_header("PEAD EVENT STUDY", universe_name, exchanges, signal_desc)
     print(f"  Windows: {', '.join(f'T+{w}' for w in WINDOWS)}")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print(f"  Max surprise: {MAX_SURPRISE*100:.0f}%")
     print("=" * 65)
 
     # Phase 1: Fetch data
     print("\nPhase 1: Fetching data via API...")
     t0 = time.time()
-    con = fetch_data(cr, exchanges, mktcap_min, verbose=verbose)
+    con = fetch_data(cr, exchanges, mktcap_min, benchmark_symbol=benchmark_symbol, verbose=verbose)
     if con is None:
         return None
     fetch_time = time.time() - t0
@@ -562,7 +570,7 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
     # Phase 2: Compute event returns
     print(f"\nPhase 2: Computing event-window returns...")
     t1 = time.time()
-    results = compute_event_returns(con, windows=WINDOWS, verbose=verbose)
+    results = compute_event_returns(con, windows=WINDOWS, offset_days=offset_days, verbose=verbose)
     compute_time = time.time() - t1
     print(f"Returns computed in {compute_time:.0f}s")
 
@@ -635,6 +643,7 @@ def main():
         return
 
     exchanges, universe_name = resolve_exchanges(args)
+    offset_days = 0 if args.no_next_day else 1
 
     # --global mode
     if exchanges is None and universe_name in ("Global", "GLOBAL"):
@@ -676,11 +685,15 @@ def main():
             print(f"{'#' * 65}")
 
             mktcap_threshold = get_mktcap_threshold(preset_exchanges)
+            bench_sym, bench_name = get_local_benchmark(preset_exchanges)
 
             try:
                 result = run_single(cr, preset_exchanges, uni_name, mktcap_threshold,
                                     verbose=args.verbose, output_path=output_path,
-                                    max_surprise=args.max_surprise)
+                                    max_surprise=args.max_surprise,
+                                    offset_days=offset_days,
+                                    benchmark_symbol=bench_sym,
+                                    benchmark_name=bench_name)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -738,9 +751,12 @@ def main():
 
     # Single exchange mode
     mktcap_threshold = get_mktcap_threshold(exchanges)
+    bench_sym, bench_name = get_local_benchmark(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, mktcap_threshold, verbose=args.verbose,
-               output_path=args.output, max_surprise=args.max_surprise)
+               output_path=args.output, max_surprise=args.max_surprise,
+               offset_days=offset_days,
+               benchmark_symbol=bench_sym, benchmark_name=bench_name)
 
 
 if __name__ == "__main__":
