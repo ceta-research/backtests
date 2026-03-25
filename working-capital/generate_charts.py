@@ -513,6 +513,34 @@ if "SET" in data:
         "SET (returns in THB)"
     )
 
+# UK (LSE)
+if "LSE" in data:
+    print("\nGenerating UK charts...")
+    chart_cumulative(
+        ["LSE"], "uk_cumulative_growth.png",
+        "Growth of $10,000: Working Capital Efficiency UK vs S&P 500 (2000-2025)",
+        "LSE (returns in GBP, benchmark in USD)"
+    )
+    chart_annual_bars(
+        ["LSE"], "uk_annual_returns.png",
+        "Working Capital Efficiency UK vs S&P 500: Year-by-Year Returns (2000-2024)",
+        "LSE (returns in GBP)"
+    )
+
+# Japan
+if "JPX" in data:
+    print("\nGenerating Japan charts...")
+    chart_cumulative(
+        ["JPX"], "japan_cumulative_growth.png",
+        "Growth of $10,000: Working Capital Efficiency Japan vs S&P 500 (2000-2025)",
+        "JPX (returns in JPY, benchmark in USD)"
+    )
+    chart_annual_bars(
+        ["JPX"], "japan_annual_returns.png",
+        "Working Capital Efficiency Japan vs S&P 500: Year-by-Year Returns (2000-2024)",
+        "JPX (returns in JPY)"
+    )
+
 # Comparison charts (need multiple exchanges)
 valid_exchanges = [k for k, v in data.items()
                    if not v.get("error") and v.get("invested_periods", 0) > 0]
