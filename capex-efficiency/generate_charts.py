@@ -17,6 +17,7 @@ COLORS = {
     "India": "#e67e22",
     "XETRA": "#27ae60",
     "China": "#c0392b",
+    "LSE": "#8e44ad",
     "SPY": "#aab7b8",
 }
 
@@ -25,6 +26,7 @@ EXCHANGE_LABELS = {
     "India": "Capex Efficiency India (BSE+NSE)",
     "XETRA": "Capex Efficiency XETRA (Germany)",
     "China": "Capex Efficiency China (SHZ+SHH)",
+    "LSE": "Capex Efficiency UK (LSE)",
 }
 
 
@@ -39,24 +41,27 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from any exchange (all have same SPY data)."""
-    ex = data["US_MAJOR"]
+def get_benchmark_cumulative(exchange_key, initial=10000):
+    """Get benchmark cumulative from exchange's own benchmark data."""
+    ex = data[exchange_key]
+    bench_name = ex.get("benchmark_name", "S&P 500")
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
     for ar in ex["annual_returns"]:
         values.append(values[-1] * (1 + ar["spy"] / 100))
         years.append(ar["year"])
-    return years, values
+    return years, values, bench_name
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Generate cumulative growth chart for given exchanges vs local benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
-    ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({data['US_MAJOR']['spy']['cagr']}% CAGR)", linestyle="--")
+    # Use the first exchange's benchmark as the reference line
+    bench_years, bench_vals, bench_name = get_benchmark_cumulative(exchanges[0])
+    bench_cagr = data[exchanges[0]]["spy"]["cagr"]
+    ax.plot(bench_years, bench_vals, color=COLORS["SPY"], linewidth=1.8,
+            label=f"{bench_name} ({bench_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -72,10 +77,10 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
                     xytext=(8, 0), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS[ex_key])
 
-    # SPY final value
-    spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(f"${spy_final_k:,.0f}K",
-                xy=(spy_years[-1], spy_vals[-1]),
+    # Benchmark final value
+    bench_final_k = bench_vals[-1] / 1000
+    ax.annotate(f"${bench_final_k:,.0f}K",
+                xy=(bench_years[-1], bench_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
@@ -253,25 +258,37 @@ chart_annual_bars(
 print("Generating charts for India blog...")
 chart_cumulative(
     ["India"], "1_india_cumulative_growth.png",
-    "Growth of $10,000: Capital Efficiency India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR, benchmark in USD)"
+    "Growth of $10,000: Capital Efficiency India vs Sensex (2000-2025)",
+    "BSE + NSE (returns in INR)"
 )
 chart_annual_bars(
     ["India"], "2_india_annual_returns.png",
-    "Capital Efficiency India vs S&P 500: Year-by-Year Returns (2000-2024)",
+    "Capital Efficiency India vs Sensex: Year-by-Year Returns (2000-2024)",
     "BSE + NSE (returns in INR)"
 )
 
 print("Generating charts for Germany blog...")
 chart_cumulative(
     ["XETRA"], "1_germany_cumulative_growth.png",
-    "Growth of $10,000: Capital Efficiency Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
+    "Growth of $10,000: Capital Efficiency Germany vs DAX (2000-2025)",
+    "XETRA (returns in EUR)"
 )
 chart_annual_bars(
     ["XETRA"], "2_germany_annual_returns.png",
-    "Capital Efficiency Germany vs S&P 500: Year-by-Year Returns (2000-2024)",
+    "Capital Efficiency Germany vs DAX: Year-by-Year Returns (2000-2024)",
     "XETRA (returns in EUR)"
+)
+
+print("Generating charts for UK blog...")
+chart_cumulative(
+    ["LSE"], "1_uk_cumulative_growth.png",
+    "Growth of $10,000: Capital Efficiency UK vs FTSE 100 (2000-2025)",
+    "LSE (returns in GBP)"
+)
+chart_annual_bars(
+    ["LSE"], "2_uk_annual_returns.png",
+    "Capital Efficiency UK vs FTSE 100: Year-by-Year Returns (2000-2024)",
+    "LSE (returns in GBP)"
 )
 
 print("Generating charts for comparison blog...")
