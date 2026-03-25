@@ -38,7 +38,8 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet
+from data_utils import (query_parquet, get_local_benchmark, get_benchmark_return,
+                        LOCAL_INDEX_BENCHMARKS)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -162,9 +163,15 @@ def fetch_data_via_api(cr, exchanges, verbose=False):
     con.execute("CREATE TABLE mcap_map(symbol VARCHAR, marketCap DOUBLE)")
     con.execute(f"INSERT INTO mcap_map VALUES {mcap_vals}")
 
-    # ── Step 5: Fetch daily prices (2004 onward) for candidates + SPY ─────────
+    # ── Step 5: Fetch daily prices (2004 onward) for candidates + benchmarks ──
     print("  Fetching daily prices (2004-present)...")
-    price_syms = candidates + ["SPY"]
+    bench_symbols = {"SPY"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(sym)
+    price_syms = candidates + list(bench_symbols)
     price_sym_filter = ", ".join(f"'{s}'" for s in price_syms)
 
     price_sql = f"""
@@ -312,13 +319,14 @@ def compute_spread_params(con, sym_a, sym_b, formation_start, formation_end):
     return beta, float(spread_row[0]), float(spread_row[1])
 
 
-def get_price_at_date(con, symbol, target_date, window_days=10):
-    """First available price in [target_date, target_date + window_days]."""
-    end_date = target_date + timedelta(days=window_days)
+def get_price_at_date(con, symbol, target_date, window_days=10, offset_days=0):
+    """First available price in [target_date+offset, target_date+offset+window]."""
+    shifted = target_date + timedelta(days=offset_days)
+    end_date = shifted + timedelta(days=window_days)
     row = con.execute(f"""
         SELECT adjClose FROM prices_cache
         WHERE symbol = '{symbol}'
-          AND trade_date >= '{target_date.isoformat()}'
+          AND trade_date >= '{shifted.isoformat()}'
           AND trade_date <= '{end_date.isoformat()}'
           AND adjClose > 0
         ORDER BY trade_date ASC LIMIT 1
@@ -326,7 +334,8 @@ def get_price_at_date(con, symbol, target_date, window_days=10):
     return float(row[0]) if row else None
 
 
-def run_backtest(con, use_costs=True, verbose=False):
+def run_backtest(con, use_costs=True, verbose=False, offset_days=1,
+                 benchmark_symbol="SPY"):
     """Run annual pairs backtest (START_YEAR to END_YEAR).
 
     Returns list of annual result dicts.
@@ -347,10 +356,13 @@ def run_backtest(con, use_costs=True, verbose=False):
             print(f"  {year}: {len(corr_rows)} eligible pairs → "
                   f"{len(selected)} selected  [{time.time()-t0:.1f}s corr]")
 
-        # SPY annual return
-        spy_start = get_price_at_date(con, "SPY", trading_start)
-        spy_end   = get_price_at_date(con, "SPY", trading_end, window_days=15)
-        spy_ret   = (spy_end - spy_start) / spy_start if spy_start and spy_end else None
+        # Benchmark annual return
+        bench_start = get_price_at_date(con, benchmark_symbol, trading_start,
+                                        offset_days=offset_days)
+        bench_end   = get_price_at_date(con, benchmark_symbol, trading_end,
+                                        window_days=15, offset_days=offset_days)
+        spy_ret = ((bench_end - bench_start) / bench_start
+                   if bench_start and bench_end else None)
 
         # Per-pair trading
         active_returns = []
@@ -361,9 +373,11 @@ def run_backtest(con, use_costs=True, verbose=False):
                 continue
             beta, spread_mean, spread_std = params
 
-            # Prices at trading year start
-            p_a0 = get_price_at_date(con, sym_a, trading_start)
-            p_b0 = get_price_at_date(con, sym_b, trading_start)
+            # Prices at trading year start (MOC: offset_days forward)
+            p_a0 = get_price_at_date(con, sym_a, trading_start,
+                                     offset_days=offset_days)
+            p_b0 = get_price_at_date(con, sym_b, trading_start,
+                                     offset_days=offset_days)
             if not p_a0 or not p_b0 or p_a0 < MIN_LEG_PRICE or p_b0 < MIN_LEG_PRICE:
                 continue
 
@@ -375,9 +389,11 @@ def run_backtest(con, use_costs=True, verbose=False):
             if abs(z_start) < Z_ENTRY:
                 continue
 
-            # Prices at trading year end
-            p_a1 = get_price_at_date(con, sym_a, trading_end, window_days=15)
-            p_b1 = get_price_at_date(con, sym_b, trading_end, window_days=15)
+            # Prices at trading year end (MOC: offset_days forward)
+            p_a1 = get_price_at_date(con, sym_a, trading_end, window_days=15,
+                                     offset_days=offset_days)
+            p_b1 = get_price_at_date(con, sym_b, trading_end, window_days=15,
+                                     offset_days=offset_days)
             if not p_a1 or not p_b1:
                 continue
 
@@ -429,7 +445,8 @@ def run_backtest(con, use_costs=True, verbose=False):
     return results
 
 
-def build_output(m, annual, valid, results, universe_name):
+def build_output(m, annual, valid, results, universe_name,
+                 benchmark_name="S&P 500", benchmark_symbol="SPY"):
     """Build JSON output in standard exchange_comparison format."""
     p = m["portfolio"]
     b = m["benchmark"]
@@ -458,6 +475,9 @@ def build_output(m, annual, valid, results, universe_name):
         "n_years": len(valid),
         "years": f"{START_YEAR}-{END_YEAR}",
         "frequency": "annual",
+        "execution": "next-day close (MOC)",
+        "benchmark_symbol": benchmark_symbol,
+        "benchmark_name": benchmark_name,
         "cash_periods": cash_periods,
         "invested_periods": len(invested),
         "avg_pairs_when_invested": avg_pairs,
@@ -489,13 +509,17 @@ def build_output(m, annual, valid, results, universe_name):
 
 
 def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate, verbose,
-               output_path=None):
+               output_path=None, offset_days=1):
     """Run backtest for a single exchange set. Returns output dict or None."""
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+    exec_model = "same-day close (legacy)" if offset_days == 0 else "next-day close (MOC)"
+
     signal_desc = (f"Same-sector corr > {MIN_CORR}, top {MAX_PAIRS} pairs, "
                    f"|z| > {Z_ENTRY} entry, annual rebalance {START_YEAR}-{END_YEAR}")
     print_header("PAIRS TRADING BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Costs: {'size-tiered×4 legs' if use_costs else 'none'}  "
           f"RFR: {risk_free_rate*100:.1f}%")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 65)
 
     print("\nPhase 1: Fetching data via API...")
@@ -506,9 +530,20 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate, verbose,
         return None
     print(f"Data fetched in {time.time()-t0:.0f}s")
 
+    # Check if local benchmark has price data; fall back to SPY if not
+    bench_check = con.execute(f"""
+        SELECT COUNT(*) FROM prices_cache WHERE symbol = '{benchmark_symbol}'
+    """).fetchone()[0]
+    if bench_check == 0 and benchmark_symbol != "SPY":
+        print(f"  WARNING: No price data for {benchmark_symbol}, falling back to SPY")
+        benchmark_symbol = "SPY"
+        benchmark_name = "S&P 500"
+
     print(f"\nPhase 2: Running annual backtest ({START_YEAR}-{END_YEAR})...")
     t1 = time.time()
-    results = run_backtest(con, use_costs=use_costs, verbose=verbose)
+    results = run_backtest(con, use_costs=use_costs, verbose=verbose,
+                           offset_days=offset_days,
+                           benchmark_symbol=benchmark_symbol)
     print(f"Backtest completed in {time.time()-t1:.0f}s")
 
     valid = [r for r in results if r["spy_return"] is not None]
@@ -521,7 +556,7 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate, verbose,
     spy_returns  = [r["spy_return"] for r in valid]
 
     m = compute_metrics(port_returns, spy_returns, 1, risk_free_rate=risk_free_rate)
-    print(format_metrics(m, "Pairs", "S&P 500"))
+    print(format_metrics(m, "Pairs", benchmark_name))
 
     cash_periods = sum(1 for r in results if r["pairs_active"] < MIN_PAIRS_ACTIVE)
     avg_pairs = sum(r["pairs_active"] for r in valid) / len(valid)
@@ -531,7 +566,8 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate, verbose,
     annual = compute_annual_returns(port_returns, spy_returns,
                                     [str(r["year"]) for r in valid], 1)
     if annual:
-        print(f"\n  {'Year':<8} {'Pairs':>10} {'SPY':>8} {'Excess':>8} {'Active':>8}")
+        bname = benchmark_name[:8]
+        print(f"\n  {'Year':<8} {'Pairs':>10} {bname:>8} {'Excess':>8} {'Active':>8}")
         print("  " + "-" * 50)
         for i, ar in enumerate(annual):
             n_act = valid[i]["pairs_active"] if i < len(valid) else "-"
@@ -541,7 +577,9 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate, verbose,
 
     print(f"\n  Total time: {time.time()-t0:.0f}s")
 
-    out = build_output(m, annual, valid, results, universe_name)
+    out = build_output(m, annual, valid, results, universe_name,
+                       benchmark_name=benchmark_name,
+                       benchmark_symbol=benchmark_symbol)
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".",
                     exist_ok=True)
@@ -561,6 +599,7 @@ def main():
 
     exchanges, universe_name = resolve_exchanges(args)
     use_costs = not args.no_costs
+    offset_days = 0 if args.no_next_day else 1
 
     # ── Global mode ────────────────────────────────────────────────────────────
     if exchanges is None and universe_name in ("Global", "GLOBAL"):
@@ -604,7 +643,8 @@ def main():
             print(f"\n{'#'*65}\n# {preset_name.upper()} ({uni_name})\n{'#'*65}")
             try:
                 result = run_single(cr, preset_exchanges, uni_name, use_costs, rfr,
-                                    args.verbose, output_path)
+                                    args.verbose, output_path,
+                                    offset_days=offset_days)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -655,7 +695,7 @@ def main():
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
-               args.verbose, args.output)
+               args.verbose, args.output, offset_days=offset_days)
 
 
 if __name__ == "__main__":
