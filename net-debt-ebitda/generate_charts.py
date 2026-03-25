@@ -15,7 +15,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "STO": "#3498db",
     "SHZ_SHH": "#c0392b",
     "HKSE": "#8e44ad",
@@ -39,7 +39,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Net Debt/EBITDA US",
-    "BSE_NSE": "Net Debt/EBITDA India",
+    "NSE": "Net Debt/EBITDA India",
     "STO": "Net Debt/EBITDA Sweden",
     "SHZ_SHH": "Net Debt/EBITDA China",
     "HKSE": "Net Debt/EBITDA Hong Kong",
@@ -247,8 +247,8 @@ if __name__ == "__main__":
 
     # India charts
     print("\nIndia:")
-    chart_cumulative_single("BSE_NSE", "1_india_cumulative_growth.png", " (India: BSE+NSE)")
-    chart_annual_returns("BSE_NSE", "2_india_annual_returns.png", " (India: BSE+NSE)")
+    chart_cumulative_single("NSE", "1_india_cumulative_growth.png", " (India: NSE)")
+    chart_annual_returns("NSE", "2_india_annual_returns.png", " (India: NSE)")
 
     # Sweden charts
     print("\nSweden:")

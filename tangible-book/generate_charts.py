@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "JPX": "#6e2f1a",
     "LSE": "#154360",
     "XETRA": "#27ae60",
@@ -33,7 +33,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "P/TBV US",
-    "BSE_NSE": "P/TBV India",
+    "NSE": "P/TBV India",
     "JPX": "P/TBV Japan",
     "LSE": "P/TBV UK",
     "XETRA": "P/TBV Germany",
@@ -223,14 +223,14 @@ chart_annual_bars(
 
 print("India charts...")
 chart_cumulative(
-    ["BSE_NSE"], "1_india_cumulative_growth.png",
+    ["NSE"], "1_india_cumulative_growth.png",
     "Growth of $10,000: P/TBV India vs S&P 500 (2000-2025)",
-    "BSE + NSE"
+    "NSE"
 )
 chart_annual_bars(
-    ["BSE_NSE"], "2_india_annual_returns.png",
+    ["NSE"], "2_india_annual_returns.png",
     "P/TBV India: Year-by-Year Returns (2002-2024)",
-    "BSE + NSE"
+    "NSE"
 )
 
 print("UK charts...")

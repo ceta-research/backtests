@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "TSX": "#7f8c8d",
     "LSE": "#154360",
     "XETRA": "#27ae60",
@@ -27,7 +27,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Revenue Surprise US",
-    "BSE_NSE": "Revenue Surprise India",
+    "NSE": "Revenue Surprise India",
     "TSX": "Revenue Surprise Canada",
     "LSE": "Revenue Surprise UK",
     "XETRA": "Revenue Surprise Germany",

@@ -42,7 +42,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "us": "HYQ US (NYSE+NASDAQ+AMEX)",
-    "india": "HYQ India (BSE+NSE)",
+    "india": "HYQ India (NSE)",
     "germany": "HYQ Germany (XETRA)",
     "uk": "HYQ UK (LSE)",
     "hongkong": "HYQ Hong Kong (HKSE)",
@@ -269,12 +269,12 @@ print("Generating charts for India blog...")
 chart_cumulative(
     ["india"], "india_cumulative_growth.png",
     "Growth of $10,000: High Yield + Quality India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR, benchmark in USD)"
+    "NSE (returns in INR, benchmark in USD)"
 )
 chart_annual_bars(
     ["india"], "india_annual_returns.png",
     "High Yield + Quality India vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("Generating charts for Germany blog...")

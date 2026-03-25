@@ -38,7 +38,7 @@ NEGATIVE_COLOR = "#E53935"    # Red
 # Exchange label map (key = JSON key used in exchange_comparison.json)
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": ("US (NYSE + NASDAQ + AMEX)", "us"),
-    "BSE_NSE":          ("India (BSE + NSE)", "india"),
+    "NSE":          ("India (NSE)", "india"),
     "LSE":              ("UK (LSE)", "uk"),
     "XETRA":            ("Germany (XETRA)", "germany"),
     "JPX":              ("Japan (JPX)", "japan"),

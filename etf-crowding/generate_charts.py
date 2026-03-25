@@ -192,7 +192,7 @@ def main():
     # Per-exchange charts
     exchange_map = {
         "returns_NYSE_NASDAQ.json": ("US (NYSE + NASDAQ)", "us"),
-        "returns_BSE_NSE.json": ("India (BSE + NSE)", "india"),
+        "returns_NSE.json": ("India (NSE)", "india"),
         "returns_XETRA.json": ("Germany (XETRA)", "germany"),
         "returns_SHZ_SHH.json": ("China (SHZ + SHH)", "china"),
     }

@@ -23,7 +23,7 @@ SPY_COLOR = "#ff7f0e"        # orange
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "United States",
-    "BSE_NSE":          "India",
+    "NSE":          "India",
     "JPX":              "Japan",
     "LSE":              "United Kingdom",
     "SHZ_SHH":          "China",
@@ -41,7 +41,7 @@ EXCHANGE_LABELS = {
 
 EXCHANGE_COLORS = {
     "NYSE_NASDAQ_AMEX": "#1f77b4",
-    "BSE_NSE":          "#e07b39",
+    "NSE":          "#e07b39",
     "JPX":              "#e74c3c",
     "LSE":              "#8e44ad",
     "SHZ_SHH":          "#c0392b",

@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "JNB": "#27ae60",
     "TSX": "#8e44ad",
     "STO": "#2980b9",
@@ -35,7 +35,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "PEG US (NYSE+NASDAQ+AMEX)",
-    "BSE_NSE": "PEG India (BSE+NSE)",
+    "NSE": "PEG India (NSE)",
     "JNB": "PEG South Africa (JSE)",
     "TSX": "PEG Canada (TSX)",
     "STO": "PEG Sweden (STO)",
@@ -270,14 +270,14 @@ chart_annual_bars(
 
 print("Generating charts for blogs/india/...")
 chart_cumulative(
-    ["BSE_NSE"], "india_cumulative_growth.png",
+    ["NSE"], "india_cumulative_growth.png",
     "Growth of $10,000: PEG Ratio India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR, benchmark in USD)"
+    "NSE (returns in INR, benchmark in USD)"
 )
 chart_annual_bars(
-    ["BSE_NSE"], "india_annual_returns.png",
+    ["NSE"], "india_annual_returns.png",
     "PEG Ratio India vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("Generating charts for blogs/southafrica/...")

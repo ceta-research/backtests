@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "XETRA": "#27ae60",
     "STO": "#2e86c1",
     "TSX": "#7f8c8d",
@@ -32,7 +32,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Equity Growth US",
-    "BSE_NSE": "Equity Growth India",
+    "NSE": "Equity Growth India",
     "XETRA": "Equity Growth Germany",
     "STO": "Equity Growth Sweden",
     "TSX": "Equity Growth Canada",
@@ -49,7 +49,7 @@ EXCHANGE_LABELS = {
 
 EXCHANGE_UNIVERSE_LABELS = {
     "NYSE_NASDAQ_AMEX": "NYSE + NASDAQ + AMEX",
-    "BSE_NSE": "BSE + NSE (returns in INR)",
+    "NSE": "NSE (returns in INR)",
     "XETRA": "XETRA (returns in EUR)",
     "STO": "STO (returns in SEK)",
     "TSX": "TSX (returns in CAD)",
@@ -277,15 +277,15 @@ chart_annual_bars(
     "Compounding Equity Screen US: Year-by-Year Returns (2000-2024)"
 )
 
-if "BSE_NSE" in data:
+if "NSE" in data:
     print("\nIndia charts...")
     chart_cumulative(
-        "BSE_NSE",
+        "NSE",
         "1_india_cumulative_growth.png",
         "Growth of $10,000: Compounding Equity Screen India vs S&P 500 (2000-2025)"
     )
     chart_annual_bars(
-        "BSE_NSE",
+        "NSE",
         "2_india_annual_returns.png",
         "Compounding Equity Screen India: Year-by-Year Returns (2000-2024)"
     )

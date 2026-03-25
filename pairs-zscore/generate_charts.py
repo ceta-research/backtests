@@ -35,7 +35,7 @@ BENCHMARK_COLOR = "#9E9E9E"   # Gray
 POSITIVE_COLOR = "#43A047"    # Green
 NEGATIVE_COLOR = "#E53935"    # Red
 
-# Clean exchanges only (excluded: JNB, BSE_NSE, KSC, STO, SHZ_SHH)
+# Clean exchanges only (excluded: JNB, NSE, KSC, STO, SHZ_SHH)
 CONTENT_EXCHANGES = {
     "NYSE_NASDAQ_AMEX": ("us",       "United States (NYSE+NASDAQ+AMEX)"),
     "JPX":              ("japan",    "Japan (JPX)"),

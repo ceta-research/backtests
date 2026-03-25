@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "XETRA": "#16a085",
     "LSE": "#8e44ad",
     "SHZ_SHH": "#e74c3c",
@@ -35,7 +35,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "GARP US (NYSE+NASDAQ+AMEX)",
-    "BSE_NSE": "GARP India (BSE+NSE)",
+    "NSE": "GARP India (NSE)",
     "XETRA": "GARP Germany (XETRA)",
     "LSE": "GARP UK (LSE)",
     "SHZ_SHH": "GARP China (SHZ+SHH)",
@@ -270,14 +270,14 @@ chart_annual_bars(
 
 print("Generating charts for blogs/india/...")
 chart_cumulative(
-    ["BSE_NSE"], "india_cumulative_growth.png",
+    ["NSE"], "india_cumulative_growth.png",
     "Growth of $10,000: GARP India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR, benchmark in USD)"
+    "NSE (returns in INR, benchmark in USD)"
 )
 chart_annual_bars(
-    ["BSE_NSE"], "india_annual_returns.png",
+    ["NSE"], "india_annual_returns.png",
     "GARP India vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("Generating charts for blogs/germany/...")

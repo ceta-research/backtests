@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "US_MAJOR": "#1a5276",
-    "BSE": "#e67e22",
+    "NSE": "#e67e22",
     "NSE": "#f39c12",
     "XETRA": "#27ae60",
     "SHZ": "#c0392b",
@@ -31,7 +31,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "US_MAJOR": "IC US (NYSE+NASDAQ+AMEX)",
-    "BSE": "IC BSE (India)",
+    "NSE": "IC India (NSE)",
     "NSE": "IC NSE (India)",
     "XETRA": "IC XETRA (Germany)",
     "SHZ": "IC Shenzhen",
@@ -265,14 +265,14 @@ chart_annual_bars(
 
 print("Generating India charts...")
 chart_cumulative(
-    ["BSE", "NSE"], "india_cumulative_growth.png",
+    ["NSE"], "india_cumulative_growth.png",
     "Growth of $10,000: Interest Coverage India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR, benchmark in USD)"
+    "NSE (returns in INR, benchmark in USD)"
 )
 chart_annual_bars(
-    ["BSE"], "india_annual_returns.png",
-    "Interest Coverage India (BSE) vs S&P 500: Year-by-Year Returns",
-    "BSE (returns in INR)"
+    ["NSE"], "india_annual_returns.png",
+    "Interest Coverage India (NSE) vs S&P 500: Year-by-Year Returns",
+    "NSE (returns in INR)"
 )
 
 print("Generating Sweden charts...")

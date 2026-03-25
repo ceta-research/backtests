@@ -222,7 +222,7 @@ print("Generating charts...\n")
 # Individual exchange charts (cumulative + annual)
 colors = {
     "AMEX+NASDAQ+NYSE": "#1a5276",
-    "BSE+NSE": "#e67e22",
+    "NSE": "#e67e22",
     "XETRA": "#27ae60",
     "SHH+SHZ": "#c0392b",
     "HKSE": "#8e44ad",

@@ -43,7 +43,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "United States",
-    "BSE_NSE": "India",
+    "NSE": "India",
     "JPX": "Japan",
     "LSE": "United Kingdom",
     "SHZ_SHH": "China",
@@ -61,7 +61,7 @@ EXCHANGE_LABELS = {
 
 REGION_SLUGS = {
     "NYSE_NASDAQ_AMEX": "us",
-    "BSE_NSE": "india",
+    "NSE": "india",
     "JPX": "japan",
     "LSE": "uk",
     "SHZ_SHH": "china",

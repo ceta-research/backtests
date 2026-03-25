@@ -228,7 +228,7 @@ def plot_comparison_drawdown(all_data, output_path):
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": ("us", "United States (NYSE+NASDAQ+AMEX)"),
-    "BSE_NSE": ("india", "India (BSE+NSE)"),
+    "NSE": ("india", "India (NSE)"),
     "XETRA": ("germany", "Germany (XETRA)"),
     "ASX": ("australia", "Australia (ASX)"),
     "STO": ("sweden", "Sweden (STO)"),

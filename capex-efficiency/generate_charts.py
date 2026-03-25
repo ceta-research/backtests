@@ -23,7 +23,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "US_MAJOR": "Capex Efficiency US (NYSE+NASDAQ+AMEX)",
-    "India": "Capex Efficiency India (BSE+NSE)",
+    "India": "Capex Efficiency India (NSE)",
     "XETRA": "Capex Efficiency XETRA (Germany)",
     "China": "Capex Efficiency China (SHZ+SHH)",
     "LSE": "Capex Efficiency UK (LSE)",
@@ -259,12 +259,12 @@ print("Generating charts for India blog...")
 chart_cumulative(
     ["India"], "1_india_cumulative_growth.png",
     "Growth of $10,000: Capital Efficiency India vs Sensex (2000-2025)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 chart_annual_bars(
     ["India"], "2_india_annual_returns.png",
     "Capital Efficiency India vs Sensex: Year-by-Year Returns (2000-2024)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("Generating charts for Germany blog...")

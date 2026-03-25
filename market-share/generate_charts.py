@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "XETRA": "#27ae60",
     "STO": "#2e86c1",
     "TSX": "#7f8c8d",
@@ -33,7 +33,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Market Share US",
-    "BSE_NSE": "Market Share India",
+    "NSE": "Market Share India",
     "XETRA": "Market Share Germany",
     "STO": "Market Share Sweden",
     "TSX": "Market Share Canada",
@@ -267,14 +267,14 @@ chart_regime(
 
 print("India charts...")
 chart_cumulative(
-    ["BSE_NSE"], "india_cumulative_growth.png",
+    ["NSE"], "india_cumulative_growth.png",
     "Growth of $10,000: Market Share Gainers India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 chart_annual_bars(
-    ["BSE_NSE"], "india_annual_returns.png",
+    ["NSE"], "india_annual_returns.png",
     "Market Share Gainers India: Year-by-Year Returns (2000-2024)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("Canada charts...")

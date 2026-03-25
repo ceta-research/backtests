@@ -47,7 +47,7 @@ EXCHANGE_COLORS = {
 
 EXCHANGE_LABELS = {
     "US_MAJOR": "US (NYSE+NASDAQ+AMEX)", "JPX": "Japan (JPX)",
-    "India": "India (BSE+NSE)", "LSE": "UK (LSE)",
+    "India": "India (NSE)", "LSE": "UK (LSE)",
     "ASX": "Australia (ASX)", "HKSE": "Hong Kong (HKSE)",
     "KSC": "Korea (KSC)", "China": "China (SHZ+SHH)",
     "Taiwan": "Taiwan (TAI+TWO)",
@@ -286,7 +286,7 @@ print(f"Found {len(exchange_data)} exchanges with period data\n")
 blog_exchanges = {
     "US_MAJOR": "US (NYSE + NASDAQ + AMEX)",
     "JPX": "Japan (JPX)",
-    "India": "India (BSE + NSE)",
+    "India": "India (NSE)",
     "LSE": "UK (LSE)",
     "ASX": "Australia (ASX)",
     "HKSE": "Hong Kong (HKSE)",

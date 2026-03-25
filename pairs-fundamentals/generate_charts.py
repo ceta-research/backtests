@@ -17,7 +17,7 @@ COLORS = {
     "JPX":              "#e67e22",
     "LSE":              "#27ae60",
     "JNB":              "#8e44ad",
-    "BSE_NSE":          "#c0392b",
+    "NSE":          "#c0392b",
     "SHZ_SHH":          "#e74c3c",
     "HKSE":             "#7f8c8d",
     "KSC":              "#95a5a6",
@@ -33,7 +33,7 @@ EXCHANGE_LABELS = {
     "JPX":              "Pairs Japan (JPX)",
     "LSE":              "Pairs UK (LSE)",
     "JNB":              "Pairs South Africa (JNB)",
-    "BSE_NSE":          "Pairs India (BSE+NSE)",
+    "NSE":          "Pairs India (NSE)",
     "SHZ_SHH":          "Pairs China (SHZ+SHH)",
     "HKSE":             "Pairs Hong Kong",
     "KSC":              "Pairs Korea (KSC)",
@@ -44,7 +44,7 @@ EXCHANGE_LABELS = {
 }
 
 VALID_EXCHANGES = [
-    "NYSE_NASDAQ_AMEX", "JPX", "LSE", "JNB", "BSE_NSE", "SHZ_SHH",
+    "NYSE_NASDAQ_AMEX", "JPX", "LSE", "JNB", "NSE", "SHZ_SHH",
     "HKSE", "KSC", "TAI_TWO", "XETRA", "TSX", "STO"
 ]
 
@@ -171,7 +171,7 @@ def chart_comparison_cagr(filename):
             "JPX": "Japan (JPX)",
             "LSE": "UK (LSE)",
             "JNB": "South Africa (JNB)",
-            "BSE_NSE": "India (BSE+NSE)",
+            "NSE": "India (NSE)",
             "SHZ_SHH": "China (SHZ+SHH)",
             "HKSE": "Hong Kong",
             "KSC": "Korea (KSC)",
@@ -227,7 +227,7 @@ def chart_comparison_cash(filename):
     label_map = {
         "NYSE_NASDAQ_AMEX": "US (NYSE+NASDAQ+AMEX)",
         "JPX": "Japan (JPX)", "LSE": "UK (LSE)", "JNB": "South Africa",
-        "BSE_NSE": "India (BSE+NSE)", "SHZ_SHH": "China (SHZ+SHH)",
+        "NSE": "India (NSE)", "SHZ_SHH": "China (SHZ+SHH)",
         "HKSE": "Hong Kong", "KSC": "Korea", "TAI_TWO": "Taiwan",
         "XETRA": "Germany", "TSX": "Canada", "STO": "Sweden",
     }

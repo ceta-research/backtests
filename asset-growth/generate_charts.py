@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "XETRA": "#27ae60",
     "STO": "#2e86c1",
     "TSX": "#7f8c8d",
@@ -34,7 +34,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Asset Growth US",
-    "BSE_NSE": "Asset Growth India",
+    "NSE": "Asset Growth India",
     "XETRA": "Asset Growth Germany",
     "STO": "Asset Growth Sweden",
     "TSX": "Asset Growth Canada",
@@ -87,7 +87,7 @@ def get_local_benchmark_cumulative(exchange_key, initial=10000):
 
 # Local benchmark names for non-US exchanges
 LOCAL_BENCHMARK_NAMES = {
-    "BSE_NSE": "Sensex",
+    "NSE": "Sensex",
     "XETRA": "DAX",
     "LSE": "FTSE 100",
     "JPX": "Nikkei 225",
@@ -265,14 +265,14 @@ chart_annual_bars(
 
 print("India charts...")
 chart_cumulative(
-    ["BSE_NSE"], "india_cumulative_growth.png",
+    ["NSE"], "india_cumulative_growth.png",
     "Growth of $10,000: Asset Growth India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 chart_annual_bars(
-    ["BSE_NSE"], "india_annual_returns.png",
+    ["NSE"], "india_annual_returns.png",
     "Asset Growth India: Year-by-Year Returns (2000-2024)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("UK charts...")

@@ -17,7 +17,7 @@ COLORS = {
     "LSE": "#154360",
     "TSX": "#1e8449",
     "STO": "#2e86c1",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "SIX": "#d68910",
     "XETRA": "#27ae60",
     "JPX": "#6e2f1a",
@@ -41,7 +41,7 @@ EXCHANGE_LABELS = {
     "LSE": "Yield Gap UK",
     "TSX": "Yield Gap Canada",
     "STO": "Yield Gap Sweden",
-    "BSE_NSE": "Yield Gap India",
+    "NSE": "Yield Gap India",
     "SIX": "Yield Gap Switzerland",
     "XETRA": "Yield Gap Germany",
     "JPX": "Yield Gap Japan",
@@ -291,12 +291,12 @@ chart_annual_bars("STO", "2_sweden_annual_returns.png",
                   "Stockholm Stock Exchange (STO)")
 
 print("\nIndia charts...")
-chart_cumulative(["BSE_NSE"], "1_india_cumulative_growth.png",
+chart_cumulative(["NSE"], "1_india_cumulative_growth.png",
                  "Growth of $10,000: Yield Gap India vs S&P 500 (2000-2025)",
-                 "BSE + NSE (returns in INR)")
-chart_annual_bars("BSE_NSE", "2_india_annual_returns.png",
+                 "NSE (returns in INR)")
+chart_annual_bars("NSE", "2_india_annual_returns.png",
                   "Yield Gap India: Year-by-Year Returns vs S&P 500 (2000-2024)",
-                  "BSE + NSE (returns in INR)")
+                  "NSE (returns in INR)")
 
 print("\nComparison charts...")
 chart_comparison_cagr("1_comparison_cagr.png", exclude=EXCLUDE)

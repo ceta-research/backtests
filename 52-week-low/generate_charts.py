@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "XETRA": "#27ae60",
     "STO": "#2e86c1",
     "TSX": "#7f8c8d",
@@ -32,7 +32,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "52W Low US",
-    "BSE_NSE": "52W Low India",
+    "NSE": "52W Low India",
     "XETRA": "52W Low Germany",
     "STO": "52W Low Sweden",
     "TSX": "52W Low Canada",
@@ -49,7 +49,7 @@ EXCHANGE_LABELS = {
 
 EXCHANGE_NAMES = {
     "NYSE_NASDAQ_AMEX": "NYSE + NASDAQ + AMEX",
-    "BSE_NSE": "BSE + NSE (returns in INR)",
+    "NSE": "NSE (returns in INR)",
     "XETRA": "XETRA (returns in EUR)",
     "STO": "Stockholm (returns in SEK)",
     "TSX": "TSX (returns in CAD)",
@@ -282,14 +282,14 @@ chart_annual_bars(
 
 print("\nIndia charts...")
 chart_cumulative(
-    "BSE_NSE", "india_cumulative_growth.png",
+    "NSE", "india_cumulative_growth.png",
     "Growth of $10,000: 52-Week Low Quality India vs S&P 500 (2002-2025)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 chart_annual_bars(
-    "BSE_NSE", "india_annual_returns.png",
+    "NSE", "india_annual_returns.png",
     "52-Week Low Quality India: Year-by-Year Returns (2002-2025)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("\nCanada charts...")

@@ -350,7 +350,7 @@ def chart_exchange_comparison(all_data, output_path):
     EXCHANGE_LABELS = {
         "KSC": "Korea (KSC)",
         "LSE": "UK (LSE)",
-        "BSE_NSE": "India (BSE+NSE)",
+        "NSE": "India (NSE)",
         "STO": "Sweden (STO)",
         "SHZ_SHH": "China (SHZ+SHH)",
         "TAI_TWO": "Taiwan (TAI+TWO)",
@@ -425,7 +425,7 @@ def chart_india_alpha_dilution(all_data, output_path):
     Shows the alpha-dilution curve — how India CAGR drops as more pairs are added.
     SPY reference line included.
     """
-    india_data = all_data.get("BSE_NSE", {})
+    india_data = all_data.get("NSE", {})
     div_analysis = india_data.get("diversification_analysis", [])
     if not div_analysis:
         print("WARNING: No India diversification data, skipping Chart 5.")
@@ -450,7 +450,7 @@ def chart_india_alpha_dilution(all_data, output_path):
     ax.set_xlabel("Portfolio Size (N pairs)", fontsize=11)
     ax.set_ylabel("CAGR (%)", fontsize=11)
     ax.set_title(
-        "India (BSE+NSE): CAGR vs Portfolio Size — The Alpha-Dilution Curve\n"
+        "India (NSE): CAGR vs Portfolio Size — The Alpha-Dilution Curve\n"
         "2005-2024 | Equal weight vs Inverse-vol",
         fontsize=12, pad=14,
     )

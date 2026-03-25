@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "XETRA": "#27ae60",
     "LSE": "#2980b9",
     "STO": "#8e44ad",
@@ -32,7 +32,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Sustainability US",
-    "BSE_NSE": "Sustainability India (BSE+NSE)",
+    "NSE": "Sustainability India (NSE)",
     "XETRA": "Sustainability Germany (XETRA)",
     "LSE": "Sustainability UK (LSE)",
     "STO": "Sustainability Sweden (STO)",
@@ -49,7 +49,7 @@ EXCHANGE_LABELS = {
 
 # Exchanges with dedicated blogs
 DEDICATED = [
-    "NYSE_NASDAQ_AMEX", "BSE_NSE", "XETRA", "TSX", "LSE", "STO",
+    "NYSE_NASDAQ_AMEX", "NSE", "XETRA", "TSX", "LSE", "STO",
     "SIX", "JPX", "HKSE", "SHZ_SHH", "ASX", "TAI",
 ]
 # All exchanges with data (for comparison charts) - exclude PAR (0 data)
@@ -256,7 +256,7 @@ def chart_comparison_drawdown(filename):
 # Per-exchange: cumulative growth + annual returns
 per_exchange_charts = {
     "us": (["NYSE_NASDAQ_AMEX"], "NYSE + NASDAQ + AMEX"),
-    "india": (["BSE_NSE"], "BSE + NSE (returns in INR)"),
+    "india": (["NSE"], "NSE (returns in INR)"),
     "germany": (["XETRA"], "XETRA (returns in EUR)"),
     "uk": (["LSE"], "LSE (returns in GBP)"),
     "sweden": (["STO"], "STO (returns in SEK)"),

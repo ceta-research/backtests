@@ -28,7 +28,7 @@ RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
 CHARTS_DIR = os.path.join(SCRIPT_DIR, "charts")
 
 EXCHANGE_LABELS = {
-    "NYSE_NASDAQ_AMEX": "US", "BSE_NSE": "India", "XETRA": "Germany",
+    "NYSE_NASDAQ_AMEX": "US", "NSE": "India", "XETRA": "Germany",
     "STO": "Sweden", "TSX": "Canada", "SHZ_SHH": "China",
     "HKSE": "Hong Kong", "JPX": "Japan", "LSE": "UK", "ASX": "Australia",
     "KSC": "Korea", "SAO": "Brazil", "SIX": "Switzerland",

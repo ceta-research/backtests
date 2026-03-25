@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "XETRA": "#27ae60",
     "STO": "#2e86c1",
     "TSX": "#7f8c8d",
@@ -32,7 +32,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Small-Cap US",
-    "BSE_NSE": "Small-Cap India",
+    "NSE": "Small-Cap India",
     "XETRA": "Small-Cap Germany",
     "STO": "Small-Cap Sweden",
     "TSX": "Small-Cap Canada",
@@ -49,7 +49,7 @@ EXCHANGE_LABELS = {
 
 EXCHANGE_DISPLAY_NAMES = {
     "NYSE_NASDAQ_AMEX": "US (NYSE+NASDAQ+AMEX)",
-    "BSE_NSE": "India (BSE+NSE)",
+    "NSE": "India (NSE)",
     "XETRA": "Germany (XETRA)",
     "STO": "Sweden (STO)",
     "TSX": "Canada (TSX)",
@@ -290,17 +290,17 @@ if "NYSE_NASDAQ_AMEX" in data:
     )
 
 # India charts
-if "BSE_NSE" in data:
+if "NSE" in data:
     print("India charts...")
     chart_cumulative(
-        ["BSE_NSE"], "1_india_cumulative_growth.png",
+        ["NSE"], "1_india_cumulative_growth.png",
         "Growth of $10,000: Small-Cap Growth India vs S&P 500 (2000-2025)",
-        "BSE + NSE (returns in INR)"
+        "NSE (returns in INR)"
     )
     chart_annual_bars(
-        ["BSE_NSE"], "2_india_annual_returns.png",
+        ["NSE"], "2_india_annual_returns.png",
         "Small-Cap Growth India: Year-by-Year Returns (2000-2024)",
-        "BSE + NSE (returns in INR)"
+        "NSE (returns in INR)"
     )
 
 # Japan charts

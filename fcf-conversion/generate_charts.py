@@ -213,7 +213,7 @@ def main():
         region = exchange.lower().replace("_", "")
         if exchange in ("NYSE_NASDAQ_AMEX", "US_MAJOR"):
             region = "us"
-        elif exchange in ("BSE_NSE",):
+        elif exchange in ("NSE",):
             region = "india"
         elif exchange in ("SHZ_SHH",):
             region = "china"

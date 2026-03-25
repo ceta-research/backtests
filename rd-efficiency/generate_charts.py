@@ -285,12 +285,12 @@ if "India" in data:
     chart_cumulative(
         ["India"], "india_cumulative_growth.png",
         "Growth of $10,000: R&D Efficiency India vs S&P 500 (2000-2025)",
-        "BSE + NSE (returns in INR)"
+        "NSE (returns in INR)"
     )
     chart_annual_bars(
         "India", "india_annual_returns.png",
         "R&D Efficiency India: Year-by-Year Returns (2000-2024)",
-        "BSE + NSE (returns in INR)"
+        "NSE (returns in INR)"
     )
 
 if "JPX" in data:

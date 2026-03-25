@@ -36,7 +36,7 @@ EXCHANGE_LABELS = {
     "TSX": "Canada",
     "LSE": "UK",
     "JPX": "Japan",
-    "BSE_NSE": "India",
+    "NSE": "India",
     "XETRA": "Germany",
     "SHZ_SHH": "China",
     "KSC": "Korea",

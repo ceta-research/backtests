@@ -16,7 +16,7 @@ COLORS = {
     "US_MAJOR": "#1a5276",
     "NYSE": "#2980b9",
     "NASDAQ": "#7fb3d8",
-    "BSE": "#e67e22",
+    "NSE": "#e67e22",
     "NSE": "#f39c12",
     "XETRA": "#27ae60",
     "SHZ": "#c0392b",
@@ -32,7 +32,7 @@ EXCHANGE_LABELS = {
     "US_MAJOR": "QARP US (NYSE+NASDAQ+AMEX)",
     "NYSE": "QARP NYSE",
     "NASDAQ": "QARP NASDAQ",
-    "BSE": "QARP BSE (India)",
+    "NSE": "QARP India (NSE)",
     "NSE": "QARP NSE (India)",
     "XETRA": "QARP XETRA (Germany)",
     "SHZ": "QARP Shenzhen",
@@ -371,14 +371,14 @@ chart_annual_bars(
 
 print("Generating charts for blog_india.md...")
 chart_cumulative(
-    ["BSE", "NSE"], "india_cumulative_growth.png",
+    ["NSE"], "india_cumulative_growth.png",
     "Growth of $10,000: QARP India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR, benchmark in USD)"
+    "NSE (returns in INR, benchmark in USD)"
 )
 chart_annual_bars(
-    ["BSE", "NSE"], "india_annual_returns.png",
+    ["NSE"], "india_annual_returns.png",
     "QARP India vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("Generating charts for blog_germany.md...")

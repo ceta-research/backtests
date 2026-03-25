@@ -16,8 +16,8 @@ COLORS = {
     "US_MAJOR": "#1a5276",
     "NYSE": "#2980b9",
     "NASDAQ": "#7fb3d8",
-    "BSE_NSE": "#e67e22",
-    "BSE": "#e67e22",
+    "NSE": "#e67e22",
+    "NSE": "#e67e22",
     "NSE": "#f39c12",
     "XETRA": "#27ae60",
     "SHZ_SHH": "#c0392b",
@@ -41,8 +41,8 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "US_MAJOR": "WC US (NYSE+NASDAQ+AMEX)",
-    "BSE_NSE": "WC India (BSE+NSE)",
-    "BSE": "WC BSE (India)",
+    "NSE": "WC India (NSE)",
+    "NSE": "WC India (NSE)",
     "NSE": "WC NSE (India)",
     "XETRA": "WC XETRA (Germany)",
     "SHZ_SHH": "WC China (SHZ+SHH)",
@@ -358,18 +358,18 @@ if us_key:
     )
 
 # India
-india_keys = [k for k in ["BSE_NSE", "BSE", "NSE"] if k in data]
+india_keys = [k for k in ["NSE", "NSE"] if k in data]
 if india_keys:
     print("\nGenerating India charts...")
     chart_cumulative(
         india_keys, "india_cumulative_growth.png",
         "Growth of $10,000: Working Capital Efficiency India vs S&P 500 (2000-2025)",
-        "BSE + NSE (returns in INR, benchmark in USD)"
+        "NSE (returns in INR, benchmark in USD)"
     )
     chart_annual_bars(
         india_keys, "india_annual_returns.png",
         "Working Capital Efficiency India vs S&P 500: Year-by-Year Returns (2000-2024)",
-        "BSE + NSE (returns in INR)"
+        "NSE (returns in INR)"
     )
 
 # Germany

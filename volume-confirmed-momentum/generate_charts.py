@@ -19,7 +19,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette (consistent across all strategy chart files)
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE":          "#e67e22",
+    "NSE":          "#e67e22",
     "LSE":              "#8e44ad",
     "XETRA":            "#16a085",
     "JPX":              "#2980b9",
@@ -40,7 +40,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "VolMom US (NYSE+NASDAQ+AMEX)",
-    "BSE_NSE":          "VolMom India (BSE+NSE)",
+    "NSE":          "VolMom India (NSE)",
     "LSE":              "VolMom UK (LSE)",
     "XETRA":            "VolMom Germany (XETRA)",
     "JPX":              "VolMom Japan (JPX)",
@@ -280,17 +280,17 @@ if "NYSE_NASDAQ_AMEX" in available:
     )
 
 # India
-if "BSE_NSE" in available:
+if "NSE" in available:
     print("\nGenerating India charts...")
     chart_cumulative(
-        ["BSE_NSE"], "1_india_cumulative_growth.png",
+        ["NSE"], "1_india_cumulative_growth.png",
         "Growth of $10,000: Volume-Confirmed Momentum India vs S&P 500 (2001-2025)",
-        "BSE + NSE (returns in INR, benchmark in USD)"
+        "NSE (returns in INR, benchmark in USD)"
     )
     chart_annual_bars(
-        ["BSE_NSE"], "2_india_annual_returns.png",
+        ["NSE"], "2_india_annual_returns.png",
         "Volume-Confirmed Momentum India vs S&P 500: Year-by-Year Returns (2001-2025)",
-        "BSE + NSE (returns in INR)"
+        "NSE (returns in INR)"
     )
 
 # UK

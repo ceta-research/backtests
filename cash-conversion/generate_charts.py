@@ -29,7 +29,7 @@ REGION_MAP = {
 
 REGION_LABELS = {
     "US_MAJOR": "US (NYSE + NASDAQ + AMEX)",
-    "India": "India (BSE + NSE)",
+    "India": "India (NSE)",
     "Canada": "Canada (TSX + TSXV)",
     "XETRA": "Germany (XETRA)",
     "China": "China (SHZ + SHH)",

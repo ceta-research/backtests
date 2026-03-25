@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "JPX": "#c0392b",
     "LSE": "#8e44ad",
     "SHZ_SHH": "#e74c3c",
@@ -39,7 +39,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "P/E Compression US (NYSE+NASDAQ+AMEX)",
-    "BSE_NSE": "P/E Compression India (BSE+NSE)",
+    "NSE": "P/E Compression India (NSE)",
     "JPX": "P/E Compression Japan (JPX)",
     "LSE": "P/E Compression UK (LSE)",
     "SHZ_SHH": "P/E Compression China (SHZ+SHH)",
@@ -278,7 +278,7 @@ print(f"Valid exchanges with data: {valid_exchanges}")
 # Standard per-exchange charts
 EXCHANGE_CHART_CONFIGS = [
     ("NYSE_NASDAQ_AMEX", "us", "NYSE + NASDAQ + AMEX"),
-    ("BSE_NSE", "india", "BSE + NSE (returns in INR, benchmark in USD)"),
+    ("NSE", "india", "NSE (returns in INR, benchmark in USD)"),
     ("JPX", "japan", "JPX (returns in JPY, benchmark in USD)"),
     ("LSE", "uk", "LSE (returns in GBP, benchmark in USD)"),
     ("SHZ_SHH", "china", "SHZ + SHH (returns in CNY, benchmark in USD)"),

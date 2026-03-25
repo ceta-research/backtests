@@ -52,7 +52,7 @@ EXCHANGE_LABELS = {
     "Sweden": "OCF Growth STO (Sweden)",
     "Switzerland": "OCF Growth SIX (Switzerland)",
     "Norway": "OCF Growth OSL (Norway)",
-    "India": "OCF Growth India (BSE+NSE)",
+    "India": "OCF Growth India (NSE)",
     "South_Africa": "OCF Growth JNB (South Africa)",
     "Saudi_Arabia": "OCF Growth SAU (Saudi Arabia)",
     "Singapore": "OCF Growth SGX (Singapore)",
@@ -325,7 +325,7 @@ def chart_comparison_sharpe(filename):
 # These will be generated dynamically based on what's in the results
 individual_exchanges = {
     "US_MAJOR": ("us", "US (NYSE+NASDAQ+AMEX)"),
-    "India": ("india", "India (BSE+NSE)"),
+    "India": ("india", "India (NSE)"),
     "LSE": ("uk", "UK (LSE)"),
     "XETRA": ("germany", "Germany (XETRA)"),
     "JPX": ("japan", "Japan (JPX)"),

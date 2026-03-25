@@ -48,7 +48,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "US_MAJOR": "Magic Formula US",
-    "India": "Magic Formula India (BSE+NSE)",
+    "India": "Magic Formula India (NSE)",
     "JKT": "Magic Formula Indonesia (JKT)",
     "SAO": "Magic Formula Brazil (SAO)",
     "Canada": "Magic Formula Canada",
@@ -210,7 +210,7 @@ print("India cumulative growth...")
 chart_cumulative(
     ["India"], "india_cumulative_growth.png",
     "Growth of $10,000: Magic Formula India vs S&P 500 (2000-2025)",
-    "BSE + NSE, quarterly rebalance, equal weight, top 30"
+    "NSE, quarterly rebalance, equal weight, top 30"
 )
 
 print("Indonesia (JKT) cumulative growth...")

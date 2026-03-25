@@ -36,7 +36,7 @@ EXCHANGE_LABELS = {
     "TSX": "Canada",
     "LSE": "UK",
     "JPX": "Japan",
-    "BSE_NSE": "India",
+    "NSE": "India",
     "XETRA": "Germany",
     "SHZ_SHH": "China",
     "KSC": "Korea",
@@ -79,7 +79,7 @@ EXCHANGE_COVERAGE = {
     "TSX": "TSX, 2000–2025",
     "JPX": "JPX, 2009–2025",
     "TAI_TWO": "TAI+TWO, 2012–2025",
-    "BSE_NSE": "BSE+NSE, 2020–2025",
+    "NSE": "NSE, 2020–2025",
     "SAO": "SAO, 2015–2025",
     "LSE": "LSE, 2020–2025",
     "XETRA": "XETRA, 2020–2025",
@@ -303,7 +303,7 @@ ALL_BLOG_EXCHANGES = [
     ("TSX", "Canada"),
     ("JPX", "Japan"),
     ("TAI_TWO", "Taiwan"),
-    ("BSE_NSE", "India"),
+    ("NSE", "India"),
     ("SAO", "Brazil"),
 ]
 
@@ -316,7 +316,7 @@ def main():
     parser.add_argument("--output", default=DEFAULT_OUTPUT,
                         help="Output directory for chart images")
     parser.add_argument("--exchange", default="NYSE_NASDAQ_AMEX",
-                        help="Exchange key (e.g. TSX, JPX, BSE_NSE)")
+                        help="Exchange key (e.g. TSX, JPX, NSE)")
     parser.add_argument("--label", default=None,
                         help="Display label for the exchange (e.g. 'Canada'). "
                              "Defaults to EXCHANGE_LABELS lookup.")

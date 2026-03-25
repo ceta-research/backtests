@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "JPX": "#c0392b",
     "LSE": "#8e44ad",
     "TSX": "#27ae60",
@@ -36,7 +36,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "P/B US (NYSE+NASDAQ+AMEX)",
-    "BSE_NSE": "P/B India (BSE+NSE)",
+    "NSE": "P/B India (NSE)",
     "JPX": "P/B Japan (JPX)",
     "LSE": "P/B UK (LSE)",
     "TSX": "P/B Canada (TSX)",

@@ -38,7 +38,7 @@ EXCHANGE_LABELS = {
     "Brazil":      "Graham Number Brazil (SAO)",
     "Germany":     "Graham Number Germany (XETRA)",
     "Switzerland": "Graham Number Switzerland (SIX)",
-    "India":       "Graham Number India (BSE+NSE)",
+    "India":       "Graham Number India (NSE)",
     "Taiwan":      "Graham Number Taiwan (TAI+TWO)",
     "Korea":       "Graham Number Korea (KSC)",
     "Norway":      "Graham Number Norway (OSL)",
@@ -336,12 +336,12 @@ print("Generating charts for India...")
 chart_cumulative(
     ["India"], "1_india_cumulative_growth.png",
     "Growth of $10,000: Graham Number India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR, benchmark in USD)"
+    "NSE (returns in INR, benchmark in USD)"
 )
 chart_annual_bars(
     ["India"], "2_india_annual_returns.png",
     "Graham Number India vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("Generating charts for Taiwan...")

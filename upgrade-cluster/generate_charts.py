@@ -33,7 +33,7 @@ DEFAULT_OUTPUT = os.path.join(os.path.dirname(__file__), "charts")
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "US",
-    "BSE_NSE": "India",
+    "NSE": "India",
     "LSE": "UK",
     "JPX": "Japan",
     "XETRA": "Germany",
@@ -74,7 +74,7 @@ CAT_LABELS = {
 
 EXCHANGE_COVERAGE = {
     "NYSE_NASDAQ_AMEX": "NYSE+NASDAQ+AMEX, 2019–2025",
-    "BSE_NSE": "BSE+NSE, 2019–2025",
+    "NSE": "NSE, 2019–2025",
     "LSE": "LSE, 2019–2025",
     "JPX": "JPX, 2019–2025",
     "XETRA": "XETRA, 2019–2025",
@@ -297,7 +297,7 @@ def chart_exchange_comparison(comparison_data, output_dir):
 # Exchanges to generate per-exchange charts for in --all-exchanges mode
 ALL_BLOG_EXCHANGES = [
     ("NYSE_NASDAQ_AMEX", "US"),
-    ("BSE_NSE", "India"),
+    ("NSE", "India"),
     ("JPX", "Japan"),
     ("LSE", "UK"),
     ("XETRA", "Germany"),
@@ -312,7 +312,7 @@ def main():
     parser.add_argument("--output", default=DEFAULT_OUTPUT,
                         help="Output directory for chart images")
     parser.add_argument("--exchange", default="NYSE_NASDAQ_AMEX",
-                        help="Exchange key (e.g. BSE_NSE, JPX, LSE)")
+                        help="Exchange key (e.g. NSE, JPX, LSE)")
     parser.add_argument("--label", default=None,
                         help="Display label for the exchange")
     parser.add_argument("--all-exchanges", action="store_true",

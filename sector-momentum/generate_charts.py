@@ -21,7 +21,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "XETRA": "#27ae60",
     "LSE": "#154360",
     "TSX": "#7f8c8d",
@@ -42,7 +42,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Sector Momentum US",
-    "BSE_NSE": "Sector Momentum India",
+    "NSE": "Sector Momentum India",
     "XETRA": "Sector Momentum Germany",
     "LSE": "Sector Momentum UK",
     "TSX": "Sector Momentum Canada",
@@ -59,7 +59,7 @@ EXCHANGE_LABELS = {
 
 EXCHANGE_UNIVERSE_LABELS = {
     "NYSE_NASDAQ_AMEX": "NYSE + NASDAQ + AMEX",
-    "BSE_NSE": "BSE + NSE (returns in INR)",
+    "NSE": "NSE (returns in INR)",
     "XETRA": "XETRA (returns in EUR)",
     "LSE": "LSE (returns in GBP)",
     "TSX": "TSX (returns in CAD)",

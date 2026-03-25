@@ -34,7 +34,7 @@ EXCHANGE_LABELS = {
     "TSX": "Canada", "TSX_TSXV": "Canada",
     "LSE": "UK",
     "JPX": "Japan",
-    "BSE_NSE": "India",
+    "NSE": "India",
     "XETRA": "Germany",
     "SHZ_SHH": "China",
     "KSC": "Korea",
@@ -323,7 +323,7 @@ def main():
     chart_exchange_comparison(comparison, args.output)
 
     # Regional charts (local currency benchmarks)
-    chart_regional_car("BSE_NSE",   "India",  "Sensex",        args.output, "1_india_car_by_window.png")
+    chart_regional_car("NSE",   "India",  "Sensex",        args.output, "1_india_car_by_window.png")
     chart_regional_car("TSX_TSXV",  "Canada", "TSX Composite", args.output, "1_canada_car_by_window.png")
     chart_regional_car("JPX",       "Japan",  "Nikkei 225",    args.output, "1_japan_car_by_window.png")
     chart_regional_car("SHZ_SHH",   "China",  "SSE Composite", args.output, "1_china_car_by_window.png")

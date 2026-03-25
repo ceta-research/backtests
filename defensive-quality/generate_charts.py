@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE":          "#e67e22",
+    "NSE":          "#e67e22",
     "SHZ_SHH":          "#c0392b",
     "HKSE":             "#8e44ad",
     "SET":              "#5b2c6f",
@@ -34,7 +34,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Defensive US",
-    "BSE_NSE":          "Defensive India",
+    "NSE":          "Defensive India",
     "SHZ_SHH":          "Defensive China",
     "HKSE":             "Defensive Hong Kong",
     "SET":              "Defensive Thailand",
@@ -272,17 +272,17 @@ chart_annual_bars(
 )
 
 # India charts (if available)
-if "BSE_NSE" in data:
+if "NSE" in data:
     print("\nIndia charts...")
     chart_cumulative(
-        ["BSE_NSE"], "1_india_cumulative_growth.png",
+        ["NSE"], "1_india_cumulative_growth.png",
         "Growth of $10,000: Defensive Quality India vs S&P 500 (2000-2025)",
-        "BSE + NSE (returns in INR)"
+        "NSE (returns in INR)"
     )
     chart_annual_bars(
-        ["BSE_NSE"], "2_india_annual_returns.png",
+        ["NSE"], "2_india_annual_returns.png",
         "Defensive Quality India: Year-by-Year Returns (2000-2024)",
-        "BSE + NSE (returns in INR)"
+        "NSE (returns in INR)"
     )
 
 # China charts (if available)

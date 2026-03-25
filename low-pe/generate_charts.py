@@ -16,7 +16,7 @@ COLORS = {
     "US_MAJOR": "#1a5276",
     "NYSE": "#2980b9",
     "NASDAQ": "#7fb3d8",
-    "BSE": "#e67e22",
+    "NSE": "#e67e22",
     "NSE": "#f39c12",
     "XETRA": "#27ae60",
     "SHZ": "#c0392b",
@@ -34,7 +34,7 @@ EXCHANGE_LABELS = {
     "US_MAJOR": "Low P/E US (NYSE+NASDAQ+AMEX)",
     "NYSE": "Low P/E NYSE",
     "NASDAQ": "Low P/E NASDAQ",
-    "BSE": "Low P/E BSE (India)",
+    "NSE": "Low P/E India (NSE)",
     "NSE": "Low P/E NSE (India)",
     "XETRA": "Low P/E XETRA (Germany)",
     "SHZ": "Low P/E Shenzhen",
@@ -364,14 +364,14 @@ chart_annual_bars(
 
 print("Generating charts for India...")
 chart_cumulative(
-    ["BSE", "NSE"], "india_cumulative_growth.png",
+    ["NSE"], "india_cumulative_growth.png",
     "Growth of $10,000: Low P/E India vs S&P 500 (2000-2025)",
-    "BSE + NSE (returns in INR, benchmark in USD)"
+    "NSE (returns in INR, benchmark in USD)"
 )
 chart_annual_bars(
-    ["BSE", "NSE"], "india_annual_returns.png",
+    ["NSE"], "india_annual_returns.png",
     "Low P/E India vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "BSE + NSE (returns in INR)"
+    "NSE (returns in INR)"
 )
 
 print("Generating charts for Germany...")

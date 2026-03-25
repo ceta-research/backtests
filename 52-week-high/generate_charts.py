@@ -210,7 +210,7 @@ def plot_comparison_drawdown(all_data, output_path):
 # Exchange-to-display mapping
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": ("us", "US (NYSE/NASDAQ/AMEX)"),
-    "BSE_NSE": ("india", "India (BSE/NSE)"),
+    "NSE": ("india", "India (NSE)"),
     "LSE": ("uk", "UK (LSE)"),
     "XETRA": ("germany", "Germany (XETRA)"),
     "JPX": ("japan", "Japan (JPX)"),

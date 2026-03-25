@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "US_MAJOR": "#1a5276",
-    "BSE": "#e67e22",
+    "NSE": "#e67e22",
     "NSE": "#f39c12",
     "STO": "#27ae60",
     "SAO": "#16a085",
@@ -33,7 +33,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "US_MAJOR": "Dogs of the Dow (US)",
-    "BSE": "High Yield Blue Chips (India BSE)",
+    "NSE": "High Yield Blue Chips (India NSE)",
     "NSE": "High Yield Blue Chips (India NSE)",
     "STO": "High Yield Blue Chips (Sweden)",
     "SAO": "High Yield Blue Chips (Brazil)",
@@ -49,7 +49,7 @@ EXCHANGE_LABELS = {
 
 # Exchanges to include in comparison charts (exclude low-quality)
 COMPARISON_EXCHANGES = [
-    "US_MAJOR", "BSE", "NSE", "STO", "SAO", "SET", "KSC",
+    "US_MAJOR", "NSE", "STO", "SAO", "SET", "KSC",
     "HKSE", "TAI", "ASX", "TSX",
 ]
 
@@ -314,14 +314,14 @@ chart_annual_bars(
 
 print("Generating charts for blog_india.md...")
 chart_cumulative(
-    ["BSE"], "india_cumulative_growth.png",
+    ["NSE"], "india_cumulative_growth.png",
     "Growth of $10,000: High Yield Blue Chips India vs S&P 500 (2000-2025)",
-    "BSE, top 30 by market cap, top 10 by yield"
+    "NSE, top 30 by market cap, top 10 by yield"
 )
 chart_annual_bars(
-    ["BSE"], "india_annual_returns.png",
+    ["NSE"], "india_annual_returns.png",
     "High Yield Blue Chips India vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "BSE, top 30 by market cap, top 10 by yield"
+    "NSE, top 30 by market cap, top 10 by yield"
 )
 
 print("Generating charts for blog_sweden.md...")

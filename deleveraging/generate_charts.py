@@ -14,7 +14,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "NYSE_NASDAQ_AMEX": "#1a5276",
-    "BSE_NSE": "#e67e22",
+    "NSE": "#e67e22",
     "JPX": "#c0392b",
     "LSE": "#27ae60",
     "XETRA": "#2980b9",
@@ -34,7 +34,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "Deleveraging US",
-    "BSE_NSE": "Deleveraging India",
+    "NSE": "Deleveraging India",
     "JPX": "Deleveraging Japan",
     "LSE": "Deleveraging UK",
     "XETRA": "Deleveraging Germany",
@@ -277,18 +277,18 @@ if us_key:
     )
 
 # --- India ---
-india_key = next((k for k in data if "BSE" in k or "NSE" in k), None)
+india_key = next((k for k in data if "NSE" in k), None)
 if india_key:
     print("Generating India charts...")
     chart_cumulative(
         [india_key], "1_india_cumulative_growth.png",
         "Growth of $10,000: Deleveraging India vs S&P 500 (2001-2025)",
-        "BSE + NSE, quarterly rebalance, equal weight (returns in INR, benchmark in USD)"
+        "NSE, quarterly rebalance, equal weight (returns in INR, benchmark in USD)"
     )
     chart_annual_bars(
         india_key, "2_india_annual_returns.png",
         "Deleveraging India vs S&P 500: Year-by-Year Returns (2001-2025)",
-        "BSE + NSE (returns in INR)"
+        "NSE (returns in INR)"
     )
 
 # --- Japan ---
