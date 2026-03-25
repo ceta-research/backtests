@@ -18,7 +18,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark
 from metrics import compute_metrics, compute_annual_returns
 from costs import tiered_cost, apply_costs
 from cli_utils import get_risk_free_rate, get_mktcap_threshold, REGIONAL_RISK_FREE_RATES
@@ -47,6 +47,8 @@ EXCHANGE_CONFIGS = [
     {"name": "SIX", "exchanges": ["SIX"]},
     {"name": "JPX", "exchanges": ["JPX"]},
     {"name": "LSE", "exchanges": ["LSE"]},
+    {"name": "JNB", "exchanges": ["JNB"]},
+    {"name": "SAU", "exchanges": ["SAU"]},
 ]
 
 
@@ -84,6 +86,8 @@ def main():
         print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
         print(f"{'='*65}")
 
+        benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+
         try:
             t0 = time.time()
             rebalance_dates = generate_rebalance_dates(2000, 2025, args.frequency)
@@ -96,7 +100,9 @@ def main():
 
             results = run_backtest(con, rebalance_dates, use_dow=use_dow,
                                     use_costs=use_costs, verbose=args.verbose,
-                                    mktcap_min=mktcap_threshold)
+                                    mktcap_min=mktcap_threshold,
+                                    offset_days=1,
+                                    benchmark_symbol=benchmark_symbol)
 
             valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
             if not valid:
@@ -146,6 +152,9 @@ def main():
                 "universe": name,
                 "exchanges": exchanges,
                 "strategy": strategy_label,
+                "benchmark_symbol": benchmark_symbol,
+                "benchmark_name": benchmark_name,
+                "execution": "Next-day close (MOC)",
                 "n_periods": len(valid),
                 "years": round(len(valid) / periods_per_year, 1),
                 "frequency": args.frequency,
