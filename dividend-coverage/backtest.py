@@ -440,7 +440,7 @@ def main():
             ("japan", ["JPX"]),
             ("germany", ["XETRA"]),
             ("canada", ["TSX"]),
-            ("india", ["BSE", "NSE"]),
+            ("india", ["NSE"]),
             ("sweden", ["STO"]),
             ("china", ["SHZ", "SHH"]),
             ("hongkong", ["HKSE"]),

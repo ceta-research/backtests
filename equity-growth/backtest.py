@@ -495,7 +495,7 @@ def main():
         # IST (Turkey) excluded: lira inflation severely distorts equity CAGR signal
         presets_to_run = [
             ("us", ["NYSE", "NASDAQ", "AMEX"]),
-            ("india", ["BSE", "NSE"]),
+            ("india", ["NSE"]),
             ("germany", ["XETRA"]),
             ("sweden", ["STO"]),
             ("canada", ["TSX"]),

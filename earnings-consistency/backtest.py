@@ -493,7 +493,7 @@ def main():
         # OSL excluded: 100% cash — oil-dominated market has no consistent earners passing the screen
         presets_to_run = [
             ("us",          ["NYSE", "NASDAQ", "AMEX"]),
-            ("india",       ["BSE", "NSE"]),
+            ("india",       ["NSE"]),
             ("uk",          ["LSE"]),
             ("germany",     ["XETRA"]),
             ("japan",       ["JPX"]),

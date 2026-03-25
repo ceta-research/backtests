@@ -61,7 +61,7 @@ MIN_ENTRY_PRICE = 1.0       # Skip stocks with entry price < $1 (price data arti
 # Excluded: JPX/LSE (no FY data), ASX/SAO (adjClose artifacts), SGX (0 profile symbols).
 GLOBAL_PRESETS = [
     ("us",          ["NYSE", "NASDAQ", "AMEX"]),
-    ("india",       ["BSE", "NSE"]),
+    ("india",       ["NSE"]),
     ("china",       ["SHZ", "SHH"]),
     ("hongkong",    ["HKSE"]),
     ("taiwan",      ["TAI"]),

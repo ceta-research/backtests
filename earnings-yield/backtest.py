@@ -438,7 +438,7 @@ def main():
         # Excluded: ASX (adjClose split issues), SAO (adjClose split issues)
         presets_to_run = [
             ("us", ["NYSE", "NASDAQ", "AMEX"]),
-            ("india", ["BSE", "NSE"]),
+            ("india", ["NSE"]),
             ("uk", ["LSE"]),
             ("germany", ["XETRA"]),
             ("japan", ["JPX"]),

@@ -456,7 +456,7 @@ def main():
         # ASX and SAO excluded: adjClose split artifacts affect return calculation
         presets_to_run = [
             ("us",          ["NYSE", "NASDAQ", "AMEX"]),
-            ("india",       ["BSE", "NSE"]),
+            ("india",       ["NSE"]),
             ("japan",       ["JPX"]),
             ("uk",          ["LSE"]),
             ("germany",     ["XETRA"]),

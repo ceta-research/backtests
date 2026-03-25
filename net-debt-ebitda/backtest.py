@@ -58,7 +58,7 @@ MIN_ENTRY_PRICE = 1.0        # Skip stocks with entry price < $1 (price data art
 # Exchanges confirmed to have FY key_metrics data for this signal
 GLOBAL_PRESETS = [
     ("us",          ["NYSE", "NASDAQ", "AMEX"]),
-    ("india",       ["BSE", "NSE"]),
+    ("india",       ["NSE"]),
     ("japan",       ["JPX"]),
     ("uk",          ["LSE"]),
     ("china",       ["SHZ", "SHH"]),

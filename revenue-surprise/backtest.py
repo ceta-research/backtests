@@ -481,7 +481,7 @@ def main():
         # Excluded: ASX (adjClose), SAO (adjClose), KSC (9yr), STO (9yr), JNB (thin)
         presets_to_run = [
             ("us", ["NYSE", "NASDAQ", "AMEX"]),
-            ("india", ["BSE", "NSE"]),
+            ("india", ["NSE"]),
             ("uk", ["LSE"]),
             ("germany", ["XETRA"]),
             ("china", ["SHZ", "SHH"]),

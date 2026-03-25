@@ -480,7 +480,7 @@ def main():
         all_results = {}
         presets_to_run = [
             ("us", ["NYSE", "NASDAQ"]),     # Exclude AMEX (low FY data coverage)
-            ("india", ["BSE", "NSE"]),
+            ("india", ["NSE"]),
             ("germany", ["XETRA"]),
             ("japan", ["JPX"]),
             ("uk", ["LSE"]),

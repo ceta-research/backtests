@@ -531,7 +531,7 @@ def main():
         # SES: using FMP code SES (not SGX — wrong in cli_utils preset).
         presets_to_run = [
             ("us",          ["NYSE", "NASDAQ", "AMEX"]),
-            ("india",       ["BSE", "NSE"]),
+            ("india",       ["NSE"]),
             ("uk",          ["LSE"]),
             ("germany",     ["XETRA"]),
             ("japan",       ["JPX"]),

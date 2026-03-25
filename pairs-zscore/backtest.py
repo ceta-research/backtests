@@ -839,7 +839,7 @@ def main():
             ("taiwan",      ["TAI", "TWO"]),
             ("sweden",      ["STO"]),
             ("southafrica", ["JNB"]),
-            ("india",       ["BSE", "NSE"]),
+            ("india",       ["NSE"]),
             ("uk",          ["LSE"]),
             ("germany",     ["XETRA"]),
         ]

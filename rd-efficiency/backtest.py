@@ -458,7 +458,7 @@ def main():
             ("switzerland", ["SIX"]),
             ("sweden", ["STO"]),
             ("japan", ["JPX"]),
-            ("india", ["BSE", "NSE"]),
+            ("india", ["NSE"]),
             ("china", ["SHZ", "SHH"]),
             ("hongkong", ["HKSE"]),
             ("taiwan", ["TAI"]),

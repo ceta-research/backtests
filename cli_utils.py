@@ -34,7 +34,7 @@ EXCHANGE_PRESETS = {
     "sweden": {"name": "STO", "exchanges": ["STO"]},
     "norway": {"name": "OSL", "exchanges": ["OSL"]},
     # Asia-Pacific
-    "india": {"name": "India", "exchanges": ["BSE", "NSE"]},
+    "india": {"name": "NSE", "exchanges": ["NSE"]},
     "china": {"name": "China", "exchanges": ["SHZ", "SHH"]},
     "hongkong": {"name": "HKSE", "exchanges": ["HKSE"]},
     "japan": {"name": "JPX", "exchanges": ["JPX"]},

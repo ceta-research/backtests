@@ -92,7 +92,7 @@ LIMIT {top_n}
 EXCHANGE_PRESETS = {
     "us":        (["NYSE", "NASDAQ", "AMEX"], 1_000_000_000),
     "japan":     (["JPX"], 10_000_000_000),
-    "india":     (["BSE", "NSE"], 20_000_000_000),
+    "india":     (["NSE"], 20_000_000_000),
     "germany":   (["XETRA"], 500_000_000),
     "uk":        (["LSE"], 500_000_000),
     "china":     (["SHZ", "SHH"], 2_000_000_000),

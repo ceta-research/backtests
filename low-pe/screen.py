@@ -104,7 +104,7 @@ def main():
 
     preset_map = {
         "us": ("NYSE", "NASDAQ", "AMEX"),
-        "india": ("BSE", "NSE"),
+        "india": ("NSE",),
         "germany": ("XETRA",),
         "china": ("SHZ", "SHH"),
         "hongkong": ("HKSE",),

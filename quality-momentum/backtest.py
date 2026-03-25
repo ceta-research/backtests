@@ -556,7 +556,7 @@ def main():
         # SES excluded (wrong preset code in cli_utils; use SES not SGX).
         presets_to_run = [
             ("us",          ["NYSE", "NASDAQ", "AMEX"]),
-            ("india",       ["BSE", "NSE"]),
+            ("india",       ["NSE"]),
             ("uk",          ["LSE"]),
             ("germany",     ["XETRA"]),
             ("japan",       ["JPX"]),

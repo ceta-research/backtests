@@ -612,7 +612,7 @@ def main():
             ("canada", ["TSX"]),
             ("uk", ["LSE"]),
             ("japan", ["JPX"]),
-            ("india", ["BSE", "NSE"]),
+            ("india", ["NSE"]),
             ("germany", ["XETRA"]),
             ("china", ["SHZ", "SHH"]),
             ("korea", ["KSC"]),

@@ -499,7 +499,7 @@ def main():
         all_results = {}
         presets_to_run = [
             ("us", ["NYSE", "NASDAQ", "AMEX"]),
-            ("india", ["BSE", "NSE"]),
+            ("india", ["NSE"]),
             ("japan", ["JPX"]),
             ("uk", ["LSE"]),
             ("china", ["SHZ", "SHH"]),

@@ -523,7 +523,7 @@ def main():
 
         presets_to_run = [
             ("us", ["NYSE", "NASDAQ", "AMEX"]),
-            ("india", ["BSE", "NSE"]),
+            ("india", ["NSE"]),
             ("germany", ["XETRA"]),
             ("uk", ["LSE"]),
             ("canada", ["TSX"]),

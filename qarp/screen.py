@@ -69,7 +69,7 @@ ORDER BY s.piotroskiScore DESC, k.returnOnEquityTTM DESC
 
 EXCHANGE_PRESETS = {
     "us": ("NYSE", "NASDAQ", "AMEX"),
-    "india": ("BSE", "NSE"),
+    "india": ("NSE",),
     "germany": ("XETRA",),
     "china": ("SHZ", "SHH"),
     "hongkong": ("HKSE",),

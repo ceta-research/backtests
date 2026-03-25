@@ -50,7 +50,7 @@ DEFAULT_FREQUENCY = "quarterly"
 # Presets to run for --global
 PRESETS_TO_RUN = [
     ("us", ["NYSE", "NASDAQ", "AMEX"]),
-    ("india", ["BSE", "NSE"]),
+    ("india", ["NSE"]),
     ("germany", ["XETRA"]),
     ("china", ["SHZ", "SHH"]),
     ("hongkong", ["HKSE"]),

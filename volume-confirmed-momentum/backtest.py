@@ -629,7 +629,7 @@ def main():
         # ASX/SAO excluded (adjClose artifacts per METHODOLOGY.md)
         presets_to_run = [
             ("us",          ["NYSE", "NASDAQ", "AMEX"]),
-            ("india",       ["BSE", "NSE"]),
+            ("india",       ["NSE"]),
             ("uk",          ["LSE"]),
             ("germany",     ["XETRA"]),
             ("japan",       ["JPX"]),
