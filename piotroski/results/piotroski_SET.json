@@ -1,0 +1,307 @@
+{
+  "universe": "SET",
+  "period": "1985-2025 (21 years)",
+  "rebalancing": "annual (April 1)",
+  "weighting": "equal weight",
+  "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+  "portfolios": {
+    "score_8_9": {
+      "cagr": 11.28,
+      "total_return": 843.42,
+      "volatility": 38.76,
+      "sharpe": 0.227,
+      "sortino": 0.761,
+      "calmar": 0.229,
+      "max_drawdown": -49.2,
+      "var_95": -15.1,
+      "pct_negative_years": 24.0,
+      "max_consecutive_losses": 2
+    },
+    "score_0_2": {
+      "cagr": 0.16,
+      "total_return": 3.52,
+      "volatility": 44.65,
+      "sharpe": -0.052,
+      "sortino": -0.129,
+      "calmar": 0.002,
+      "max_drawdown": -80.4,
+      "var_95": -44.1,
+      "pct_negative_years": 14.0,
+      "max_consecutive_losses": 1
+    },
+    "all_value": {
+      "cagr": 12.76,
+      "total_return": 1145.04,
+      "volatility": 44.9,
+      "sharpe": 0.228,
+      "sortino": 0.837,
+      "calmar": 0.328,
+      "max_drawdown": -39.0,
+      "var_95": -32.3,
+      "pct_negative_years": 33.0,
+      "max_consecutive_losses": 2
+    },
+    "sp500": {
+      "cagr": 2.54,
+      "total_return": 69.19,
+      "volatility": 26.93,
+      "sharpe": 0.001,
+      "sortino": 0.002,
+      "calmar": 0.055,
+      "max_drawdown": -46.4,
+      "var_95": -31.1,
+      "pct_negative_years": 48.0,
+      "max_consecutive_losses": 3
+    }
+  },
+  "spread_cagr": 11.12,
+  "alpha_decomposition": {
+    "selection_alpha": -1.5,
+    "avoidance_alpha": 12.6
+  },
+  "decade_breakdown": [
+    {
+      "decade": "2000s",
+      "high_return": 17.2,
+      "low_return": -10.8,
+      "spread": 28.1
+    },
+    {
+      "decade": "2010s",
+      "high_return": 23.9,
+      "low_return": 9.7,
+      "spread": 14.2
+    },
+    {
+      "decade": "2020-25",
+      "high_return": 0.5,
+      "low_return": 24.2,
+      "spread": -23.8
+    }
+  ],
+  "publication_effect": {
+    "pre_2000_spread": null,
+    "post_2000_spread": 9.1
+  },
+  "high_vs_spy": {
+    "excess_cagr": 8.74,
+    "information_ratio": 0.37,
+    "tracking_error": 28.93,
+    "up_capture": 140.8,
+    "down_capture": 21.9,
+    "beta": 0.959,
+    "alpha": 8.75
+  },
+  "annual_returns": [
+    {
+      "year": 2004,
+      "high": -2.6,
+      "low": 0.0,
+      "all": -2.06,
+      "spy": -1.53,
+      "high_count": 4,
+      "low_count": 0,
+      "all_count": 6
+    },
+    {
+      "year": 2005,
+      "high": 0.0,
+      "low": 0.0,
+      "all": 33.61,
+      "spy": 8.23,
+      "high_count": 0,
+      "low_count": 0,
+      "all_count": 7
+    },
+    {
+      "year": 2006,
+      "high": 3.21,
+      "low": 0.0,
+      "all": 0.93,
+      "spy": -7.99,
+      "high_count": 6,
+      "low_count": 0,
+      "all_count": 13
+    },
+    {
+      "year": 2007,
+      "high": 0.0,
+      "low": 0.0,
+      "all": 4.23,
+      "spy": 21.5,
+      "high_count": 0,
+      "low_count": 0,
+      "all_count": 19
+    },
+    {
+      "year": 2008,
+      "high": 0.0,
+      "low": -64.97,
+      "all": -32.27,
+      "spy": -46.35,
+      "high_count": 0,
+      "low_count": 1,
+      "all_count": 22
+    },
+    {
+      "year": 2009,
+      "high": 102.83,
+      "low": 0.0,
+      "all": 165.93,
+      "spy": 80.86,
+      "high_count": 4,
+      "low_count": 0,
+      "all_count": 17
+    },
+    {
+      "year": 2010,
+      "high": 40.58,
+      "low": 0.0,
+      "all": 68.28,
+      "spy": 34.64,
+      "high_count": 1,
+      "low_count": 0,
+      "all_count": 23
+    },
+    {
+      "year": 2011,
+      "high": 58.64,
+      "low": -44.15,
+      "all": 8.09,
+      "spy": 11.16,
+      "high_count": 2,
+      "low_count": 1,
+      "all_count": 30
+    },
+    {
+      "year": 2012,
+      "high": 124.95,
+      "low": 137.64,
+      "all": 66.75,
+      "spy": 29.31,
+      "high_count": 4,
+      "low_count": 3,
+      "all_count": 32
+    },
+    {
+      "year": 2013,
+      "high": 32.45,
+      "low": 0.0,
+      "all": -5.37,
+      "spy": -9.93,
+      "high_count": 4,
+      "low_count": 0,
+      "all_count": 39
+    },
+    {
+      "year": 2014,
+      "high": 7.65,
+      "low": 0.0,
+      "all": 15.27,
+      "spy": 9.71,
+      "high_count": 2,
+      "low_count": 0,
+      "all_count": 45
+    },
+    {
+      "year": 2015,
+      "high": -15.08,
+      "low": 3.64,
+      "all": 0.45,
+      "spy": -8.61,
+      "high_count": 2,
+      "low_count": 2,
+      "all_count": 51
+    },
+    {
+      "year": 2016,
+      "high": 24.52,
+      "low": 0.0,
+      "all": 24.34,
+      "spy": 12.9,
+      "high_count": 3,
+      "low_count": 0,
+      "all_count": 51
+    },
+    {
+      "year": 2017,
+      "high": 18.12,
+      "low": 0.0,
+      "all": 14.54,
+      "spy": 12.74,
+      "high_count": 4,
+      "low_count": 0,
+      "all_count": 58
+    },
+    {
+      "year": 2018,
+      "high": -7.41,
+      "low": 0.0,
+      "all": -1.65,
+      "spy": -7.34,
+      "high_count": 7,
+      "low_count": 1,
+      "all_count": 62
+    },
+    {
+      "year": 2019,
+      "high": -45.15,
+      "low": 0.0,
+      "all": -37.93,
+      "spy": -31.08,
+      "high_count": 6,
+      "low_count": 1,
+      "all_count": 57
+    },
+    {
+      "year": 2020,
+      "high": 0.0,
+      "low": 125.76,
+      "all": 79.47,
+      "spy": 40.24,
+      "high_count": 2,
+      "low_count": 1,
+      "all_count": 57
+    },
+    {
+      "year": 2021,
+      "high": 0.0,
+      "low": 2.16,
+      "all": 9.72,
+      "spy": 6.68,
+      "high_count": 0,
+      "low_count": 6,
+      "all_count": 57
+    },
+    {
+      "year": 2022,
+      "high": 1.12,
+      "low": -6.85,
+      "all": 2.84,
+      "spy": -6.02,
+      "high_count": 14,
+      "low_count": 2,
+      "all_count": 65
+    },
+    {
+      "year": 2023,
+      "high": 6.02,
+      "low": 0.0,
+      "all": -4.55,
+      "spy": -13.8,
+      "high_count": 13,
+      "low_count": 0,
+      "all_count": 66
+    },
+    {
+      "year": 2024,
+      "high": -4.88,
+      "low": 0.0,
+      "all": -10.1,
+      "spy": -14.99,
+      "high_count": 1,
+      "low_count": 2,
+      "all_count": 63
+    }
+  ]
+}

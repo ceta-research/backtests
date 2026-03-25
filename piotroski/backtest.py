@@ -36,7 +36,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates
+from data_utils import query_parquet, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
@@ -132,16 +132,25 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=14)  # Extra margin for offset_days=1 + weekends
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
+    # Include local benchmark symbols alongside SPY
+    bench_symbols = {"'SPY'"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(f"'{sym}'")
+    bench_list = ", ".join(bench_symbols)
+
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
-            symbol = 'SPY'
+            symbol IN ({bench_list})
             OR symbol IN (
                 SELECT DISTINCT symbol FROM income_statement WHERE period = 'FY'
                     {f"AND {sym_filter_sql}" if sym_filter_sql != "1=1" else ""}
@@ -265,10 +274,11 @@ def screen_and_score(con, target_date, mktcap_min):
     return {r[0]: (r[1], r[2]) for r in rows}
 
 
-def get_price(con, symbol, target_date):
-    """Get adjusted close price on or just after target_date."""
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(target_date + timedelta(days=10), datetime.min.time()).timestamp())
+def get_price(con, symbol, target_date, offset_days=0):
+    """Get adjusted close price on or just after target_date + offset_days."""
+    shifted_date = target_date + timedelta(days=offset_days)
+    target_epoch = int(datetime.combine(shifted_date, datetime.min.time()).timestamp())
+    end_epoch = int(datetime.combine(shifted_date + timedelta(days=10), datetime.min.time()).timestamp())
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
@@ -277,7 +287,8 @@ def get_price(con, symbol, target_date):
     return row[0] if row else None
 
 
-def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
+                 offset_days=1, benchmark_symbol="SPY"):
     """Run the full Piotroski backtest with three portfolio tracks."""
     print(f"Phase 2: Running annual backtest ({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
     periods = []
@@ -299,8 +310,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         for name, portfolio in [("high", high), ("low", low), ("all", scored)]:
             returns = []
             for sym, (score, mcap) in portfolio.items():
-                ep = get_price(con, sym, entry_date)
-                xp = get_price(con, sym, exit_date)
+                ep = get_price(con, sym, entry_date, offset_days=offset_days)
+                xp = get_price(con, sym, exit_date, offset_days=offset_days)
                 if ep and xp and ep > 0:
                     raw_ret = (xp - ep) / ep
                     if use_costs:
@@ -311,9 +322,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                     returns.append(net_ret)
             track_returns[name] = sum(returns) / len(returns) if returns else 0.0
 
-        spy_ep = get_price(con, "SPY", entry_date)
-        spy_xp = get_price(con, "SPY", exit_date)
-        spy_ret = (spy_xp - spy_ep) / spy_ep if spy_ep and spy_xp and spy_ep > 0 else None
+        bench_return = get_benchmark_return(
+            con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
         periods.append({
             "year": entry_date.year,
@@ -322,7 +332,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "high_return": track_returns["high"],
             "low_return": track_returns["low"],
             "all_return": track_returns["all"],
-            "spy_return": spy_ret,
+            "spy_return": bench_return,
             "high_count": len(high),
             "low_count": len(low),
             "all_count": len(scored),
@@ -331,11 +341,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         if verbose:
             h_pct = track_returns["high"] * 100
             l_pct = track_returns["low"] * 100
-            s_pct = spy_ret * 100 if spy_ret else 0
+            b_pct = bench_return * 100 if bench_return else 0
             print(f"  {entry_date.year}: Score 8-9={h_pct:+.1f}% ({len(high)}), "
                   f"Score 0-2={l_pct:+.1f}% ({len(low)}), "
                   f"All={track_returns['all']*100:+.1f}% ({len(scored)}), "
-                  f"SPY={s_pct:+.1f}%")
+                  f"Bench={b_pct:+.1f}%")
 
     print(f"Phase 2 complete: {len(periods)} annual periods.\n")
     return periods
@@ -496,7 +506,7 @@ def build_output(periods, universe_name, risk_free_rate, periods_per_year):
     return output
 
 
-def print_summary(m):
+def print_summary(m, benchmark_name="S&P 500"):
     p = m["portfolios"]
     print("\n" + "=" * 85)
     print(f"PIOTROSKI F-SCORE BACKTEST: {m['universe']}")
@@ -509,7 +519,7 @@ def print_summary(m):
     print(f"{'Portfolio':<20} {'CAGR':>8} {'Vol':>8} {'Sharpe':>8} {'Sortino':>8} {'Calmar':>8} {'MaxDD':>8} {'VaR95':>8}")
     print("-" * 85)
     for name, label in [("score_8_9", "Score 8-9"), ("all_value", "All Value"),
-                         ("score_0_2", "Score 0-2"), ("sp500", "S&P 500")]:
+                         ("score_0_2", "Score 0-2"), ("sp500", benchmark_name)]:
         d = p[name]
         sortino = d.get('sortino')
         calmar = d.get('calmar')
@@ -524,10 +534,10 @@ def print_summary(m):
     print(f"Selection alpha (8-9 vs all): +{m['alpha_decomposition']['selection_alpha']:.1f}%")
     print(f"Avoidance alpha (all vs 0-2): +{m['alpha_decomposition']['avoidance_alpha']:.1f}%")
 
-    # Score 8-9 vs SPY comparison
+    # Score 8-9 vs benchmark comparison
     hvs = m.get("high_vs_spy")
     if hvs:
-        print(f"\nScore 8-9 vs S&P 500:")
+        print(f"\nScore 8-9 vs {benchmark_name}:")
         print(f"  Excess CAGR: {hvs['excess_cagr']:+.2f}%")
         if hvs.get('information_ratio') is not None:
             print(f"  Information Ratio: {hvs['information_ratio']:.3f}")
@@ -581,10 +591,15 @@ def main():
     use_costs = not args.no_costs
     periods_per_year = 1  # Annual only for Piotroski
 
+    offset_days = 0 if args.no_next_day else 1
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+    exec_model = "Same-day close (legacy)" if offset_days == 0 else "Next-day close (MOC)"
+
     signal_desc = f"Bottom {int(PB_QUINTILE*100)}% P/B, MCap > {mktcap_label} local"
     print_header("PIOTROSKI F-SCORE BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Portfolios: Score 8-9 (long), Score 0-2 (avoid), All Value (baseline)")
     print(f"  Rebalancing: Annual (April 1), 1985-2025")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print(f"  Costs: {'size-tiered' if use_costs else 'none'}, Rf: {risk_free_rate*100:.1f}%")
     print("=" * 75)
 
@@ -603,12 +618,14 @@ def main():
 
     # Phase 2: Run backtest locally
     t1 = time.time()
-    periods = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs, verbose=args.verbose)
+    periods = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
+                          verbose=args.verbose, offset_days=offset_days,
+                          benchmark_symbol=benchmark_symbol)
     bt_time = time.time() - t1
 
     # Phase 3: Compute and display metrics
     output = build_output(periods, universe_name, risk_free_rate, periods_per_year)
-    print_summary(output)
+    print_summary(output, benchmark_name=benchmark_name)
 
     total_time = time.time() - t0
     print(f"\nTotal time: {total_time:.0f}s (fetch: {fetch_time:.0f}s, backtest: {bt_time:.0f}s)")
