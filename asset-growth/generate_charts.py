@@ -74,14 +74,57 @@ def get_spy_cumulative(initial=10000):
     return years, values
 
 
-def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+def get_local_benchmark_cumulative(exchange_key, initial=10000):
+    """Get local benchmark cumulative from an exchange's own spy field."""
+    ex = data[exchange_key]
+    values = [initial]
+    years = [ex["annual_returns"][0]["year"] - 1]
+    for ar in ex["annual_returns"]:
+        values.append(values[-1] * (1 + ar["spy"] / 100))
+        years.append(ar["year"])
+    return years, values
+
+
+# Local benchmark names for non-US exchanges
+LOCAL_BENCHMARK_NAMES = {
+    "BSE_NSE": "Sensex",
+    "XETRA": "DAX",
+    "LSE": "FTSE 100",
+    "JPX": "Nikkei 225",
+    "TSX": "TSX Composite",
+    "SHZ_SHH": "Shanghai Composite",
+    "HKSE": "Hang Seng",
+    "SAO": "Ibovespa",
+    "STO": "OMX Stockholm 30",
+    "SIX": "SMI",
+    "KSC": "KOSPI",
+    "TAI": "TAIEX",
+    "SET": "SET Index",
+    "SAU": "Tadawul",
+    "ASX": "ASX 200",
+}
+
+
+def chart_cumulative(exchanges, filename, title, footer_universe,
+                     benchmark_exchange=None, benchmark_label=None):
+    """Generate cumulative growth chart for given exchanges vs benchmark.
+
+    If benchmark_exchange is set, use that exchange's local benchmark.
+    Otherwise use SPY.
+    """
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
-    ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+    if benchmark_exchange:
+        bench_years, bench_vals = get_local_benchmark_cumulative(benchmark_exchange)
+        bench_cagr = data[benchmark_exchange]["spy"]["cagr"]
+        bench_name = benchmark_label or LOCAL_BENCHMARK_NAMES.get(benchmark_exchange, "Benchmark")
+    else:
+        bench_years, bench_vals = get_spy_cumulative()
+        bench_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
+        bench_name = "S&P 500"
+
+    ax.plot(bench_years, bench_vals, color=COLORS["SPY"], linewidth=1.8,
+            label=f"{bench_name} ({bench_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -96,9 +139,9 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
                     xytext=(8, 0), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS[ex_key])
 
-    spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(f"${spy_final_k:,.0f}K",
-                xy=(spy_years[-1], spy_vals[-1]),
+    bench_final_k = bench_vals[-1] / 1000
+    ax.annotate(f"${bench_final_k:,.0f}K",
+                xy=(bench_years[-1], bench_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
@@ -111,7 +154,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     ax.set_axisbelow(True)
 
     fig.text(0.5, -0.02,
-             f"Data: Ceta Research | {footer_universe}, semi-annual rebalance, 2000-2025",
+             f"Data: Ceta Research | {footer_universe}, annual rebalance, 2000-2025",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
@@ -121,11 +164,13 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     plt.close()
 
 
-def chart_annual_bars(exchanges, filename, title, footer_universe):
+def chart_annual_bars(exchanges, filename, title, footer_universe,
+                      benchmark_label=None):
     """Generate annual returns bar chart."""
     ex = data[exchanges[0]]
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
+    bench_name = benchmark_label or "S&P 500"
 
     n_series = len(exchanges) + 1
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -135,7 +180,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench_name, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -151,7 +196,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     ax.grid(True, alpha=0.2, axis="y", linestyle="--")
 
     fig.text(0.5, -0.06,
-             f"Data: Ceta Research | {footer_universe}, semi-annual rebalance, 2000-2025",
+             f"Data: Ceta Research | {footer_universe}, annual rebalance, 2000-2025",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
@@ -228,6 +273,104 @@ chart_annual_bars(
     ["BSE_NSE"], "india_annual_returns.png",
     "Asset Growth India: Year-by-Year Returns (2000-2024)",
     "BSE + NSE (returns in INR)"
+)
+
+print("UK charts...")
+chart_cumulative(
+    ["LSE"], "uk_cumulative_growth.png",
+    "Growth of $10,000: Asset Growth UK vs FTSE 100 (2000-2025)",
+    "LSE (London Stock Exchange)",
+    benchmark_exchange="LSE",
+)
+chart_annual_bars(
+    ["LSE"], "uk_annual_returns.png",
+    "Asset Growth UK: Year-by-Year Returns (2000-2024)",
+    "LSE (London Stock Exchange)",
+    benchmark_label="FTSE 100",
+)
+
+print("Japan charts...")
+chart_cumulative(
+    ["JPX"], "japan_cumulative_growth.png",
+    "Growth of $10,000: Asset Growth Japan vs Nikkei 225 (2000-2025)",
+    "JPX (Tokyo Stock Exchange)",
+    benchmark_exchange="JPX",
+)
+chart_annual_bars(
+    ["JPX"], "japan_annual_returns.png",
+    "Asset Growth Japan: Year-by-Year Returns (2000-2024)",
+    "JPX (Tokyo Stock Exchange)",
+    benchmark_label="Nikkei 225",
+)
+
+print("Germany charts...")
+chart_cumulative(
+    ["XETRA"], "germany_cumulative_growth.png",
+    "Growth of $10,000: Asset Growth Germany vs DAX (2000-2025)",
+    "XETRA (Frankfurt)",
+    benchmark_exchange="XETRA",
+)
+chart_annual_bars(
+    ["XETRA"], "germany_annual_returns.png",
+    "Asset Growth Germany: Year-by-Year Returns (2000-2024)",
+    "XETRA (Frankfurt)",
+    benchmark_label="DAX",
+)
+
+print("Brazil charts...")
+chart_cumulative(
+    ["SAO"], "brazil_cumulative_growth.png",
+    "Growth of $10,000: Asset Growth Brazil vs Ibovespa (2000-2025)",
+    "B3 (Sao Paulo)",
+    benchmark_exchange="SAO",
+)
+chart_annual_bars(
+    ["SAO"], "brazil_annual_returns.png",
+    "Asset Growth Brazil: Year-by-Year Returns (2000-2024)",
+    "B3 (Sao Paulo)",
+    benchmark_label="Ibovespa",
+)
+
+print("Canada charts...")
+chart_cumulative(
+    ["TSX"], "canada_cumulative_growth.png",
+    "Growth of $10,000: Asset Growth Canada vs TSX Composite (2000-2025)",
+    "TSX (Toronto)",
+    benchmark_exchange="TSX",
+)
+chart_annual_bars(
+    ["TSX"], "canada_annual_returns.png",
+    "Asset Growth Canada: Year-by-Year Returns (2000-2024)",
+    "TSX (Toronto)",
+    benchmark_label="TSX Composite",
+)
+
+print("Sweden charts...")
+chart_cumulative(
+    ["STO"], "sweden_cumulative_growth.png",
+    "Growth of $10,000: Asset Growth Sweden vs OMX Stockholm 30 (2000-2025)",
+    "Nasdaq Stockholm",
+    benchmark_exchange="STO",
+)
+chart_annual_bars(
+    ["STO"], "sweden_annual_returns.png",
+    "Asset Growth Sweden: Year-by-Year Returns (2000-2024)",
+    "Nasdaq Stockholm",
+    benchmark_label="OMX Stockholm 30",
+)
+
+print("Switzerland charts...")
+chart_cumulative(
+    ["SIX"], "switzerland_cumulative_growth.png",
+    "Growth of $10,000: Asset Growth Switzerland vs SMI (2000-2025)",
+    "SIX (Zurich)",
+    benchmark_exchange="SIX",
+)
+chart_annual_bars(
+    ["SIX"], "switzerland_annual_returns.png",
+    "Asset Growth Switzerland: Year-by-Year Returns (2000-2024)",
+    "SIX (Zurich)",
+    benchmark_label="SMI",
 )
 
 print("Comparison charts...")
