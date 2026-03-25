@@ -4,6 +4,8 @@
   "table": "historical_nasdaq_constituent",
   "benchmark": "QQQ",
   "period": "2000-2025",
+  "execution_model": "T+1 (next-day close, MOC)",
+  "entry_offset": 1,
   "n_events": 406,
   "n_additions": 237,
   "n_removals": 169,
@@ -135,22 +137,24 @@
   },
   "portfolio_simulation": {
     "strategy": "Long removals at T+21",
+    "entry": "T+1",
+    "exit": "T+22",
     "n_months": 61,
-    "avg_events_per_month": 2.6721311475409837,
-    "cagr_pct": 107.75,
+    "avg_events_per_month": 2.6885245901639343,
+    "cagr_pct": 105.42,
     "spy_cagr_pct": 13.59,
-    "excess_cagr_pct": 94.16,
-    "max_drawdown_pct": -29.46,
-    "sharpe_ratio": 1.236,
-    "sortino_ratio": 6.148,
-    "win_rate_pct": 57.4
+    "excess_cagr_pct": 91.83,
+    "max_drawdown_pct": -23.5,
+    "sharpe_ratio": 2.164,
+    "sortino_ratio": 6.979,
+    "win_rate_pct": 60.7
   },
   "annual_returns": [
     {
       "year": 2020,
-      "portfolio_pct": 8.63,
+      "portfolio_pct": 15.23,
       "benchmark_pct": 46.1,
-      "excess_pct": -37.47
+      "excess_pct": -30.87
     }
   ]
 }

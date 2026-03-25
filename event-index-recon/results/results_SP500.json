@@ -4,6 +4,8 @@
   "table": "historical_sp500_constituent",
   "benchmark": "SPY",
   "period": "2000-2025",
+  "execution_model": "T+1 (next-day close, MOC)",
+  "entry_offset": 1,
   "n_events": 679,
   "n_additions": 465,
   "n_removals": 214,
@@ -135,76 +137,78 @@
   },
   "portfolio_simulation": {
     "strategy": "Long removals at T+21",
+    "entry": "T+1",
+    "exit": "T+22",
     "n_months": 117,
     "avg_events_per_month": 1.6324786324786325,
-    "cagr_pct": 35.39,
+    "cagr_pct": -2.52,
     "spy_cagr_pct": 7.05,
-    "excess_cagr_pct": 28.34,
-    "max_drawdown_pct": -97.02,
-    "sharpe_ratio": 0.159,
-    "sortino_ratio": 0.759,
-    "win_rate_pct": 51.3
+    "excess_cagr_pct": -9.57,
+    "max_drawdown_pct": -97.81,
+    "sharpe_ratio": -0.047,
+    "sortino_ratio": -0.099,
+    "win_rate_pct": 48.7
   },
   "annual_returns": [
     {
       "year": 2008,
-      "portfolio_pct": -33.22,
+      "portfolio_pct": -32.25,
       "benchmark_pct": -27.01,
-      "excess_pct": -6.2
+      "excess_pct": -5.24
     },
     {
       "year": 2009,
-      "portfolio_pct": 3573.94,
+      "portfolio_pct": 275.6,
       "benchmark_pct": 8.37,
-      "excess_pct": 3565.57
+      "excess_pct": 267.23
     },
     {
       "year": 2013,
-      "portfolio_pct": 54.22,
+      "portfolio_pct": 59.27,
       "benchmark_pct": 8.99,
-      "excess_pct": 45.23
+      "excess_pct": 50.28
     },
     {
       "year": 2014,
-      "portfolio_pct": 18.77,
+      "portfolio_pct": 21.13,
       "benchmark_pct": 3.61,
-      "excess_pct": 15.16
+      "excess_pct": 17.52
     },
     {
       "year": 2016,
-      "portfolio_pct": 14.85,
+      "portfolio_pct": 24.0,
       "benchmark_pct": 7.16,
-      "excess_pct": 7.7
+      "excess_pct": 16.85
     },
     {
       "year": 2017,
-      "portfolio_pct": -13.42,
+      "portfolio_pct": -17.56,
       "benchmark_pct": 5.64,
-      "excess_pct": -19.06
+      "excess_pct": -23.19
     },
     {
       "year": 2019,
-      "portfolio_pct": 284.33,
+      "portfolio_pct": 234.77,
       "benchmark_pct": 26.51,
-      "excess_pct": 257.82
+      "excess_pct": 208.26
     },
     {
       "year": 2020,
-      "portfolio_pct": -37.32,
+      "portfolio_pct": -46.9,
       "benchmark_pct": 5.62,
-      "excess_pct": -42.94
+      "excess_pct": -52.52
     },
     {
       "year": 2023,
-      "portfolio_pct": -44.99,
+      "portfolio_pct": -39.3,
       "benchmark_pct": 11.85,
-      "excess_pct": -56.84
+      "excess_pct": -51.15
     },
     {
       "year": 2024,
-      "portfolio_pct": 42.43,
+      "portfolio_pct": 37.89,
       "benchmark_pct": 3.33,
-      "excess_pct": 39.1
+      "excess_pct": 34.56
     }
   ]
 }

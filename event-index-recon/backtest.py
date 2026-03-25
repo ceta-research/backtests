@@ -322,70 +322,82 @@ def compute_car_summary(results, windows):
 # Phase 4: Portfolio simulation (long removals at T+21)
 # ---------------------------------------------------------------------------
 
-def simulate_removal_portfolio(results, benchmark_etf, prices, calendar, hold_window=21):
+def simulate_removal_portfolio(results, benchmark_etf, prices, calendar,
+                               hold_window=21, entry_offset=0):
     """Simulate a monthly portfolio that goes long on every removal event.
 
     For each calendar month:
-    - Enter all removal events starting in that month at T+0
-    - Exit at T+hold_window (default 21 trading days)
-    - Portfolio return = equal-weight average of all exits in that month's T+hold_window window
-    - Benchmark return = same-month SPY return (first to last trading day of the calendar month)
+    - Enter all removal events starting in that month at T+entry_offset
+    - Exit at T+entry_offset+hold_window
+    - Portfolio return = equal-weight average of per-event returns
+    - Benchmark return = same-month benchmark return (first to last trading day)
+
+    Args:
+        entry_offset: 0 = event-day close (T+0), 1 = next-day close (MOC execution)
 
     Returns list of dicts: {month, portfolio_return, benchmark_return, n_events}
     """
-    # Filter to removals only
-    removals = [r for r in results if r["category"] == "removal"
-                and r.get(f"car_T{hold_window}") is not None
-                and r.get(f"ret_T{hold_window}") is not None]
-
+    removals = [r for r in results if r["category"] == "removal"]
     if not removals:
         return []
 
-    # Group by year-month (event start month)
+    # Compute per-event returns with entry offset
     by_month = {}
     for r in removals:
-        ym = r["event_date"][:7]  # "YYYY-MM"
+        sym = r["symbol"]
+        evt_str = r["event_date"]
+        if isinstance(evt_str, str):
+            event_date = date.fromisoformat(evt_str[:10])
+        elif isinstance(evt_str, datetime):
+            event_date = evt_str.date()
+        else:
+            event_date = evt_str
+
+        # Entry at T+entry_offset, exit at T+entry_offset+hold_window
+        p_entry, _ = get_price_at_offset(prices, sym, event_date, entry_offset, calendar)
+        p_exit, _ = get_price_at_offset(prices, sym, event_date,
+                                        entry_offset + hold_window, calendar)
+
+        if p_entry is None or p_exit is None or p_entry <= 0:
+            continue
+
+        stock_ret = (p_exit - p_entry) / p_entry
+        ym = evt_str[:7]
         if ym not in by_month:
             by_month[ym] = []
-        by_month[ym].append(r)
+        by_month[ym].append(stock_ret)
 
-    # Compute SPY monthly returns from calendar
+    # Compute benchmark monthly returns from calendar
     bench_prices = prices.get(benchmark_etf, {})
-    spy_monthly = {}
+    bench_monthly = {}
     for d in calendar:
         ym = d.strftime("%Y-%m")
-        if ym not in spy_monthly:
-            spy_monthly[ym] = {"start": None, "end": None}
-        spy_monthly[ym]["end"] = bench_prices.get(d)
-        if spy_monthly[ym]["start"] is None:
-            spy_monthly[ym]["start"] = bench_prices.get(d)
+        if ym not in bench_monthly:
+            bench_monthly[ym] = {"start": None, "end": None}
+        bench_monthly[ym]["end"] = bench_prices.get(d)
+        if bench_monthly[ym]["start"] is None:
+            bench_monthly[ym]["start"] = bench_prices.get(d)
 
     # Build period results for months that had removal events
     period_results = []
     for ym in sorted(by_month.keys()):
-        events_this_month = by_month[ym]
-        # Portfolio return = avg T+21 raw stock return (not CAR, since we're building full portfolio)
-        # Using raw stock return because we're simulating actual long positions
-        rets = [r[f"ret_T{hold_window}"] / 100.0 for r in events_this_month
-                if r.get(f"ret_T{hold_window}") is not None]
+        rets = by_month[ym]
         if not rets:
             continue
         port_ret = sum(rets) / len(rets)
 
-        # Benchmark: SPY return over the same T+21 window as the average event
-        # Use the month's SPY monthly return as proxy
-        spy_info = spy_monthly.get(ym, {})
-        spy_start = spy_info.get("start")
-        spy_end = spy_info.get("end")
-        if spy_start and spy_end and spy_start > 0:
-            spy_ret = (spy_end - spy_start) / spy_start
+        bench_info = bench_monthly.get(ym, {})
+        b_start = bench_info.get("start")
+        b_end = bench_info.get("end")
+        if b_start and b_end and b_start > 0:
+            bench_ret = (b_end - b_start) / b_start
         else:
-            spy_ret = 0.0
+            bench_ret = 0.0
 
         period_results.append({
             "month": ym,
             "portfolio_return": round(port_ret, 6),
-            "benchmark_return": round(spy_ret, 6),
+            "benchmark_return": round(bench_ret, 6),
             "n_events": len(rets),
         })
 
@@ -396,13 +408,14 @@ def simulate_removal_portfolio(results, benchmark_etf, prices, calendar, hold_wi
 # Main
 # ---------------------------------------------------------------------------
 
-def run_index(client, index_key, verbose=False, output_dir=None):
+def run_index(client, index_key, verbose=False, output_dir=None, entry_offset=1):
     """Run the full event study for one index. Returns summary dict."""
     config = INDEX_CONFIGS[index_key]
     table = config["table"]
     name = config["name"]
     benchmark_etf = config["benchmark_etf"]
     slug = config["slug"]
+    exec_model = "T+0 (event-day close)" if entry_offset == 0 else f"T+{entry_offset} (next-day close, MOC)"
 
     print(f"\n{'=' * 65}")
     print(f"  INDEX RECONSTITUTION EVENT STUDY: {name}")
@@ -410,6 +423,7 @@ def run_index(client, index_key, verbose=False, output_dir=None):
     print(f"  Benchmark: {benchmark_etf}")
     print(f"  Period: {START_YEAR}-2025")
     print(f"  Hold window: T+{HOLD_WINDOW} trading days")
+    print(f"  Execution: {exec_model}")
     print(f"{'=' * 65}")
 
     t0 = time.time()
@@ -455,8 +469,9 @@ def run_index(client, index_key, verbose=False, output_dir=None):
                       f"{w_data['hit_rate_pct']:>9.1f}% {sig:>6}")
 
     # 4. Portfolio simulation
-    print(f"\nPhase 4: Simulating 'long removals T+{HOLD_WINDOW}' portfolio...")
-    period_results = simulate_removal_portfolio(event_results, benchmark_etf, prices, calendar, HOLD_WINDOW)
+    print(f"\nPhase 4: Simulating 'long removals T+{HOLD_WINDOW}' portfolio ({exec_model})...")
+    period_results = simulate_removal_portfolio(event_results, benchmark_etf, prices, calendar,
+                                                HOLD_WINDOW, entry_offset=entry_offset)
 
     if len(period_results) < 12:
         print(f"  WARNING: Only {len(period_results)} monthly periods — not enough for metrics.")
@@ -491,6 +506,8 @@ def run_index(client, index_key, verbose=False, output_dir=None):
         "table": table,
         "benchmark": benchmark_etf,
         "period": f"{START_YEAR}-2025",
+        "execution_model": exec_model,
+        "entry_offset": entry_offset,
         "n_events": len(event_results),
         "n_additions": len([r for r in event_results if r["category"] == "addition"]),
         "n_removals": len([r for r in event_results if r["category"] == "removal"]),
@@ -498,6 +515,8 @@ def run_index(client, index_key, verbose=False, output_dir=None):
         "car_summary": car_summary,
         "portfolio_simulation": {
             "strategy": f"Long removals at T+{HOLD_WINDOW}",
+            "entry": f"T+{entry_offset}",
+            "exit": f"T+{entry_offset + HOLD_WINDOW}",
             "n_months": len(period_results),
             "avg_events_per_month": (sum(p["n_events"] for p in period_results) / len(period_results)
                                       if period_results else 0),
@@ -553,6 +572,8 @@ def main():
                         default="sp500", help="Index to analyze (default: sp500)")
     parser.add_argument("--global", dest="global_bt", action="store_true",
                         help="Run all indices (S&P 500 + NASDAQ-100)")
+    parser.add_argument("--no-next-day", action="store_true",
+                        help="Use event-day close (T+0) for portfolio entry instead of T+1 (MOC)")
     parser.add_argument("--api-key", type=str, help="API key (or set CR_API_KEY env var)")
     parser.add_argument("--base-url", type=str, help="API base URL")
     parser.add_argument("--output", type=str, default=None,
@@ -560,6 +581,7 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
+    entry_offset = 0 if args.no_next_day else 1
     output_dir = args.output or os.path.join(os.path.dirname(__file__), "results")
     indices = ALL_INDICES if args.global_bt else [args.index]
 
@@ -567,7 +589,8 @@ def main():
 
     all_results = {}
     for idx in indices:
-        r = run_index(client, idx, verbose=args.verbose, output_dir=output_dir)
+        r = run_index(client, idx, verbose=args.verbose, output_dir=output_dir,
+                      entry_offset=entry_offset)
         if r:
             all_results[idx] = r
 
