@@ -31,7 +31,7 @@ DEFAULT_OUTPUT = os.path.join(RESULTS_DIR, "charts")
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "US",
-    "TSX": "Canada",
+    "TSX": "Canada", "TSX_TSXV": "Canada",
     "LSE": "UK",
     "JPX": "Japan",
     "BSE_NSE": "India",
@@ -43,7 +43,7 @@ EXCHANGE_LABELS = {
     "ASX": "Australia",
     "SAO": "Brazil",
     "SIX": "Switzerland",
-    "TAI": "Taiwan",
+    "TAI": "Taiwan", "TAI_TWO": "Taiwan",
     "SET": "Thailand",
     "OSL": "Norway",
 }
@@ -122,7 +122,7 @@ def chart_car_by_window(us_data, output_dir):
     ax.set_xticks(x)
     ax.set_xticklabels(windows)
     ax.set_ylabel("Mean CAR vs SPY (%)")
-    ax.set_title("Post-Earnings Drift: US Beats vs Misses\n"
+    ax.set_title("Post-Earnings Drift: US Beats vs Misses (MOC Entry)\n"
                  f"(NYSE+NASDAQ+AMEX, 2000–2025, N={us_data['car_metrics']['overall']['n_events']:,})",
                  fontsize=11, fontweight="bold")
     ax.legend()
@@ -227,7 +227,7 @@ def chart_exchange_comparison(comparison_data, output_dir):
     ax.set_yticklabels(labels)
     ax.set_xlabel("Beats Mean CAR at T+63 (%)")
     ax.set_title("Post-Earnings Drift — Beats at T+63: 16 Global Exchanges\n"
-                 "(Exchange-specific MCap filters, 2000–2025, abnormal return vs regional ETF)",
+                 "(MOC entry, local index benchmarks, 2000–2025)",
                  fontsize=11, fontweight="bold")
     ax.grid(axis="x", alpha=0.3)
     ax.spines["top"].set_visible(False)
@@ -322,12 +322,12 @@ def main():
     chart_quintile_heatmap(us_data, args.output)
     chart_exchange_comparison(comparison, args.output)
 
-    # Regional charts
-    chart_regional_car("BSE_NSE",  "India",  "INDA", args.output, "1_india_car_by_window.png")
-    chart_regional_car("TSX",      "Canada", "EWC",  args.output, "1_canada_car_by_window.png")
-    chart_regional_car("JPX",      "Japan",  "EWJ",  args.output, "1_japan_car_by_window.png")
-    chart_regional_car("SHZ_SHH",  "China",  "MCHI", args.output, "1_china_car_by_window.png")
-    chart_regional_car("TAI",      "Taiwan", "EWT",  args.output, "1_taiwan_car_by_window.png")
+    # Regional charts (local currency benchmarks)
+    chart_regional_car("BSE_NSE",   "India",  "Sensex",        args.output, "1_india_car_by_window.png")
+    chart_regional_car("TSX_TSXV",  "Canada", "TSX Composite", args.output, "1_canada_car_by_window.png")
+    chart_regional_car("JPX",       "Japan",  "Nikkei 225",    args.output, "1_japan_car_by_window.png")
+    chart_regional_car("SHZ_SHH",   "China",  "SSE Composite", args.output, "1_china_car_by_window.png")
+    chart_regional_car("TAI_TWO",   "Taiwan", "TAIEX",         args.output, "1_taiwan_car_by_window.png")
 
     print(f"\nDone. Charts saved to: {args.output}/")
 
