@@ -403,12 +403,33 @@ def main():
         comp_file = os.path.join(results_dir, "exchange_comparison.json")
         if os.path.exists(comp_file):
             args.comparison = comp_file
-            main()
-            return
         else:
             print("No results found. Run backtest.py first:")
             print("  python3 pre-earnings/backtest.py --global --output results/exchange_comparison.json")
             sys.exit(1)
+
+        # Generate comparison charts directly (no recursive call)
+        print(f"\nLoading comparison results from {args.comparison}...")
+        with open(args.comparison) as f:
+            all_data = json.load(f)
+        print(f"  {len(all_data)} exchanges found")
+
+        comp_dir = os.path.join(args.output_dir, "comparison")
+        os.makedirs(comp_dir, exist_ok=True)
+
+        print("\nGenerating comparison charts...")
+        chart_global_comparison(all_data, comp_dir)
+        chart_comparison_event_counts(all_data, comp_dir)
+
+        for uni, d in all_data.items():
+            if "error" in d or not d.get("car_metrics"):
+                continue
+            label = EXCHANGE_LABELS.get(uni, uni).lower().replace(" ", "_")
+            ex_dir = os.path.join(args.output_dir, label)
+            os.makedirs(ex_dir, exist_ok=True)
+            print(f"\nCharts for {uni}...")
+            chart_category_comparison(d, uni, ex_dir)
+            chart_window_progression(d, uni, ex_dir)
 
     print(f"\nAll charts saved to {args.output_dir}")
 
