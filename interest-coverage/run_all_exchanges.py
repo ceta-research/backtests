@@ -16,7 +16,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark
 from metrics import compute_metrics, compute_annual_returns
 from costs import tiered_cost, apply_costs
 from cli_utils import get_risk_free_rate, get_mktcap_threshold, REGIONAL_RISK_FREE_RATES
@@ -84,6 +84,7 @@ def main():
         exchanges = config["exchanges"]
         risk_free_rate = get_risk_free_rate(exchanges)
         mktcap_threshold = get_mktcap_threshold(exchanges)
+        benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
 
         # Skip if already completed in resume mode
         if args.resume and all_results.get(name, {}).get("status") == "completed":
@@ -92,7 +93,7 @@ def main():
 
         print(f"\n{'='*65}")
         print(f"  {name} ({', '.join(exchanges)})")
-        print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
+        print(f"  Risk-free rate: {risk_free_rate*100:.1f}%, Benchmark: {benchmark_name}")
         print(f"{'='*65}")
 
         try:
@@ -105,7 +106,8 @@ def main():
                 all_results[name] = {"status": "no_data"}
                 continue
 
-            results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs, verbose=args.verbose)
+            results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
+                                   verbose=args.verbose, benchmark_symbol=benchmark_symbol)
 
             valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
             if not valid:
