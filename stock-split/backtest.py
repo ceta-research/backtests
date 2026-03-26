@@ -5,7 +5,8 @@ Post-Stock Split Performance Event Study
 Measures cumulative abnormal returns (CAR) around forward stock splits, 2000-2025.
 Tests the "post-split drift" hypothesis from Fama et al. (1969) and Ikenberry et al. (1996).
 
-Key finding: Positive pre-split CAR (+3.22% at T-5). Negative post-split drift (-2.98% at T+252).
+Key finding: Positive pre-split CAR (+1.31% at T-5, t=3.81). No significant post-split drift (+0.58% at T+252, ns).
+  2-for-1 splits: +2.58% at T+252 (t=2.45, significant). 5-for-1+ splits: -11.67% at T+252 (t=-4.00, highly significant).
 The traditional long-side signal does NOT hold in 2000-2025 US data.
 
 Usage:
