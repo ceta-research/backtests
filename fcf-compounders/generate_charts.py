@@ -74,15 +74,32 @@ def get_spy_cumulative(initial=10000):
     return years, values
 
 
-def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+def get_benchmark_cumulative(exchange_key, initial=10000):
+    """Get benchmark cumulative from a specific exchange."""
+    if exchange_key not in data or not data[exchange_key].get("annual_returns"):
+        return [], []
+    ex = data[exchange_key]
+    values = [initial]
+    years = [ex["annual_returns"][0]["year"] - 1]
+    for ar in ex["annual_returns"]:
+        values.append(values[-1] * (1 + ar["spy"] / 100))
+        years.append(ar["year"])
+    return years, values
+
+def chart_cumulative(exchanges, filename, title, footer_universe, benchmark_from=None, benchmark_label="S&P 500"):
+    """Generate cumulative growth chart for given exchanges vs benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
-    if spy_years:
-        spy_cagr = data.get("NYSE_NASDAQ_AMEX", {}).get("spy", {}).get("cagr", "?")
-        ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-                label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+    if benchmark_from:
+        bench_years, bench_vals = get_benchmark_cumulative(benchmark_from)
+        bench_cagr = data.get(benchmark_from, {}).get("spy", {}).get("cagr", "?")
+    else:
+        bench_years, bench_vals = get_spy_cumulative()
+        bench_cagr = data.get("NYSE_NASDAQ_AMEX", {}).get("spy", {}).get("cagr", "?")
+
+    if bench_years:
+        ax.plot(bench_years, bench_vals, color=COLORS["SPY"], linewidth=1.8,
+                label=f"{benchmark_label} ({bench_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data or data[ex_key].get("invested_periods", 0) == 0:
@@ -99,10 +116,10 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
                     xytext=(8, 0), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS.get(ex_key, "#95a5a6"))
 
-    if spy_years:
-        spy_final_k = spy_vals[-1] / 1000
-        ax.annotate(f"${spy_final_k:,.0f}K",
-                    xy=(spy_years[-1], spy_vals[-1]),
+    if bench_years:
+        bench_final_k = bench_vals[-1] / 1000
+        ax.annotate(f"${bench_final_k:,.0f}K",
+                    xy=(bench_years[-1], bench_vals[-1]),
                     xytext=(8, -12), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
@@ -123,16 +140,18 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     plt.close()
 
 
-def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart for given exchanges vs SPY."""
+def chart_annual_bars(exchanges, filename, title, footer_universe, benchmark_from=None, benchmark_label="S&P 500"):
+    """Generate annual returns bar chart for given exchanges vs benchmark."""
     active = [e for e in exchanges if e in data and data[e].get("invested_periods", 0) > 0]
     if not active:
         print(f"  Skipping {filename}: no data for {exchanges}")
         return
 
-    ex = data[active[0]]
+    # Use benchmark from specified exchange or default to first exchange's benchmark
+    bench_ex = benchmark_from if benchmark_from and benchmark_from in data else active[0]
+    ex = data[bench_ex]
     years = [ar["year"] for ar in ex["annual_returns"]]
-    spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
+    bench_returns = [ar["spy"] for ar in ex["annual_returns"]]
 
     n_series = len(active) + 1
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -141,8 +160,8 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     x = list(range(len(years)))
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
-    ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+    ax.bar([o + 0 * width for o in offsets], bench_returns, width,
+           label=benchmark_label, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(active):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -309,24 +328,42 @@ print("Generating US charts...")
 chart_cumulative(
     ["NYSE_NASDAQ_AMEX"], "1_us_cumulative_growth.png",
     "Growth of $10,000: FCF Compounders US vs S&P 500 (2000-2025)",
-    "NYSE + NASDAQ + AMEX, annual rebalance, equal weight"
+    "NYSE + NASDAQ + AMEX, annual rebalance, equal weight",
+    benchmark_from="NYSE_NASDAQ_AMEX", benchmark_label="S&P 500"
 )
 chart_annual_bars(
     ["NYSE_NASDAQ_AMEX"], "2_us_annual_returns.png",
     "FCF Compounders US vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "NYSE + NASDAQ + AMEX, annual rebalance, equal weight"
+    "NYSE + NASDAQ + AMEX, annual rebalance, equal weight",
+    benchmark_from="NYSE_NASDAQ_AMEX", benchmark_label="S&P 500"
 )
 
 print("Generating Germany charts...")
 chart_cumulative(
     ["XETRA"], "1_germany_cumulative_growth.png",
-    "Growth of $10,000: FCF Compounders Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
+    "Growth of $10,000: FCF Compounders Germany vs DAX (2000-2025)",
+    "XETRA, returns in EUR",
+    benchmark_from="XETRA", benchmark_label="DAX"
 )
 chart_annual_bars(
     ["XETRA"], "2_germany_annual_returns.png",
-    "FCF Compounders Germany vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "XETRA (returns in EUR)"
+    "FCF Compounders Germany vs DAX: Year-by-Year Returns (2000-2024)",
+    "XETRA, returns in EUR",
+    benchmark_from="XETRA", benchmark_label="DAX"
+)
+
+print("Generating UK charts...")
+chart_cumulative(
+    ["LSE"], "1_uk_cumulative_growth.png",
+    "Growth of $10,000: FCF Compounders UK vs FTSE 100 (2000-2025)",
+    "LSE, returns in GBP",
+    benchmark_from="LSE", benchmark_label="FTSE 100"
+)
+chart_annual_bars(
+    ["LSE"], "2_uk_annual_returns.png",
+    "FCF Compounders UK vs FTSE 100: Year-by-Year Returns (2000-2024)",
+    "LSE, returns in GBP",
+    benchmark_from="LSE", benchmark_label="FTSE 100"
 )
 
 print("Generating comparison charts...")

@@ -1,0 +1,418 @@
+{
+  "universe": "India",
+  "period": "2000-2025 (25 years)",
+  "rebalancing": "annual (April 1)",
+  "weighting": "equal weight",
+  "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+  "sector_exclusions": "Financial Services, Utilities",
+  "z_score_thresholds": {
+    "safe": "> 2.99",
+    "distress": "< 1.81"
+  },
+  "portfolios": {
+    "safe_zone": {
+      "cagr": 10.65,
+      "total_return": 1155.27,
+      "volatility": 38.15,
+      "sharpe": 0.109,
+      "sortino": 0.221,
+      "calmar": 0.187,
+      "max_drawdown": -57.0,
+      "var_95": -40.6,
+      "pct_negative_years": 28.0,
+      "max_consecutive_losses": 2
+    },
+    "gray_zone": {
+      "cagr": 10.75,
+      "total_return": 1185.13,
+      "volatility": 39.54,
+      "sharpe": 0.108,
+      "sortino": 0.233,
+      "calmar": 0.194,
+      "max_drawdown": -55.5,
+      "var_95": -47.2,
+      "pct_negative_years": 32.0,
+      "max_consecutive_losses": 2
+    },
+    "distress_zone": {
+      "cagr": 3.36,
+      "total_return": 128.67,
+      "volatility": 42.71,
+      "sharpe": -0.073,
+      "sortino": -0.137,
+      "calmar": 0.055,
+      "max_drawdown": -61.4,
+      "var_95": -46.7,
+      "pct_negative_years": 40.0,
+      "max_consecutive_losses": 3
+    },
+    "all_ex_distress": {
+      "cagr": 9.66,
+      "total_return": 903.73,
+      "volatility": 38.54,
+      "sharpe": 0.082,
+      "sortino": 0.164,
+      "calmar": 0.17,
+      "max_drawdown": -57.0,
+      "var_95": -43.0,
+      "pct_negative_years": 36.0,
+      "max_consecutive_losses": 2
+    },
+    "sp500": {
+      "cagr": 7.3,
+      "total_return": 482.22,
+      "volatility": 21.92,
+      "sharpe": 0.037,
+      "sortino": 0.059,
+      "calmar": 0.179,
+      "max_drawdown": -40.8,
+      "var_95": -23.7,
+      "pct_negative_years": 24.0,
+      "max_consecutive_losses": 2
+    }
+  },
+  "spread_cagr": 7.29,
+  "avoidance_alpha": 2.36,
+  "avg_stock_counts": {
+    "safe": 313.0,
+    "gray": 71.0,
+    "distress": 68.0,
+    "total": 452.0
+  },
+  "cash_periods": {
+    "safe": 0,
+    "distress": 2
+  },
+  "decade_breakdown": [
+    {
+      "period": "2000-04",
+      "safe_return": 6.5,
+      "distress_return": -11.7,
+      "spread": 18.2,
+      "spy_return": -1.2
+    },
+    {
+      "period": "2005-09",
+      "safe_return": 32.7,
+      "distress_return": 31.5,
+      "spread": 1.1,
+      "spy_return": 6.2
+    },
+    {
+      "period": "2010-14",
+      "safe_return": 16.0,
+      "distress_return": -2.3,
+      "spread": 18.2,
+      "spy_return": 14.2
+    },
+    {
+      "period": "2015-19",
+      "safe_return": 0.8,
+      "distress_return": -5.9,
+      "spread": 6.8,
+      "spy_return": 6.3
+    },
+    {
+      "period": "2020-25",
+      "safe_return": 27.9,
+      "distress_return": 42.9,
+      "spread": -15.0,
+      "spy_return": 22.0
+    }
+  ],
+  "safe_vs_spy": {
+    "excess_cagr": 3.35,
+    "information_ratio": 0.313,
+    "tracking_error": 23.25,
+    "up_capture": 161.6,
+    "down_capture": 128.4,
+    "beta": 1.452,
+    "alpha": 2.99
+  },
+  "all_ex_distress_vs_spy": {
+    "excess_cagr": 2.36,
+    "information_ratio": 0.276,
+    "tracking_error": 23.42,
+    "up_capture": 155.9,
+    "down_capture": 129.2,
+    "beta": 1.475,
+    "alpha": 1.98
+  },
+  "annual_returns": [
+    {
+      "year": 2000,
+      "safe": -49.98,
+      "gray": 0.0,
+      "distress": -44.33,
+      "all_ex_distress": -49.98,
+      "spy": -23.68,
+      "safe_count": 1,
+      "gray_count": 0,
+      "distress_count": 1
+    },
+    {
+      "year": 2001,
+      "safe": 21.54,
+      "gray": 0.0,
+      "distress": 17.88,
+      "all_ex_distress": 21.54,
+      "spy": 1.61,
+      "safe_count": 1,
+      "gray_count": 0,
+      "distress_count": 1
+    },
+    {
+      "year": 2002,
+      "safe": -29.21,
+      "gray": 0.0,
+      "distress": -32.07,
+      "all_ex_distress": -29.21,
+      "spy": -23.62,
+      "safe_count": 3,
+      "gray_count": 0,
+      "distress_count": 1
+    },
+    {
+      "year": 2003,
+      "safe": 68.6,
+      "gray": 44.1,
+      "distress": 0.0,
+      "all_ex_distress": 62.48,
+      "spy": 34.33,
+      "safe_count": 3,
+      "gray_count": 1,
+      "distress_count": 0
+    },
+    {
+      "year": 2004,
+      "safe": 21.57,
+      "gray": -3.77,
+      "distress": 0.0,
+      "all_ex_distress": 12.07,
+      "spy": 5.23,
+      "safe_count": 10,
+      "gray_count": 6,
+      "distress_count": 0
+    },
+    {
+      "year": 2005,
+      "safe": 83.17,
+      "gray": 75.81,
+      "distress": 95.26,
+      "all_ex_distress": 81.87,
+      "spy": 12.43,
+      "safe_count": 70,
+      "gray_count": 15,
+      "distress_count": 3
+    },
+    {
+      "year": 2006,
+      "safe": 0.11,
+      "gray": -0.23,
+      "distress": -17.21,
+      "all_ex_distress": 0.04,
+      "spy": 11.6,
+      "safe_count": 122,
+      "gray_count": 28,
+      "distress_count": 12
+    },
+    {
+      "year": 2007,
+      "safe": 19.85,
+      "gray": 26.85,
+      "distress": 39.96,
+      "all_ex_distress": 21.08,
+      "spy": -2.03,
+      "safe_count": 205,
+      "gray_count": 44,
+      "distress_count": 21
+    },
+    {
+      "year": 2008,
+      "safe": -40.59,
+      "gray": -52.76,
+      "distress": -46.74,
+      "all_ex_distress": -42.98,
+      "spy": -39.11,
+      "safe_count": 233,
+      "gray_count": 57,
+      "distress_count": 30
+    },
+    {
+      "year": 2009,
+      "safe": 100.81,
+      "gray": 103.69,
+      "distress": 86.4,
+      "all_ex_distress": 101.38,
+      "spy": 48.25,
+      "safe_count": 187,
+      "gray_count": 46,
+      "distress_count": 33
+    },
+    {
+      "year": 2010,
+      "safe": 3.82,
+      "gray": 5.95,
+      "distress": -13.18,
+      "all_ex_distress": 4.44,
+      "spy": 15.27,
+      "safe_count": 159,
+      "gray_count": 65,
+      "distress_count": 46
+    },
+    {
+      "year": 2011,
+      "safe": 1.34,
+      "gray": -15.46,
+      "distress": -17.92,
+      "all_ex_distress": -2.75,
+      "spy": 8.77,
+      "safe_count": 289,
+      "gray_count": 93,
+      "distress_count": 66
+    },
+    {
+      "year": 2012,
+      "safe": 2.42,
+      "gray": -13.09,
+      "distress": -10.41,
+      "all_ex_distress": -1.45,
+      "spy": 12.46,
+      "safe_count": 280,
+      "gray_count": 93,
+      "distress_count": 67
+    },
+    {
+      "year": 2013,
+      "safe": 22.02,
+      "gray": 14.99,
+      "distress": 3.84,
+      "all_ex_distress": 20.33,
+      "spy": 23.07,
+      "safe_count": 251,
+      "gray_count": 79,
+      "distress_count": 86
+    },
+    {
+      "year": 2014,
+      "safe": 50.19,
+      "gray": 43.81,
+      "distress": 26.42,
+      "all_ex_distress": 48.64,
+      "spy": 11.41,
+      "safe_count": 236,
+      "gray_count": 76,
+      "distress_count": 82
+    },
+    {
+      "year": 2015,
+      "safe": -4.62,
+      "gray": -9.91,
+      "distress": -9.18,
+      "all_ex_distress": -5.61,
+      "spy": 2.74,
+      "safe_count": 292,
+      "gray_count": 67,
+      "distress_count": 87
+    },
+    {
+      "year": 2016,
+      "safe": 32.28,
+      "gray": 40.18,
+      "distress": 36.97,
+      "all_ex_distress": 33.73,
+      "spy": 16.08,
+      "safe_count": 417,
+      "gray_count": 93,
+      "distress_count": 112
+    },
+    {
+      "year": 2017,
+      "safe": 14.02,
+      "gray": 18.34,
+      "distress": 15.08,
+      "all_ex_distress": 14.71,
+      "spy": 11.49,
+      "safe_count": 437,
+      "gray_count": 83,
+      "distress_count": 133
+    },
+    {
+      "year": 2018,
+      "safe": -4.03,
+      "gray": -15.7,
+      "distress": -21.86,
+      "all_ex_distress": -6.33,
+      "spy": 13.17,
+      "safe_count": 541,
+      "gray_count": 133,
+      "distress_count": 146
+    },
+    {
+      "year": 2019,
+      "safe": -33.51,
+      "gray": -47.23,
+      "distress": -50.66,
+      "all_ex_distress": -36.09,
+      "spy": -12.12,
+      "safe_count": 646,
+      "gray_count": 150,
+      "distress_count": 149
+    },
+    {
+      "year": 2020,
+      "safe": 77.13,
+      "gray": 98.56,
+      "distress": 94.1,
+      "all_ex_distress": 80.5,
+      "spy": 65.36,
+      "safe_count": 515,
+      "gray_count": 96,
+      "distress_count": 96
+    },
+    {
+      "year": 2021,
+      "safe": 22.43,
+      "gray": 26.55,
+      "distress": 35.6,
+      "all_ex_distress": 23.18,
+      "spy": 14.55,
+      "safe_count": 437,
+      "gray_count": 97,
+      "distress_count": 133
+    },
+    {
+      "year": 2022,
+      "safe": -5.63,
+      "gray": 12.29,
+      "distress": 1.55,
+      "all_ex_distress": -2.69,
+      "spy": -7.73,
+      "safe_count": 704,
+      "gray_count": 138,
+      "distress_count": 149
+    },
+    {
+      "year": 2023,
+      "safe": 44.1,
+      "gray": 72.36,
+      "distress": 81.59,
+      "all_ex_distress": 48.0,
+      "spy": 28.9,
+      "safe_count": 870,
+      "gray_count": 139,
+      "distress_count": 116
+    },
+    {
+      "year": 2024,
+      "safe": 1.53,
+      "gray": 4.0,
+      "distress": 1.72,
+      "all_ex_distress": 1.91,
+      "spy": 8.8,
+      "safe_count": 923,
+      "gray_count": 172,
+      "distress_count": 121
+    }
+  ]
+}
