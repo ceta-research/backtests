@@ -214,8 +214,22 @@ class CetaResearch:
         else:
             raise CetaResearchError("No artifact ID or data URL in completed task")
 
-        resp = self._fetch_with_retry(url, format)
-        return self._parse_response(resp, format)
+        # Retry on corrupted parquet downloads (transient FMP download errors)
+        max_corruption_retries = 3
+        for attempt in range(max_corruption_retries):
+            try:
+                resp = self._fetch_with_retry(url, format)
+                return self._parse_response(resp, format)
+            except CetaResearchError as e:
+                # Only retry on parquet corruption errors
+                if format == "parquet" and "Corrupted parquet" in str(e) and attempt < max_corruption_retries - 1:
+                    wait_time = 2 * (attempt + 1)  # 2s, 4s, 6s
+                    if self.verbose:
+                        print(f"  ⚠ Corrupted parquet download (attempt {attempt + 1}/{max_corruption_retries}), retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                # Not a retryable error, or max retries reached
+                raise
 
     def _fetch_with_retry(self, url, format, max_retries=20, initial_wait=2):
         """Fetch URL, following presigned URLs and retrying if file is preparing.
@@ -269,6 +283,24 @@ class CetaResearch:
             return resp.json()
         elif format == "csv":
             return resp.text
+        elif format == "parquet":
+            # Validate parquet magic bytes before returning
+            content = resp.content
+            if len(content) < 12:
+                raise CetaResearchError(
+                    f"Corrupted parquet file: too small ({len(content)} bytes, minimum 12 bytes required)"
+                )
+            # Check start magic bytes: "PAR1"
+            if content[:4] != b'PAR1':
+                raise CetaResearchError(
+                    f"Corrupted parquet file: invalid start magic bytes (got {content[:4]!r}, expected b'PAR1')"
+                )
+            # Check end magic bytes: "PAR1"
+            if content[-4:] != b'PAR1':
+                raise CetaResearchError(
+                    f"Corrupted parquet file: invalid end magic bytes (got {content[-4:]!r}, expected b'PAR1')"
+                )
+            return content
         else:
             return resp.content
 

@@ -213,7 +213,7 @@ def filter_by_liquidity(con, symbols, target_date, lookback_days=90,
 
 
 def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, timeout=300,
-                  memory_mb=None, threads=None):
+                  memory_mb=None, threads=None, max_retries=3):
     """Query API as parquet, load directly into DuckDB. Returns row count.
 
     Args:
@@ -226,24 +226,50 @@ def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, ti
         timeout: int - query timeout in seconds
         memory_mb: int or None - server-side memory (e.g. 16384 for backtests)
         threads: int or None - server-side threads (e.g. 6 for backtests)
+        max_retries: int - max retries on corrupted parquet (default 3)
 
     Returns:
         int - number of rows loaded
     """
-    parquet_bytes = client.query(sql, format="parquet", limit=limit, timeout=timeout,
-                                 verbose=verbose, memory_mb=memory_mb, threads=threads)
-    if not parquet_bytes:
-        con.execute(f"CREATE TABLE {table_name}(dummy INTEGER)")
-        con.execute(f"DELETE FROM {table_name}")
-        return 0
-    with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as f:
-        f.write(parquet_bytes)
-        tmp_path = f.name
-    try:
-        con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{tmp_path}')")
-        return con.execute(f"SELECT count(*) FROM {table_name}").fetchone()[0]
-    finally:
-        os.unlink(tmp_path)
+    # Retry loop for handling corrupted parquet downloads (transient FMP download errors)
+    for attempt in range(max_retries):
+        parquet_bytes = client.query(sql, format="parquet", limit=limit, timeout=timeout,
+                                     verbose=verbose, memory_mb=memory_mb, threads=threads)
+        if not parquet_bytes:
+            con.execute(f"CREATE TABLE {table_name}(dummy INTEGER)")
+            con.execute(f"DELETE FROM {table_name}")
+            return 0
+
+        with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as f:
+            f.write(parquet_bytes)
+            tmp_path = f.name
+
+        try:
+            con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{tmp_path}')")
+            row_count = con.execute(f"SELECT count(*) FROM {table_name}").fetchone()[0]
+            os.unlink(tmp_path)
+            return row_count
+        except Exception as e:
+            # Clean up tempfile before potentially retrying
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+
+            # Check if this is a corrupted parquet error
+            error_str = str(e)
+            is_corrupted = "No magic bytes" in error_str or "Invalid Input Error" in error_str
+
+            if is_corrupted and attempt < max_retries - 1:
+                wait_time = 2 * (attempt + 1)  # 2s, 4s, 6s
+                if verbose:
+                    print(f"  ⚠ Corrupted parquet download (attempt {attempt + 1}/{max_retries}), retrying in {wait_time}s...")
+                import time
+                time.sleep(wait_time)
+                continue
+
+            # Not a retryable error, or max retries reached
+            raise
 
 
 def filter_returns(symbol_returns, min_entry_price=1.0, max_single_return=2.0, verbose=False):
