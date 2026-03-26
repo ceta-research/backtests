@@ -1,0 +1,260 @@
+{
+  "strategy": "Analyst Upgrade Clusters",
+  "universe": "India",
+  "benchmark": "INDA",
+  "study_type": "event_study",
+  "period": "2019-2025",
+  "filters": {
+    "min_delta": 2,
+    "min_gap_days": 14,
+    "max_gap_days": 30,
+    "min_market_cap": 20000000000
+  },
+  "windows": [
+    1,
+    5,
+    21,
+    63
+  ],
+  "car_metrics": {
+    "overall": {
+      "n": 412,
+      "T+1": {
+        "mean_car": 0.2363,
+        "median_car": 0.1632,
+        "t_stat": 2.177,
+        "n": 412,
+        "hit_rate": 53.88,
+        "significant_5pct": true,
+        "significant_1pct": false
+      },
+      "T+5": {
+        "mean_car": 1.4559,
+        "median_car": 1.198,
+        "t_stat": 7.108,
+        "n": 412,
+        "hit_rate": 65.53,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 1.6052,
+        "median_car": 0.9928,
+        "t_stat": 3.846,
+        "n": 412,
+        "hit_rate": 55.58,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+63": {
+        "mean_car": 4.5335,
+        "median_car": 3.2364,
+        "t_stat": 5.751,
+        "n": 376,
+        "hit_rate": 59.31,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    },
+    "upgrade_small": {
+      "n": 171,
+      "T+1": {
+        "mean_car": 0.2835,
+        "median_car": 0.2156,
+        "t_stat": 1.868,
+        "n": 171,
+        "hit_rate": 54.39,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+5": {
+        "mean_car": 0.762,
+        "median_car": 0.3844,
+        "t_stat": 2.59,
+        "n": 171,
+        "hit_rate": 57.89,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 0.9623,
+        "median_car": 0.6395,
+        "t_stat": 1.328,
+        "n": 171,
+        "hit_rate": 54.39,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": 2.834,
+        "median_car": 0.7961,
+        "t_stat": 2.238,
+        "n": 141,
+        "hit_rate": 54.61,
+        "significant_5pct": true,
+        "significant_1pct": false
+      }
+    },
+    "upgrade_medium": {
+      "n": 84,
+      "T+1": {
+        "mean_car": 1.1701,
+        "median_car": 0.7428,
+        "t_stat": 1.995,
+        "n": 84,
+        "hit_rate": 66.67,
+        "significant_5pct": true,
+        "significant_1pct": false
+      },
+      "T+5": {
+        "mean_car": 2.2183,
+        "median_car": 1.1112,
+        "t_stat": 2.983,
+        "n": 84,
+        "hit_rate": 70.24,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 2.6692,
+        "median_car": 3.4592,
+        "t_stat": 2.415,
+        "n": 84,
+        "hit_rate": 57.14,
+        "significant_5pct": true,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": 4.5051,
+        "median_car": 5.5815,
+        "t_stat": 2.247,
+        "n": 78,
+        "hit_rate": 60.26,
+        "significant_5pct": true,
+        "significant_1pct": false
+      }
+    },
+    "upgrade_large": {
+      "n": 157,
+      "T+1": {
+        "mean_car": -0.0728,
+        "median_car": -0.0852,
+        "t_stat": -0.363,
+        "n": 157,
+        "hit_rate": 46.5,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+5": {
+        "mean_car": 2.0008,
+        "median_car": 1.9259,
+        "t_stat": 5.404,
+        "n": 157,
+        "hit_rate": 71.34,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 1.4062,
+        "median_car": 0.9943,
+        "t_stat": 2.09,
+        "n": 157,
+        "hit_rate": 56.05,
+        "significant_5pct": true,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": 5.9443,
+        "median_car": 4.3406,
+        "t_stat": 5.45,
+        "n": 157,
+        "hit_rate": 63.06,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    },
+    "downgrade_cluster": {
+      "n": 61,
+      "T+1": {
+        "mean_car": 0.2031,
+        "median_car": 0.2027,
+        "t_stat": 0.983,
+        "n": 61,
+        "hit_rate": 59.02,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+5": {
+        "mean_car": 0.8429,
+        "median_car": 0.5501,
+        "t_stat": 1.286,
+        "n": 61,
+        "hit_rate": 59.02,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+21": {
+        "mean_car": -0.2383,
+        "median_car": 1.5756,
+        "t_stat": -0.165,
+        "n": 61,
+        "hit_rate": 55.74,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": -1.8096,
+        "median_car": -0.6248,
+        "t_stat": -1.156,
+        "n": 60,
+        "hit_rate": 48.33,
+        "significant_5pct": false,
+        "significant_1pct": false
+      }
+    }
+  },
+  "yearly_stats": [
+    {
+      "year": 2021,
+      "total_upgrade": 6,
+      "upgrade_small": 6,
+      "upgrade_medium": 0,
+      "upgrade_large": 0,
+      "downgrade_cluster": 1
+    },
+    {
+      "year": 2022,
+      "total_upgrade": 243,
+      "upgrade_small": 44,
+      "upgrade_medium": 44,
+      "upgrade_large": 155,
+      "downgrade_cluster": 4
+    },
+    {
+      "year": 2023,
+      "total_upgrade": 1,
+      "upgrade_small": 1,
+      "upgrade_medium": 0,
+      "upgrade_large": 0,
+      "downgrade_cluster": 0
+    },
+    {
+      "year": 2024,
+      "total_upgrade": 22,
+      "upgrade_small": 15,
+      "upgrade_medium": 7,
+      "upgrade_large": 0,
+      "downgrade_cluster": 1
+    },
+    {
+      "year": 2025,
+      "total_upgrade": 140,
+      "upgrade_small": 105,
+      "upgrade_medium": 33,
+      "upgrade_large": 2,
+      "downgrade_cluster": 55
+    }
+  ],
+  "n_total_upgrade_events": 412,
+  "n_total_downgrade_events": 61
+}

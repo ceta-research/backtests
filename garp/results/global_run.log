@@ -1,0 +1,1469 @@
+Traceback (most recent call last):
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 516, in main
+    result = run_single(cr, preset_exchanges, uni_name, frequency,
+                        use_costs, rfr, mktcap_threshold, args.verbose, output_path)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 392, in run_single
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 163, in fetch_data_via_api
+    count = query_parquet(client, price_sql, con, "prices_cache",
+                          verbose=verbose, limit=5000000, timeout=600,
+                          memory_mb=4096, threads=2)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/data_utils.py", line 84, in query_parquet
+    con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{tmp_path}')")
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_duckdb.InvalidInputException: Invalid Input Error: No magic bytes found at end of file '/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn/T/tmpsm1spest.parquet'
+
+LINE 1: CREATE TABLE prices_cache AS SELECT * FROM read_parquet('/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn...
+                                                   ^
+=================================================================
+  GLOBAL MODE: Running all exchange presets
+=================================================================
+
+#################################################################
+# US (NYSE_NASDAQ_AMEX)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: NYSE_NASDAQ_AMEX (NYSE, NASDAQ, AMEX)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 1B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 2.0%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 22184 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 112324 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 56309 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 194411 rows
+  Fetching prices...
+
+  ERROR on NYSE_NASDAQ_AMEX: Invalid Input Error: No magic bytes found at end of file '/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn/T/tmpsm1spest.parquet'
+
+LINE 1: CREATE TABLE prices_cache AS SELECT * FROM read_parquet('/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn...
+                                                   ^
+
+#################################################################
+# INDIA (BSE_NSE)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: BSE_NSE (BSE, NSE)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 20B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 6.5%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 7197 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 83943 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 43943 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 132937 rows
+  Fetching prices...
+    -> 2536769 price rows
+
+Data fetched in 78s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                             11.12%      8.01%
+  Total Return                    1410.9%     627.4%
+  Max Drawdown                    -72.67%    -45.53%
+  Volatility (ann.)                35.24%     16.97%
+  VaR 95%                         -18.92%    -15.01%
+  Sharpe Ratio                      0.131      0.089
+  Sortino Ratio                     0.232      0.121
+  Calmar Ratio                      0.153      0.176
+
+  --- Relative ---            
+  Excess CAGR                       3.11%
+  Win Rate                          58.3%
+  Information Ratio                 0.238
+  Tracking Error                   30.35%
+  Up Capture                       130.5%
+  Down Capture                      84.6%
+  Beta                              1.057
+  Alpha (Jensen)                    3.02%
+=================================================================
+
+  Cash periods: 21 / 103
+  Avg stocks (invested): 26.9
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000             0.0%     -10.5%     +10.5%
+  2001             0.0%      -9.2%      +9.2%
+  2002             0.0%     -19.9%     +19.9%
+  2003             0.0%      24.1%     -24.1%
+  2004             0.0%      10.2%     -10.2%
+  2005            47.5%       7.2%     +40.3%
+  2006            51.8%      13.6%     +38.2%
+  2007            86.2%       4.4%     +81.8%
+  2008           -67.4%     -34.3%     -33.1%
+  2009           122.5%      24.7%     +97.7%
+  2010             0.6%      14.3%     -13.7%
+  2011           -37.7%       2.5%     -40.2%
+  2012            48.2%      17.1%     +31.1%
+  2013            -8.8%      27.8%     -36.6%
+  2014            80.9%      14.5%     +66.4%
+  2015            10.0%      -0.1%     +10.1%
+  2016            -4.9%      14.5%     -19.3%
+  2017            67.1%      21.6%     +45.5%
+  2018           -34.7%      -5.1%     -29.6%
+  2019           -19.5%      32.3%     -51.8%
+  2020            33.1%      15.6%     +17.4%
+  2021            64.6%      31.3%     +33.4%
+  2022            -3.3%     -19.0%     +15.7%
+  2023            61.7%      26.0%     +35.7%
+  2024            27.6%      25.3%      +2.3%
+  2025           -18.7%      15.3%     -34.1%
+
+  Total time: 80s (fetch: 78s, backtest: 1s)
+
+  Results saved to garp/results/returns_BSE_NSE.json
+
+#################################################################
+# CHINA (SHZ_SHH)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: SHZ_SHH (SHZ, SHH)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 2B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 2.5%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 4526 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 65416 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 35166 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 85954 rows
+  Fetching prices...
+    -> 1617507 price rows
+
+Data fetched in 78s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              4.53%      8.01%
+  Total Return                     213.1%     627.4%
+  Max Drawdown                    -71.11%    -45.53%
+  Volatility (ann.)                36.92%     16.97%
+  VaR 95%                         -24.57%    -15.01%
+  Sharpe Ratio                      0.055      0.325
+  Sortino Ratio                     0.104      0.475
+  Calmar Ratio                      0.064      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -3.48%
+  Win Rate                          42.7%
+  Information Ratio                 0.035
+  Tracking Error                   37.33%
+  Up Capture                        85.2%
+  Down Capture                      57.3%
+  Beta                              0.448
+  Alpha (Jensen)                   -0.43%
+=================================================================
+
+  Cash periods: 0 / 103
+  Avg stocks (invested): 25.9
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000            38.1%     -10.5%     +48.6%
+  2001           -23.5%      -9.2%     -14.4%
+  2002           -17.2%     -19.9%      +2.7%
+  2003            -3.2%      24.1%     -27.3%
+  2004           -23.2%      10.2%     -33.5%
+  2005           -29.8%       7.2%     -37.0%
+  2006           101.4%      13.6%     +87.7%
+  2007           223.9%       4.4%    +219.5%
+  2008           -68.2%     -34.3%     -33.9%
+  2009           119.1%      24.7%     +94.4%
+  2010            -1.6%      14.3%     -15.9%
+  2011           -41.1%       2.5%     -43.6%
+  2012             3.6%      17.1%     -13.5%
+  2013            37.1%      27.8%      +9.3%
+  2014            48.5%      14.5%     +34.0%
+  2015            57.5%      -0.1%     +57.6%
+  2016           -10.0%      14.5%     -24.4%
+  2017             1.5%      21.6%     -20.2%
+  2018           -34.4%      -5.1%     -29.2%
+  2019            21.8%      32.3%     -10.5%
+  2020             3.7%      15.6%     -11.9%Traceback (most recent call last):
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 516, in main
+    result = run_single(cr, preset_exchanges, uni_name, frequency,
+                        use_costs, rfr, mktcap_threshold, args.verbose, output_path)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 392, in run_single
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 163, in fetch_data_via_api
+    count = query_parquet(client, price_sql, con, "prices_cache",
+                          verbose=verbose, limit=5000000, timeout=600,
+                          memory_mb=4096, threads=2)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/data_utils.py", line 84, in query_parquet
+    con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{tmp_path}')")
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_duckdb.InvalidInputException: Invalid Input Error: No magic bytes found at end of file '/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn/T/tmp5x2dn5at.parquet'
+
+LINE 1: CREATE TABLE prices_cache AS SELECT * FROM read_parquet('/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn...
+                                                   ^
+
+  2021            18.2%      31.3%     -13.0%
+  2022           -15.0%     -19.0%      +4.0%
+  2023           -16.8%      26.0%     -42.8%
+  2024            -1.6%      25.3%     -26.9%
+  2025            25.8%      15.3%     +10.5%
+
+  Total time: 79s (fetch: 78s, backtest: 1s)
+
+  Results saved to garp/results/returns_SHZ_SHH.json
+
+#################################################################
+# HONGKONG (HKSE)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: HKSE (HKSE)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 2B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 3.0%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 2944 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 31261 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 15541 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 44669 rows
+  Fetching prices...
+    -> 1015082 price rows
+
+Data fetched in 79s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              2.88%      8.01%
+  Total Return                     107.6%     627.4%
+  Max Drawdown                    -70.25%    -45.53%
+  Volatility (ann.)                27.74%     16.97%
+  VaR 95%                         -18.75%    -15.01%
+  Sharpe Ratio                     -0.004      0.295
+  Sortino Ratio                    -0.006      0.428
+  Calmar Ratio                      0.041      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -5.13%
+  Win Rate                          42.7%
+  Information Ratio                -0.104
+  Tracking Error                   22.69%
+  Up Capture                        98.8%
+  Down Capture                     122.1%
+  Beta                              0.942
+  Alpha (Jensen)                   -4.84%
+=================================================================
+
+  Cash periods: 3 / 103
+  Avg stocks (invested): 20.1
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000           -15.8%     -10.5%      -5.3%
+  2001            -1.2%      -9.2%      +8.0%
+  2002            -0.2%     -19.9%     +19.7%
+  2003            46.1%      24.1%     +22.0%
+  2004            -6.7%      10.2%     -16.9%
+  2005             0.6%       7.2%      -6.5%
+  2006            56.3%      13.6%     +42.6%
+  2007            53.4%       4.4%     +49.0%
+  2008           -68.3%     -34.3%     -34.0%
+  2009            93.8%      24.7%     +69.0%
+  2010            13.7%      14.3%      -0.6%
+  2011           -37.5%       2.5%     -40.0%
+  2012            49.8%      17.1%     +32.7%
+  2013           -13.7%      27.8%     -41.5%
+  2014             0.2%      14.5%     -14.3%
+  2015             3.7%      -0.1%      +3.8%
+  2016            -3.7%      14.5%     -18.1%
+  2017            32.9%      21.6%     +11.3%
+  2018            -6.6%      -5.1%      -1.4%
+  2019             9.2%      32.3%     -23.1%
+  2020            -1.3%      15.6%     -16.9%
+  2021           -10.3%      31.3%     -41.6%
+  2022           -17.1%     -19.0%      +1.9%
+  2023            -7.6%      26.0%     -33.6%
+  2024             9.9%      25.3%     -15.4%
+  2025            33.2%      15.3%     +17.8%
+
+  Total time: 80s (fetch: 79s, backtest: 1s)
+
+  Results saved to garp/results/returns_HKSE.json
+
+#################################################################
+# JAPAN (JPX)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: JPX (JPX)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 100B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 0.1%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 4057 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 17983 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 18769 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 65346 rows
+  Fetching prices...
+
+  ERROR on JPX: Invalid Input Error: No magic bytes found at end of file '/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn/T/tmp5x2dn5at.parquet'
+
+LINE 1: CREATE TABLE prices_cache AS SELECT * FROM read_parquet('/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn...
+                                                   ^
+
+#################################################################
+# UK (LSE)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: LSE (LSE)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 0B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 3.5%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 6848 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 33253 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 15990 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 61640 rows
+  Fetching prices...
+    -> 1159405 price rows
+
+Data fetched in 78s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              5.36%      8.01%
+  Total Return                     283.3%     627.4%
+  Max Drawdown                    -53.54%    -45.53%
+  Volatility (ann.)                22.55%     16.97%
+  VaR 95%                         -19.35%    -15.01%
+  Sharpe Ratio                      0.082      0.266
+  Sortino Ratio                     0.119      0.381
+  Calmar Ratio                      0.100      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -2.65%
+  Win Rate                          41.7%
+  Information Ratio                -0.091
+  Tracking Error                   15.23%
+  Up Capture                        91.6%
+  Down Capture                      97.9%
+  Beta                              0.981
+  Alpha (Jensen)                   -2.57%
+=================================================================
+
+  Cash periods: 0 / 103
+  Avg stocks (invested): 21.9
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000            -9.0%     -10.5%      +1.5%
+  2001            14.1%      -9.2%     +23.2%
+  2002           -18.2%     -19.9%      +1.7%
+  2003            25.5%      24.1%      +1.4%
+  2004            36.8%      10.2%     +26.5%
+  2005            39.5%       7.2%     +32.3%
+  2006            36.4%      13.6%     +22.7%
+  2007           -17.2%       4.4%     -21.6%
+  2008           -43.9%     -34.3%      -9.6%
+  2009            68.5%      24.7%     +43.8%
+  2010            22.5%      14.3%      +8.2%
+  2011           -11.5%       2.5%     -14.0%
+  2012            13.9%      17.1%      -3.2%
+  2013            13.2%      27.8%     -14.6%
+  2014            -4.8%      14.5%     -19.3%
+  2015            15.9%      -0.1%     +16.1%
+  2016            10.8%      14.5%      -3.7%
+  2017            10.3%      21.6%     -11.4%
+  2018           -19.8%      -5.1%     -14.7%Traceback (most recent call last):
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/urllib3/connection.py", line 565, in getresponse
+    httplib_response = super().getresponse()
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1430, in getresponse
+    response.begin()
+    ~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/socket.py", line 719, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 1304, in recv_into
+    return self.read(nbytes, buffer)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 1138, in read
+    return self._sslobj.read(len, buffer)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+ConnectionResetError: [Errno 54] Connection reset by peer
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/requests/adapters.py", line 644, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/urllib3/util/retry.py", line 474, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/urllib3/util/util.py", line 38, in reraise
+    raise value.with_traceback(tb)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/urllib3/connection.py", line 565, in getresponse
+    httplib_response = super().getresponse()
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 1430, in getresponse
+    response.begin()
+    ~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/http/client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/socket.py", line 719, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 1304, in recv_into
+    return self.read(nbytes, buffer)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 1138, in read
+    return self._sslobj.read(len, buffer)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 516, in main
+    result = run_single(cr, preset_exchanges, uni_name, frequency,
+                        use_costs, rfr, mktcap_threshold, args.verbose, output_path)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 392, in run_single
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 163, in fetch_data_via_api
+    count = query_parquet(client, price_sql, con, "prices_cache",
+                          verbose=verbose, limit=5000000, timeout=600,
+                          memory_mb=4096, threads=2)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/data_utils.py", line 74, in query_parquet
+    parquet_bytes = client.query(sql, format="parquet", limit=limit, timeout=timeout,
+                                 verbose=verbose, memory_mb=memory_mb, threads=threads)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/cr_client.py", line 122, in query
+    task = self._poll(task_id, timeout=timeout, verbose=verbose)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/cr_client.py", line 163, in _poll
+    resp = self.session.get(f"{self.base_url}/data-explorer/tasks/{task_id}")
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/requests/sessions.py", line 602, in get
+    return self.request("GET", url, **kwargs)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/lib/python3.13/site-packages/requests/adapters.py", line 659, in send
+    raise ConnectionError(err, request=request)
+requests.exceptions.ConnectionError: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
+Traceback (most recent call last):
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 516, in main
+    result = run_single(cr, preset_exchanges, uni_name, frequency,
+                        use_costs, rfr, mktcap_threshold, args.verbose, output_path)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 392, in run_single
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/garp/backtest.py", line 163, in fetch_data_via_api
+    count = query_parquet(client, price_sql, con, "prices_cache",
+                          verbose=verbose, limit=5000000, timeout=600,
+                          memory_mb=4096, threads=2)
+  File "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests/data_utils.py", line 84, in query_parquet
+    con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{tmp_path}')")
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_duckdb.InvalidInputException: Invalid Input Error: No magic bytes found at end of file '/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn/T/tmpcgey9t78.parquet'
+
+LINE 1: CREATE TABLE prices_cache AS SELECT * FROM read_parquet('/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn...
+                                                   ^
+
+  2019            23.6%      32.3%      -8.7%
+  2020             7.1%      15.6%      -8.5%
+  2021            11.0%      31.3%     -20.3%
+  2022           -28.8%     -19.0%      -9.9%
+  2023             2.8%      26.0%     -23.2%
+  2024            -2.9%      25.3%     -28.2%
+  2025            12.0%      15.3%      -3.3%
+
+  Total time: 79s (fetch: 78s, backtest: 1s)
+
+  Results saved to garp/results/returns_LSE.json
+
+#################################################################
+# TAIWAN (TAI_TWO)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: TAI_TWO (TAI, TWO)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 10B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 1.0%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 2206 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 12615 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 9200 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 26655 rows
+  Fetching prices...
+    -> 575350 price rows
+
+Data fetched in 83s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              1.55%      8.01%
+  Total Return                      48.4%     627.4%
+  Max Drawdown                    -53.93%    -45.53%
+  Volatility (ann.)                19.11%     16.97%
+  VaR 95%                         -16.40%    -15.01%
+  Sharpe Ratio                      0.029      0.413
+  Sortino Ratio                     0.041      0.622
+  Calmar Ratio                      0.029      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -6.47%
+  Win Rate                          39.8%
+  Information Ratio                -0.372
+  Tracking Error                   15.76%
+  Up Capture                        54.3%
+  Down Capture                      71.3%
+  Beta                              0.702
+  Alpha (Jensen)                   -4.38%
+=================================================================
+
+  Cash periods: 29 / 103
+  Avg stocks (invested): 28.4
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000             0.0%     -10.5%     +10.5%
+  2001             0.0%      -9.2%      +9.2%
+  2002             0.0%     -19.9%     +19.9%
+  2003             0.0%      24.1%     -24.1%
+  2004             0.0%      10.2%     -10.2%
+  2005             0.0%       7.2%      -7.2%
+  2006             0.0%      13.6%     -13.6%
+  2007            -1.7%       4.4%      -6.1%
+  2008           -46.8%     -34.3%     -12.5%
+  2009            82.7%      24.7%     +57.9%
+  2010             7.8%      14.3%      -6.5%
+  2011           -32.5%       2.5%     -35.0%
+  2012            21.5%      17.1%      +4.4%
+  2013             9.4%      27.8%     -18.4%
+  2014            -6.9%      14.5%     -21.4%
+  2015           -12.1%      -0.1%     -12.0%
+  2016             0.3%      14.5%     -14.2%
+  2017            30.5%      21.6%      +8.9%
+  2018           -10.9%      -5.1%      -5.7%
+  2019            30.3%      32.3%      -2.0%
+  2020            21.2%      15.6%      +5.5%
+  2021            13.8%      31.3%     -17.5%
+  2022           -29.6%     -19.0%     -10.6%
+  2023            35.6%      26.0%      +9.6%
+  2024             5.1%      25.3%     -20.2%
+  2025            -6.5%      15.3%     -21.9%
+
+  Total time: 84s (fetch: 83s, backtest: 1s)
+
+  Results saved to garp/results/returns_TAI_TWO.json
+
+#################################################################
+# GERMANY (XETRA)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: XETRA (XETRA)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 0B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 2.0%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 2682 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 22557 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 10247 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 24649 rows
+  Fetching prices...
+
+  ERROR on XETRA: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
+
+#################################################################
+# KOREA (KSC)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: KSC (KSC)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 500B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 3.0%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 1407 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 8491 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 6935 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 22142 rows
+  Fetching prices...
+
+  ERROR on KSC: Invalid Input Error: No magic bytes found at end of file '/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn/T/tmpcgey9t78.parquet'
+
+LINE 1: CREATE TABLE prices_cache AS SELECT * FROM read_parquet('/var/folders/cg/_qv74scj15z14m47m1m057sm0000gn...
+                                                   ^
+
+#################################################################
+# CANADA (TSX)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: TSX (TSX)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 0B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 2.5%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 2040 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 14078 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 6836 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 19681 rows
+  Fetching prices...
+    -> 460817 price rows
+
+Data fetched in 83s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              5.80%      8.01%
+  Total Return                     327.3%     627.4%
+  Max Drawdown                    -69.99%    -45.53%
+  Volatility (ann.)                23.25%     16.97%
+  VaR 95%                         -19.37%    -15.01%
+  Sharpe Ratio                      0.142      0.325
+  Sortino Ratio                     0.204      0.475
+  Calmar Ratio                      0.083      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -2.21%
+  Win Rate                          47.6%
+  Information Ratio                -0.041
+  Tracking Error                   16.26%
+  Up Capture                        84.3%
+  Down Capture                      76.2%
+  Beta                              0.980
+  Alpha (Jensen)                   -2.10%
+=================================================================
+
+  Cash periods: 0 / 103
+  Avg stocks (invested): 24.7
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000            22.6%     -10.5%     +33.1%
+  2001            15.4%      -9.2%     +24.6%
+  2002            12.4%     -19.9%     +32.3%
+  2003            24.7%      24.1%      +0.6%
+  2004            21.3%      10.2%     +11.1%
+  2005            29.0%       7.2%     +21.8%
+  2006            19.1%      13.6%      +5.5%
+  2007            10.0%       4.4%      +5.6%
+  2008           -47.0%     -34.3%     -12.7%
+  2009            49.7%      24.7%     +25.0%
+  2010            30.6%      14.3%     +16.3%
+  2011           -11.6%       2.5%     -14.1%
+  2012            -4.2%      17.1%     -21.3%
+  2013            -9.5%      27.8%     -37.2%
+  2014            -2.5%      14.5%     -17.0%
+  2015           -30.0%      -0.1%     -29.9%
+  2016            18.8%      14.5%      +4.3%
+  2017             8.4%      21.6%     -13.2%
+  2018           -22.2%      -5.1%     -17.1%
+  2019            12.3%      32.3%     -20.0%
+  2020           -18.8%      15.6%     -34.4%
+  2021             6.4%      31.3%     -24.8%
+  2022           -15.0%     -19.0%      +4.0%
+  2023             5.9%      26.0%     -20.1%
+  2024            34.1%      25.3%      +8.8%
+  2025            65.1%      15.3%     +49.8%
+
+  Total time: 84s (fetch: 83s, backtest: 1s)
+
+  Results saved to garp/results/returns_TSX.json
+
+#################################################################
+# SWEDEN (STO)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: STO (STO)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 5B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 2.0%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 982 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 9505 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 4352 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 15446 rows
+  Fetching prices...
+    -> 316190 price rows
+
+Data fetched in 79s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              4.91%      8.01%
+  Total Return                     243.4%     627.4%
+  Max Drawdown                    -60.25%    -45.53%
+  Volatility (ann.)                21.99%     16.97%
+  VaR 95%                         -18.66%    -15.01%
+  Sharpe Ratio                      0.132      0.354
+  Sortino Ratio                     0.197      0.523
+  Calmar Ratio                      0.081      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -3.10%
+  Win Rate                          49.5%
+  Information Ratio                -0.119
+  Tracking Error                   16.43%
+  Up Capture                        90.7%
+  Down Capture                     102.0%
+  Beta                              0.871
+  Alpha (Jensen)                   -2.33%
+=================================================================
+
+  Cash periods: 33 / 103
+  Avg stocks (invested): 21.7
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000             0.0%     -10.5%     +10.5%
+  2001             0.0%      -9.2%      +9.2%
+  2002             0.0%     -19.9%     +19.9%
+  2003             0.0%      24.1%     -24.1%
+  2004             0.0%      10.2%     -10.2%
+  2005            41.5%       7.2%     +34.4%
+  2006            50.1%      13.6%     +36.4%
+  2007            -8.2%       4.4%     -12.6%
+  2008           -45.6%     -34.3%     -11.2%
+  2009            26.9%      24.7%      +2.2%
+  2010            16.5%      14.3%      +2.2%
+  2011           -21.4%       2.5%     -23.8%
+  2012            18.0%      17.1%      +0.9%
+  2013             6.3%      27.8%     -21.5%
+  2014             0.0%      14.5%     -14.5%
+  2015            15.2%      -0.1%     +15.3%
+  2016            23.7%      14.5%      +9.3%
+  2017            -4.5%      21.6%     -26.1%
+  2018            -5.4%      -5.1%      -0.2%
+  2019            50.6%      32.3%     +18.2%
+  2020            12.5%      15.6%      -3.2%
+  2021            46.1%      31.3%     +14.8%
+  2022           -41.9%     -19.0%     -22.9%
+  2023             1.4%      26.0%     -24.6%
+  2024            10.3%      25.3%     -14.9%
+  2025             7.3%      15.3%      -8.1%
+
+  Total time: 79s (fetch: 79s, backtest: 1s)
+
+  Results saved to garp/results/returns_STO.json
+
+#################################################################
+# SWITZERLAND (SIX)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: SIX (SIX)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 0B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 0.5%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 648 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 8979 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 4514 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 9799 rows
+  Fetching prices...
+    -> 180920 price rows
+
+Data fetched in 83s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              3.78%      8.01%
+  Total Return                     160.1%     627.4%
+  Max Drawdown                    -67.71%    -45.53%
+  Volatility (ann.)                19.49%     16.97%
+  VaR 95%                         -20.09%    -15.01%
+  Sharpe Ratio                      0.168      0.443
+  Sortino Ratio                     0.233      0.673
+  Calmar Ratio                      0.056      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -4.23%
+  Win Rate                          42.7%
+  Information Ratio                -0.284
+  Tracking Error                   12.39%
+  Up Capture                        83.0%
+  Down Capture                     103.3%
+  Beta                              0.893
+  Alpha (Jensen)                   -3.43%
+=================================================================
+
+  Cash periods: 5 / 103
+  Avg stocks (invested): 15.7
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000             0.0%     -10.5%     +10.5%
+  2001             2.2%      -9.2%     +11.4%
+  2002           -28.4%     -19.9%      -8.5%
+  2003            12.7%      24.1%     -11.4%
+  2004            10.4%      10.2%      +0.2%
+  2005            38.6%       7.2%     +31.5%
+  2006            20.5%      13.6%      +6.9%
+  2007             4.8%       4.4%      +0.4%
+  2008           -53.9%     -34.3%     -19.6%
+  2009            23.0%      24.7%      -1.8%
+  2010            15.0%      14.3%      +0.7%
+  2011           -25.4%       2.5%     -27.9%
+  2012            46.2%      17.1%     +29.1%
+  2013            18.1%      27.8%      -9.7%
+  2014             6.5%      14.5%      -8.0%
+  2015            13.8%      -0.1%     +13.9%
+  2016            -4.1%      14.5%     -18.6%
+  2017            29.8%      21.6%      +8.2%
+  2018           -17.8%      -5.1%     -12.6%
+  2019            18.2%      32.3%     -14.1%
+  2020             7.3%      15.6%      -8.4%
+  2021            23.1%      31.3%      -8.1%
+  2022           -10.6%     -19.0%      +8.4%
+  2023            -5.0%      26.0%     -31.0%
+  2024            12.1%      25.3%     -13.1%
+  2025             5.5%      15.3%      -9.8%
+
+  Total time: 84s (fetch: 83s, backtest: 1s)
+
+  Results saved to garp/results/returns_SIX.json
+
+#################################################################
+# INDONESIA (JKT)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: JKT (JKT)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 5000B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 2.0%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 892 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 7750 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 4579 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 11153 rows
+  Fetching prices...
+    -> 337906 price rows
+
+Data fetched in 83s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              6.16%      8.01%
+  Total Return                     365.7%     627.4%
+  Max Drawdown                    -43.19%    -45.53%
+  Volatility (ann.)                22.60%     16.97%
+  VaR 95%                         -12.99%    -15.01%
+  Sharpe Ratio                      0.184      0.354
+  Sortino Ratio                     0.332      0.523
+  Calmar Ratio                      0.143      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -1.85%
+  Win Rate                          47.6%
+  Information Ratio                -0.038
+  Tracking Error                   21.51%
+  Up Capture                        64.2%
+  Down Capture                      38.2%
+  Beta                              0.583
+  Alpha (Jensen)                    0.65%
+=================================================================
+
+  Cash periods: 33 / 103
+  Avg stocks (invested): 24.9
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000             0.0%     -10.5%     +10.5%
+  2001             0.0%      -9.2%      +9.2%
+  2002             0.0%     -19.9%     +19.9%
+  2003             0.0%      24.1%     -24.1%
+  2004             0.0%      10.2%     -10.2%
+  2005             0.0%       7.2%      -7.2%
+  2006             0.0%      13.6%     -13.6%
+  2007             0.0%       4.4%      -4.4%
+  2008           -41.7%     -34.3%      -7.4%
+  2009            80.1%      24.7%     +55.4%
+  2010            75.7%      14.3%     +61.4%
+  2011            14.2%       2.5%     +11.7%
+  2012            21.3%      17.1%      +4.2%
+  2013            -1.5%      27.8%     -29.2%
+  2014            24.5%      14.5%     +10.0%
+  2015           -20.1%      -0.1%     -19.9%
+  2016            33.0%      14.5%     +18.5%
+  2017             5.4%      21.6%     -16.2%
+  2018            -3.7%      -5.1%      +1.5%
+  2019             2.7%      32.3%     -29.6%
+  2020            17.0%      15.6%      +1.4%
+  2021            -5.5%      31.3%     -36.7%
+  2022             2.7%     -19.0%     +21.6%
+  2023            -6.6%      26.0%     -32.6%
+  2024             2.8%      25.3%     -22.4%
+  2025            23.0%      15.3%      +7.7%
+
+  Total time: 84s (fetch: 83s, backtest: 1s)
+
+  Results saved to garp/results/returns_JKT.json
+
+#################################################################
+# SOUTHAFRICA (JNB)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: JNB (JNB)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 10B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 9.0%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 269 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 5069 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 2535 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 4982 rows
+  Fetching prices...
+    -> 131847 price rows
+
+Data fetched in 83s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              7.15%      8.01%
+  Total Return                     492.3%     627.4%
+  Max Drawdown                    -45.46%    -45.53%
+  Volatility (ann.)                20.53%     16.97%
+  VaR 95%                         -12.68%    -15.01%
+  Sharpe Ratio                     -0.090     -0.058
+  Sortino Ratio                    -0.141     -0.075
+  Calmar Ratio                      0.157      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -0.86%
+  Win Rate                          49.5%
+  Information Ratio                -0.010
+  Tracking Error                   18.98%
+  Up Capture                        62.6%
+  Down Capture                      28.7%
+  Beta                              0.606
+  Alpha (Jensen)                   -1.25%
+=================================================================
+
+  Cash periods: 32 / 103
+  Avg stocks (invested): 15.6
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000             0.0%     -10.5%     +10.5%
+  2001             0.0%      -9.2%      +9.2%
+  2002             0.0%     -19.9%     +19.9%
+  2003             0.0%      24.1%     -24.1%
+  2004             0.0%      10.2%     -10.2%
+  2005             0.0%       7.2%      -7.2%
+  2006            15.9%      13.6%      +2.3%
+  2007            14.5%       4.4%     +10.1%
+  2008           -19.6%     -34.3%     +14.7%
+  2009            53.1%      24.7%     +28.3%
+  2010             1.0%      14.3%     -13.3%
+  2011            12.5%       2.5%     +10.1%
+  2012            11.7%      17.1%      -5.4%
+  2013            29.7%      27.8%      +2.0%
+  2014            18.6%      14.5%      +4.1%
+  2015            -2.5%      -0.1%      -2.3%
+  2016            16.4%      14.5%      +1.9%
+  2017            -9.4%      21.6%     -31.1%
+  2018            -8.9%      -5.1%      -3.7%
+  2019            13.0%      32.3%     -19.3%
+  2020            -3.3%      15.6%     -19.0%
+  2021            33.5%      31.3%      +2.2%
+  2022            -8.2%     -19.0%     +10.8%
+  2023             1.7%      26.0%     -24.3%
+  2024            18.7%      25.3%      -6.6%
+  2025            22.6%      15.3%      +7.3%
+
+  Total time: 84s (fetch: 83s, backtest: 1s)
+
+  Results saved to garp/results/returns_JNB.json
+
+#################################################################
+# SINGAPORE (SES)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: SES (SES)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 0B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 2.5%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 347 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 3707 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 2282 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 5962 rows
+  Fetching prices...
+    -> 164867 price rows
+
+Data fetched in 83s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              0.71%      8.01%
+  Total Return                      20.0%     627.4%
+  Max Drawdown                    -64.96%    -45.53%
+  Volatility (ann.)                19.71%     16.97%
+  VaR 95%                         -14.77%    -15.01%
+  Sharpe Ratio                     -0.091      0.325
+  Sortino Ratio                    -0.139      0.475
+  Calmar Ratio                      0.011      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -7.30%
+  Win Rate                          34.0%
+  Information Ratio                -0.415
+  Tracking Error                   16.11%
+  Up Capture                        58.5%
+  Down Capture                      88.2%
+  Beta                              0.724
+  Alpha (Jensen)                   -5.78%
+=================================================================
+
+  Cash periods: 22 / 103
+  Avg stocks (invested): 10.6
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000             0.0%     -10.5%     +10.5%
+  2001             0.0%      -9.2%      +9.2%
+  2002             0.0%     -19.9%     +19.9%
+  2003             0.0%      24.1%     -24.1%
+  2004             0.0%      10.2%     -10.2%
+  2005            17.8%       7.2%     +10.6%
+  2006            28.0%      13.6%     +14.3%
+  2007            36.5%       4.4%     +32.1%
+  2008           -53.2%     -34.3%     -18.9%
+  2009            53.9%      24.7%     +29.2%
+  2010             1.4%      14.3%     -12.9%
+  2011           -20.9%       2.5%     -23.4%
+  2012             8.9%      17.1%      -8.1%
+  2013            -1.4%      27.8%     -29.2%
+  2014             5.1%      14.5%      -9.4%
+  2015           -13.3%      -0.1%     -13.1%
+  2016             2.2%      14.5%     -12.2%
+  2017            11.7%      21.6%      -9.9%
+  2018           -25.3%      -5.1%     -20.1%
+  2019             6.5%      32.3%     -25.8%
+  2020            -7.5%      15.6%     -23.1%
+  2021             6.6%      31.3%     -24.7%
+  2022            -4.8%     -19.0%     +14.2%
+  2023            -5.4%      26.0%     -31.4%
+  2024             8.7%      25.3%     -16.6%
+  2025            17.8%      15.3%      +2.5%
+
+  Total time: 84s (fetch: 83s, backtest: 1s)
+
+  Results saved to garp/results/returns_SES.json
+
+#################################################################
+# THAILAND (SET)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: SET (SET)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 10B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 2.5%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 1042 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 13903 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 7927 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 19498 rows
+  Fetching prices...
+    -> 398976 price rows
+
+Data fetched in 83s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              3.80%      8.01%
+  Total Return                     161.1%     627.4%
+  Max Drawdown                    -56.89%    -45.53%
+  Volatility (ann.)                24.58%     16.97%
+  VaR 95%                         -18.24%    -15.01%
+  Sharpe Ratio                      0.053      0.325
+  Sortino Ratio                     0.086      0.475
+  Calmar Ratio                      0.067      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -4.21%
+  Win Rate                          49.5%
+  Information Ratio                -0.134
+  Tracking Error                   19.37%
+  Up Capture                        78.2%
+  Down Capture                      84.4%
+  Beta                              0.898
+  Alpha (Jensen)                   -3.65%
+=================================================================
+
+  Cash periods: 21 / 103
+  Avg stocks (invested): 26.0
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000             0.0%     -10.5%     +10.5%
+  2001             0.0%      -9.2%      +9.2%
+  2002             0.0%     -19.9%     +19.9%
+  2003             0.0%      24.1%     -24.1%
+  2004             0.0%      10.2%     -10.2%
+  2005             6.7%       7.2%      -0.5%
+  2006            -8.9%      13.6%     -22.6%
+  2007            30.2%       4.4%     +25.8%
+  2008           -45.6%     -34.3%     -11.3%
+  2009            52.1%      24.7%     +27.4%
+  2010            59.7%      14.3%     +45.4%
+  2011            -5.8%       2.5%      -8.3%
+  2012            33.4%      17.1%     +16.3%
+  2013           -17.7%      27.8%     -45.4%
+  2014            26.0%      14.5%     +11.5%
+  2015            -3.1%      -0.1%      -3.0%
+  2016            20.3%      14.5%      +5.9%
+  2017            24.5%      21.6%      +2.9%
+  2018           -23.6%      -5.1%     -18.4%
+  2019            12.9%      32.3%     -19.4%
+  2020            21.4%      15.6%      +5.8%
+  2021            43.5%      31.3%     +12.2%
+  2022            -7.5%     -19.0%     +11.5%
+  2023           -15.4%      26.0%     -41.4%
+  2024           -14.1%      25.3%     -39.4%
+  2025           -18.2%      15.3%     -33.6%
+
+  Total time: 84s (fetch: 83s, backtest: 1s)
+
+  Results saved to garp/results/returns_SET.json
+
+#################################################################
+# NORWAY (OSL)
+#################################################################
+=================================================================
+  GARP BACKTEST
+  Universe: OSL (OSL)
+  Signal: PEG 0.0-1.5, P/E 5-50, ROE > 10%, D/E < 2.0, RevGrowth > 15%, MCap > 5B local, top 30
+=================================================================
+  Frequency: quarterly, Costs: size-tiered
+  Risk-free rate: 3.0%
+=================================================================
+
+Phase 1: Fetching data via API...
+  Fetching exchange membership...
+  Universe: 335 symbols
+  Fetching key metrics (ROE, market cap)...
+    -> 3271 rows
+  Fetching financial ratios (PEG, P/E, D/E)...
+    -> 1431 rows
+  Fetching income statements (revenue for growth calc)...
+    -> 5075 rows
+  Fetching prices...
+    -> 112718 price rows
+
+Data fetched in 78s
+
+Phase 2: Running quarterly backtest (2000-2025)...
+Backtest completed in 1s
+
+=================================================================
+  GARP vs S&P 500
+=================================================================
+  Metric                               GARP      S&P 500
+  ------------------------------------------------------
+  CAGR                              2.40%      8.01%
+  Total Return                      84.2%     627.4%
+  Max Drawdown                    -50.04%    -45.53%
+  Volatility (ann.)                15.44%     16.97%
+  VaR 95%                          -4.62%    -15.01%
+  Sharpe Ratio                     -0.039      0.295
+  Sortino Ratio                    -0.056      0.428
+  Calmar Ratio                      0.048      0.176
+
+  --- Relative ---            
+  Excess CAGR                      -5.61%
+  Win Rate                          37.9%
+  Information Ratio                -0.345
+  Tracking Error                   16.33%
+  Up Capture                        35.9%
+  Down Capture                      32.8%
+  Beta                              0.451
+  Alpha (Jensen)                   -2.86%
+=================================================================
+
+  Cash periods: 73 / 103
+  Avg stocks (invested): 11.3
+
+  Year             GARP        SPY     Excess
+  ------------------------------------------
+  2000             0.0%     -10.5%     +10.5%
+  2001             0.0%      -9.2%      +9.2%
+  2002             0.0%     -19.9%     +19.9%
+  2003             0.0%      24.1%     -24.1%
+  2004             0.0%      10.2%     -10.2%
+  2005             0.0%       7.2%      -7.2%
+  2006             0.0%      13.6%     -13.6%
+  2007             0.0%       4.4%      -4.4%
+  2008           -41.7%     -34.3%      -7.4%
+  2009            -3.1%      24.7%     -27.8%
+  2010             0.0%      14.3%     -14.3%
+  2011             0.0%       2.5%      -2.5%
+  2012             0.0%      17.1%     -17.1%
+  2013             0.0%      27.8%     -27.8%
+  2014             0.0%      14.5%     -14.5%
+  2015             0.0%      -0.1%      +0.1%
+  2016             0.0%      14.5%     -14.5%
+  2017            18.9%      21.6%      -2.8%
+  2018             8.7%      -5.1%     +13.9%
+  2019             6.6%      32.3%     -25.8%
+  2020            29.3%      15.6%     +13.6%
+  2021            18.7%      31.3%     -12.5%
+  2022           -13.4%     -19.0%      +5.6%
+  2023             7.6%      26.0%     -18.4%
+  2024            25.1%      25.3%      -0.2%
+  2025            32.4%      15.3%     +17.0%
+
+  Total time: 78s (fetch: 78s, backtest: 1s)
+
+  Results saved to garp/results/returns_OSL.json
+
+
+Exchange comparison saved to garp/results/exchange_comparison.json
+
+
+================================================================================
+EXCHANGE COMPARISON SUMMARY
+================================================================================
+Exchange                 CAGR   Excess   Sharpe    MaxDD    Cash%   AvgStk
+--------------------------------------------------------------------------------
+BSE_NSE                11.12%   +3.11%    0.131  -72.67%      20%     26.9
+JNB                     7.15%   -0.86%    -0.09  -45.46%      31%     15.6
+JKT                     6.16%   -1.85%    0.184  -43.19%      32%     24.9
+TSX                      5.8%   -2.21%    0.142  -69.99%       0%     24.7
+LSE                     5.36%   -2.65%    0.082  -53.54%       0%     21.9
+STO                     4.91%   -3.10%    0.132  -60.25%      32%     21.7
+SHZ_SHH                 4.53%   -3.48%    0.055  -71.11%       0%     25.9
+SET                      3.8%   -4.21%    0.053  -56.89%      20%     26.0
+SIX                     3.78%   -4.23%    0.168  -67.71%       5%     15.7
+HKSE                    2.88%   -5.13%   -0.004  -70.25%       3%     20.1
+OSL                      2.4%   -5.61%   -0.039  -50.04%      71%     11.3
+TAI_TWO                 1.55%   -6.47%    0.029  -53.93%      28%     28.4
+SES                     0.71%   -7.30%   -0.091  -64.96%      21%     10.6
+NYSE_NASDAQ_AMEX                              ERROR / NO DATA
+JPX                                           ERROR / NO DATA
+XETRA                                         ERROR / NO DATA
+KSC                                           ERROR / NO DATA
+================================================================================

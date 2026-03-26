@@ -1,0 +1,170 @@
+{
+  "universe": "US_MAJOR",
+  "n_periods": 20,
+  "years": 20.0,
+  "frequency": "annual",
+  "cash_periods": 0,
+  "invested_periods": 20,
+  "avg_stocks_when_invested": 23.9,
+  "avg_ownership_ratio": 0.0,
+  "avg_etf_count": 23.7,
+  "portfolio": {
+    "total_return": 254.85,
+    "cagr": 6.54,
+    "max_drawdown": -34.73,
+    "annualized_volatility": 22.48,
+    "sharpe_ratio": 0.202,
+    "sortino_ratio": 0.363,
+    "calmar_ratio": 0.188,
+    "var_95": -32.04,
+    "max_consecutive_losses": 2,
+    "pct_negative_periods": 40.0
+  },
+  "spy": {
+    "total_return": 651.42,
+    "cagr": 10.61,
+    "max_drawdown": -36.27,
+    "annualized_volatility": 15.6,
+    "sharpe_ratio": 0.552,
+    "sortino_ratio": 1.118,
+    "calmar_ratio": 0.293,
+    "var_95": -26.14,
+    "max_consecutive_losses": 2,
+    "pct_negative_periods": 15.0
+  },
+  "comparison": {
+    "excess_cagr": -4.07,
+    "win_rate": 50.0,
+    "information_ratio": -0.191,
+    "tracking_error": 14.78,
+    "up_capture": 82.03,
+    "down_capture": 110.63,
+    "beta": 1.09,
+    "alpha": -4.84
+  },
+  "excess_cagr": -4.07,
+  "win_rate_vs_spy": 50.0,
+  "annual_returns": [
+    {
+      "year": 2005,
+      "portfolio": 22.53,
+      "spy": 8.86,
+      "excess": 13.67
+    },
+    {
+      "year": 2006,
+      "portfolio": 33.79,
+      "spy": 20.95,
+      "excess": 12.84
+    },
+    {
+      "year": 2007,
+      "portfolio": -15.92,
+      "spy": -13.71,
+      "excess": -2.21
+    },
+    {
+      "year": 2008,
+      "portfolio": -19.68,
+      "spy": -26.14,
+      "excess": 6.45
+    },
+    {
+      "year": 2009,
+      "portfolio": 24.48,
+      "spy": 13.42,
+      "excess": 11.06
+    },
+    {
+      "year": 2010,
+      "portfolio": 33.82,
+      "spy": 32.94,
+      "excess": 0.88
+    },
+    {
+      "year": 2011,
+      "portfolio": -20.36,
+      "spy": 4.1,
+      "excess": -24.45
+    },
+    {
+      "year": 2012,
+      "portfolio": 11.25,
+      "spy": 20.85,
+      "excess": -9.6
+    },
+    {
+      "year": 2013,
+      "portfolio": 33.2,
+      "spy": 24.5,
+      "excess": 8.69
+    },
+    {
+      "year": 2014,
+      "portfolio": -7.36,
+      "spy": 7.38,
+      "excess": -14.74
+    },
+    {
+      "year": 2015,
+      "portfolio": -1.26,
+      "spy": 3.36,
+      "excess": -4.62
+    },
+    {
+      "year": 2016,
+      "portfolio": 23.12,
+      "spy": 17.73,
+      "excess": 5.38
+    },
+    {
+      "year": 2017,
+      "portfolio": -8.36,
+      "spy": 14.34,
+      "excess": -22.69
+    },
+    {
+      "year": 2018,
+      "portfolio": 4.8,
+      "spy": 10.91,
+      "excess": -6.11
+    },
+    {
+      "year": 2019,
+      "portfolio": -32.04,
+      "spy": 7.12,
+      "excess": -39.16
+    },
+    {
+      "year": 2020,
+      "portfolio": 27.22,
+      "spy": 40.68,
+      "excess": -13.46
+    },
+    {
+      "year": 2021,
+      "portfolio": -19.73,
+      "spy": -10.17,
+      "excess": -9.56
+    },
+    {
+      "year": 2022,
+      "portfolio": 34.67,
+      "spy": 18.31,
+      "excess": 16.36
+    },
+    {
+      "year": 2023,
+      "portfolio": 28.98,
+      "spy": 24.6,
+      "excess": 4.38
+    },
+    {
+      "year": 2024,
+      "portfolio": 25.07,
+      "spy": 14.67,
+      "excess": 10.4
+    }
+  ],
+  "caveat": "ETF ownership ratio uses current snapshot data (look-ahead bias). Quality filters are point-in-time correct. Distinct from etf-02 (which uses ETF count, not ownership ratio)."
+}

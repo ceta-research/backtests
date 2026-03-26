@@ -1,0 +1,244 @@
+{
+  "strategy": "Analyst Upgrade Clusters",
+  "universe": "China",
+  "benchmark": "FXI",
+  "study_type": "event_study",
+  "period": "2019-2025",
+  "filters": {
+    "min_delta": 2,
+    "min_gap_days": 14,
+    "max_gap_days": 30,
+    "min_market_cap": 2000000000
+  },
+  "windows": [
+    1,
+    5,
+    21,
+    63
+  ],
+  "car_metrics": {
+    "overall": {
+      "n": 1088,
+      "T+1": {
+        "mean_car": 0.4502,
+        "median_car": -0.0106,
+        "t_stat": 3.984,
+        "n": 1088,
+        "hit_rate": 49.91,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+5": {
+        "mean_car": 2.9932,
+        "median_car": 2.6204,
+        "t_stat": 16.087,
+        "n": 1088,
+        "hit_rate": 71.78,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 8.0228,
+        "median_car": 6.6747,
+        "t_stat": 21.983,
+        "n": 1088,
+        "hit_rate": 76.75,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+63": {
+        "mean_car": 12.7588,
+        "median_car": 11.2072,
+        "t_stat": 30.989,
+        "n": 1074,
+        "hit_rate": 86.87,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    },
+    "upgrade_small": {
+      "n": 249,
+      "T+1": {
+        "mean_car": 0.3553,
+        "median_car": -0.3006,
+        "t_stat": 1.556,
+        "n": 249,
+        "hit_rate": 45.38,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+5": {
+        "mean_car": 2.6525,
+        "median_car": 2.6026,
+        "t_stat": 6.469,
+        "n": 249,
+        "hit_rate": 71.89,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 8.1142,
+        "median_car": 7.5323,
+        "t_stat": 11.224,
+        "n": 249,
+        "hit_rate": 77.91,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+63": {
+        "mean_car": 12.9409,
+        "median_car": 11.2014,
+        "t_stat": 12.538,
+        "n": 237,
+        "hit_rate": 83.97,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    },
+    "upgrade_medium": {
+      "n": 305,
+      "T+1": {
+        "mean_car": 0.5426,
+        "median_car": 0.157,
+        "t_stat": 2.521,
+        "n": 305,
+        "hit_rate": 51.8,
+        "significant_5pct": true,
+        "significant_1pct": false
+      },
+      "T+5": {
+        "mean_car": 3.4743,
+        "median_car": 2.9786,
+        "t_stat": 8.961,
+        "n": 305,
+        "hit_rate": 72.13,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 9.145,
+        "median_car": 7.1313,
+        "t_stat": 11.472,
+        "n": 305,
+        "hit_rate": 77.05,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+63": {
+        "mean_car": 13.7674,
+        "median_car": 12.2866,
+        "t_stat": 17.382,
+        "n": 303,
+        "hit_rate": 89.77,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    },
+    "upgrade_large": {
+      "n": 534,
+      "T+1": {
+        "mean_car": 0.441,
+        "median_car": 0.0338,
+        "t_stat": 2.727,
+        "n": 534,
+        "hit_rate": 50.94,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+5": {
+        "mean_car": 2.8843,
+        "median_car": 2.5179,
+        "t_stat": 11.963,
+        "n": 534,
+        "hit_rate": 71.54,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+21": {
+        "mean_car": 7.3286,
+        "median_car": 6.0823,
+        "t_stat": 15.431,
+        "n": 534,
+        "hit_rate": 76.03,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+63": {
+        "mean_car": 12.2358,
+        "median_car": 10.8694,
+        "t_stat": 22.38,
+        "n": 534,
+        "hit_rate": 86.52,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    },
+    "downgrade_cluster": {
+      "n": 11,
+      "T+1": {
+        "mean_car": 2.0969,
+        "median_car": 0.8778,
+        "t_stat": 1.605,
+        "n": 11,
+        "hit_rate": 72.73,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+5": {
+        "mean_car": 5.6827,
+        "median_car": 2.4449,
+        "t_stat": 2.109,
+        "n": 11,
+        "hit_rate": 81.82,
+        "significant_5pct": true,
+        "significant_1pct": false
+      },
+      "T+21": {
+        "mean_car": 6.898,
+        "median_car": 5.0865,
+        "t_stat": 3.053,
+        "n": 11,
+        "hit_rate": 81.82,
+        "significant_5pct": true,
+        "significant_1pct": true
+      },
+      "T+63": {
+        "mean_car": 13.0499,
+        "median_car": 12.6806,
+        "t_stat": 3.492,
+        "n": 11,
+        "hit_rate": 90.91,
+        "significant_5pct": true,
+        "significant_1pct": true
+      }
+    }
+  },
+  "yearly_stats": [
+    {
+      "year": 2022,
+      "total_upgrade": 1052,
+      "upgrade_small": 217,
+      "upgrade_medium": 301,
+      "upgrade_large": 534,
+      "downgrade_cluster": 10
+    },
+    {
+      "year": 2024,
+      "total_upgrade": 17,
+      "upgrade_small": 15,
+      "upgrade_medium": 2,
+      "upgrade_large": 0,
+      "downgrade_cluster": 1
+    },
+    {
+      "year": 2025,
+      "total_upgrade": 19,
+      "upgrade_small": 17,
+      "upgrade_medium": 2,
+      "upgrade_large": 0,
+      "downgrade_cluster": 0
+    }
+  ],
+  "n_total_upgrade_events": 1088,
+  "n_total_downgrade_events": 11
+}

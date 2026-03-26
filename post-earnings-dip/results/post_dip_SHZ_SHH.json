@@ -1,0 +1,228 @@
+{
+  "strategy": "Post-Earnings Dip Mean Reversion",
+  "universe": "SHZ_SHH",
+  "benchmark": "FXI",
+  "study_type": "event_study",
+  "period": "2000-2025",
+  "filters": {
+    "min_market_cap": 2000000000,
+    "min_estimate": 0.01,
+    "min_dip": 0.05
+  },
+  "windows": [
+    5,
+    10,
+    21,
+    63
+  ],
+  "car_metrics": {
+    "reaction_stats": {
+      "mean_pct": -6.967,
+      "n": 439
+    },
+    "overall": {
+      "n": 439,
+      "T+5": {
+        "mean_car": -0.1489,
+        "median_car": -0.2188,
+        "t_stat": -0.378,
+        "n": 439,
+        "hit_rate": 47.84,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+10": {
+        "mean_car": -0.3804,
+        "median_car": -1.5405,
+        "t_stat": -0.749,
+        "n": 421,
+        "hit_rate": 42.76,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+21": {
+        "mean_car": -1.2763,
+        "median_car": -1.9504,
+        "t_stat": -1.72,
+        "n": 407,
+        "hit_rate": 43.24,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": 0.6744,
+        "median_car": -2.9124,
+        "t_stat": 0.534,
+        "n": 397,
+        "hit_rate": 45.09,
+        "significant_5pct": false,
+        "significant_1pct": false
+      }
+    },
+    "dip_5": {
+      "n": 342,
+      "T+5": {
+        "mean_car": -0.0487,
+        "median_car": -0.1541,
+        "t_stat": -0.118,
+        "n": 342,
+        "hit_rate": 48.25,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+10": {
+        "mean_car": -0.7493,
+        "median_car": -1.6419,
+        "t_stat": -1.314,
+        "n": 327,
+        "hit_rate": 40.98,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+21": {
+        "mean_car": -0.9287,
+        "median_car": -1.2062,
+        "t_stat": -1.044,
+        "n": 315,
+        "hit_rate": 45.4,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": -1.2375,
+        "median_car": -2.9147,
+        "t_stat": -0.951,
+        "n": 309,
+        "hit_rate": 44.01,
+        "significant_5pct": false,
+        "significant_1pct": false
+      }
+    },
+    "dip_10": {
+      "n": 97,
+      "T+5": {
+        "mean_car": -0.2486,
+        "median_car": -0.8599,
+        "t_stat": -0.225,
+        "n": 97,
+        "hit_rate": 46.39,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+10": {
+        "mean_car": 1.0798,
+        "median_car": -0.22,
+        "t_stat": 0.905,
+        "n": 94,
+        "hit_rate": 48.94,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+21": {
+        "mean_car": -2.3492,
+        "median_car": -3.6464,
+        "t_stat": -1.796,
+        "n": 92,
+        "hit_rate": 35.87,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+63": {
+        "mean_car": 6.8859,
+        "median_car": -1.4834,
+        "t_stat": 2.156,
+        "n": 88,
+        "hit_rate": 48.86,
+        "significant_5pct": true,
+        "significant_1pct": false
+      }
+    }
+  },
+  "yearly_stats": [
+    {
+      "year": 2014,
+      "total": 4,
+      "dip_5": 4,
+      "dip_10": 0,
+      "dip_20": 0
+    },
+    {
+      "year": 2015,
+      "total": 49,
+      "dip_5": 18,
+      "dip_10": 31,
+      "dip_20": 0
+    },
+    {
+      "year": 2016,
+      "total": 19,
+      "dip_5": 15,
+      "dip_10": 4,
+      "dip_20": 0
+    },
+    {
+      "year": 2017,
+      "total": 12,
+      "dip_5": 10,
+      "dip_10": 2,
+      "dip_20": 0
+    },
+    {
+      "year": 2018,
+      "total": 28,
+      "dip_5": 16,
+      "dip_10": 12,
+      "dip_20": 0
+    },
+    {
+      "year": 2019,
+      "total": 17,
+      "dip_5": 14,
+      "dip_10": 3,
+      "dip_20": 0
+    },
+    {
+      "year": 2020,
+      "total": 38,
+      "dip_5": 32,
+      "dip_10": 6,
+      "dip_20": 0
+    },
+    {
+      "year": 2021,
+      "total": 49,
+      "dip_5": 44,
+      "dip_10": 5,
+      "dip_20": 0
+    },
+    {
+      "year": 2022,
+      "total": 102,
+      "dip_5": 83,
+      "dip_10": 19,
+      "dip_20": 0
+    },
+    {
+      "year": 2023,
+      "total": 35,
+      "dip_5": 31,
+      "dip_10": 4,
+      "dip_20": 0
+    },
+    {
+      "year": 2024,
+      "total": 60,
+      "dip_5": 54,
+      "dip_10": 6,
+      "dip_20": 0
+    },
+    {
+      "year": 2025,
+      "total": 26,
+      "dip_5": 21,
+      "dip_10": 5,
+      "dip_20": 0
+    }
+  ],
+  "n_total_events": 439
+}

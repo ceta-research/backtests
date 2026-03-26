@@ -1,0 +1,169 @@
+{
+  "universe": "SES",
+  "n_periods": 20,
+  "years": 20.0,
+  "frequency": "annual",
+  "cash_periods": 0,
+  "invested_periods": 20,
+  "avg_stocks_when_invested": 16.8,
+  "avg_etf_count": 168.3,
+  "portfolio": {
+    "total_return": 140.59,
+    "cagr": 4.49,
+    "max_drawdown": -31.96,
+    "annualized_volatility": 19.66,
+    "sharpe_ratio": 0.101,
+    "sortino_ratio": 0.225,
+    "calmar_ratio": 0.14,
+    "var_95": -19.23,
+    "max_consecutive_losses": 3,
+    "pct_negative_periods": 50.0
+  },
+  "spy": {
+    "total_return": 651.42,
+    "cagr": 10.61,
+    "max_drawdown": -36.27,
+    "annualized_volatility": 15.6,
+    "sharpe_ratio": 0.52,
+    "sortino_ratio": 1.028,
+    "calmar_ratio": 0.293,
+    "var_95": -26.14,
+    "max_consecutive_losses": 2,
+    "pct_negative_periods": 15.0
+  },
+  "comparison": {
+    "excess_cagr": -6.12,
+    "win_rate": 30.0,
+    "information_ratio": -0.323,
+    "tracking_error": 17.66,
+    "up_capture": 57.53,
+    "down_capture": 86.37,
+    "beta": 0.654,
+    "alpha": -3.31
+  },
+  "excess_cagr": -6.12,
+  "win_rate_vs_spy": 30.0,
+  "annual_returns": [
+    {
+      "year": 2005,
+      "portfolio": 17.63,
+      "spy": 8.86,
+      "excess": 8.78
+    },
+    {
+      "year": 2006,
+      "portfolio": 66.96,
+      "spy": 20.95,
+      "excess": 46.01
+    },
+    {
+      "year": 2007,
+      "portfolio": -19.23,
+      "spy": -13.71,
+      "excess": -5.51
+    },
+    {
+      "year": 2008,
+      "portfolio": -15.76,
+      "spy": -26.14,
+      "excess": 10.38
+    },
+    {
+      "year": 2009,
+      "portfolio": 21.36,
+      "spy": 13.42,
+      "excess": 7.94
+    },
+    {
+      "year": 2010,
+      "portfolio": 12.52,
+      "spy": 32.94,
+      "excess": -20.42
+    },
+    {
+      "year": 2011,
+      "portfolio": -2.03,
+      "spy": 4.1,
+      "excess": -6.13
+    },
+    {
+      "year": 2012,
+      "portfolio": 19.71,
+      "spy": 20.85,
+      "excess": -1.14
+    },
+    {
+      "year": 2013,
+      "portfolio": 8.88,
+      "spy": 24.5,
+      "excess": -15.62
+    },
+    {
+      "year": 2014,
+      "portfolio": -0.88,
+      "spy": 7.38,
+      "excess": -8.27
+    },
+    {
+      "year": 2015,
+      "portfolio": -4.32,
+      "spy": 3.36,
+      "excess": -7.68
+    },
+    {
+      "year": 2016,
+      "portfolio": 9.71,
+      "spy": 17.73,
+      "excess": -8.02
+    },
+    {
+      "year": 2017,
+      "portfolio": -9.38,
+      "spy": 14.34,
+      "excess": -23.72
+    },
+    {
+      "year": 2018,
+      "portfolio": 5.41,
+      "spy": 10.91,
+      "excess": -5.5
+    },
+    {
+      "year": 2019,
+      "portfolio": -11.81,
+      "spy": 7.12,
+      "excess": -18.93
+    },
+    {
+      "year": 2020,
+      "portfolio": 18.74,
+      "spy": 40.68,
+      "excess": -21.94
+    },
+    {
+      "year": 2021,
+      "portfolio": -8.22,
+      "spy": -10.17,
+      "excess": 1.95
+    },
+    {
+      "year": 2022,
+      "portfolio": -3.25,
+      "spy": 18.31,
+      "excess": -21.56
+    },
+    {
+      "year": 2023,
+      "portfolio": -11.04,
+      "spy": 24.6,
+      "excess": -35.64
+    },
+    {
+      "year": 2024,
+      "portfolio": 25.58,
+      "spy": 14.67,
+      "excess": 10.91
+    }
+  ],
+  "caveat": "ETF crowding signal uses current snapshot data (look-ahead bias). Quality filters are point-in-time correct."
+}

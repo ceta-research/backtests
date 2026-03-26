@@ -1,0 +1,5574 @@
+{
+  "US_MAJOR": {
+    "universe": "US_MAJOR",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 8.34,
+        "total_return": 641.56,
+        "volatility": 25.06,
+        "sharpe": 0.253,
+        "sortino": 0.569,
+        "calmar": 0.212,
+        "max_drawdown": -39.3,
+        "var_95": -25.6,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 2
+      },
+      "margin_driven": {
+        "cagr": 6.94,
+        "total_return": 435.72,
+        "volatility": 24.11,
+        "sharpe": 0.205,
+        "sortino": 0.402,
+        "calmar": 0.167,
+        "max_drawdown": -41.6,
+        "var_95": -25.7,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 1
+      },
+      "leverage_driven": {
+        "cagr": 9.04,
+        "total_return": 771.11,
+        "volatility": 26.31,
+        "sharpe": 0.268,
+        "sortino": 0.583,
+        "calmar": 0.214,
+        "max_drawdown": -42.3,
+        "var_95": -31.2,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 1
+      },
+      "all_high_roe": {
+        "cagr": 8.65,
+        "total_return": 695.07,
+        "volatility": 25.5,
+        "sharpe": 0.261,
+        "sortino": 0.59,
+        "calmar": 0.219,
+        "max_drawdown": -39.6,
+        "var_95": -27.7,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 2
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.242,
+        "sortino": 0.46,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": -2.1,
+    "quality_excess_cagr": 1.04,
+    "avg_stock_counts": {
+      "quality_roe": 231.0,
+      "margin_driven": 118.0,
+      "leverage_driven": 119.0,
+      "all_high_roe": 490.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": 11.6,
+        "margin_driven_return": 7.1,
+        "leverage_driven_return": 10.8,
+        "margin_leverage_spread": -3.7,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 13.2,
+        "margin_driven_return": 13.5,
+        "leverage_driven_return": 13.3,
+        "margin_leverage_spread": 0.2,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 12.9,
+        "margin_driven_return": 9.4,
+        "leverage_driven_return": 16.2,
+        "margin_leverage_spread": -6.8,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": 0.9,
+        "margin_driven_return": 1.3,
+        "leverage_driven_return": -1.2,
+        "margin_leverage_spread": 2.5,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 16.3,
+        "margin_driven_return": 16.4,
+        "leverage_driven_return": 20.9,
+        "margin_leverage_spread": -4.5,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": 1.04,
+      "information_ratio": 0.147,
+      "tracking_error": 10.24,
+      "up_capture": 104.0,
+      "down_capture": 78.1,
+      "beta": 1.044,
+      "alpha": 0.81,
+      "win_rate": 56.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -0.36,
+      "information_ratio": 0.005,
+      "tracking_error": 8.99,
+      "up_capture": 97.9,
+      "down_capture": 92.3,
+      "beta": 1.021,
+      "alpha": -0.47,
+      "win_rate": 52.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": -8.62,
+        "margin_driven": -18.17,
+        "leverage_driven": -4.02,
+        "all_high_roe": -5.15,
+        "spy": -23.68,
+        "quality_roe_count": 102,
+        "margin_driven_count": 54,
+        "leverage_driven_count": 46
+      },
+      {
+        "year": 2001,
+        "quality_roe": 19.21,
+        "margin_driven": 14.79,
+        "leverage_driven": 19.7,
+        "all_high_roe": 20.75,
+        "spy": 1.61,
+        "quality_roe_count": 127,
+        "margin_driven_count": 59,
+        "leverage_driven_count": 61
+      },
+      {
+        "year": 2002,
+        "quality_roe": -15.16,
+        "margin_driven": -17.63,
+        "leverage_driven": -18.75,
+        "all_high_roe": -16.61,
+        "spy": -23.62,
+        "quality_roe_count": 96,
+        "margin_driven_count": 49,
+        "leverage_driven_count": 49
+      },
+      {
+        "year": 2003,
+        "quality_roe": 46.54,
+        "margin_driven": 38.95,
+        "leverage_driven": 44.0,
+        "all_high_roe": 48.92,
+        "spy": 34.33,
+        "quality_roe_count": 90,
+        "margin_driven_count": 47,
+        "leverage_driven_count": 42
+      },
+      {
+        "year": 2004,
+        "quality_roe": 16.13,
+        "margin_driven": 17.41,
+        "leverage_driven": 13.16,
+        "all_high_roe": 15.87,
+        "spy": 5.23,
+        "quality_roe_count": 133,
+        "margin_driven_count": 67,
+        "leverage_driven_count": 59
+      },
+      {
+        "year": 2005,
+        "quality_roe": 24.31,
+        "margin_driven": 25.67,
+        "leverage_driven": 21.94,
+        "all_high_roe": 21.58,
+        "spy": 12.43,
+        "quality_roe_count": 202,
+        "margin_driven_count": 92,
+        "leverage_driven_count": 89
+      },
+      {
+        "year": 2006,
+        "quality_roe": 10.21,
+        "margin_driven": 14.07,
+        "leverage_driven": 23.91,
+        "all_high_roe": 13.09,
+        "spy": 11.6,
+        "quality_roe_count": 240,
+        "margin_driven_count": 114,
+        "leverage_driven_count": 103
+      },
+      {
+        "year": 2007,
+        "quality_roe": 9.3,
+        "margin_driven": 13.39,
+        "leverage_driven": 1.53,
+        "all_high_roe": 4.17,
+        "spy": -2.03,
+        "quality_roe_count": 269,
+        "margin_driven_count": 123,
+        "leverage_driven_count": 122
+      },
+      {
+        "year": 2008,
+        "quality_roe": -39.28,
+        "margin_driven": -41.64,
+        "leverage_driven": -42.33,
+        "all_high_roe": -39.57,
+        "spy": -39.11,
+        "quality_roe_count": 278,
+        "margin_driven_count": 130,
+        "leverage_driven_count": 126
+      },
+      {
+        "year": 2009,
+        "quality_roe": 61.6,
+        "margin_driven": 55.76,
+        "leverage_driven": 61.41,
+        "all_high_roe": 61.9,
+        "spy": 48.25,
+        "quality_roe_count": 191,
+        "margin_driven_count": 93,
+        "leverage_driven_count": 96
+      },
+      {
+        "year": 2010,
+        "quality_roe": 22.07,
+        "margin_driven": 19.84,
+        "leverage_driven": 24.7,
+        "all_high_roe": 22.76,
+        "spy": 15.27,
+        "quality_roe_count": 175,
+        "margin_driven_count": 82,
+        "leverage_driven_count": 81
+      },
+      {
+        "year": 2011,
+        "quality_roe": 3.17,
+        "margin_driven": -1.37,
+        "leverage_driven": 3.91,
+        "all_high_roe": 4.19,
+        "spy": 8.77,
+        "quality_roe_count": 256,
+        "margin_driven_count": 109,
+        "leverage_driven_count": 114
+      },
+      {
+        "year": 2012,
+        "quality_roe": 6.95,
+        "margin_driven": 5.31,
+        "leverage_driven": 17.33,
+        "all_high_roe": 11.53,
+        "spy": 12.46,
+        "quality_roe_count": 271,
+        "margin_driven_count": 119,
+        "leverage_driven_count": 126
+      },
+      {
+        "year": 2013,
+        "quality_roe": 25.37,
+        "margin_driven": 18.34,
+        "leverage_driven": 25.38,
+        "all_high_roe": 24.88,
+        "spy": 23.07,
+        "quality_roe_count": 246,
+        "margin_driven_count": 116,
+        "leverage_driven_count": 119
+      },
+      {
+        "year": 2014,
+        "quality_roe": 7.0,
+        "margin_driven": 4.98,
+        "leverage_driven": 9.82,
+        "all_high_roe": 8.78,
+        "spy": 11.41,
+        "quality_roe_count": 251,
+        "margin_driven_count": 131,
+        "leverage_driven_count": 135
+      },
+      {
+        "year": 2015,
+        "quality_roe": -6.94,
+        "margin_driven": -10.62,
+        "leverage_driven": -5.05,
+        "all_high_roe": -5.73,
+        "spy": 2.74,
+        "quality_roe_count": 251,
+        "margin_driven_count": 136,
+        "leverage_driven_count": 140
+      },
+      {
+        "year": 2016,
+        "quality_roe": 16.51,
+        "margin_driven": 17.1,
+        "leverage_driven": 14.98,
+        "all_high_roe": 15.07,
+        "spy": 16.08,
+        "quality_roe_count": 225,
+        "margin_driven_count": 136,
+        "leverage_driven_count": 141
+      },
+      {
+        "year": 2017,
+        "quality_roe": 13.6,
+        "margin_driven": 14.73,
+        "leverage_driven": 9.87,
+        "all_high_roe": 11.25,
+        "spy": 11.49,
+        "quality_roe_count": 218,
+        "margin_driven_count": 141,
+        "leverage_driven_count": 144
+      },
+      {
+        "year": 2018,
+        "quality_roe": 7.07,
+        "margin_driven": 11.01,
+        "leverage_driven": 5.36,
+        "all_high_roe": 5.05,
+        "spy": 13.17,
+        "quality_roe_count": 269,
+        "margin_driven_count": 153,
+        "leverage_driven_count": 157
+      },
+      {
+        "year": 2019,
+        "quality_roe": -25.64,
+        "margin_driven": -25.72,
+        "leverage_driven": -31.23,
+        "all_high_roe": -27.74,
+        "spy": -12.12,
+        "quality_roe_count": 309,
+        "margin_driven_count": 171,
+        "leverage_driven_count": 173
+      },
+      {
+        "year": 2020,
+        "quality_roe": 77.37,
+        "margin_driven": 71.52,
+        "leverage_driven": 85.78,
+        "all_high_roe": 80.38,
+        "spy": 65.36,
+        "quality_roe_count": 251,
+        "margin_driven_count": 159,
+        "leverage_driven_count": 138
+      },
+      {
+        "year": 2021,
+        "quality_roe": -3.19,
+        "margin_driven": 1.15,
+        "leverage_driven": 4.04,
+        "all_high_roe": -0.03,
+        "spy": 14.55,
+        "quality_roe_count": 230,
+        "margin_driven_count": 132,
+        "leverage_driven_count": 139
+      },
+      {
+        "year": 2022,
+        "quality_roe": -5.22,
+        "margin_driven": -10.17,
+        "leverage_driven": -6.14,
+        "all_high_roe": -5.65,
+        "spy": -7.73,
+        "quality_roe_count": 384,
+        "margin_driven_count": 198,
+        "leverage_driven_count": 200
+      },
+      {
+        "year": 2023,
+        "quality_roe": 18.91,
+        "margin_driven": 15.25,
+        "leverage_driven": 17.1,
+        "all_high_roe": 18.73,
+        "spy": 28.9,
+        "quality_roe_count": 383,
+        "margin_driven_count": 187,
+        "leverage_driven_count": 192
+      },
+      {
+        "year": 2024,
+        "quality_roe": -6.44,
+        "margin_driven": 4.44,
+        "leverage_driven": 3.77,
+        "all_high_roe": -3.98,
+        "spy": 8.8,
+        "quality_roe_count": 340,
+        "margin_driven_count": 160,
+        "leverage_driven_count": 177
+      }
+    ]
+  },
+  "India": {
+    "universe": "India",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 9.07,
+        "total_return": 777.23,
+        "volatility": 38.9,
+        "sharpe": 0.066,
+        "sortino": 0.127,
+        "calmar": 0.116,
+        "max_drawdown": -78.4,
+        "var_95": -50.0,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 2
+      },
+      "margin_driven": {
+        "cagr": 6.07,
+        "total_return": 336.52,
+        "volatility": 34.41,
+        "sharpe": -0.012,
+        "sortino": -0.024,
+        "calmar": 0.107,
+        "max_drawdown": -56.8,
+        "var_95": -38.9,
+        "pct_negative_years": 36.0,
+        "max_consecutive_losses": 2
+      },
+      "leverage_driven": {
+        "cagr": 11.3,
+        "total_return": 1351.84,
+        "volatility": 51.63,
+        "sharpe": 0.093,
+        "sortino": 0.235,
+        "calmar": 0.217,
+        "max_drawdown": -52.1,
+        "var_95": -50.0,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 2
+      },
+      "all_high_roe": {
+        "cagr": 8.51,
+        "total_return": 671.04,
+        "volatility": 39.67,
+        "sharpe": 0.051,
+        "sortino": 0.095,
+        "calmar": 0.109,
+        "max_drawdown": -78.4,
+        "var_95": -50.0,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 2
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.037,
+        "sortino": 0.059,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": -5.23,
+    "quality_excess_cagr": 1.77,
+    "avg_stock_counts": {
+      "quality_roe": 165.0,
+      "margin_driven": 61.0,
+      "leverage_driven": 52.0,
+      "all_high_roe": 238.0
+    },
+    "cash_periods": {
+      "quality_roe": 1,
+      "margin_driven": 2
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": -1.7,
+        "margin_driven_return": -12.3,
+        "leverage_driven_return": 29.4,
+        "margin_leverage_spread": -41.7,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 33.1,
+        "margin_driven_return": 32.4,
+        "leverage_driven_return": 27.3,
+        "margin_leverage_spread": 5.1,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 17.2,
+        "margin_driven_return": 6.9,
+        "leverage_driven_return": 13.5,
+        "margin_leverage_spread": -6.6,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": 2.1,
+        "margin_driven_return": -0.9,
+        "leverage_driven_return": -1.9,
+        "margin_leverage_spread": 1.0,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 28.4,
+        "margin_driven_return": 28.9,
+        "leverage_driven_return": 34.7,
+        "margin_leverage_spread": -5.8,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": 1.77,
+      "information_ratio": 0.27,
+      "tracking_error": 23.45,
+      "up_capture": 160.1,
+      "down_capture": 145.7,
+      "beta": 1.503,
+      "alpha": 1.37,
+      "win_rate": 52.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -1.23,
+      "information_ratio": 0.067,
+      "tracking_error": 22.41,
+      "up_capture": 109.4,
+      "down_capture": 95.1,
+      "beta": 1.21,
+      "alpha": -1.4,
+      "win_rate": 44.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": -49.98,
+        "margin_driven": -49.98,
+        "leverage_driven": -49.98,
+        "all_high_roe": -49.98,
+        "spy": -23.68,
+        "quality_roe_count": 1,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2001,
+        "quality_roe": 0.0,
+        "margin_driven": 0.0,
+        "leverage_driven": 0.0,
+        "all_high_roe": 0.0,
+        "spy": 1.61,
+        "quality_roe_count": 0,
+        "margin_driven_count": 0,
+        "leverage_driven_count": 0
+      },
+      {
+        "year": 2002,
+        "quality_roe": -56.86,
+        "margin_driven": 0.0,
+        "leverage_driven": 0.0,
+        "all_high_roe": -56.86,
+        "spy": -23.62,
+        "quality_roe_count": 1,
+        "margin_driven_count": 0,
+        "leverage_driven_count": 0
+      },
+      {
+        "year": 2003,
+        "quality_roe": 68.6,
+        "margin_driven": 9.95,
+        "leverage_driven": 185.89,
+        "all_high_roe": 68.6,
+        "spy": 34.33,
+        "quality_roe_count": 3,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2004,
+        "quality_roe": 29.71,
+        "margin_driven": -21.4,
+        "leverage_driven": 10.97,
+        "all_high_roe": 21.57,
+        "spy": 5.23,
+        "quality_roe_count": 8,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 3
+      },
+      {
+        "year": 2005,
+        "quality_roe": 86.02,
+        "margin_driven": 78.84,
+        "leverage_driven": 53.64,
+        "all_high_roe": 77.11,
+        "spy": 12.43,
+        "quality_roe_count": 43,
+        "margin_driven_count": 19,
+        "leverage_driven_count": 16
+      },
+      {
+        "year": 2006,
+        "quality_roe": 1.72,
+        "margin_driven": 9.35,
+        "leverage_driven": -5.06,
+        "all_high_roe": -0.73,
+        "spy": 11.6,
+        "quality_roe_count": 83,
+        "margin_driven_count": 30,
+        "leverage_driven_count": 25
+      },
+      {
+        "year": 2007,
+        "quality_roe": 17.08,
+        "margin_driven": 21.32,
+        "leverage_driven": 31.24,
+        "all_high_roe": 23.03,
+        "spy": -2.03,
+        "quality_roe_count": 125,
+        "margin_driven_count": 44,
+        "leverage_driven_count": 37
+      },
+      {
+        "year": 2008,
+        "quality_roe": -33.99,
+        "margin_driven": -38.94,
+        "leverage_driven": -52.08,
+        "all_high_roe": -39.44,
+        "spy": -39.11,
+        "quality_roe_count": 138,
+        "margin_driven_count": 60,
+        "leverage_driven_count": 54
+      },
+      {
+        "year": 2009,
+        "quality_roe": 94.51,
+        "margin_driven": 91.41,
+        "leverage_driven": 108.91,
+        "all_high_roe": 99.01,
+        "spy": 48.25,
+        "quality_roe_count": 112,
+        "margin_driven_count": 47,
+        "leverage_driven_count": 30
+      },
+      {
+        "year": 2010,
+        "quality_roe": 5.72,
+        "margin_driven": -6.58,
+        "leverage_driven": 6.63,
+        "all_high_roe": 7.34,
+        "spy": 15.27,
+        "quality_roe_count": 97,
+        "margin_driven_count": 38,
+        "leverage_driven_count": 37
+      },
+      {
+        "year": 2011,
+        "quality_roe": 4.64,
+        "margin_driven": -5.02,
+        "leverage_driven": -8.14,
+        "all_high_roe": 2.94,
+        "spy": 8.77,
+        "quality_roe_count": 173,
+        "margin_driven_count": 73,
+        "leverage_driven_count": 63
+      },
+      {
+        "year": 2012,
+        "quality_roe": 5.75,
+        "margin_driven": 0.54,
+        "leverage_driven": -10.71,
+        "all_high_roe": 1.59,
+        "spy": 12.46,
+        "quality_roe_count": 169,
+        "margin_driven_count": 69,
+        "leverage_driven_count": 62
+      },
+      {
+        "year": 2013,
+        "quality_roe": 22.05,
+        "margin_driven": 14.74,
+        "leverage_driven": 16.23,
+        "all_high_roe": 22.47,
+        "spy": 23.07,
+        "quality_roe_count": 149,
+        "margin_driven_count": 59,
+        "leverage_driven_count": 51
+      },
+      {
+        "year": 2014,
+        "quality_roe": 47.97,
+        "margin_driven": 30.66,
+        "leverage_driven": 63.27,
+        "all_high_roe": 51.62,
+        "spy": 11.41,
+        "quality_roe_count": 144,
+        "margin_driven_count": 52,
+        "leverage_driven_count": 38
+      },
+      {
+        "year": 2015,
+        "quality_roe": -2.38,
+        "margin_driven": -10.29,
+        "leverage_driven": -10.77,
+        "all_high_roe": -2.91,
+        "spy": 2.74,
+        "quality_roe_count": 156,
+        "margin_driven_count": 61,
+        "leverage_driven_count": 38
+      },
+      {
+        "year": 2016,
+        "quality_roe": 28.9,
+        "margin_driven": 29.75,
+        "leverage_driven": 38.35,
+        "all_high_roe": 33.96,
+        "spy": 16.08,
+        "quality_roe_count": 203,
+        "margin_driven_count": 81,
+        "leverage_driven_count": 65
+      },
+      {
+        "year": 2017,
+        "quality_roe": 11.66,
+        "margin_driven": 2.19,
+        "leverage_driven": 21.37,
+        "all_high_roe": 15.73,
+        "spy": 11.49,
+        "quality_roe_count": 237,
+        "margin_driven_count": 89,
+        "leverage_driven_count": 70
+      },
+      {
+        "year": 2018,
+        "quality_roe": -0.79,
+        "margin_driven": -0.98,
+        "leverage_driven": -19.55,
+        "all_high_roe": -6.05,
+        "spy": 13.17,
+        "quality_roe_count": 256,
+        "margin_driven_count": 99,
+        "leverage_driven_count": 96
+      },
+      {
+        "year": 2019,
+        "quality_roe": -26.94,
+        "margin_driven": -25.25,
+        "leverage_driven": -39.14,
+        "all_high_roe": -30.95,
+        "spy": -12.12,
+        "quality_roe_count": 273,
+        "margin_driven_count": 116,
+        "leverage_driven_count": 100
+      },
+      {
+        "year": 2020,
+        "quality_roe": 81.61,
+        "margin_driven": 75.15,
+        "leverage_driven": 80.15,
+        "all_high_roe": 83.04,
+        "spy": 65.36,
+        "quality_roe_count": 235,
+        "margin_driven_count": 89,
+        "leverage_driven_count": 73
+      },
+      {
+        "year": 2021,
+        "quality_roe": 22.24,
+        "margin_driven": 16.34,
+        "leverage_driven": 30.32,
+        "all_high_roe": 24.47,
+        "spy": 14.55,
+        "quality_roe_count": 259,
+        "margin_driven_count": 82,
+        "leverage_driven_count": 67
+      },
+      {
+        "year": 2022,
+        "quality_roe": -7.09,
+        "margin_driven": -10.11,
+        "leverage_driven": 6.68,
+        "all_high_roe": -3.79,
+        "spy": -7.73,
+        "quality_roe_count": 374,
+        "margin_driven_count": 118,
+        "leverage_driven_count": 103
+      },
+      {
+        "year": 2023,
+        "quality_roe": 40.8,
+        "margin_driven": 52.61,
+        "leverage_driven": 55.72,
+        "all_high_roe": 44.01,
+        "spy": 28.9,
+        "quality_roe_count": 461,
+        "margin_driven_count": 154,
+        "leverage_driven_count": 136
+      },
+      {
+        "year": 2024,
+        "quality_roe": 4.59,
+        "margin_driven": 10.63,
+        "leverage_driven": 0.55,
+        "all_high_roe": 4.07,
+        "spy": 8.8,
+        "quality_roe_count": 426,
+        "margin_driven_count": 150,
+        "leverage_driven_count": 145
+      }
+    ]
+  },
+  "XETRA": {
+    "universe": "XETRA",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 5.4,
+        "total_return": 272.21,
+        "volatility": 22.19,
+        "sharpe": 0.153,
+        "sortino": 0.265,
+        "calmar": 0.099,
+        "max_drawdown": -54.4,
+        "var_95": -25.4,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 2
+      },
+      "margin_driven": {
+        "cagr": 8.3,
+        "total_return": 634.82,
+        "volatility": 21.28,
+        "sharpe": 0.296,
+        "sortino": 0.586,
+        "calmar": 0.201,
+        "max_drawdown": -41.3,
+        "var_95": -24.2,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 3
+      },
+      "leverage_driven": {
+        "cagr": 7.13,
+        "total_return": 459.63,
+        "volatility": 23.33,
+        "sharpe": 0.22,
+        "sortino": 0.437,
+        "calmar": 0.154,
+        "max_drawdown": -46.3,
+        "var_95": -27.4,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 2
+      },
+      "all_high_roe": {
+        "cagr": 6.63,
+        "total_return": 398.19,
+        "volatility": 20.84,
+        "sharpe": 0.222,
+        "sortino": 0.436,
+        "calmar": 0.167,
+        "max_drawdown": -39.8,
+        "var_95": -30.5,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 2
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.242,
+        "sortino": 0.46,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": 1.17,
+    "quality_excess_cagr": -1.9,
+    "avg_stock_counts": {
+      "quality_roe": 62.0,
+      "margin_driven": 34.0,
+      "leverage_driven": 32.0,
+      "all_high_roe": 132.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": -4.9,
+        "margin_driven_return": -2.0,
+        "leverage_driven_return": -7.0,
+        "margin_leverage_spread": 5.0,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 11.4,
+        "margin_driven_return": 11.7,
+        "leverage_driven_return": 12.4,
+        "margin_leverage_spread": -0.8,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 15.7,
+        "margin_driven_return": 19.1,
+        "leverage_driven_return": 19.5,
+        "margin_leverage_spread": -0.4,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": 5.6,
+        "margin_driven_return": 9.1,
+        "leverage_driven_return": 1.6,
+        "margin_leverage_spread": 7.5,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 11.1,
+        "margin_driven_return": 14.1,
+        "leverage_driven_return": 21.4,
+        "margin_leverage_spread": -7.3,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": -1.9,
+      "information_ratio": -0.145,
+      "tracking_error": 11.67,
+      "up_capture": 89.5,
+      "down_capture": 105.6,
+      "beta": 0.871,
+      "alpha": -1.22,
+      "win_rate": 44.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": 1.0,
+      "information_ratio": 0.064,
+      "tracking_error": 14.43,
+      "up_capture": 102.0,
+      "down_capture": 85.2,
+      "beta": 0.754,
+      "alpha": 2.31,
+      "win_rate": 56.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": -21.59,
+        "margin_driven": -10.14,
+        "leverage_driven": -7.54,
+        "all_high_roe": -11.87,
+        "spy": -23.68,
+        "quality_roe_count": 11,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2001,
+        "quality_roe": 9.91,
+        "margin_driven": 10.04,
+        "leverage_driven": 5.69,
+        "all_high_roe": 3.32,
+        "spy": 1.61,
+        "quality_roe_count": 10,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 9
+      },
+      {
+        "year": 2002,
+        "quality_roe": -47.07,
+        "margin_driven": -40.65,
+        "leverage_driven": -27.35,
+        "all_high_roe": -33.86,
+        "spy": -23.62,
+        "quality_roe_count": 17,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2003,
+        "quality_roe": 14.74,
+        "margin_driven": 12.36,
+        "leverage_driven": 6.23,
+        "all_high_roe": 15.22,
+        "spy": 34.33,
+        "quality_roe_count": 14,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2004,
+        "quality_roe": 19.75,
+        "margin_driven": 18.57,
+        "leverage_driven": -12.05,
+        "all_high_roe": 8.55,
+        "spy": 5.23,
+        "quality_roe_count": 19,
+        "margin_driven_count": 12,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2005,
+        "quality_roe": 31.93,
+        "margin_driven": 44.98,
+        "leverage_driven": 30.0,
+        "all_high_roe": 31.41,
+        "spy": 12.43,
+        "quality_roe_count": 34,
+        "margin_driven_count": 20,
+        "leverage_driven_count": 17
+      },
+      {
+        "year": 2006,
+        "quality_roe": 3.58,
+        "margin_driven": -3.8,
+        "leverage_driven": 18.5,
+        "all_high_roe": 9.33,
+        "spy": 11.6,
+        "quality_roe_count": 42,
+        "margin_driven_count": 21,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2007,
+        "quality_roe": -4.34,
+        "margin_driven": -8.29,
+        "leverage_driven": -7.31,
+        "all_high_roe": -6.5,
+        "spy": -2.03,
+        "quality_roe_count": 54,
+        "margin_driven_count": 25,
+        "leverage_driven_count": 24
+      },
+      {
+        "year": 2008,
+        "quality_roe": -25.42,
+        "margin_driven": -24.16,
+        "leverage_driven": -42.09,
+        "all_high_roe": -30.51,
+        "spy": -39.11,
+        "quality_roe_count": 91,
+        "margin_driven_count": 45,
+        "leverage_driven_count": 47
+      },
+      {
+        "year": 2009,
+        "quality_roe": 51.23,
+        "margin_driven": 49.7,
+        "leverage_driven": 63.13,
+        "all_high_roe": 57.36,
+        "spy": 48.25,
+        "quality_roe_count": 76,
+        "margin_driven_count": 38,
+        "leverage_driven_count": 38
+      },
+      {
+        "year": 2010,
+        "quality_roe": 14.54,
+        "margin_driven": 11.72,
+        "leverage_driven": 22.55,
+        "all_high_roe": 16.56,
+        "spy": 15.27,
+        "quality_roe_count": 52,
+        "margin_driven_count": 23,
+        "leverage_driven_count": 28
+      },
+      {
+        "year": 2011,
+        "quality_roe": 9.64,
+        "margin_driven": 11.0,
+        "leverage_driven": 6.75,
+        "all_high_roe": 8.74,
+        "spy": 8.77,
+        "quality_roe_count": 83,
+        "margin_driven_count": 36,
+        "leverage_driven_count": 42
+      },
+      {
+        "year": 2012,
+        "quality_roe": 12.77,
+        "margin_driven": 13.68,
+        "leverage_driven": 16.11,
+        "all_high_roe": 13.73,
+        "spy": 12.46,
+        "quality_roe_count": 92,
+        "margin_driven_count": 42,
+        "leverage_driven_count": 46
+      },
+      {
+        "year": 2013,
+        "quality_roe": 10.34,
+        "margin_driven": 12.22,
+        "leverage_driven": 18.43,
+        "all_high_roe": 14.0,
+        "spy": 23.07,
+        "quality_roe_count": 80,
+        "margin_driven_count": 38,
+        "leverage_driven_count": 37
+      },
+      {
+        "year": 2014,
+        "quality_roe": 31.04,
+        "margin_driven": 47.02,
+        "leverage_driven": 33.74,
+        "all_high_roe": 27.82,
+        "spy": 11.41,
+        "quality_roe_count": 73,
+        "margin_driven_count": 36,
+        "leverage_driven_count": 31
+      },
+      {
+        "year": 2015,
+        "quality_roe": -5.32,
+        "margin_driven": -2.62,
+        "leverage_driven": -1.0,
+        "all_high_roe": -4.31,
+        "spy": 2.74,
+        "quality_roe_count": 83,
+        "margin_driven_count": 44,
+        "leverage_driven_count": 35
+      },
+      {
+        "year": 2016,
+        "quality_roe": 21.87,
+        "margin_driven": 19.75,
+        "leverage_driven": 18.05,
+        "all_high_roe": 18.4,
+        "spy": 16.08,
+        "quality_roe_count": 73,
+        "margin_driven_count": 46,
+        "leverage_driven_count": 42
+      },
+      {
+        "year": 2017,
+        "quality_roe": 8.21,
+        "margin_driven": 12.13,
+        "leverage_driven": 1.67,
+        "all_high_roe": 4.6,
+        "spy": 11.49,
+        "quality_roe_count": 80,
+        "margin_driven_count": 51,
+        "leverage_driven_count": 39
+      },
+      {
+        "year": 2018,
+        "quality_roe": 8.94,
+        "margin_driven": 20.29,
+        "leverage_driven": 2.93,
+        "all_high_roe": 7.42,
+        "spy": 13.17,
+        "quality_roe_count": 98,
+        "margin_driven_count": 51,
+        "leverage_driven_count": 45
+      },
+      {
+        "year": 2019,
+        "quality_roe": -5.48,
+        "margin_driven": -4.13,
+        "leverage_driven": -13.8,
+        "all_high_roe": -9.58,
+        "spy": -12.12,
+        "quality_roe_count": 87,
+        "margin_driven_count": 50,
+        "leverage_driven_count": 46
+      },
+      {
+        "year": 2020,
+        "quality_roe": 55.3,
+        "margin_driven": 42.64,
+        "leverage_driven": 61.38,
+        "all_high_roe": 55.26,
+        "spy": 65.36,
+        "quality_roe_count": 72,
+        "margin_driven_count": 49,
+        "leverage_driven_count": 43
+      },
+      {
+        "year": 2021,
+        "quality_roe": 7.72,
+        "margin_driven": 11.19,
+        "leverage_driven": 10.03,
+        "all_high_roe": 8.76,
+        "spy": 14.55,
+        "quality_roe_count": 59,
+        "margin_driven_count": 41,
+        "leverage_driven_count": 41
+      },
+      {
+        "year": 2022,
+        "quality_roe": -10.41,
+        "margin_driven": -4.93,
+        "leverage_driven": 1.06,
+        "all_high_roe": -4.78,
+        "spy": -7.73,
+        "quality_roe_count": 100,
+        "margin_driven_count": 57,
+        "leverage_driven_count": 54
+      },
+      {
+        "year": 2023,
+        "quality_roe": 10.88,
+        "margin_driven": 17.14,
+        "leverage_driven": 17.89,
+        "all_high_roe": 10.63,
+        "spy": 28.9,
+        "quality_roe_count": 87,
+        "margin_driven_count": 50,
+        "leverage_driven_count": 51
+      },
+      {
+        "year": 2024,
+        "quality_roe": -7.91,
+        "margin_driven": 4.44,
+        "leverage_driven": 16.55,
+        "all_high_roe": 4.69,
+        "spy": 8.8,
+        "quality_roe_count": 65,
+        "margin_driven_count": 47,
+        "leverage_driven_count": 39
+      }
+    ]
+  },
+  "China": {
+    "universe": "China",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 4.05,
+        "total_return": 169.61,
+        "volatility": 31.92,
+        "sharpe": 0.048,
+        "sortino": 0.127,
+        "calmar": 0.085,
+        "max_drawdown": -47.7,
+        "var_95": -24.6,
+        "pct_negative_years": 52.0,
+        "max_consecutive_losses": 3
+      },
+      "margin_driven": {
+        "cagr": 4.48,
+        "total_return": 199.09,
+        "volatility": 29.32,
+        "sharpe": 0.068,
+        "sortino": 0.18,
+        "calmar": 0.129,
+        "max_drawdown": -34.7,
+        "var_95": -21.1,
+        "pct_negative_years": 56.0,
+        "max_consecutive_losses": 3
+      },
+      "leverage_driven": {
+        "cagr": 2.42,
+        "total_return": 81.89,
+        "volatility": 36.29,
+        "sharpe": -0.002,
+        "sortino": -0.006,
+        "calmar": 0.037,
+        "max_drawdown": -65.9,
+        "var_95": -24.3,
+        "pct_negative_years": 56.0,
+        "max_consecutive_losses": 5
+      },
+      "all_high_roe": {
+        "cagr": 3.65,
+        "total_return": 145.11,
+        "volatility": 33.27,
+        "sharpe": 0.035,
+        "sortino": 0.093,
+        "calmar": 0.069,
+        "max_drawdown": -52.7,
+        "var_95": -24.5,
+        "pct_negative_years": 52.0,
+        "max_consecutive_losses": 3
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.219,
+        "sortino": 0.409,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": 2.06,
+    "quality_excess_cagr": -3.25,
+    "avg_stock_counts": {
+      "quality_roe": 190.0,
+      "margin_driven": 74.0,
+      "leverage_driven": 74.0,
+      "all_high_roe": 271.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": -11.2,
+        "margin_driven_return": -3.6,
+        "leverage_driven_return": -18.2,
+        "margin_leverage_spread": 14.6,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 37.0,
+        "margin_driven_return": 32.1,
+        "leverage_driven_return": 38.6,
+        "margin_leverage_spread": -6.4,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 10.8,
+        "margin_driven_return": 10.5,
+        "leverage_driven_return": 15.1,
+        "margin_leverage_spread": -4.6,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": -0.5,
+        "margin_driven_return": -0.3,
+        "leverage_driven_return": -3.1,
+        "margin_leverage_spread": 2.7,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 2.0,
+        "margin_driven_return": -0.7,
+        "leverage_driven_return": 1.8,
+        "margin_leverage_spread": -2.5,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": -3.25,
+      "information_ratio": -0.058,
+      "tracking_error": 31.97,
+      "up_capture": 56.0,
+      "down_capture": 2.3,
+      "beta": 0.497,
+      "alpha": -0.84,
+      "win_rate": 36.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -2.82,
+      "information_ratio": -0.063,
+      "tracking_error": 29.84,
+      "up_capture": 55.5,
+      "down_capture": 1.8,
+      "beta": 0.468,
+      "alpha": -0.26,
+      "win_rate": 36.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": -6.77,
+        "margin_driven": -0.46,
+        "leverage_driven": -0.46,
+        "all_high_roe": -5.34,
+        "spy": -23.68,
+        "quality_roe_count": 42,
+        "margin_driven_count": 25,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2001,
+        "quality_roe": -24.28,
+        "margin_driven": -28.59,
+        "leverage_driven": -24.34,
+        "all_high_roe": -24.54,
+        "spy": 1.61,
+        "quality_roe_count": 45,
+        "margin_driven_count": 22,
+        "leverage_driven_count": 16
+      },
+      {
+        "year": 2002,
+        "quality_roe": -6.76,
+        "margin_driven": -8.19,
+        "leverage_driven": -15.83,
+        "all_high_roe": -10.27,
+        "spy": -23.62,
+        "quality_roe_count": 18,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2003,
+        "quality_roe": 9.26,
+        "margin_driven": 20.19,
+        "leverage_driven": -10.75,
+        "all_high_roe": 4.46,
+        "spy": 34.33,
+        "quality_roe_count": 13,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2004,
+        "quality_roe": -27.25,
+        "margin_driven": -1.01,
+        "leverage_driven": -39.67,
+        "all_high_roe": -29.28,
+        "spy": 5.23,
+        "quality_roe_count": 23,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2005,
+        "quality_roe": 0.9,
+        "margin_driven": -6.92,
+        "leverage_driven": 5.63,
+        "all_high_roe": -0.03,
+        "spy": 12.43,
+        "quality_roe_count": 26,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2006,
+        "quality_roe": 117.36,
+        "margin_driven": 104.29,
+        "leverage_driven": 136.82,
+        "all_high_roe": 123.75,
+        "spy": 11.6,
+        "quality_roe_count": 30,
+        "margin_driven_count": 13,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2007,
+        "quality_roe": 33.01,
+        "margin_driven": 34.22,
+        "leverage_driven": 34.37,
+        "all_high_roe": 32.14,
+        "spy": -2.03,
+        "quality_roe_count": 69,
+        "margin_driven_count": 29,
+        "leverage_driven_count": 25
+      },
+      {
+        "year": 2008,
+        "quality_roe": -19.96,
+        "margin_driven": -21.14,
+        "leverage_driven": -21.77,
+        "all_high_roe": -20.57,
+        "spy": -39.11,
+        "quality_roe_count": 163,
+        "margin_driven_count": 74,
+        "leverage_driven_count": 77
+      },
+      {
+        "year": 2009,
+        "quality_roe": 53.83,
+        "margin_driven": 50.26,
+        "leverage_driven": 37.88,
+        "all_high_roe": 51.39,
+        "spy": 48.25,
+        "quality_roe_count": 113,
+        "margin_driven_count": 58,
+        "leverage_driven_count": 42
+      },
+      {
+        "year": 2010,
+        "quality_roe": 8.56,
+        "margin_driven": 3.86,
+        "leverage_driven": 9.8,
+        "all_high_roe": 8.46,
+        "spy": 15.27,
+        "quality_roe_count": 189,
+        "margin_driven_count": 83,
+        "leverage_driven_count": 102
+      },
+      {
+        "year": 2011,
+        "quality_roe": -24.56,
+        "margin_driven": -19.59,
+        "leverage_driven": -22.13,
+        "all_high_roe": -24.07,
+        "spy": 8.77,
+        "quality_roe_count": 231,
+        "margin_driven_count": 94,
+        "leverage_driven_count": 113
+      },
+      {
+        "year": 2012,
+        "quality_roe": 1.82,
+        "margin_driven": 1.28,
+        "leverage_driven": 4.66,
+        "all_high_roe": 1.28,
+        "spy": 12.46,
+        "quality_roe_count": 190,
+        "margin_driven_count": 74,
+        "leverage_driven_count": 95
+      },
+      {
+        "year": 2013,
+        "quality_roe": 5.72,
+        "margin_driven": 5.02,
+        "leverage_driven": 1.96,
+        "all_high_roe": 5.38,
+        "spy": 23.07,
+        "quality_roe_count": 142,
+        "margin_driven_count": 62,
+        "leverage_driven_count": 73
+      },
+      {
+        "year": 2014,
+        "quality_roe": 62.28,
+        "margin_driven": 61.98,
+        "leverage_driven": 81.36,
+        "all_high_roe": 69.34,
+        "spy": 11.41,
+        "quality_roe_count": 164,
+        "margin_driven_count": 69,
+        "leverage_driven_count": 78
+      },
+      {
+        "year": 2015,
+        "quality_roe": -5.61,
+        "margin_driven": -3.78,
+        "leverage_driven": -4.07,
+        "all_high_roe": -4.83,
+        "spy": 2.74,
+        "quality_roe_count": 179,
+        "margin_driven_count": 70,
+        "leverage_driven_count": 82
+      },
+      {
+        "year": 2016,
+        "quality_roe": 13.93,
+        "margin_driven": 9.75,
+        "leverage_driven": 13.88,
+        "all_high_roe": 14.22,
+        "spy": 16.08,
+        "quality_roe_count": 185,
+        "margin_driven_count": 83,
+        "leverage_driven_count": 85
+      },
+      {
+        "year": 2017,
+        "quality_roe": -5.65,
+        "margin_driven": -5.74,
+        "leverage_driven": -3.78,
+        "all_high_roe": -5.32,
+        "spy": 11.49,
+        "quality_roe_count": 246,
+        "margin_driven_count": 107,
+        "leverage_driven_count": 92
+      },
+      {
+        "year": 2018,
+        "quality_roe": -3.32,
+        "margin_driven": -0.35,
+        "leverage_driven": -10.59,
+        "all_high_roe": -4.22,
+        "spy": 13.17,
+        "quality_roe_count": 308,
+        "margin_driven_count": 123,
+        "leverage_driven_count": 117
+      },
+      {
+        "year": 2019,
+        "quality_roe": -1.72,
+        "margin_driven": -1.6,
+        "leverage_driven": -10.79,
+        "all_high_roe": -4.81,
+        "spy": -12.12,
+        "quality_roe_count": 351,
+        "margin_driven_count": 126,
+        "leverage_driven_count": 128
+      },
+      {
+        "year": 2020,
+        "quality_roe": 31.78,
+        "margin_driven": 28.52,
+        "leverage_driven": 23.65,
+        "all_high_roe": 29.16,
+        "spy": 65.36,
+        "quality_roe_count": 348,
+        "margin_driven_count": 128,
+        "leverage_driven_count": 143
+      },
+      {
+        "year": 2021,
+        "quality_roe": -8.06,
+        "margin_driven": -9.51,
+        "leverage_driven": -1.75,
+        "all_high_roe": -6.48,
+        "spy": 14.55,
+        "quality_roe_count": 463,
+        "margin_driven_count": 161,
+        "leverage_driven_count": 149
+      },
+      {
+        "year": 2022,
+        "quality_roe": -0.27,
+        "margin_driven": -4.74,
+        "leverage_driven": -0.92,
+        "all_high_roe": 0.0,
+        "spy": -7.73,
+        "quality_roe_count": 496,
+        "margin_driven_count": 174,
+        "leverage_driven_count": 162
+      },
+      {
+        "year": 2023,
+        "quality_roe": -17.1,
+        "margin_driven": -19.2,
+        "leverage_driven": -12.69,
+        "all_high_roe": -16.02,
+        "spy": 28.9,
+        "quality_roe_count": 426,
+        "margin_driven_count": 145,
+        "leverage_driven_count": 137
+      },
+      {
+        "year": 2024,
+        "quality_roe": 3.86,
+        "margin_driven": 1.32,
+        "leverage_driven": 0.77,
+        "all_high_roe": 2.81,
+        "spy": 8.8,
+        "quality_roe_count": 284,
+        "margin_driven_count": 94,
+        "leverage_driven_count": 91
+      }
+    ]
+  },
+  "HKSE": {
+    "universe": "HKSE",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": -2.13,
+        "total_return": -41.61,
+        "volatility": 27.05,
+        "sharpe": -0.19,
+        "sortino": -0.281,
+        "calmar": -0.039,
+        "max_drawdown": -54.7,
+        "var_95": -36.3,
+        "pct_negative_years": 52.0,
+        "max_consecutive_losses": 3
+      },
+      "margin_driven": {
+        "cagr": -3.68,
+        "total_return": -60.83,
+        "volatility": 23.92,
+        "sharpe": -0.279,
+        "sortino": -0.348,
+        "calmar": -0.057,
+        "max_drawdown": -64.8,
+        "var_95": -39.1,
+        "pct_negative_years": 48.0,
+        "max_consecutive_losses": 3
+      },
+      "leverage_driven": {
+        "cagr": -1.44,
+        "total_return": -30.47,
+        "volatility": 28.32,
+        "sharpe": -0.157,
+        "sortino": -0.231,
+        "calmar": -0.021,
+        "max_drawdown": -68.1,
+        "var_95": -39.0,
+        "pct_negative_years": 52.0,
+        "max_consecutive_losses": 3
+      },
+      "all_high_roe": {
+        "cagr": -0.74,
+        "total_return": -16.95,
+        "volatility": 26.04,
+        "sharpe": -0.144,
+        "sortino": -0.22,
+        "calmar": -0.015,
+        "max_drawdown": -48.5,
+        "var_95": -35.5,
+        "pct_negative_years": 48.0,
+        "max_consecutive_losses": 3
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.196,
+        "sortino": 0.36,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": -2.24,
+    "quality_excess_cagr": -9.43,
+    "avg_stock_counts": {
+      "quality_roe": 75.0,
+      "margin_driven": 28.0,
+      "leverage_driven": 24.0,
+      "all_high_roe": 111.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": -4.5,
+        "margin_driven_return": -5.3,
+        "leverage_driven_return": -9.1,
+        "margin_leverage_spread": 3.8,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 12.4,
+        "margin_driven_return": 11.2,
+        "leverage_driven_return": 22.0,
+        "margin_leverage_spread": -10.8,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 0.4,
+        "margin_driven_return": -2.5,
+        "leverage_driven_return": -0.8,
+        "margin_leverage_spread": -1.6,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": -1.6,
+        "margin_driven_return": -1.5,
+        "leverage_driven_return": 7.4,
+        "margin_leverage_spread": -8.9,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": -0.5,
+        "margin_driven_return": -5.4,
+        "leverage_driven_return": -6.9,
+        "margin_leverage_spread": 1.5,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": -9.43,
+      "information_ratio": -0.507,
+      "tracking_error": 16.28,
+      "up_capture": 52.5,
+      "down_capture": 138.9,
+      "beta": 0.986,
+      "alpha": -9.37,
+      "win_rate": 32.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -10.98,
+      "information_ratio": -0.605,
+      "tracking_error": 16.83,
+      "up_capture": 40.0,
+      "down_capture": 143.6,
+      "beta": 0.801,
+      "alpha": -10.12,
+      "win_rate": 32.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": -33.47,
+        "margin_driven": -32.76,
+        "leverage_driven": -4.83,
+        "all_high_roe": -22.01,
+        "spy": -23.68,
+        "quality_roe_count": 3,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2001,
+        "quality_roe": 6.87,
+        "margin_driven": 10.87,
+        "leverage_driven": 46.7,
+        "all_high_roe": 12.84,
+        "spy": 1.61,
+        "quality_roe_count": 13,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2002,
+        "quality_roe": -36.25,
+        "margin_driven": -39.09,
+        "leverage_driven": -53.5,
+        "all_high_roe": -35.48,
+        "spy": -23.62,
+        "quality_roe_count": 11,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2003,
+        "quality_roe": 44.13,
+        "margin_driven": 25.45,
+        "leverage_driven": -23.28,
+        "all_high_roe": 40.51,
+        "spy": 34.33,
+        "quality_roe_count": 12,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2004,
+        "quality_roe": -3.83,
+        "margin_driven": 8.91,
+        "leverage_driven": -10.6,
+        "all_high_roe": -2.93,
+        "spy": 5.23,
+        "quality_roe_count": 24,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2005,
+        "quality_roe": 12.31,
+        "margin_driven": 27.01,
+        "leverage_driven": 41.47,
+        "all_high_roe": 16.55,
+        "spy": 12.43,
+        "quality_roe_count": 51,
+        "margin_driven_count": 15,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2006,
+        "quality_roe": 22.86,
+        "margin_driven": 22.19,
+        "leverage_driven": 34.51,
+        "all_high_roe": 25.39,
+        "spy": 11.6,
+        "quality_roe_count": 70,
+        "margin_driven_count": 27,
+        "leverage_driven_count": 24
+      },
+      {
+        "year": 2007,
+        "quality_roe": -1.1,
+        "margin_driven": 5.12,
+        "leverage_driven": 11.91,
+        "all_high_roe": 1.25,
+        "spy": -2.03,
+        "quality_roe_count": 82,
+        "margin_driven_count": 29,
+        "leverage_driven_count": 22
+      },
+      {
+        "year": 2008,
+        "quality_roe": -44.94,
+        "margin_driven": -49.09,
+        "leverage_driven": -39.02,
+        "all_high_roe": -42.67,
+        "spy": -39.11,
+        "quality_roe_count": 120,
+        "margin_driven_count": 45,
+        "leverage_driven_count": 34
+      },
+      {
+        "year": 2009,
+        "quality_roe": 73.01,
+        "margin_driven": 50.8,
+        "leverage_driven": 61.11,
+        "all_high_roe": 72.03,
+        "spy": 48.25,
+        "quality_roe_count": 53,
+        "margin_driven_count": 16,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2010,
+        "quality_roe": 5.26,
+        "margin_driven": -2.43,
+        "leverage_driven": 14.6,
+        "all_high_roe": 6.83,
+        "spy": 15.27,
+        "quality_roe_count": 90,
+        "margin_driven_count": 29,
+        "leverage_driven_count": 27
+      },
+      {
+        "year": 2011,
+        "quality_roe": -20.31,
+        "margin_driven": -22.53,
+        "leverage_driven": -16.16,
+        "all_high_roe": -18.74,
+        "spy": 8.77,
+        "quality_roe_count": 139,
+        "margin_driven_count": 49,
+        "leverage_driven_count": 45
+      },
+      {
+        "year": 2012,
+        "quality_roe": 12.96,
+        "margin_driven": 12.26,
+        "leverage_driven": 11.5,
+        "all_high_roe": 11.81,
+        "spy": 12.46,
+        "quality_roe_count": 112,
+        "margin_driven_count": 40,
+        "leverage_driven_count": 39
+      },
+      {
+        "year": 2013,
+        "quality_roe": 7.67,
+        "margin_driven": 1.36,
+        "leverage_driven": -10.21,
+        "all_high_roe": 4.17,
+        "spy": 23.07,
+        "quality_roe_count": 105,
+        "margin_driven_count": 30,
+        "leverage_driven_count": 28
+      },
+      {
+        "year": 2014,
+        "quality_roe": -3.43,
+        "margin_driven": -0.95,
+        "leverage_driven": -3.81,
+        "all_high_roe": -3.25,
+        "spy": 11.41,
+        "quality_roe_count": 105,
+        "margin_driven_count": 35,
+        "leverage_driven_count": 28
+      },
+      {
+        "year": 2015,
+        "quality_roe": -20.44,
+        "margin_driven": -16.76,
+        "leverage_driven": -8.49,
+        "all_high_roe": -16.15,
+        "spy": 2.74,
+        "quality_roe_count": 85,
+        "margin_driven_count": 29,
+        "leverage_driven_count": 28
+      },
+      {
+        "year": 2016,
+        "quality_roe": 10.7,
+        "margin_driven": 15.55,
+        "leverage_driven": 23.14,
+        "all_high_roe": 14.99,
+        "spy": 16.08,
+        "quality_roe_count": 85,
+        "margin_driven_count": 35,
+        "leverage_driven_count": 24
+      },
+      {
+        "year": 2017,
+        "quality_roe": 28.54,
+        "margin_driven": 21.14,
+        "leverage_driven": 35.12,
+        "all_high_roe": 28.64,
+        "spy": 11.49,
+        "quality_roe_count": 95,
+        "margin_driven_count": 40,
+        "leverage_driven_count": 28
+      },
+      {
+        "year": 2018,
+        "quality_roe": -7.67,
+        "margin_driven": -5.64,
+        "leverage_driven": 0.71,
+        "all_high_roe": -6.03,
+        "spy": 13.17,
+        "quality_roe_count": 87,
+        "margin_driven_count": 42,
+        "leverage_driven_count": 33
+      },
+      {
+        "year": 2019,
+        "quality_roe": -19.28,
+        "margin_driven": -21.94,
+        "leverage_driven": -13.45,
+        "all_high_roe": -18.24,
+        "spy": -12.12,
+        "quality_roe_count": 99,
+        "margin_driven_count": 38,
+        "leverage_driven_count": 31
+      },
+      {
+        "year": 2020,
+        "quality_roe": 39.31,
+        "margin_driven": 23.27,
+        "leverage_driven": 15.57,
+        "all_high_roe": 35.88,
+        "spy": 65.36,
+        "quality_roe_count": 82,
+        "margin_driven_count": 37,
+        "leverage_driven_count": 35
+      },
+      {
+        "year": 2021,
+        "quality_roe": -23.39,
+        "margin_driven": -26.15,
+        "leverage_driven": -32.42,
+        "all_high_roe": -25.86,
+        "spy": 14.55,
+        "quality_roe_count": 92,
+        "margin_driven_count": 37,
+        "leverage_driven_count": 39
+      },
+      {
+        "year": 2022,
+        "quality_roe": -15.43,
+        "margin_driven": -17.75,
+        "leverage_driven": -27.29,
+        "all_high_roe": -18.63,
+        "spy": -7.73,
+        "quality_roe_count": 112,
+        "margin_driven_count": 41,
+        "leverage_driven_count": 35
+      },
+      {
+        "year": 2023,
+        "quality_roe": -14.6,
+        "margin_driven": -16.27,
+        "leverage_driven": -11.68,
+        "all_high_roe": -14.7,
+        "spy": 28.9,
+        "quality_roe_count": 79,
+        "margin_driven_count": 33,
+        "leverage_driven_count": 28
+      },
+      {
+        "year": 2024,
+        "quality_roe": 11.58,
+        "margin_driven": 9.97,
+        "leverage_driven": 21.19,
+        "all_high_roe": 12.72,
+        "spy": 8.8,
+        "quality_roe_count": 71,
+        "margin_driven_count": 27,
+        "leverage_driven_count": 28
+      }
+    ]
+  },
+  "Canada": {
+    "universe": "Canada",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 4.28,
+        "total_return": 185.18,
+        "volatility": 26.16,
+        "sharpe": 0.068,
+        "sortino": 0.131,
+        "calmar": 0.104,
+        "max_drawdown": -41.3,
+        "var_95": -36.9,
+        "pct_negative_years": 36.0,
+        "max_consecutive_losses": 3
+      },
+      "margin_driven": {
+        "cagr": 1.05,
+        "total_return": 29.97,
+        "volatility": 29.22,
+        "sharpe": -0.049,
+        "sortino": -0.087,
+        "calmar": 0.02,
+        "max_drawdown": -53.1,
+        "var_95": -29.6,
+        "pct_negative_years": 52.0,
+        "max_consecutive_losses": 5
+      },
+      "leverage_driven": {
+        "cagr": 8.29,
+        "total_return": 632.82,
+        "volatility": 24.11,
+        "sharpe": 0.24,
+        "sortino": 0.453,
+        "calmar": 0.204,
+        "max_drawdown": -40.7,
+        "var_95": -30.7,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 3
+      },
+      "all_high_roe": {
+        "cagr": 6.54,
+        "total_return": 387.07,
+        "volatility": 22.15,
+        "sharpe": 0.182,
+        "sortino": 0.344,
+        "calmar": 0.167,
+        "max_drawdown": -39.1,
+        "var_95": -32.8,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 1
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.219,
+        "sortino": 0.409,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": -7.24,
+    "quality_excess_cagr": -3.02,
+    "avg_stock_counts": {
+      "quality_roe": 31.0,
+      "margin_driven": 14.0,
+      "leverage_driven": 14.0,
+      "all_high_roe": 56.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": 5.5,
+        "margin_driven_return": 5.6,
+        "leverage_driven_return": 6.6,
+        "margin_leverage_spread": -1.0,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 15.8,
+        "margin_driven_return": 10.1,
+        "leverage_driven_return": 14.6,
+        "margin_leverage_spread": -4.5,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 5.2,
+        "margin_driven_return": -0.7,
+        "leverage_driven_return": 9.3,
+        "margin_leverage_spread": -10.0,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": -3.7,
+        "margin_driven_return": -4.4,
+        "leverage_driven_return": 8.3,
+        "margin_leverage_spread": -12.7,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 13.7,
+        "margin_driven_return": 14.0,
+        "leverage_driven_return": 16.2,
+        "margin_leverage_spread": -2.3,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": -3.02,
+      "information_ratio": -0.131,
+      "tracking_error": 16.73,
+      "up_capture": 85.4,
+      "down_capture": 104.0,
+      "beta": 0.921,
+      "alpha": -2.64,
+      "win_rate": 32.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -6.25,
+      "information_ratio": -0.233,
+      "tracking_error": 19.63,
+      "up_capture": 75.6,
+      "down_capture": 128.0,
+      "beta": 0.987,
+      "alpha": -6.19,
+      "win_rate": 32.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": -12.11,
+        "margin_driven": -29.54,
+        "leverage_driven": -22.61,
+        "all_high_roe": -1.18,
+        "spy": -23.68,
+        "quality_roe_count": 2,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 3
+      },
+      {
+        "year": 2001,
+        "quality_roe": -1.11,
+        "margin_driven": -15.01,
+        "leverage_driven": -11.42,
+        "all_high_roe": 5.91,
+        "spy": 1.61,
+        "quality_roe_count": 11,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 5
+      },
+      {
+        "year": 2002,
+        "quality_roe": -18.99,
+        "margin_driven": -20.24,
+        "leverage_driven": -12.46,
+        "all_high_roe": -14.79,
+        "spy": -23.62,
+        "quality_roe_count": 9,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 3
+      },
+      {
+        "year": 2003,
+        "quality_roe": 17.76,
+        "margin_driven": 30.31,
+        "leverage_driven": 43.66,
+        "all_high_roe": 26.24,
+        "spy": 34.33,
+        "quality_roe_count": 4,
+        "margin_driven_count": 3,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2004,
+        "quality_roe": 42.15,
+        "margin_driven": 62.41,
+        "leverage_driven": 35.8,
+        "all_high_roe": 22.02,
+        "spy": 5.23,
+        "quality_roe_count": 12,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2005,
+        "quality_roe": 55.81,
+        "margin_driven": 41.38,
+        "leverage_driven": 39.04,
+        "all_high_roe": 37.57,
+        "spy": 12.43,
+        "quality_roe_count": 19,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2006,
+        "quality_roe": 0.0,
+        "margin_driven": 1.27,
+        "leverage_driven": 6.21,
+        "all_high_roe": 2.91,
+        "spy": 11.6,
+        "quality_roe_count": 35,
+        "margin_driven_count": 12,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2007,
+        "quality_roe": 3.85,
+        "margin_driven": -5.35,
+        "leverage_driven": 8.55,
+        "all_high_roe": 3.1,
+        "spy": -2.03,
+        "quality_roe_count": 39,
+        "margin_driven_count": 14,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2008,
+        "quality_roe": -41.32,
+        "margin_driven": -49.28,
+        "leverage_driven": -40.71,
+        "all_high_roe": -39.09,
+        "spy": -39.11,
+        "quality_roe_count": 48,
+        "margin_driven_count": 14,
+        "leverage_driven_count": 18
+      },
+      {
+        "year": 2009,
+        "quality_roe": 60.85,
+        "margin_driven": 62.33,
+        "leverage_driven": 59.79,
+        "all_high_roe": 58.45,
+        "spy": 48.25,
+        "quality_roe_count": 34,
+        "margin_driven_count": 14,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2010,
+        "quality_roe": 31.51,
+        "margin_driven": 37.51,
+        "leverage_driven": 13.69,
+        "all_high_roe": 23.01,
+        "spy": 15.27,
+        "quality_roe_count": 20,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 12
+      },
+      {
+        "year": 2011,
+        "quality_roe": -15.72,
+        "margin_driven": -23.89,
+        "leverage_driven": -2.36,
+        "all_high_roe": -7.31,
+        "spy": 8.77,
+        "quality_roe_count": 31,
+        "margin_driven_count": 14,
+        "leverage_driven_count": 17
+      },
+      {
+        "year": 2012,
+        "quality_roe": 3.46,
+        "margin_driven": -2.93,
+        "leverage_driven": 21.93,
+        "all_high_roe": 7.86,
+        "spy": 12.46,
+        "quality_roe_count": 49,
+        "margin_driven_count": 17,
+        "leverage_driven_count": 16
+      },
+      {
+        "year": 2013,
+        "quality_roe": 7.5,
+        "margin_driven": -6.2,
+        "leverage_driven": 17.23,
+        "all_high_roe": 14.16,
+        "spy": 23.07,
+        "quality_roe_count": 36,
+        "margin_driven_count": 16,
+        "leverage_driven_count": 17
+      },
+      {
+        "year": 2014,
+        "quality_roe": -0.68,
+        "margin_driven": -7.95,
+        "leverage_driven": -4.06,
+        "all_high_roe": 1.42,
+        "spy": 11.41,
+        "quality_roe_count": 24,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 13
+      },
+      {
+        "year": 2015,
+        "quality_roe": 0.25,
+        "margin_driven": -15.5,
+        "leverage_driven": 2.06,
+        "all_high_roe": 0.98,
+        "spy": 2.74,
+        "quality_roe_count": 34,
+        "margin_driven_count": 17,
+        "leverage_driven_count": 17
+      },
+      {
+        "year": 2016,
+        "quality_roe": 14.19,
+        "margin_driven": 15.27,
+        "leverage_driven": 25.58,
+        "all_high_roe": 16.56,
+        "spy": 16.08,
+        "quality_roe_count": 26,
+        "margin_driven_count": 12,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2017,
+        "quality_roe": 4.93,
+        "margin_driven": -5.98,
+        "leverage_driven": 23.75,
+        "all_high_roe": 10.45,
+        "spy": 11.49,
+        "quality_roe_count": 29,
+        "margin_driven_count": 14,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2018,
+        "quality_roe": -1.18,
+        "margin_driven": 13.93,
+        "leverage_driven": 21.06,
+        "all_high_roe": 4.74,
+        "spy": 13.17,
+        "quality_roe_count": 39,
+        "margin_driven_count": 19,
+        "leverage_driven_count": 20
+      },
+      {
+        "year": 2019,
+        "quality_roe": -36.86,
+        "margin_driven": -29.6,
+        "leverage_driven": -30.71,
+        "all_high_roe": -32.75,
+        "spy": -12.12,
+        "quality_roe_count": 32,
+        "margin_driven_count": 19,
+        "leverage_driven_count": 19
+      },
+      {
+        "year": 2020,
+        "quality_roe": 59.83,
+        "margin_driven": 52.37,
+        "leverage_driven": 46.94,
+        "all_high_roe": 57.63,
+        "spy": 65.36,
+        "quality_roe_count": 31,
+        "margin_driven_count": 18,
+        "leverage_driven_count": 12
+      },
+      {
+        "year": 2021,
+        "quality_roe": 2.67,
+        "margin_driven": 16.21,
+        "leverage_driven": 10.4,
+        "all_high_roe": 7.48,
+        "spy": 14.55,
+        "quality_roe_count": 34,
+        "margin_driven_count": 13,
+        "leverage_driven_count": 15
+      },
+      {
+        "year": 2022,
+        "quality_roe": -7.16,
+        "margin_driven": -4.56,
+        "leverage_driven": 4.7,
+        "all_high_roe": -4.74,
+        "spy": -7.73,
+        "quality_roe_count": 76,
+        "margin_driven_count": 29,
+        "leverage_driven_count": 30
+      },
+      {
+        "year": 2023,
+        "quality_roe": 8.08,
+        "margin_driven": 1.95,
+        "leverage_driven": 7.06,
+        "all_high_roe": 9.69,
+        "spy": 28.9,
+        "quality_roe_count": 73,
+        "margin_driven_count": 27,
+        "leverage_driven_count": 30
+      },
+      {
+        "year": 2024,
+        "quality_roe": 4.84,
+        "margin_driven": 3.81,
+        "leverage_driven": 11.94,
+        "all_high_roe": 9.04,
+        "spy": 8.8,
+        "quality_roe_count": 38,
+        "margin_driven_count": 17,
+        "leverage_driven_count": 22
+      }
+    ]
+  },
+  "LSE": {
+    "universe": "LSE",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 6.1,
+        "total_return": 339.57,
+        "volatility": 26.57,
+        "sharpe": 0.098,
+        "sortino": 0.187,
+        "calmar": 0.125,
+        "max_drawdown": -48.6,
+        "var_95": -37.1,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 2
+      },
+      "margin_driven": {
+        "cagr": 4.29,
+        "total_return": 185.86,
+        "volatility": 26.4,
+        "sharpe": 0.03,
+        "sortino": 0.05,
+        "calmar": 0.078,
+        "max_drawdown": -55.1,
+        "var_95": -40.4,
+        "pct_negative_years": 40.0,
+        "max_consecutive_losses": 2
+      },
+      "leverage_driven": {
+        "cagr": 6.97,
+        "total_return": 438.75,
+        "volatility": 25.36,
+        "sharpe": 0.137,
+        "sortino": 0.266,
+        "calmar": 0.16,
+        "max_drawdown": -43.6,
+        "var_95": -34.0,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 2
+      },
+      "all_high_roe": {
+        "cagr": 7.39,
+        "total_return": 494.39,
+        "volatility": 23.99,
+        "sharpe": 0.162,
+        "sortino": 0.317,
+        "calmar": 0.176,
+        "max_drawdown": -42.0,
+        "var_95": -32.0,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 2
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.173,
+        "sortino": 0.313,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": -2.68,
+    "quality_excess_cagr": -1.2,
+    "avg_stock_counts": {
+      "quality_roe": 81.0,
+      "margin_driven": 43.0,
+      "leverage_driven": 43.0,
+      "all_high_roe": 173.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": 6.0,
+        "margin_driven_return": 3.0,
+        "leverage_driven_return": 9.9,
+        "margin_leverage_spread": -6.8,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 14.5,
+        "margin_driven_return": 12.1,
+        "leverage_driven_return": 14.3,
+        "margin_leverage_spread": -2.2,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 10.1,
+        "margin_driven_return": 6.6,
+        "leverage_driven_return": 10.9,
+        "margin_leverage_spread": -4.3,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": 2.5,
+        "margin_driven_return": 2.9,
+        "leverage_driven_return": -0.1,
+        "margin_leverage_spread": 3.0,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 13.1,
+        "margin_driven_return": 13.7,
+        "leverage_driven_return": 13.8,
+        "margin_leverage_spread": -0.1,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": -1.2,
+      "information_ratio": -0.019,
+      "tracking_error": 12.75,
+      "up_capture": 98.6,
+      "down_capture": 101.3,
+      "beta": 1.065,
+      "alpha": -1.45,
+      "win_rate": 32.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -3.01,
+      "information_ratio": -0.154,
+      "tracking_error": 11.77,
+      "up_capture": 95.8,
+      "down_capture": 128.5,
+      "beta": 1.081,
+      "alpha": -3.32,
+      "win_rate": 36.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": 4.52,
+        "margin_driven": -10.79,
+        "leverage_driven": 12.25,
+        "all_high_roe": 10.23,
+        "spy": -23.68,
+        "quality_roe_count": 13,
+        "margin_driven_count": 12,
+        "leverage_driven_count": 11
+      },
+      {
+        "year": 2001,
+        "quality_roe": 11.45,
+        "margin_driven": 18.59,
+        "leverage_driven": 53.18,
+        "all_high_roe": 22.87,
+        "spy": 1.61,
+        "quality_roe_count": 17,
+        "margin_driven_count": 12,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2002,
+        "quality_roe": -37.08,
+        "margin_driven": -40.44,
+        "leverage_driven": -34.03,
+        "all_high_roe": -32.02,
+        "spy": -23.62,
+        "quality_roe_count": 16,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 11
+      },
+      {
+        "year": 2003,
+        "quality_roe": 47.89,
+        "margin_driven": 37.09,
+        "leverage_driven": 3.29,
+        "all_high_roe": 34.31,
+        "spy": 34.33,
+        "quality_roe_count": 13,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2004,
+        "quality_roe": 3.11,
+        "margin_driven": 10.71,
+        "leverage_driven": 14.59,
+        "all_high_roe": 13.8,
+        "spy": 5.23,
+        "quality_roe_count": 14,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 11
+      },
+      {
+        "year": 2005,
+        "quality_roe": 37.8,
+        "margin_driven": 43.48,
+        "leverage_driven": 23.04,
+        "all_high_roe": 28.74,
+        "spy": 12.43,
+        "quality_roe_count": 23,
+        "margin_driven_count": 20,
+        "leverage_driven_count": 19
+      },
+      {
+        "year": 2006,
+        "quality_roe": 15.02,
+        "margin_driven": 12.64,
+        "leverage_driven": 28.61,
+        "all_high_roe": 17.97,
+        "spy": 11.6,
+        "quality_roe_count": 44,
+        "margin_driven_count": 24,
+        "leverage_driven_count": 22
+      },
+      {
+        "year": 2007,
+        "quality_roe": -5.88,
+        "margin_driven": -5.61,
+        "leverage_driven": -11.34,
+        "all_high_roe": -8.76,
+        "spy": -2.03,
+        "quality_roe_count": 56,
+        "margin_driven_count": 31,
+        "leverage_driven_count": 34
+      },
+      {
+        "year": 2008,
+        "quality_roe": -45.41,
+        "margin_driven": -52.44,
+        "leverage_driven": -36.39,
+        "all_high_roe": -36.48,
+        "spy": -39.11,
+        "quality_roe_count": 54,
+        "margin_driven_count": 34,
+        "leverage_driven_count": 32
+      },
+      {
+        "year": 2009,
+        "quality_roe": 71.03,
+        "margin_driven": 62.39,
+        "leverage_driven": 67.64,
+        "all_high_roe": 66.36,
+        "spy": 48.25,
+        "quality_roe_count": 34,
+        "margin_driven_count": 23,
+        "leverage_driven_count": 23
+      },
+      {
+        "year": 2010,
+        "quality_roe": 30.19,
+        "margin_driven": 21.13,
+        "leverage_driven": 11.97,
+        "all_high_roe": 15.89,
+        "spy": 15.27,
+        "quality_roe_count": 21,
+        "margin_driven_count": 15,
+        "leverage_driven_count": 17
+      },
+      {
+        "year": 2011,
+        "quality_roe": 2.84,
+        "margin_driven": -4.72,
+        "leverage_driven": 11.04,
+        "all_high_roe": 6.08,
+        "spy": 8.77,
+        "quality_roe_count": 47,
+        "margin_driven_count": 26,
+        "leverage_driven_count": 26
+      },
+      {
+        "year": 2012,
+        "quality_roe": 9.49,
+        "margin_driven": 11.77,
+        "leverage_driven": 20.41,
+        "all_high_roe": 16.87,
+        "spy": 12.46,
+        "quality_roe_count": 53,
+        "margin_driven_count": 28,
+        "leverage_driven_count": 27
+      },
+      {
+        "year": 2013,
+        "quality_roe": 10.0,
+        "margin_driven": 5.89,
+        "leverage_driven": 15.81,
+        "all_high_roe": 14.05,
+        "spy": 23.07,
+        "quality_roe_count": 65,
+        "margin_driven_count": 35,
+        "leverage_driven_count": 30
+      },
+      {
+        "year": 2014,
+        "quality_roe": -1.82,
+        "margin_driven": -1.0,
+        "leverage_driven": -4.86,
+        "all_high_roe": -1.42,
+        "spy": 11.41,
+        "quality_roe_count": 60,
+        "margin_driven_count": 35,
+        "leverage_driven_count": 36
+      },
+      {
+        "year": 2015,
+        "quality_roe": 1.0,
+        "margin_driven": -3.36,
+        "leverage_driven": -2.75,
+        "all_high_roe": 0.54,
+        "spy": 2.74,
+        "quality_roe_count": 79,
+        "margin_driven_count": 45,
+        "leverage_driven_count": 35
+      },
+      {
+        "year": 2016,
+        "quality_roe": 12.83,
+        "margin_driven": 15.01,
+        "leverage_driven": 16.47,
+        "all_high_roe": 15.78,
+        "spy": 16.08,
+        "quality_roe_count": 84,
+        "margin_driven_count": 52,
+        "leverage_driven_count": 29
+      },
+      {
+        "year": 2017,
+        "quality_roe": 11.09,
+        "margin_driven": 12.99,
+        "leverage_driven": 6.26,
+        "all_high_roe": 7.99,
+        "spy": 11.49,
+        "quality_roe_count": 81,
+        "margin_driven_count": 45,
+        "leverage_driven_count": 31
+      },
+      {
+        "year": 2018,
+        "quality_roe": 4.38,
+        "margin_driven": 7.01,
+        "leverage_driven": 3.6,
+        "all_high_roe": 2.68,
+        "spy": 13.17,
+        "quality_roe_count": 186,
+        "margin_driven_count": 94,
+        "leverage_driven_count": 94
+      },
+      {
+        "year": 2019,
+        "quality_roe": -16.74,
+        "margin_driven": -17.14,
+        "leverage_driven": -23.93,
+        "all_high_roe": -19.86,
+        "spy": -12.12,
+        "quality_roe_count": 168,
+        "margin_driven_count": 76,
+        "leverage_driven_count": 88
+      },
+      {
+        "year": 2020,
+        "quality_roe": 66.9,
+        "margin_driven": 64.7,
+        "leverage_driven": 63.34,
+        "all_high_roe": 67.5,
+        "spy": 65.36,
+        "quality_roe_count": 141,
+        "margin_driven_count": 70,
+        "leverage_driven_count": 79
+      },
+      {
+        "year": 2021,
+        "quality_roe": 3.04,
+        "margin_driven": 6.04,
+        "leverage_driven": -0.74,
+        "all_high_roe": 2.42,
+        "spy": 14.55,
+        "quality_roe_count": 134,
+        "margin_driven_count": 60,
+        "leverage_driven_count": 71
+      },
+      {
+        "year": 2022,
+        "quality_roe": -9.14,
+        "margin_driven": -12.79,
+        "leverage_driven": -8.22,
+        "all_high_roe": -8.0,
+        "spy": -7.73,
+        "quality_roe_count": 254,
+        "margin_driven_count": 119,
+        "leverage_driven_count": 120
+      },
+      {
+        "year": 2023,
+        "quality_roe": 11.43,
+        "margin_driven": 10.69,
+        "leverage_driven": 11.27,
+        "all_high_roe": 12.44,
+        "spy": 28.9,
+        "quality_roe_count": 197,
+        "margin_driven_count": 105,
+        "leverage_driven_count": 105
+      },
+      {
+        "year": 2024,
+        "quality_roe": -6.87,
+        "margin_driven": -0.09,
+        "leverage_driven": 3.57,
+        "all_high_roe": -2.76,
+        "spy": 8.8,
+        "quality_roe_count": 175,
+        "margin_driven_count": 91,
+        "leverage_driven_count": 96
+      }
+    ]
+  },
+  "SIX": {
+    "universe": "SIX",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 6.92,
+        "total_return": 432.25,
+        "volatility": 19.97,
+        "sharpe": 0.321,
+        "sortino": 0.707,
+        "calmar": 0.169,
+        "max_drawdown": -40.9,
+        "var_95": -20.9,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 2
+      },
+      "margin_driven": {
+        "cagr": 6.69,
+        "total_return": 404.35,
+        "volatility": 18.89,
+        "sharpe": 0.328,
+        "sortino": 0.711,
+        "calmar": 0.195,
+        "max_drawdown": -34.3,
+        "var_95": -23.7,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 2
+      },
+      "leverage_driven": {
+        "cagr": 4.42,
+        "total_return": 194.65,
+        "volatility": 25.13,
+        "sharpe": 0.156,
+        "sortino": 0.295,
+        "calmar": 0.075,
+        "max_drawdown": -59.2,
+        "var_95": -27.9,
+        "pct_negative_years": 36.0,
+        "max_consecutive_losses": 3
+      },
+      "all_high_roe": {
+        "cagr": 6.2,
+        "total_return": 349.93,
+        "volatility": 21.32,
+        "sharpe": 0.267,
+        "sortino": 0.549,
+        "calmar": 0.131,
+        "max_drawdown": -47.4,
+        "var_95": -26.2,
+        "pct_negative_years": 36.0,
+        "max_consecutive_losses": 2
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.31,
+        "sortino": 0.624,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": 2.27,
+    "quality_excess_cagr": -0.38,
+    "avg_stock_counts": {
+      "quality_roe": 28.0,
+      "margin_driven": 12.0,
+      "leverage_driven": 12.0,
+      "all_high_roe": 49.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": 7.0,
+        "margin_driven_return": 3.7,
+        "leverage_driven_return": 2.3,
+        "margin_leverage_spread": 1.5,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 12.9,
+        "margin_driven_return": 13.5,
+        "leverage_driven_return": 14.3,
+        "margin_leverage_spread": -0.9,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 10.5,
+        "margin_driven_return": 7.9,
+        "leverage_driven_return": 7.4,
+        "margin_leverage_spread": 0.5,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": 7.0,
+        "margin_driven_return": 9.2,
+        "leverage_driven_return": 2.5,
+        "margin_leverage_spread": 6.7,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 6.2,
+        "margin_driven_return": 6.9,
+        "leverage_driven_return": 10.7,
+        "margin_leverage_spread": -3.8,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": -0.38,
+      "information_ratio": -0.057,
+      "tracking_error": 13.83,
+      "up_capture": 80.7,
+      "down_capture": 56.7,
+      "beta": 0.716,
+      "alpha": 1.55,
+      "win_rate": 48.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -0.61,
+      "information_ratio": -0.086,
+      "tracking_error": 14.54,
+      "up_capture": 81.8,
+      "down_capture": 70.6,
+      "beta": 0.651,
+      "alpha": 1.76,
+      "win_rate": 52.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": 14.4,
+        "margin_driven": -4.66,
+        "leverage_driven": -0.15,
+        "all_high_roe": 7.37,
+        "spy": -23.68,
+        "quality_roe_count": 10,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 5
+      },
+      {
+        "year": 2001,
+        "quality_roe": 5.09,
+        "margin_driven": 12.22,
+        "leverage_driven": -10.9,
+        "all_high_roe": -0.19,
+        "spy": 1.61,
+        "quality_roe_count": 11,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2002,
+        "quality_roe": -20.92,
+        "margin_driven": -23.68,
+        "leverage_driven": -27.89,
+        "all_high_roe": -26.21,
+        "spy": -23.62,
+        "quality_roe_count": 9,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 5
+      },
+      {
+        "year": 2003,
+        "quality_roe": 33.73,
+        "margin_driven": 31.07,
+        "leverage_driven": 46.19,
+        "all_high_roe": 35.0,
+        "spy": 34.33,
+        "quality_roe_count": 10,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2004,
+        "quality_roe": 2.47,
+        "margin_driven": 3.7,
+        "leverage_driven": 4.11,
+        "all_high_roe": 7.98,
+        "spy": 5.23,
+        "quality_roe_count": 10,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2005,
+        "quality_roe": 31.53,
+        "margin_driven": 23.35,
+        "leverage_driven": 37.87,
+        "all_high_roe": 33.67,
+        "spy": 12.43,
+        "quality_roe_count": 18,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 9
+      },
+      {
+        "year": 2006,
+        "quality_roe": 17.02,
+        "margin_driven": 13.49,
+        "leverage_driven": 23.5,
+        "all_high_roe": 19.31,
+        "spy": 11.6,
+        "quality_roe_count": 29,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 11
+      },
+      {
+        "year": 2007,
+        "quality_roe": -8.16,
+        "margin_driven": -5.34,
+        "leverage_driven": -11.47,
+        "all_high_roe": -9.16,
+        "spy": -2.03,
+        "quality_roe_count": 35,
+        "margin_driven_count": 17,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2008,
+        "quality_roe": -35.67,
+        "margin_driven": -30.6,
+        "leverage_driven": -53.96,
+        "all_high_roe": -42.05,
+        "spy": -39.11,
+        "quality_roe_count": 38,
+        "margin_driven_count": 13,
+        "leverage_driven_count": 11
+      },
+      {
+        "year": 2009,
+        "quality_roe": 59.54,
+        "margin_driven": 66.55,
+        "leverage_driven": 75.76,
+        "all_high_roe": 67.58,
+        "spy": 48.25,
+        "quality_roe_count": 26,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2010,
+        "quality_roe": 2.91,
+        "margin_driven": -12.5,
+        "leverage_driven": -8.97,
+        "all_high_roe": 5.01,
+        "spy": 15.27,
+        "quality_roe_count": 18,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2011,
+        "quality_roe": -3.35,
+        "margin_driven": 5.62,
+        "leverage_driven": 4.56,
+        "all_high_roe": -2.33,
+        "spy": 8.77,
+        "quality_roe_count": 22,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2012,
+        "quality_roe": 24.1,
+        "margin_driven": 18.36,
+        "leverage_driven": 16.27,
+        "all_high_roe": 20.95,
+        "spy": 12.46,
+        "quality_roe_count": 25,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2013,
+        "quality_roe": 16.94,
+        "margin_driven": 15.39,
+        "leverage_driven": 24.53,
+        "all_high_roe": 18.12,
+        "spy": 23.07,
+        "quality_roe_count": 28,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2014,
+        "quality_roe": 11.89,
+        "margin_driven": 12.64,
+        "leverage_driven": 0.78,
+        "all_high_roe": 9.8,
+        "spy": 11.41,
+        "quality_roe_count": 22,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2015,
+        "quality_roe": -0.92,
+        "margin_driven": 4.46,
+        "leverage_driven": 1.37,
+        "all_high_roe": -0.26,
+        "spy": 2.74,
+        "quality_roe_count": 43,
+        "margin_driven_count": 18,
+        "leverage_driven_count": 16
+      },
+      {
+        "year": 2016,
+        "quality_roe": 19.97,
+        "margin_driven": 17.37,
+        "leverage_driven": 16.36,
+        "all_high_roe": 18.08,
+        "spy": 16.08,
+        "quality_roe_count": 36,
+        "margin_driven_count": 15,
+        "leverage_driven_count": 13
+      },
+      {
+        "year": 2017,
+        "quality_roe": 18.44,
+        "margin_driven": 18.18,
+        "leverage_driven": 16.37,
+        "all_high_roe": 14.73,
+        "spy": 11.49,
+        "quality_roe_count": 39,
+        "margin_driven_count": 18,
+        "leverage_driven_count": 16
+      },
+      {
+        "year": 2018,
+        "quality_roe": 0.37,
+        "margin_driven": 8.67,
+        "leverage_driven": -11.86,
+        "all_high_roe": -4.57,
+        "spy": 13.17,
+        "quality_roe_count": 50,
+        "margin_driven_count": 21,
+        "leverage_driven_count": 17
+      },
+      {
+        "year": 2019,
+        "quality_roe": -3.03,
+        "margin_driven": -2.71,
+        "leverage_driven": -9.75,
+        "all_high_roe": -4.38,
+        "spy": -12.12,
+        "quality_roe_count": 50,
+        "margin_driven_count": 23,
+        "leverage_driven_count": 23
+      },
+      {
+        "year": 2020,
+        "quality_roe": 38.29,
+        "margin_driven": 17.97,
+        "leverage_driven": 21.39,
+        "all_high_roe": 33.58,
+        "spy": 65.36,
+        "quality_roe_count": 39,
+        "margin_driven_count": 19,
+        "leverage_driven_count": 23
+      },
+      {
+        "year": 2021,
+        "quality_roe": 7.03,
+        "margin_driven": 3.09,
+        "leverage_driven": -0.5,
+        "all_high_roe": 3.26,
+        "spy": 14.55,
+        "quality_roe_count": 36,
+        "margin_driven_count": 20,
+        "leverage_driven_count": 19
+      },
+      {
+        "year": 2022,
+        "quality_roe": -8.05,
+        "margin_driven": -9.46,
+        "leverage_driven": 0.43,
+        "all_high_roe": -4.37,
+        "spy": -7.73,
+        "quality_roe_count": 54,
+        "margin_driven_count": 25,
+        "leverage_driven_count": 26
+      },
+      {
+        "year": 2023,
+        "quality_roe": 4.15,
+        "margin_driven": 4.74,
+        "leverage_driven": 13.78,
+        "all_high_roe": 5.3,
+        "spy": 28.9,
+        "quality_roe_count": 24,
+        "margin_driven_count": 12,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2024,
+        "quality_roe": -10.23,
+        "margin_driven": 18.11,
+        "leverage_driven": 18.2,
+        "all_high_roe": 0.69,
+        "spy": 8.8,
+        "quality_roe_count": 23,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 10
+      }
+    ]
+  },
+  "STO": {
+    "universe": "STO",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 6.45,
+        "total_return": 377.37,
+        "volatility": 30.2,
+        "sharpe": 0.147,
+        "sortino": 0.275,
+        "calmar": 0.124,
+        "max_drawdown": -51.9,
+        "var_95": -40.5,
+        "pct_negative_years": 36.0,
+        "max_consecutive_losses": 2
+      },
+      "margin_driven": {
+        "cagr": 2.47,
+        "total_return": 84.01,
+        "volatility": 31.43,
+        "sharpe": 0.015,
+        "sortino": 0.025,
+        "calmar": 0.033,
+        "max_drawdown": -75.9,
+        "var_95": -41.6,
+        "pct_negative_years": 36.0,
+        "max_consecutive_losses": 3
+      },
+      "leverage_driven": {
+        "cagr": 8.36,
+        "total_return": 644.83,
+        "volatility": 31.35,
+        "sharpe": 0.203,
+        "sortino": 0.435,
+        "calmar": 0.133,
+        "max_drawdown": -62.7,
+        "var_95": -21.7,
+        "pct_negative_years": 36.0,
+        "max_consecutive_losses": 2
+      },
+      "all_high_roe": {
+        "cagr": 6.99,
+        "total_return": 441.33,
+        "volatility": 29.08,
+        "sharpe": 0.172,
+        "sortino": 0.319,
+        "calmar": 0.127,
+        "max_drawdown": -54.9,
+        "var_95": -42.9,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 2
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.242,
+        "sortino": 0.46,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": -5.89,
+    "quality_excess_cagr": -0.85,
+    "avg_stock_counts": {
+      "quality_roe": 23.0,
+      "margin_driven": 10.0,
+      "leverage_driven": 9.0,
+      "all_high_roe": 42.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": -5.4,
+        "margin_driven_return": -18.2,
+        "leverage_driven_return": 19.9,
+        "margin_leverage_spread": -38.1,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 18.3,
+        "margin_driven_return": 15.5,
+        "leverage_driven_return": 13.2,
+        "margin_leverage_spread": 2.2,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 16.5,
+        "margin_driven_return": 15.2,
+        "leverage_driven_return": 17.3,
+        "margin_leverage_spread": -2.1,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": 5.8,
+        "margin_driven_return": 13.7,
+        "leverage_driven_return": -2.5,
+        "margin_leverage_spread": 16.3,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 18.1,
+        "margin_driven_return": 9.8,
+        "leverage_driven_return": 15.9,
+        "margin_leverage_spread": -6.1,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": -0.85,
+      "information_ratio": 0.07,
+      "tracking_error": 16.75,
+      "up_capture": 124.3,
+      "down_capture": 150.4,
+      "beta": 1.157,
+      "alpha": -1.68,
+      "win_rate": 44.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -4.83,
+      "information_ratio": -0.105,
+      "tracking_error": 21.72,
+      "up_capture": 104.5,
+      "down_capture": 167.3,
+      "beta": 1.037,
+      "alpha": -5.03,
+      "win_rate": 36.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": -43.76,
+        "margin_driven": -46.31,
+        "leverage_driven": -18.29,
+        "all_high_roe": -43.48,
+        "spy": -23.68,
+        "quality_roe_count": 5,
+        "margin_driven_count": 3,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2001,
+        "quality_roe": 43.89,
+        "margin_driven": -23.09,
+        "leverage_driven": 48.44,
+        "all_high_roe": 15.8,
+        "spy": 1.61,
+        "quality_roe_count": 4,
+        "margin_driven_count": 3,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2002,
+        "quality_roe": -40.52,
+        "margin_driven": -41.55,
+        "leverage_driven": -10.38,
+        "all_high_roe": -31.08,
+        "spy": -23.62,
+        "quality_roe_count": 1,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2003,
+        "quality_roe": 32.39,
+        "margin_driven": 43.65,
+        "leverage_driven": 45.5,
+        "all_high_roe": 29.4,
+        "spy": 34.33,
+        "quality_roe_count": 5,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2004,
+        "quality_roe": -18.94,
+        "margin_driven": -23.79,
+        "leverage_driven": 34.36,
+        "all_high_roe": 9.33,
+        "spy": 5.23,
+        "quality_roe_count": 3,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2005,
+        "quality_roe": 53.07,
+        "margin_driven": 74.73,
+        "leverage_driven": 49.83,
+        "all_high_roe": 52.94,
+        "spy": 12.43,
+        "quality_roe_count": 9,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2006,
+        "quality_roe": 21.36,
+        "margin_driven": 10.33,
+        "leverage_driven": 8.54,
+        "all_high_roe": 25.49,
+        "spy": 11.6,
+        "quality_roe_count": 21,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2007,
+        "quality_roe": -17.63,
+        "margin_driven": -22.4,
+        "leverage_driven": -18.66,
+        "all_high_roe": -20.18,
+        "spy": -2.03,
+        "quality_roe_count": 27,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2008,
+        "quality_roe": -33.5,
+        "margin_driven": -33.21,
+        "leverage_driven": -54.12,
+        "all_high_roe": -42.86,
+        "spy": -39.11,
+        "quality_roe_count": 20,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2009,
+        "quality_roe": 68.39,
+        "margin_driven": 48.0,
+        "leverage_driven": 80.63,
+        "all_high_roe": 74.52,
+        "spy": 48.25,
+        "quality_roe_count": 9,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2010,
+        "quality_roe": 19.04,
+        "margin_driven": 10.83,
+        "leverage_driven": 18.92,
+        "all_high_roe": 17.17,
+        "spy": 15.27,
+        "quality_roe_count": 12,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2011,
+        "quality_roe": -0.04,
+        "margin_driven": -2.45,
+        "leverage_driven": -11.6,
+        "all_high_roe": -1.7,
+        "spy": 8.77,
+        "quality_roe_count": 25,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2012,
+        "quality_roe": 7.16,
+        "margin_driven": 7.49,
+        "leverage_driven": 11.26,
+        "all_high_roe": 9.14,
+        "spy": 12.46,
+        "quality_roe_count": 23,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2013,
+        "quality_roe": 22.22,
+        "margin_driven": 14.4,
+        "leverage_driven": 24.36,
+        "all_high_roe": 28.18,
+        "spy": 23.07,
+        "quality_roe_count": 14,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2014,
+        "quality_roe": 33.97,
+        "margin_driven": 45.77,
+        "leverage_driven": 43.36,
+        "all_high_roe": 30.17,
+        "spy": 11.41,
+        "quality_roe_count": 13,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2015,
+        "quality_roe": -4.63,
+        "margin_driven": -1.74,
+        "leverage_driven": -2.36,
+        "all_high_roe": 3.74,
+        "spy": 2.74,
+        "quality_roe_count": 12,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2016,
+        "quality_roe": 13.41,
+        "margin_driven": 6.22,
+        "leverage_driven": 10.16,
+        "all_high_roe": 14.04,
+        "spy": 16.08,
+        "quality_roe_count": 23,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2017,
+        "quality_roe": 7.17,
+        "margin_driven": 23.28,
+        "leverage_driven": -8.51,
+        "all_high_roe": 5.47,
+        "spy": 11.49,
+        "quality_roe_count": 27,
+        "margin_driven_count": 13,
+        "leverage_driven_count": 11
+      },
+      {
+        "year": 2018,
+        "quality_roe": 23.84,
+        "margin_driven": 40.25,
+        "leverage_driven": 9.67,
+        "all_high_roe": 18.31,
+        "spy": 13.17,
+        "quality_roe_count": 39,
+        "margin_driven_count": 16,
+        "leverage_driven_count": 15
+      },
+      {
+        "year": 2019,
+        "quality_roe": -10.57,
+        "margin_driven": 0.56,
+        "leverage_driven": -21.67,
+        "all_high_roe": -11.43,
+        "spy": -12.12,
+        "quality_roe_count": 45,
+        "margin_driven_count": 19,
+        "leverage_driven_count": 17
+      },
+      {
+        "year": 2020,
+        "quality_roe": 67.32,
+        "margin_driven": 36.67,
+        "leverage_driven": 67.64,
+        "all_high_roe": 67.12,
+        "spy": 65.36,
+        "quality_roe_count": 47,
+        "margin_driven_count": 17,
+        "leverage_driven_count": 13
+      },
+      {
+        "year": 2021,
+        "quality_roe": 21.42,
+        "margin_driven": 27.5,
+        "leverage_driven": 2.62,
+        "all_high_roe": 14.43,
+        "spy": 14.55,
+        "quality_roe_count": 41,
+        "margin_driven_count": 16,
+        "leverage_driven_count": 13
+      },
+      {
+        "year": 2022,
+        "quality_roe": -16.93,
+        "margin_driven": -38.28,
+        "leverage_driven": -16.3,
+        "all_high_roe": -13.9,
+        "spy": -7.73,
+        "quality_roe_count": 70,
+        "margin_driven_count": 27,
+        "leverage_driven_count": 25
+      },
+      {
+        "year": 2023,
+        "quality_roe": 11.35,
+        "margin_driven": 13.18,
+        "leverage_driven": 24.33,
+        "all_high_roe": 13.81,
+        "spy": 28.9,
+        "quality_roe_count": 42,
+        "margin_driven_count": 16,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2024,
+        "quality_roe": 7.11,
+        "margin_driven": 9.99,
+        "leverage_driven": 1.33,
+        "all_high_roe": 8.05,
+        "spy": 8.8,
+        "quality_roe_count": 39,
+        "margin_driven_count": 15,
+        "leverage_driven_count": 15
+      }
+    ]
+  },
+  "KSC": {
+    "universe": "KSC",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 5.42,
+        "total_return": 274.24,
+        "volatility": 24.67,
+        "sharpe": 0.098,
+        "sortino": 0.187,
+        "calmar": 0.125,
+        "max_drawdown": -43.5,
+        "var_95": -16.6,
+        "pct_negative_years": 40.0,
+        "max_consecutive_losses": 4
+      },
+      "margin_driven": {
+        "cagr": 4.52,
+        "total_return": 201.74,
+        "volatility": 32.09,
+        "sharpe": 0.047,
+        "sortino": 0.098,
+        "calmar": 0.085,
+        "max_drawdown": -52.9,
+        "var_95": -28.2,
+        "pct_negative_years": 44.0,
+        "max_consecutive_losses": 4
+      },
+      "leverage_driven": {
+        "cagr": -2.33,
+        "total_return": -44.48,
+        "volatility": 27.6,
+        "sharpe": -0.193,
+        "sortino": -0.298,
+        "calmar": -0.032,
+        "max_drawdown": -73.8,
+        "var_95": -40.9,
+        "pct_negative_years": 60.0,
+        "max_consecutive_losses": 3
+      },
+      "all_high_roe": {
+        "cagr": 3.67,
+        "total_return": 146.48,
+        "volatility": 25.43,
+        "sharpe": 0.027,
+        "sortino": 0.049,
+        "calmar": 0.084,
+        "max_drawdown": -43.5,
+        "var_95": -23.2,
+        "pct_negative_years": 44.0,
+        "max_consecutive_losses": 2
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.196,
+        "sortino": 0.36,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": 6.85,
+    "quality_excess_cagr": -1.88,
+    "avg_stock_counts": {
+      "quality_roe": 19.0,
+      "margin_driven": 9.0,
+      "leverage_driven": 9.0,
+      "all_high_roe": 34.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": 10.3,
+        "margin_driven_return": 6.7,
+        "leverage_driven_return": -5.5,
+        "margin_leverage_spread": 12.2,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 10.6,
+        "margin_driven_return": 4.4,
+        "leverage_driven_return": 1.3,
+        "margin_leverage_spread": 3.1,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 18.2,
+        "margin_driven_return": 21.0,
+        "leverage_driven_return": 4.7,
+        "margin_leverage_spread": 16.3,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": -2.9,
+        "margin_driven_return": 5.5,
+        "leverage_driven_return": -8.1,
+        "margin_leverage_spread": 13.6,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 4.4,
+        "margin_driven_return": 6.0,
+        "leverage_driven_return": 13.2,
+        "margin_leverage_spread": -7.2,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": -1.88,
+      "information_ratio": -0.069,
+      "tracking_error": 19.56,
+      "up_capture": 85.4,
+      "down_capture": 84.7,
+      "beta": 0.735,
+      "alpha": -0.74,
+      "win_rate": 32.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -2.78,
+      "information_ratio": -0.029,
+      "tracking_error": 26.14,
+      "up_capture": 89.0,
+      "down_capture": 82.6,
+      "beta": 0.861,
+      "alpha": -2.19,
+      "win_rate": 52.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": -13.72,
+        "margin_driven": -13.72,
+        "leverage_driven": -13.72,
+        "all_high_roe": -13.72,
+        "spy": -23.68,
+        "quality_roe_count": 1,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2001,
+        "quality_roe": 53.77,
+        "margin_driven": 56.82,
+        "leverage_driven": 50.72,
+        "all_high_roe": 53.77,
+        "spy": 1.61,
+        "quality_roe_count": 2,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2002,
+        "quality_roe": -43.49,
+        "margin_driven": -43.49,
+        "leverage_driven": -43.49,
+        "all_high_roe": -43.49,
+        "spy": -23.62,
+        "quality_roe_count": 1,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2003,
+        "quality_roe": 49.79,
+        "margin_driven": 49.79,
+        "leverage_driven": -5.18,
+        "all_high_roe": 22.31,
+        "spy": 34.33,
+        "quality_roe_count": 1,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2004,
+        "quality_roe": 5.03,
+        "margin_driven": -15.91,
+        "leverage_driven": -15.91,
+        "all_high_roe": 5.03,
+        "spy": 5.23,
+        "quality_roe_count": 2,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2005,
+        "quality_roe": 22.12,
+        "margin_driven": 11.69,
+        "leverage_driven": 17.9,
+        "all_high_roe": 22.14,
+        "spy": 12.43,
+        "quality_roe_count": 5,
+        "margin_driven_count": 3,
+        "leverage_driven_count": 3
+      },
+      {
+        "year": 2006,
+        "quality_roe": 10.58,
+        "margin_driven": 17.75,
+        "leverage_driven": -22.72,
+        "all_high_roe": -1.89,
+        "spy": 11.6,
+        "quality_roe_count": 4,
+        "margin_driven_count": 3,
+        "leverage_driven_count": 3
+      },
+      {
+        "year": 2007,
+        "quality_roe": 9.06,
+        "margin_driven": 10.4,
+        "leverage_driven": 20.92,
+        "all_high_roe": 13.01,
+        "spy": -2.03,
+        "quality_roe_count": 4,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2008,
+        "quality_roe": -12.91,
+        "margin_driven": -21.81,
+        "leverage_driven": -40.95,
+        "all_high_roe": -23.16,
+        "spy": -39.11,
+        "quality_roe_count": 22,
+        "margin_driven_count": 14,
+        "leverage_driven_count": 13
+      },
+      {
+        "year": 2009,
+        "quality_roe": 24.23,
+        "margin_driven": 3.9,
+        "leverage_driven": 31.48,
+        "all_high_roe": 47.03,
+        "spy": 48.25,
+        "quality_roe_count": 16,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 9
+      },
+      {
+        "year": 2010,
+        "quality_roe": 42.48,
+        "margin_driven": 45.6,
+        "leverage_driven": 48.33,
+        "all_high_roe": 40.95,
+        "spy": 15.27,
+        "quality_roe_count": 28,
+        "margin_driven_count": 15,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2011,
+        "quality_roe": 6.88,
+        "margin_driven": 3.14,
+        "leverage_driven": -14.25,
+        "all_high_roe": 0.46,
+        "spy": 8.77,
+        "quality_roe_count": 32,
+        "margin_driven_count": 20,
+        "leverage_driven_count": 18
+      },
+      {
+        "year": 2012,
+        "quality_roe": 10.04,
+        "margin_driven": 2.43,
+        "leverage_driven": -17.52,
+        "all_high_roe": -1.32,
+        "spy": 12.46,
+        "quality_roe_count": 27,
+        "margin_driven_count": 14,
+        "leverage_driven_count": 15
+      },
+      {
+        "year": 2013,
+        "quality_roe": 22.98,
+        "margin_driven": 37.54,
+        "leverage_driven": 21.32,
+        "all_high_roe": 19.3,
+        "spy": 23.07,
+        "quality_roe_count": 27,
+        "margin_driven_count": 12,
+        "leverage_driven_count": 13
+      },
+      {
+        "year": 2014,
+        "quality_roe": 8.79,
+        "margin_driven": 16.19,
+        "leverage_driven": -14.61,
+        "all_high_roe": 10.33,
+        "spy": 11.41,
+        "quality_roe_count": 22,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2015,
+        "quality_roe": 13.86,
+        "margin_driven": 46.62,
+        "leverage_driven": -0.29,
+        "all_high_roe": 9.37,
+        "spy": 2.74,
+        "quality_roe_count": 15,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2016,
+        "quality_roe": -11.94,
+        "margin_driven": -19.39,
+        "leverage_driven": -1.25,
+        "all_high_roe": -9.34,
+        "spy": 16.08,
+        "quality_roe_count": 28,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 9
+      },
+      {
+        "year": 2017,
+        "quality_roe": 9.0,
+        "margin_driven": 14.19,
+        "leverage_driven": 0.12,
+        "all_high_roe": 8.57,
+        "spy": 11.49,
+        "quality_roe_count": 25,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2018,
+        "quality_roe": -8.64,
+        "margin_driven": -12.55,
+        "leverage_driven": -6.82,
+        "all_high_roe": -8.41,
+        "spy": 13.17,
+        "quality_roe_count": 31,
+        "margin_driven_count": 15,
+        "leverage_driven_count": 15
+      },
+      {
+        "year": 2019,
+        "quality_roe": -16.55,
+        "margin_driven": -1.25,
+        "leverage_driven": -32.01,
+        "all_high_roe": -22.77,
+        "spy": -12.12,
+        "quality_roe_count": 26,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 9
+      },
+      {
+        "year": 2020,
+        "quality_roe": 59.41,
+        "margin_driven": 97.08,
+        "leverage_driven": 68.82,
+        "all_high_roe": 65.95,
+        "spy": 65.36,
+        "quality_roe_count": 16,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2021,
+        "quality_roe": -15.95,
+        "margin_driven": -15.58,
+        "leverage_driven": -4.27,
+        "all_high_roe": -8.69,
+        "spy": 14.55,
+        "quality_roe_count": 26,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 12
+      },
+      {
+        "year": 2022,
+        "quality_roe": -14.15,
+        "margin_driven": -19.58,
+        "leverage_driven": -7.13,
+        "all_high_roe": -13.26,
+        "spy": -7.73,
+        "quality_roe_count": 46,
+        "margin_driven_count": 19,
+        "leverage_driven_count": 18
+      },
+      {
+        "year": 2023,
+        "quality_roe": -0.86,
+        "margin_driven": -3.49,
+        "leverage_driven": 1.99,
+        "all_high_roe": 0.23,
+        "spy": 28.9,
+        "quality_roe_count": 33,
+        "margin_driven_count": 15,
+        "leverage_driven_count": 17
+      },
+      {
+        "year": 2024,
+        "quality_roe": -6.53,
+        "margin_driven": -28.18,
+        "leverage_driven": 6.62,
+        "all_high_roe": -9.36,
+        "spy": 8.8,
+        "quality_roe_count": 24,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 11
+      }
+    ]
+  },
+  "SAO": {
+    "universe": "SAO",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 19.14,
+        "total_return": 7861.41,
+        "volatility": 36.8,
+        "sharpe": 0.235,
+        "sortino": 0.65,
+        "calmar": 0.585,
+        "max_drawdown": -32.7,
+        "var_95": -14.9,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 3
+      },
+      "margin_driven": {
+        "cagr": 20.9,
+        "total_return": 11404.89,
+        "volatility": 37.06,
+        "sharpe": 0.281,
+        "sortino": 0.656,
+        "calmar": 0.53,
+        "max_drawdown": -39.4,
+        "var_95": -26.8,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 3
+      },
+      "leverage_driven": {
+        "cagr": 14.87,
+        "total_return": 3098.33,
+        "volatility": 40.67,
+        "sharpe": 0.107,
+        "sortino": 0.23,
+        "calmar": 0.296,
+        "max_drawdown": -50.1,
+        "var_95": -22.7,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 2
+      },
+      "all_high_roe": {
+        "cagr": 17.67,
+        "total_return": 5748.12,
+        "volatility": 34.45,
+        "sharpe": 0.208,
+        "sortino": 0.504,
+        "calmar": 0.449,
+        "max_drawdown": -39.4,
+        "var_95": -17.5,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 3
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": -0.146,
+        "sortino": -0.207,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": 6.03,
+    "quality_excess_cagr": 11.84,
+    "avg_stock_counts": {
+      "quality_roe": 18.0,
+      "margin_driven": 9.0,
+      "leverage_driven": 9.0,
+      "all_high_roe": 34.0
+    },
+    "cash_periods": {
+      "quality_roe": 1,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": 53.5,
+        "margin_driven_return": 62.7,
+        "leverage_driven_return": 48.7,
+        "margin_leverage_spread": 14.0,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 32.9,
+        "margin_driven_return": 47.8,
+        "leverage_driven_return": 22.8,
+        "margin_leverage_spread": 25.0,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 7.3,
+        "margin_driven_return": 6.6,
+        "leverage_driven_return": 4.6,
+        "margin_leverage_spread": 2.0,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": 9.7,
+        "margin_driven_return": 6.2,
+        "leverage_driven_return": 17.2,
+        "margin_leverage_spread": -11.1,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 15.6,
+        "margin_driven_return": 8.5,
+        "leverage_driven_return": 12.9,
+        "margin_leverage_spread": -4.5,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": 11.83,
+      "information_ratio": 0.437,
+      "tracking_error": 32.73,
+      "up_capture": 179.0,
+      "down_capture": 21.9,
+      "beta": 0.794,
+      "alpha": 11.18,
+      "win_rate": 60.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": 13.6,
+      "information_ratio": 0.458,
+      "tracking_error": 36.77,
+      "up_capture": 156.5,
+      "down_capture": -108.5,
+      "beta": 0.522,
+      "alpha": 12.07,
+      "win_rate": 52.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": 0.0,
+        "margin_driven": 85.71,
+        "leverage_driven": 85.71,
+        "all_high_roe": 85.71,
+        "spy": -23.68,
+        "quality_roe_count": 0,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2001,
+        "quality_roe": 33.45,
+        "margin_driven": 33.45,
+        "leverage_driven": -22.72,
+        "all_high_roe": 14.72,
+        "spy": 1.61,
+        "quality_roe_count": 2,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2002,
+        "quality_roe": 16.69,
+        "margin_driven": 49.75,
+        "leverage_driven": -22.44,
+        "all_high_roe": -0.54,
+        "spy": -23.62,
+        "quality_roe_count": 2,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2003,
+        "quality_roe": 82.59,
+        "margin_driven": 82.59,
+        "leverage_driven": 119.19,
+        "all_high_roe": 103.07,
+        "spy": 34.33,
+        "quality_roe_count": 1,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2004,
+        "quality_roe": 134.66,
+        "margin_driven": 62.06,
+        "leverage_driven": 83.91,
+        "all_high_roe": 63.82,
+        "spy": 5.23,
+        "quality_roe_count": 1,
+        "margin_driven_count": 3,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2005,
+        "quality_roe": 65.5,
+        "margin_driven": 74.8,
+        "leverage_driven": 3.56,
+        "all_high_roe": 37.22,
+        "spy": 12.43,
+        "quality_roe_count": 15,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 5
+      },
+      {
+        "year": 2006,
+        "quality_roe": 35.39,
+        "margin_driven": 49.68,
+        "leverage_driven": 45.72,
+        "all_high_roe": 34.43,
+        "spy": 11.6,
+        "quality_roe_count": 13,
+        "margin_driven_count": 3,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2007,
+        "quality_roe": 18.28,
+        "margin_driven": 65.49,
+        "leverage_driven": 25.68,
+        "all_high_roe": 12.35,
+        "spy": -2.03,
+        "quality_roe_count": 16,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2008,
+        "quality_roe": -32.73,
+        "margin_driven": -39.43,
+        "leverage_driven": -50.15,
+        "all_high_roe": -39.36,
+        "spy": -39.11,
+        "quality_roe_count": 19,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 11
+      },
+      {
+        "year": 2009,
+        "quality_roe": 77.96,
+        "margin_driven": 88.41,
+        "leverage_driven": 89.12,
+        "all_high_roe": 85.66,
+        "spy": 48.25,
+        "quality_roe_count": 15,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2010,
+        "quality_roe": 13.88,
+        "margin_driven": 2.2,
+        "leverage_driven": 12.64,
+        "all_high_roe": 17.65,
+        "spy": 15.27,
+        "quality_roe_count": 16,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 11
+      },
+      {
+        "year": 2011,
+        "quality_roe": 19.13,
+        "margin_driven": 33.08,
+        "leverage_driven": 13.8,
+        "all_high_roe": 15.74,
+        "spy": 8.77,
+        "quality_roe_count": 34,
+        "margin_driven_count": 13,
+        "leverage_driven_count": 13
+      },
+      {
+        "year": 2012,
+        "quality_roe": 25.18,
+        "margin_driven": 16.77,
+        "leverage_driven": 19.9,
+        "all_high_roe": 21.16,
+        "spy": 12.46,
+        "quality_roe_count": 23,
+        "margin_driven_count": 12,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2013,
+        "quality_roe": -11.41,
+        "margin_driven": -7.75,
+        "leverage_driven": -6.07,
+        "all_high_roe": -10.21,
+        "spy": 23.07,
+        "quality_roe_count": 22,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 9
+      },
+      {
+        "year": 2014,
+        "quality_roe": -10.37,
+        "margin_driven": -11.48,
+        "leverage_driven": -17.39,
+        "all_high_roe": -8.71,
+        "spy": 11.41,
+        "quality_roe_count": 21,
+        "margin_driven_count": 14,
+        "leverage_driven_count": 12
+      },
+      {
+        "year": 2015,
+        "quality_roe": -6.88,
+        "margin_driven": -1.19,
+        "leverage_driven": 24.66,
+        "all_high_roe": -4.13,
+        "spy": 2.74,
+        "quality_roe_count": 18,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2016,
+        "quality_roe": 25.56,
+        "margin_driven": 26.41,
+        "leverage_driven": 34.3,
+        "all_high_roe": 26.08,
+        "spy": 16.08,
+        "quality_roe_count": 13,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2017,
+        "quality_roe": 41.65,
+        "margin_driven": 28.51,
+        "leverage_driven": 34.67,
+        "all_high_roe": 38.19,
+        "spy": 11.49,
+        "quality_roe_count": 14,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 9
+      },
+      {
+        "year": 2018,
+        "quality_roe": 3.05,
+        "margin_driven": 3.85,
+        "leverage_driven": 12.78,
+        "all_high_roe": 9.65,
+        "spy": 13.17,
+        "quality_roe_count": 20,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2019,
+        "quality_roe": -14.86,
+        "margin_driven": -26.82,
+        "leverage_driven": -20.25,
+        "all_high_roe": -13.18,
+        "spy": -12.12,
+        "quality_roe_count": 22,
+        "margin_driven_count": 12,
+        "leverage_driven_count": 12
+      },
+      {
+        "year": 2020,
+        "quality_roe": 47.36,
+        "margin_driven": 45.29,
+        "leverage_driven": 47.01,
+        "all_high_roe": 48.59,
+        "spy": 65.36,
+        "quality_roe_count": 19,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2021,
+        "quality_roe": 24.63,
+        "margin_driven": -4.96,
+        "leverage_driven": 9.85,
+        "all_high_roe": 10.84,
+        "spy": 14.55,
+        "quality_roe_count": 19,
+        "margin_driven_count": 11,
+        "leverage_driven_count": 12
+      },
+      {
+        "year": 2022,
+        "quality_roe": -11.15,
+        "margin_driven": -17.16,
+        "leverage_driven": -20.53,
+        "all_high_roe": -17.48,
+        "spy": -7.73,
+        "quality_roe_count": 51,
+        "margin_driven_count": 24,
+        "leverage_driven_count": 24
+      },
+      {
+        "year": 2023,
+        "quality_roe": 13.91,
+        "margin_driven": 26.77,
+        "leverage_driven": 27.98,
+        "all_high_roe": 21.31,
+        "spy": 28.9,
+        "quality_roe_count": 39,
+        "margin_driven_count": 19,
+        "leverage_driven_count": 19
+      },
+      {
+        "year": 2024,
+        "quality_roe": 3.24,
+        "margin_driven": -7.59,
+        "leverage_driven": 0.38,
+        "all_high_roe": 0.28,
+        "spy": 8.8,
+        "quality_roe_count": 39,
+        "margin_driven_count": 15,
+        "leverage_driven_count": 15
+      }
+    ]
+  },
+  "Taiwan": {
+    "universe": "Taiwan",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 3.32,
+        "total_return": 126.2,
+        "volatility": 25.14,
+        "sharpe": 0.092,
+        "sortino": 0.16,
+        "calmar": 0.057,
+        "max_drawdown": -58.7,
+        "var_95": -35.6,
+        "pct_negative_years": 40.0,
+        "max_consecutive_losses": 2
+      },
+      "margin_driven": {
+        "cagr": 4.52,
+        "total_return": 201.97,
+        "volatility": 24.09,
+        "sharpe": 0.146,
+        "sortino": 0.27,
+        "calmar": 0.092,
+        "max_drawdown": -49.3,
+        "var_95": -30.1,
+        "pct_negative_years": 44.0,
+        "max_consecutive_losses": 2
+      },
+      "leverage_driven": {
+        "cagr": 5.71,
+        "total_return": 300.65,
+        "volatility": 26.83,
+        "sharpe": 0.175,
+        "sortino": 0.307,
+        "calmar": 0.084,
+        "max_drawdown": -68.1,
+        "var_95": -26.8,
+        "pct_negative_years": 16.0,
+        "max_consecutive_losses": 1
+      },
+      "all_high_roe": {
+        "cagr": 5.1,
+        "total_return": 246.91,
+        "volatility": 24.65,
+        "sharpe": 0.166,
+        "sortino": 0.291,
+        "calmar": 0.087,
+        "max_drawdown": -58.7,
+        "var_95": -33.4,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 1
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": 0.287,
+        "sortino": 0.568,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": -1.19,
+    "quality_excess_cagr": -3.98,
+    "avg_stock_counts": {
+      "quality_roe": 50.0,
+      "margin_driven": 19.0,
+      "leverage_driven": 18.0,
+      "all_high_roe": 72.0
+    },
+    "cash_periods": {
+      "quality_roe": 2,
+      "margin_driven": 2
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": -1.9,
+        "margin_driven_return": 2.6,
+        "leverage_driven_return": 2.7,
+        "margin_leverage_spread": -0.1,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 12.1,
+        "margin_driven_return": 18.5,
+        "leverage_driven_return": 14.9,
+        "margin_leverage_spread": 3.6,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 7.2,
+        "margin_driven_return": 3.2,
+        "leverage_driven_return": 9.9,
+        "margin_leverage_spread": -6.7,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": 0.5,
+        "margin_driven_return": 1.1,
+        "leverage_driven_return": 0.3,
+        "margin_leverage_spread": 0.8,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 15.1,
+        "margin_driven_return": 11.2,
+        "leverage_driven_return": 21.0,
+        "margin_leverage_spread": -9.7,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": -3.98,
+      "information_ratio": -0.172,
+      "tracking_error": 16.79,
+      "up_capture": 77.4,
+      "down_capture": 94.7,
+      "beta": 0.865,
+      "alpha": -3.13,
+      "win_rate": 40.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": -2.78,
+      "information_ratio": -0.121,
+      "tracking_error": 17.91,
+      "up_capture": 81.2,
+      "down_capture": 89.8,
+      "beta": 0.77,
+      "alpha": -1.33,
+      "win_rate": 32.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": -58.69,
+        "margin_driven": -49.33,
+        "leverage_driven": -68.05,
+        "all_high_roe": -58.69,
+        "spy": -23.68,
+        "quality_roe_count": 2,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2001,
+        "quality_roe": 47.16,
+        "margin_driven": 37.21,
+        "leverage_driven": 37.21,
+        "all_high_roe": 47.16,
+        "spy": 1.61,
+        "quality_roe_count": 2,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2002,
+        "quality_roe": 0.0,
+        "margin_driven": 0.0,
+        "leverage_driven": 0.0,
+        "all_high_roe": 0.0,
+        "spy": -23.62,
+        "quality_roe_count": 0,
+        "margin_driven_count": 0,
+        "leverage_driven_count": 0
+      },
+      {
+        "year": 2003,
+        "quality_roe": 0.0,
+        "margin_driven": 0.0,
+        "leverage_driven": 0.0,
+        "all_high_roe": 0.0,
+        "spy": 34.33,
+        "quality_roe_count": 0,
+        "margin_driven_count": 0,
+        "leverage_driven_count": 0
+      },
+      {
+        "year": 2004,
+        "quality_roe": 1.95,
+        "margin_driven": 25.06,
+        "leverage_driven": 44.18,
+        "all_high_roe": 14.83,
+        "spy": 5.23,
+        "quality_roe_count": 2,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2005,
+        "quality_roe": 27.98,
+        "margin_driven": 43.1,
+        "leverage_driven": 2.55,
+        "all_high_roe": 19.84,
+        "spy": 12.43,
+        "quality_roe_count": 9,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 3
+      },
+      {
+        "year": 2006,
+        "quality_roe": 10.23,
+        "margin_driven": 27.52,
+        "leverage_driven": 5.14,
+        "all_high_roe": 21.34,
+        "spy": 11.6,
+        "quality_roe_count": 9,
+        "margin_driven_count": 4,
+        "leverage_driven_count": 3
+      },
+      {
+        "year": 2007,
+        "quality_roe": 8.76,
+        "margin_driven": 8.27,
+        "leverage_driven": 17.61,
+        "all_high_roe": 6.43,
+        "spy": -2.03,
+        "quality_roe_count": 62,
+        "margin_driven_count": 22,
+        "leverage_driven_count": 22
+      },
+      {
+        "year": 2008,
+        "quality_roe": -35.6,
+        "margin_driven": -30.15,
+        "leverage_driven": -26.76,
+        "all_high_roe": -33.36,
+        "spy": -39.11,
+        "quality_roe_count": 69,
+        "margin_driven_count": 26,
+        "leverage_driven_count": 27
+      },
+      {
+        "year": 2009,
+        "quality_roe": 49.16,
+        "margin_driven": 43.67,
+        "leverage_driven": 75.78,
+        "all_high_roe": 53.31,
+        "spy": 48.25,
+        "quality_roe_count": 26,
+        "margin_driven_count": 10,
+        "leverage_driven_count": 10
+      },
+      {
+        "year": 2010,
+        "quality_roe": 1.14,
+        "margin_driven": -1.13,
+        "leverage_driven": 11.1,
+        "all_high_roe": 4.26,
+        "spy": 15.27,
+        "quality_roe_count": 49,
+        "margin_driven_count": 20,
+        "leverage_driven_count": 20
+      },
+      {
+        "year": 2011,
+        "quality_roe": -7.03,
+        "margin_driven": -7.8,
+        "leverage_driven": 6.07,
+        "all_high_roe": -0.01,
+        "spy": 8.77,
+        "quality_roe_count": 69,
+        "margin_driven_count": 28,
+        "leverage_driven_count": 28
+      },
+      {
+        "year": 2012,
+        "quality_roe": 8.37,
+        "margin_driven": 8.3,
+        "leverage_driven": 14.54,
+        "all_high_roe": 9.71,
+        "spy": 12.46,
+        "quality_roe_count": 37,
+        "margin_driven_count": 15,
+        "leverage_driven_count": 14
+      },
+      {
+        "year": 2013,
+        "quality_roe": 33.91,
+        "margin_driven": 19.34,
+        "leverage_driven": 10.14,
+        "all_high_roe": 24.97,
+        "spy": 23.07,
+        "quality_roe_count": 39,
+        "margin_driven_count": 16,
+        "leverage_driven_count": 16
+      },
+      {
+        "year": 2014,
+        "quality_roe": -0.37,
+        "margin_driven": -2.66,
+        "leverage_driven": 7.66,
+        "all_high_roe": 3.82,
+        "spy": 11.41,
+        "quality_roe_count": 59,
+        "margin_driven_count": 24,
+        "leverage_driven_count": 22
+      },
+      {
+        "year": 2015,
+        "quality_roe": -5.82,
+        "margin_driven": -8.28,
+        "leverage_driven": -16.16,
+        "all_high_roe": -8.27,
+        "spy": 2.74,
+        "quality_roe_count": 61,
+        "margin_driven_count": 24,
+        "leverage_driven_count": 23
+      },
+      {
+        "year": 2016,
+        "quality_roe": 6.29,
+        "margin_driven": 9.36,
+        "leverage_driven": 11.07,
+        "all_high_roe": 8.18,
+        "spy": 16.08,
+        "quality_roe_count": 68,
+        "margin_driven_count": 23,
+        "leverage_driven_count": 22
+      },
+      {
+        "year": 2017,
+        "quality_roe": 13.05,
+        "margin_driven": 25.91,
+        "leverage_driven": 5.42,
+        "all_high_roe": 13.25,
+        "spy": 11.49,
+        "quality_roe_count": 65,
+        "margin_driven_count": 26,
+        "leverage_driven_count": 25
+      },
+      {
+        "year": 2018,
+        "quality_roe": -1.61,
+        "margin_driven": -8.97,
+        "leverage_driven": 7.65,
+        "all_high_roe": 0.6,
+        "spy": 13.17,
+        "quality_roe_count": 76,
+        "margin_driven_count": 27,
+        "leverage_driven_count": 28
+      },
+      {
+        "year": 2019,
+        "quality_roe": -9.29,
+        "margin_driven": -12.32,
+        "leverage_driven": -6.51,
+        "all_high_roe": -8.77,
+        "spy": -12.12,
+        "quality_roe_count": 67,
+        "margin_driven_count": 27,
+        "leverage_driven_count": 26
+      },
+      {
+        "year": 2020,
+        "quality_roe": 58.6,
+        "margin_driven": 54.71,
+        "leverage_driven": 51.69,
+        "all_high_roe": 58.1,
+        "spy": 65.36,
+        "quality_roe_count": 65,
+        "margin_driven_count": 24,
+        "leverage_driven_count": 24
+      },
+      {
+        "year": 2021,
+        "quality_roe": -0.44,
+        "margin_driven": -6.18,
+        "leverage_driven": 7.45,
+        "all_high_roe": 3.2,
+        "spy": 14.55,
+        "quality_roe_count": 82,
+        "margin_driven_count": 30,
+        "leverage_driven_count": 30
+      },
+      {
+        "year": 2022,
+        "quality_roe": -7.72,
+        "margin_driven": -13.7,
+        "leverage_driven": 3.4,
+        "all_high_roe": -4.97,
+        "spy": -7.73,
+        "quality_roe_count": 146,
+        "margin_driven_count": 49,
+        "leverage_driven_count": 49
+      },
+      {
+        "year": 2023,
+        "quality_roe": 28.76,
+        "margin_driven": 22.97,
+        "leverage_driven": 31.19,
+        "all_high_roe": 31.86,
+        "spy": 28.9,
+        "quality_roe_count": 107,
+        "margin_driven_count": 37,
+        "leverage_driven_count": 34
+      },
+      {
+        "year": 2024,
+        "quality_roe": -3.87,
+        "margin_driven": -1.62,
+        "leverage_driven": 11.05,
+        "all_high_roe": 0.43,
+        "spy": 8.8,
+        "quality_roe_count": 80,
+        "margin_driven_count": 28,
+        "leverage_driven_count": 29
+      }
+    ]
+  },
+  "SGX": {
+    "universe": "SGX",
+    "error": "No data"
+  },
+  "JSE": {
+    "universe": "JSE",
+    "period": "2000-2025 (25 years)",
+    "rebalancing": "annual (April 1)",
+    "weighting": "equal weight",
+    "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+    "sector_exclusions": "Financial Services, Utilities",
+    "signal": {
+      "roe_min": 0.15,
+      "quality_filters": {
+        "net_margin_min": 0.08,
+        "equity_multiplier_max": 3.0
+      }
+    },
+    "portfolios": {
+      "quality_roe": {
+        "cagr": 12.98,
+        "total_return": 2014.85,
+        "volatility": 34.76,
+        "sharpe": 0.115,
+        "sortino": 0.229,
+        "calmar": 0.273,
+        "max_drawdown": -47.5,
+        "var_95": -36.5,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 2
+      },
+      "margin_driven": {
+        "cagr": 14.94,
+        "total_return": 3146.93,
+        "volatility": 44.03,
+        "sharpe": 0.135,
+        "sortino": 0.279,
+        "calmar": 0.232,
+        "max_drawdown": -64.4,
+        "var_95": -41.8,
+        "pct_negative_years": 28.0,
+        "max_consecutive_losses": 2
+      },
+      "leverage_driven": {
+        "cagr": -0.88,
+        "total_return": -19.89,
+        "volatility": 39.08,
+        "sharpe": -0.253,
+        "sortino": -0.413,
+        "calmar": -0.009,
+        "max_drawdown": -98.4,
+        "var_95": -20.5,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 3
+      },
+      "all_high_roe": {
+        "cagr": 12.39,
+        "total_return": 1754.5,
+        "volatility": 35.6,
+        "sharpe": 0.095,
+        "sortino": 0.178,
+        "calmar": 0.192,
+        "max_drawdown": -64.5,
+        "var_95": -32.0,
+        "pct_negative_years": 32.0,
+        "max_consecutive_losses": 2
+      },
+      "sp500": {
+        "cagr": 7.3,
+        "total_return": 482.22,
+        "volatility": 21.92,
+        "sharpe": -0.078,
+        "sortino": -0.116,
+        "calmar": 0.179,
+        "max_drawdown": -40.8,
+        "var_95": -23.7,
+        "pct_negative_years": 24.0,
+        "max_consecutive_losses": 2
+      }
+    },
+    "margin_leverage_spread": 15.82,
+    "quality_excess_cagr": 5.68,
+    "avg_stock_counts": {
+      "quality_roe": 11.0,
+      "margin_driven": 5.0,
+      "leverage_driven": 5.0,
+      "all_high_roe": 18.0
+    },
+    "cash_periods": {
+      "quality_roe": 0,
+      "margin_driven": 0
+    },
+    "decade_breakdown": [
+      {
+        "period": "2000-04",
+        "quality_roe_return": 38.7,
+        "margin_driven_return": 39.0,
+        "leverage_driven_return": 34.5,
+        "margin_leverage_spread": 4.5,
+        "spy_return": -1.2
+      },
+      {
+        "period": "2005-09",
+        "quality_roe_return": 27.0,
+        "margin_driven_return": 43.8,
+        "leverage_driven_return": 24.5,
+        "margin_leverage_spread": 19.3,
+        "spy_return": 6.2
+      },
+      {
+        "period": "2010-14",
+        "quality_roe_return": 14.4,
+        "margin_driven_return": 9.6,
+        "leverage_driven_return": 16.2,
+        "margin_leverage_spread": -6.6,
+        "spy_return": 14.2
+      },
+      {
+        "period": "2015-19",
+        "quality_roe_return": -5.5,
+        "margin_driven_return": -0.6,
+        "leverage_driven_return": -0.6,
+        "margin_leverage_spread": -0.0,
+        "spy_return": 6.3
+      },
+      {
+        "period": "2020-25",
+        "quality_roe_return": 15.1,
+        "margin_driven_return": 24.6,
+        "leverage_driven_return": 8.2,
+        "margin_leverage_spread": 16.3,
+        "spy_return": 22.0
+      }
+    ],
+    "quality_roe_vs_spy": {
+      "excess_cagr": 5.68,
+      "information_ratio": 0.245,
+      "tracking_error": 34.51,
+      "up_capture": 140.1,
+      "down_capture": 33.0,
+      "beta": 0.518,
+      "alpha": 4.86,
+      "win_rate": 60.0
+    },
+    "margin_driven_vs_spy": {
+      "excess_cagr": 7.64,
+      "information_ratio": 0.349,
+      "tracking_error": 39.49,
+      "up_capture": 178.4,
+      "down_capture": 32.0,
+      "beta": 0.895,
+      "alpha": 7.46,
+      "win_rate": 64.0
+    },
+    "annual_returns": [
+      {
+        "year": 2000,
+        "quality_roe": 67.06,
+        "margin_driven": 67.06,
+        "leverage_driven": 67.06,
+        "all_high_roe": 67.06,
+        "spy": -23.68,
+        "quality_roe_count": 1,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2001,
+        "quality_roe": 112.28,
+        "margin_driven": 120.81,
+        "leverage_driven": 103.76,
+        "all_high_roe": 112.28,
+        "spy": 1.61,
+        "quality_roe_count": 2,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2002,
+        "quality_roe": -47.53,
+        "margin_driven": -64.43,
+        "leverage_driven": -98.44,
+        "all_high_roe": -64.5,
+        "spy": -23.62,
+        "quality_roe_count": 2,
+        "margin_driven_count": 1,
+        "leverage_driven_count": 1
+      },
+      {
+        "year": 2003,
+        "quality_roe": 25.38,
+        "margin_driven": 22.53,
+        "leverage_driven": 77.5,
+        "all_high_roe": 44.73,
+        "spy": 34.33,
+        "quality_roe_count": 5,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2004,
+        "quality_roe": 36.33,
+        "margin_driven": 49.09,
+        "leverage_driven": 22.76,
+        "all_high_roe": 36.33,
+        "spy": 5.23,
+        "quality_roe_count": 5,
+        "margin_driven_count": 2,
+        "leverage_driven_count": 2
+      },
+      {
+        "year": 2005,
+        "quality_roe": 67.47,
+        "margin_driven": 81.16,
+        "leverage_driven": 59.11,
+        "all_high_roe": 65.74,
+        "spy": 12.43,
+        "quality_roe_count": 7,
+        "margin_driven_count": 3,
+        "leverage_driven_count": 3
+      },
+      {
+        "year": 2006,
+        "quality_roe": 43.84,
+        "margin_driven": 67.4,
+        "leverage_driven": 17.19,
+        "all_high_roe": 41.61,
+        "spy": 11.6,
+        "quality_roe_count": 11,
+        "margin_driven_count": 3,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2007,
+        "quality_roe": 11.41,
+        "margin_driven": 45.63,
+        "leverage_driven": 7.08,
+        "all_high_roe": 9.24,
+        "spy": -2.03,
+        "quality_roe_count": 13,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2008,
+        "quality_roe": -22.63,
+        "margin_driven": -37.51,
+        "leverage_driven": -9.1,
+        "all_high_roe": -18.12,
+        "spy": -39.11,
+        "quality_roe_count": 12,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2009,
+        "quality_roe": 34.9,
+        "margin_driven": 62.5,
+        "leverage_driven": 48.23,
+        "all_high_roe": 38.59,
+        "spy": 48.25,
+        "quality_roe_count": 13,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 5
+      },
+      {
+        "year": 2010,
+        "quality_roe": 21.9,
+        "margin_driven": 18.33,
+        "leverage_driven": 2.3,
+        "all_high_roe": 17.43,
+        "spy": 15.27,
+        "quality_roe_count": 8,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 5
+      },
+      {
+        "year": 2011,
+        "quality_roe": 20.46,
+        "margin_driven": 14.68,
+        "leverage_driven": 18.0,
+        "all_high_roe": 22.76,
+        "spy": 8.77,
+        "quality_roe_count": 13,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2012,
+        "quality_roe": 19.31,
+        "margin_driven": 9.13,
+        "leverage_driven": 25.07,
+        "all_high_roe": 25.72,
+        "spy": 12.46,
+        "quality_roe_count": 13,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2013,
+        "quality_roe": -6.84,
+        "margin_driven": -13.2,
+        "leverage_driven": 11.91,
+        "all_high_roe": -4.32,
+        "spy": 23.07,
+        "quality_roe_count": 16,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2014,
+        "quality_roe": 17.1,
+        "margin_driven": 19.06,
+        "leverage_driven": 23.65,
+        "all_high_roe": 17.58,
+        "spy": 11.41,
+        "quality_roe_count": 16,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2015,
+        "quality_roe": -10.59,
+        "margin_driven": -1.97,
+        "leverage_driven": -0.18,
+        "all_high_roe": -7.14,
+        "spy": 2.74,
+        "quality_roe_count": 17,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2016,
+        "quality_roe": 8.04,
+        "margin_driven": 10.34,
+        "leverage_driven": 11.95,
+        "all_high_roe": 6.44,
+        "spy": 16.08,
+        "quality_roe_count": 15,
+        "margin_driven_count": 8,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2017,
+        "quality_roe": 17.63,
+        "margin_driven": 20.41,
+        "leverage_driven": 20.64,
+        "all_high_roe": 14.43,
+        "spy": 11.49,
+        "quality_roe_count": 14,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2018,
+        "quality_roe": -6.24,
+        "margin_driven": 9.92,
+        "leverage_driven": -14.78,
+        "all_high_roe": -10.84,
+        "spy": 13.17,
+        "quality_roe_count": 11,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 5
+      },
+      {
+        "year": 2019,
+        "quality_roe": -36.49,
+        "margin_driven": -41.82,
+        "leverage_driven": -20.5,
+        "all_high_roe": -31.96,
+        "spy": -12.12,
+        "quality_roe_count": 16,
+        "margin_driven_count": 7,
+        "leverage_driven_count": 7
+      },
+      {
+        "year": 2020,
+        "quality_roe": 58.5,
+        "margin_driven": 106.11,
+        "leverage_driven": -4.81,
+        "all_high_roe": 45.22,
+        "spy": 65.36,
+        "quality_roe_count": 12,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 4
+      },
+      {
+        "year": 2021,
+        "quality_roe": 15.93,
+        "margin_driven": 16.39,
+        "leverage_driven": 50.48,
+        "all_high_roe": 25.37,
+        "spy": 14.55,
+        "quality_roe_count": 9,
+        "margin_driven_count": 5,
+        "leverage_driven_count": 5
+      },
+      {
+        "year": 2022,
+        "quality_roe": -7.53,
+        "margin_driven": -3.54,
+        "leverage_driven": -10.8,
+        "all_high_roe": -6.74,
+        "spy": -7.73,
+        "quality_roe_count": 15,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 6
+      },
+      {
+        "year": 2023,
+        "quality_roe": -4.14,
+        "margin_driven": -10.27,
+        "leverage_driven": -7.46,
+        "all_high_roe": -4.35,
+        "spy": 28.9,
+        "quality_roe_count": 17,
+        "margin_driven_count": 9,
+        "leverage_driven_count": 8
+      },
+      {
+        "year": 2024,
+        "quality_roe": 12.68,
+        "margin_driven": 14.1,
+        "leverage_driven": 13.79,
+        "all_high_roe": 12.91,
+        "spy": 8.8,
+        "quality_roe_count": 14,
+        "margin_driven_count": 6,
+        "leverage_driven_count": 6
+      }
+    ]
+  },
+  "PAR": {
+    "universe": "PAR",
+    "error": "No valid periods"
+  }
+}
