@@ -1,0 +1,1138 @@
+{
+  "strategy": "S&P 500 Survivorship Bias Analysis",
+  "signal": "Low P/E screen (0 < P/E < 15.0), top 100 by lowest P/E",
+  "period": "2000-2026 (103 quarters)",
+  "rebalancing": "quarterly (Jan/Apr/Jul/Oct)",
+  "weighting": "equal weight",
+  "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+  "filing_lag": "45 days",
+  "portfolios": {
+    "biased": {
+      "cagr": 13.83,
+      "total_return": 2710.82,
+      "volatility": 19.43,
+      "sharpe": 0.609,
+      "sortino": 0.941,
+      "calmar": 0.314,
+      "max_drawdown": -44.0,
+      "var_95": -13.4
+    },
+    "unbiased": {
+      "cagr": 11.81,
+      "total_return": 1672.92,
+      "volatility": 21.11,
+      "sharpe": 0.465,
+      "sortino": 0.701,
+      "calmar": 0.228,
+      "max_drawdown": -51.8,
+      "var_95": -14.2
+    },
+    "spy": {
+      "cagr": 8.01,
+      "total_return": 627.45,
+      "volatility": 16.97,
+      "sharpe": 0.354,
+      "sortino": 0.523,
+      "calmar": 0.176,
+      "max_drawdown": -45.5,
+      "var_95": -15.0
+    }
+  },
+  "survivorship_bias": {
+    "cagr_gap": 2.02,
+    "sharpe_gap": 0.144,
+    "drawdown_gap": 7.8,
+    "volatility_gap": -1.68
+  },
+  "biased_vs_spy": {
+    "excess_cagr": 5.82,
+    "information_ratio": 0.61,
+    "up_capture": 114.3,
+    "down_capture": 66.5,
+    "beta": 0.992,
+    "alpha": 5.87
+  },
+  "unbiased_vs_spy": {
+    "excess_cagr": 3.8,
+    "information_ratio": 0.407,
+    "up_capture": 112.5,
+    "down_capture": 77.9,
+    "beta": 1.064,
+    "alpha": 3.42
+  },
+  "avg_counts": {
+    "biased_portfolio": 92.0,
+    "unbiased_portfolio": 92.0,
+    "pit_sp500_members": 665.0,
+    "survivorship_victims_per_period": 25.6
+  },
+  "decade_breakdown": [
+    {
+      "period": "2000-04",
+      "biased": 5.2,
+      "unbiased": 5.2,
+      "gap": -0.0,
+      "spy": -0.2
+    },
+    {
+      "period": "2005-09",
+      "biased": 2.2,
+      "unbiased": 1.8,
+      "gap": 0.4,
+      "spy": 0.5
+    },
+    {
+      "period": "2010-14",
+      "biased": 4.5,
+      "unbiased": 4.1,
+      "gap": 0.3,
+      "spy": 3.9
+    },
+    {
+      "period": "2015-19",
+      "biased": 2.9,
+      "unbiased": 2.2,
+      "gap": 0.7,
+      "spy": 3.0
+    },
+    {
+      "period": "2020-25",
+      "biased": 4.2,
+      "unbiased": 3.8,
+      "gap": 0.4,
+      "spy": 4.1
+    }
+  ],
+  "quarterly_returns": [
+    {
+      "year": 2000,
+      "quarter": 1,
+      "biased": 1.9,
+      "unbiased": 0.41,
+      "spy": 4.26,
+      "biased_count": 74,
+      "unbiased_count": 88,
+      "pit_members": 714
+    },
+    {
+      "year": 2000,
+      "quarter": 2,
+      "biased": 6.68,
+      "unbiased": 4.16,
+      "spy": -2.39,
+      "biased_count": 90,
+      "unbiased_count": 88,
+      "pit_members": 717
+    },
+    {
+      "year": 2000,
+      "quarter": 3,
+      "biased": 14.68,
+      "unbiased": 15.07,
+      "spy": -2.09,
+      "biased_count": 90,
+      "unbiased_count": 86,
+      "pit_members": 725
+    },
+    {
+      "year": 2000,
+      "quarter": 4,
+      "biased": 9.75,
+      "unbiased": 9.6,
+      "spy": -10.18,
+      "biased_count": 89,
+      "unbiased_count": 88,
+      "pit_members": 726
+    },
+    {
+      "year": 2001,
+      "quarter": 1,
+      "biased": 1.39,
+      "unbiased": 3.11,
+      "spy": -11.1,
+      "biased_count": 89,
+      "unbiased_count": 87,
+      "pit_members": 731
+    },
+    {
+      "year": 2001,
+      "quarter": 2,
+      "biased": 9.34,
+      "unbiased": 10.75,
+      "spy": 9.0,
+      "biased_count": 86,
+      "unbiased_count": 85,
+      "pit_members": 731
+    },
+    {
+      "year": 2001,
+      "quarter": 3,
+      "biased": -11.04,
+      "unbiased": -10.94,
+      "spy": -15.69,
+      "biased_count": 87,
+      "unbiased_count": 86,
+      "pit_members": 731
+    },
+    {
+      "year": 2001,
+      "quarter": 4,
+      "biased": 16.32,
+      "unbiased": 16.44,
+      "spy": 11.18,
+      "biased_count": 88,
+      "unbiased_count": 85,
+      "pit_members": 731
+    },
+    {
+      "year": 2002,
+      "quarter": 1,
+      "biased": 11.26,
+      "unbiased": 12.97,
+      "spy": -0.55,
+      "biased_count": 90,
+      "unbiased_count": 87,
+      "pit_members": 733
+    },
+    {
+      "year": 2002,
+      "quarter": 2,
+      "biased": -5.84,
+      "unbiased": -5.53,
+      "spy": -15.01,
+      "biased_count": 68,
+      "unbiased_count": 86,
+      "pit_members": 735
+    },
+    {
+      "year": 2002,
+      "quarter": 3,
+      "biased": -13.44,
+      "unbiased": -14.63,
+      "spy": -11.26,
+      "biased_count": 67,
+      "unbiased_count": 86,
+      "pit_members": 733
+    },
+    {
+      "year": 2002,
+      "quarter": 4,
+      "biased": 9.16,
+      "unbiased": 7.4,
+      "spy": 6.76,
+      "biased_count": 67,
+      "unbiased_count": 87,
+      "pit_members": 731
+    },
+    {
+      "year": 2003,
+      "quarter": 1,
+      "biased": -3.93,
+      "unbiased": -4.44,
+      "spy": -5.15,
+      "biased_count": 70,
+      "unbiased_count": 88,
+      "pit_members": 730
+    },
+    {
+      "year": 2003,
+      "quarter": 2,
+      "biased": 19.77,
+      "unbiased": 21.02,
+      "spy": 14.95,
+      "biased_count": 92,
+      "unbiased_count": 88,
+      "pit_members": 731
+    },
+    {
+      "year": 2003,
+      "quarter": 3,
+      "biased": 6.94,
+      "unbiased": 5.63,
+      "spy": 4.0,
+      "biased_count": 93,
+      "unbiased_count": 87,
+      "pit_members": 732
+    },
+    {
+      "year": 2003,
+      "quarter": 4,
+      "biased": 9.38,
+      "unbiased": 10.97,
+      "spy": 9.46,
+      "biased_count": 93,
+      "unbiased_count": 88,
+      "pit_members": 732
+    },
+    {
+      "year": 2004,
+      "quarter": 1,
+      "biased": 7.07,
+      "unbiased": 6.39,
+      "spy": 2.65,
+      "biased_count": 94,
+      "unbiased_count": 89,
+      "pit_members": 731
+    },
+    {
+      "year": 2004,
+      "quarter": 2,
+      "biased": -0.11,
+      "unbiased": 1.33,
+      "spy": -0.37,
+      "biased_count": 88,
+      "unbiased_count": 90,
+      "pit_members": 730
+    },
+    {
+      "year": 2004,
+      "quarter": 3,
+      "biased": 3.51,
+      "unbiased": 4.56,
+      "spy": 1.04,
+      "biased_count": 88,
+      "unbiased_count": 89,
+      "pit_members": 728
+    },
+    {
+      "year": 2004,
+      "quarter": 4,
+      "biased": 10.8,
+      "unbiased": 10.16,
+      "spy": 6.67,
+      "biased_count": 90,
+      "unbiased_count": 90,
+      "pit_members": 727
+    },
+    {
+      "year": 2005,
+      "quarter": 1,
+      "biased": 4.11,
+      "unbiased": 4.99,
+      "spy": -2.0,
+      "biased_count": 91,
+      "unbiased_count": 90,
+      "pit_members": 727
+    },
+    {
+      "year": 2005,
+      "quarter": 2,
+      "biased": 6.06,
+      "unbiased": 6.71,
+      "spy": 2.19,
+      "biased_count": 87,
+      "unbiased_count": 85,
+      "pit_members": 727
+    },
+    {
+      "year": 2005,
+      "quarter": 3,
+      "biased": 6.34,
+      "unbiased": 4.86,
+      "spy": 3.01,
+      "biased_count": 89,
+      "unbiased_count": 86,
+      "pit_members": 727
+    },
+    {
+      "year": 2005,
+      "quarter": 4,
+      "biased": 3.9,
+      "unbiased": 4.59,
+      "spy": 3.88,
+      "biased_count": 91,
+      "unbiased_count": 85,
+      "pit_members": 724
+    },
+    {
+      "year": 2006,
+      "quarter": 1,
+      "biased": 4.96,
+      "unbiased": 6.06,
+      "spy": 2.8,
+      "biased_count": 91,
+      "unbiased_count": 85,
+      "pit_members": 724
+    },
+    {
+      "year": 2006,
+      "quarter": 2,
+      "biased": -0.48,
+      "unbiased": 0.02,
+      "spy": -1.05,
+      "biased_count": 92,
+      "unbiased_count": 84,
+      "pit_members": 722
+    },
+    {
+      "year": 2006,
+      "quarter": 3,
+      "biased": 2.89,
+      "unbiased": 0.25,
+      "spy": 4.58,
+      "biased_count": 92,
+      "unbiased_count": 84,
+      "pit_members": 722
+    },
+    {
+      "year": 2006,
+      "quarter": 4,
+      "biased": 7.13,
+      "unbiased": 7.72,
+      "spy": 6.83,
+      "biased_count": 91,
+      "unbiased_count": 84,
+      "pit_members": 721
+    },
+    {
+      "year": 2007,
+      "quarter": 1,
+      "biased": 4.06,
+      "unbiased": 4.1,
+      "spy": 0.95,
+      "biased_count": 92,
+      "unbiased_count": 85,
+      "pit_members": 719
+    },
+    {
+      "year": 2007,
+      "quarter": 2,
+      "biased": 7.74,
+      "unbiased": 9.56,
+      "spy": 7.23,
+      "biased_count": 92,
+      "unbiased_count": 86,
+      "pit_members": 716
+    },
+    {
+      "year": 2007,
+      "quarter": 3,
+      "biased": -0.87,
+      "unbiased": -3.14,
+      "spy": 2.14,
+      "biased_count": 93,
+      "unbiased_count": 85,
+      "pit_members": 714
+    },
+    {
+      "year": 2007,
+      "quarter": 4,
+      "biased": -4.66,
+      "unbiased": -6.21,
+      "spy": -5.58,
+      "biased_count": 93,
+      "unbiased_count": 86,
+      "pit_members": 712
+    },
+    {
+      "year": 2008,
+      "quarter": 1,
+      "biased": -1.58,
+      "unbiased": -3.85,
+      "spy": -5.27,
+      "biased_count": 94,
+      "unbiased_count": 86,
+      "pit_members": 710
+    },
+    {
+      "year": 2008,
+      "quarter": 2,
+      "biased": -7.59,
+      "unbiased": -6.0,
+      "spy": -5.56,
+      "biased_count": 94,
+      "unbiased_count": 88,
+      "pit_members": 709
+    },
+    {
+      "year": 2008,
+      "quarter": 3,
+      "biased": -2.06,
+      "unbiased": -8.07,
+      "spy": -9.07,
+      "biased_count": 94,
+      "unbiased_count": 88,
+      "pit_members": 707
+    },
+    {
+      "year": 2008,
+      "quarter": 4,
+      "biased": -20.57,
+      "unbiased": -25.57,
+      "spy": -19.25,
+      "biased_count": 94,
+      "unbiased_count": 88,
+      "pit_members": 705
+    },
+    {
+      "year": 2009,
+      "quarter": 1,
+      "biased": -16.29,
+      "unbiased": -14.22,
+      "spy": -12.18,
+      "biased_count": 94,
+      "unbiased_count": 89,
+      "pit_members": 705
+    },
+    {
+      "year": 2009,
+      "quarter": 2,
+      "biased": 22.96,
+      "unbiased": 22.72,
+      "spy": 14.56,
+      "biased_count": 98,
+      "unbiased_count": 91,
+      "pit_members": 699
+    },
+    {
+      "year": 2009,
+      "quarter": 3,
+      "biased": 15.94,
+      "unbiased": 19.4,
+      "spy": 12.05,
+      "biased_count": 98,
+      "unbiased_count": 91,
+      "pit_members": 699
+    },
+    {
+      "year": 2009,
+      "quarter": 4,
+      "biased": 12.02,
+      "unbiased": 12.1,
+      "spy": 10.65,
+      "biased_count": 99,
+      "unbiased_count": 92,
+      "pit_members": 700
+    },
+    {
+      "year": 2010,
+      "quarter": 1,
+      "biased": 5.64,
+      "unbiased": 7.3,
+      "spy": 4.37,
+      "biased_count": 99,
+      "unbiased_count": 93,
+      "pit_members": 697
+    },
+    {
+      "year": 2010,
+      "quarter": 2,
+      "biased": -10.47,
+      "unbiased": -12.43,
+      "spy": -12.36,
+      "biased_count": 97,
+      "unbiased_count": 97,
+      "pit_members": 694
+    },
+    {
+      "year": 2010,
+      "quarter": 3,
+      "biased": 11.88,
+      "unbiased": 12.09,
+      "spy": 12.14,
+      "biased_count": 97,
+      "unbiased_count": 95,
+      "pit_members": 694
+    },
+    {
+      "year": 2010,
+      "quarter": 4,
+      "biased": 10.05,
+      "unbiased": 11.08,
+      "spy": 11.43,
+      "biased_count": 97,
+      "unbiased_count": 96,
+      "pit_members": 694
+    },
+    {
+      "year": 2011,
+      "quarter": 1,
+      "biased": 6.46,
+      "unbiased": 7.73,
+      "spy": 5.25,
+      "biased_count": 98,
+      "unbiased_count": 98,
+      "pit_members": 693
+    },
+    {
+      "year": 2011,
+      "quarter": 2,
+      "biased": 1.96,
+      "unbiased": 0.1,
+      "spy": 1.08,
+      "biased_count": 96,
+      "unbiased_count": 92,
+      "pit_members": 693
+    },
+    {
+      "year": 2011,
+      "quarter": 3,
+      "biased": -20.3,
+      "unbiased": -22.04,
+      "spy": -17.49,
+      "biased_count": 96,
+      "unbiased_count": 92,
+      "pit_members": 690
+    },
+    {
+      "year": 2011,
+      "quarter": 4,
+      "biased": 18.96,
+      "unbiased": 21.17,
+      "spy": 16.72,
+      "biased_count": 96,
+      "unbiased_count": 92,
+      "pit_members": 689
+    },
+    {
+      "year": 2012,
+      "quarter": 1,
+      "biased": 12.79,
+      "unbiased": 11.31,
+      "spy": 11.73,
+      "biased_count": 97,
+      "unbiased_count": 91,
+      "pit_members": 687
+    },
+    {
+      "year": 2012,
+      "quarter": 2,
+      "biased": -5.98,
+      "unbiased": -7.09,
+      "spy": -3.26,
+      "biased_count": 96,
+      "unbiased_count": 92,
+      "pit_members": 687
+    },
+    {
+      "year": 2012,
+      "quarter": 3,
+      "biased": 6.7,
+      "unbiased": 6.58,
+      "spy": 6.31,
+      "biased_count": 97,
+      "unbiased_count": 93,
+      "pit_members": 683
+    },
+    {
+      "year": 2012,
+      "quarter": 4,
+      "biased": 6.73,
+      "unbiased": 6.25,
+      "spy": 1.9,
+      "biased_count": 97,
+      "unbiased_count": 92,
+      "pit_members": 682
+    },
+    {
+      "year": 2013,
+      "quarter": 1,
+      "biased": 8.78,
+      "unbiased": 7.68,
+      "spy": 7.32,
+      "biased_count": 97,
+      "unbiased_count": 91,
+      "pit_members": 679
+    },
+    {
+      "year": 2013,
+      "quarter": 2,
+      "biased": 5.23,
+      "unbiased": 5.89,
+      "spy": 3.95,
+      "biased_count": 96,
+      "unbiased_count": 90,
+      "pit_members": 679
+    },
+    {
+      "year": 2013,
+      "quarter": 3,
+      "biased": 6.6,
+      "unbiased": 6.72,
+      "spy": 5.46,
+      "biased_count": 96,
+      "unbiased_count": 90,
+      "pit_members": 676
+    },
+    {
+      "year": 2013,
+      "quarter": 4,
+      "biased": 9.48,
+      "unbiased": 9.39,
+      "spy": 8.61,
+      "biased_count": 96,
+      "unbiased_count": 90,
+      "pit_members": 675
+    },
+    {
+      "year": 2014,
+      "quarter": 1,
+      "biased": 5.32,
+      "unbiased": 4.48,
+      "spy": 3.37,
+      "biased_count": 95,
+      "unbiased_count": 89,
+      "pit_members": 673
+    },
+    {
+      "year": 2014,
+      "quarter": 2,
+      "biased": 4.55,
+      "unbiased": 4.59,
+      "spy": 5.17,
+      "biased_count": 92,
+      "unbiased_count": 85,
+      "pit_members": 672
+    },
+    {
+      "year": 2014,
+      "quarter": 3,
+      "biased": -2.87,
+      "unbiased": -3.84,
+      "spy": -0.9,
+      "biased_count": 93,
+      "unbiased_count": 86,
+      "pit_members": 669
+    },
+    {
+      "year": 2014,
+      "quarter": 4,
+      "biased": 7.79,
+      "unbiased": 5.89,
+      "spy": 6.28,
+      "biased_count": 94,
+      "unbiased_count": 87,
+      "pit_members": 666
+    },
+    {
+      "year": 2015,
+      "quarter": 1,
+      "biased": 1.05,
+      "unbiased": 1.32,
+      "spy": 0.58,
+      "biased_count": 95,
+      "unbiased_count": 88,
+      "pit_members": 665
+    },
+    {
+      "year": 2015,
+      "quarter": 2,
+      "biased": 2.36,
+      "unbiased": 1.45,
+      "spy": 1.37,
+      "biased_count": 82,
+      "unbiased_count": 92,
+      "pit_members": 663
+    },
+    {
+      "year": 2015,
+      "quarter": 3,
+      "biased": -8.75,
+      "unbiased": -11.42,
+      "spy": -6.93,
+      "biased_count": 80,
+      "unbiased_count": 92,
+      "pit_members": 661
+    },
+    {
+      "year": 2015,
+      "quarter": 4,
+      "biased": 2.53,
+      "unbiased": 1.05,
+      "spy": 5.25,
+      "biased_count": 81,
+      "unbiased_count": 92,
+      "pit_members": 661
+    },
+    {
+      "year": 2016,
+      "quarter": 1,
+      "biased": 2.62,
+      "unbiased": 1.8,
+      "spy": 3.46,
+      "biased_count": 88,
+      "unbiased_count": 93,
+      "pit_members": 656
+    },
+    {
+      "year": 2016,
+      "quarter": 2,
+      "biased": -1.48,
+      "unbiased": -1.9,
+      "spy": 1.97,
+      "biased_count": 97,
+      "unbiased_count": 95,
+      "pit_members": 649
+    },
+    {
+      "year": 2016,
+      "quarter": 3,
+      "biased": 7.96,
+      "unbiased": 7.7,
+      "spy": 3.31,
+      "biased_count": 98,
+      "unbiased_count": 97,
+      "pit_members": 642
+    },
+    {
+      "year": 2016,
+      "quarter": 4,
+      "biased": 13.58,
+      "unbiased": 14.56,
+      "spy": 5.0,
+      "biased_count": 98,
+      "unbiased_count": 97,
+      "pit_members": 640
+    },
+    {
+      "year": 2017,
+      "quarter": 1,
+      "biased": 4.09,
+      "unbiased": 2.6,
+      "spy": 4.93,
+      "biased_count": 98,
+      "unbiased_count": 97,
+      "pit_members": 639
+    },
+    {
+      "year": 2017,
+      "quarter": 2,
+      "biased": 4.36,
+      "unbiased": 3.16,
+      "spy": 3.43,
+      "biased_count": 82,
+      "unbiased_count": 98,
+      "pit_members": 634
+    },
+    {
+      "year": 2017,
+      "quarter": 3,
+      "biased": 3.84,
+      "unbiased": 3.28,
+      "spy": 4.69,
+      "biased_count": 82,
+      "unbiased_count": 98,
+      "pit_members": 630
+    },
+    {
+      "year": 2017,
+      "quarter": 4,
+      "biased": 7.61,
+      "unbiased": 8.76,
+      "spy": 7.07,
+      "biased_count": 83,
+      "unbiased_count": 100,
+      "pit_members": 624
+    },
+    {
+      "year": 2018,
+      "quarter": 1,
+      "biased": -4.0,
+      "unbiased": -4.93,
+      "spy": -3.82,
+      "biased_count": 84,
+      "unbiased_count": 100,
+      "pit_members": 623
+    },
+    {
+      "year": 2018,
+      "quarter": 2,
+      "biased": 3.36,
+      "unbiased": 4.18,
+      "spy": 6.06,
+      "biased_count": 86,
+      "unbiased_count": 98,
+      "pit_members": 622
+    },
+    {
+      "year": 2018,
+      "quarter": 3,
+      "biased": 5.56,
+      "unbiased": 4.45,
+      "spy": 7.8,
+      "biased_count": 87,
+      "unbiased_count": 98,
+      "pit_members": 618
+    },
+    {
+      "year": 2018,
+      "quarter": 4,
+      "biased": -13.6,
+      "unbiased": -14.5,
+      "spy": -13.74,
+      "biased_count": 88,
+      "unbiased_count": 96,
+      "pit_members": 616
+    },
+    {
+      "year": 2019,
+      "quarter": 1,
+      "biased": 12.63,
+      "unbiased": 11.45,
+      "spy": 14.75,
+      "biased_count": 90,
+      "unbiased_count": 97,
+      "pit_members": 611
+    },
+    {
+      "year": 2019,
+      "quarter": 2,
+      "biased": 3.29,
+      "unbiased": 1.49,
+      "spy": 3.94,
+      "biased_count": 98,
+      "unbiased_count": 98,
+      "pit_members": 610
+    },
+    {
+      "year": 2019,
+      "quarter": 3,
+      "biased": -2.4,
+      "unbiased": -3.71,
+      "spy": -0.36,
+      "biased_count": 98,
+      "unbiased_count": 98,
+      "pit_members": 609
+    },
+    {
+      "year": 2019,
+      "quarter": 4,
+      "biased": 13.09,
+      "unbiased": 12.3,
+      "spy": 11.33,
+      "biased_count": 98,
+      "unbiased_count": 98,
+      "pit_members": 606
+    },
+    {
+      "year": 2020,
+      "quarter": 1,
+      "biased": -40.94,
+      "unbiased": -45.61,
+      "spy": -23.79,
+      "biased_count": 98,
+      "unbiased_count": 98,
+      "pit_members": 599
+    },
+    {
+      "year": 2020,
+      "quarter": 2,
+      "biased": 26.86,
+      "unbiased": 29.57,
+      "spy": 26.71,
+      "biased_count": 99,
+      "unbiased_count": 99,
+      "pit_members": 597
+    },
+    {
+      "year": 2020,
+      "quarter": 3,
+      "biased": 7.5,
+      "unbiased": 7.77,
+      "spy": 8.98,
+      "biased_count": 99,
+      "unbiased_count": 99,
+      "pit_members": 593
+    },
+    {
+      "year": 2020,
+      "quarter": 4,
+      "biased": 21.42,
+      "unbiased": 22.82,
+      "spy": 9.89,
+      "biased_count": 99,
+      "unbiased_count": 99,
+      "pit_members": 593
+    },
+    {
+      "year": 2021,
+      "quarter": 1,
+      "biased": 21.36,
+      "unbiased": 23.16,
+      "spy": 8.98,
+      "biased_count": 99,
+      "unbiased_count": 99,
+      "pit_members": 592
+    },
+    {
+      "year": 2021,
+      "quarter": 2,
+      "biased": 4.65,
+      "unbiased": 4.83,
+      "spy": 7.8,
+      "biased_count": 78,
+      "unbiased_count": 88,
+      "pit_members": 589
+    },
+    {
+      "year": 2021,
+      "quarter": 3,
+      "biased": -0.23,
+      "unbiased": -0.11,
+      "spy": 1.21,
+      "biased_count": 73,
+      "unbiased_count": 85,
+      "pit_members": 588
+    },
+    {
+      "year": 2021,
+      "quarter": 4,
+      "biased": 5.99,
+      "unbiased": 4.77,
+      "spy": 10.4,
+      "biased_count": 76,
+      "unbiased_count": 87,
+      "pit_members": 584
+    },
+    {
+      "year": 2022,
+      "quarter": 1,
+      "biased": -0.62,
+      "unbiased": -0.62,
+      "spy": -4.89,
+      "biased_count": 81,
+      "unbiased_count": 90,
+      "pit_members": 583
+    },
+    {
+      "year": 2022,
+      "quarter": 2,
+      "biased": -13.27,
+      "unbiased": -13.72,
+      "spy": -15.46,
+      "biased_count": 97,
+      "unbiased_count": 96,
+      "pit_members": 583
+    },
+    {
+      "year": 2022,
+      "quarter": 3,
+      "biased": -2.01,
+      "unbiased": -3.45,
+      "spy": -3.44,
+      "biased_count": 97,
+      "unbiased_count": 96,
+      "pit_members": 580
+    },
+    {
+      "year": 2022,
+      "quarter": 4,
+      "biased": 11.05,
+      "unbiased": 10.09,
+      "spy": 4.35,
+      "biased_count": 97,
+      "unbiased_count": 96,
+      "pit_members": 578
+    },
+    {
+      "year": 2023,
+      "quarter": 1,
+      "biased": 4.52,
+      "unbiased": 0.5,
+      "spy": 8.32,
+      "biased_count": 98,
+      "unbiased_count": 97,
+      "pit_members": 575
+    },
+    {
+      "year": 2023,
+      "quarter": 2,
+      "biased": 4.83,
+      "unbiased": 3.68,
+      "spy": 8.39,
+      "biased_count": 97,
+      "unbiased_count": 96,
+      "pit_members": 572
+    },
+    {
+      "year": 2023,
+      "quarter": 3,
+      "biased": -1.29,
+      "unbiased": -1.63,
+      "spy": -3.38,
+      "biased_count": 97,
+      "unbiased_count": 96,
+      "pit_members": 570
+    },
+    {
+      "year": 2023,
+      "quarter": 4,
+      "biased": 14.85,
+      "unbiased": 16.29,
+      "spy": 11.06,
+      "biased_count": 98,
+      "unbiased_count": 96,
+      "pit_members": 568
+    },
+    {
+      "year": 2024,
+      "quarter": 1,
+      "biased": 9.19,
+      "unbiased": 8.78,
+      "spy": 10.82,
+      "biased_count": 98,
+      "unbiased_count": 96,
+      "pit_members": 564
+    },
+    {
+      "year": 2024,
+      "quarter": 2,
+      "biased": -3.27,
+      "unbiased": -3.68,
+      "spy": 4.78,
+      "biased_count": 99,
+      "unbiased_count": 95,
+      "pit_members": 563
+    },
+    {
+      "year": 2024,
+      "quarter": 3,
+      "biased": 8.67,
+      "unbiased": 8.53,
+      "spy": 4.59,
+      "biased_count": 99,
+      "unbiased_count": 95,
+      "pit_members": 563
+    },
+    {
+      "year": 2024,
+      "quarter": 4,
+      "biased": 1.68,
+      "unbiased": 1.05,
+      "spy": 3.16,
+      "biased_count": 99,
+      "unbiased_count": 95,
+      "pit_members": 561
+    },
+    {
+      "year": 2025,
+      "quarter": 1,
+      "biased": 1.78,
+      "unbiased": 0.44,
+      "spy": -3.76,
+      "biased_count": 99,
+      "unbiased_count": 96,
+      "pit_members": 557
+    },
+    {
+      "year": 2025,
+      "quarter": 2,
+      "biased": 6.48,
+      "unbiased": 6.22,
+      "spy": 10.43,
+      "biased_count": 100,
+      "unbiased_count": 97,
+      "pit_members": 553
+    },
+    {
+      "year": 2025,
+      "quarter": 3,
+      "biased": 6.67,
+      "unbiased": 7.16,
+      "spy": 8.53,
+      "biased_count": 100,
+      "unbiased_count": 98,
+      "pit_members": 552
+    }
+  ]
+}

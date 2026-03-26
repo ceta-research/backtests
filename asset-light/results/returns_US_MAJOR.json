@@ -1,0 +1,310 @@
+{
+  "universe": "US_MAJOR",
+  "period": "2000-2025 (25 years)",
+  "rebalancing": "annual (April 1)",
+  "weighting": "equal weight",
+  "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+  "sector_exclusions": "Financial Services, Utilities",
+  "signal": "Composite: PERCENT_RANK(asset_turnover) + PERCENT_RANK(1/capex_intensity) + PERCENT_RANK(gross_margin), averaged",
+  "quintile_thresholds": {
+    "asset_light": ">= 0.8",
+    "asset_heavy": "<= 0.2"
+  },
+  "portfolios": {
+    "asset_light": {
+      "cagr": 2.82,
+      "total_return": 100.53,
+      "volatility": 28.26,
+      "sharpe": 0.029,
+      "sortino": 0.051,
+      "calmar": 0.049,
+      "max_drawdown": -57.7,
+      "var_95": -32.9,
+      "pct_negative_years": 40.0,
+      "max_consecutive_losses": 3
+    },
+    "asset_heavy": {
+      "cagr": -13.4,
+      "total_return": -97.26,
+      "volatility": 35.39,
+      "sharpe": -0.435,
+      "sortino": -0.554,
+      "calmar": -0.138,
+      "max_drawdown": -97.3,
+      "var_95": -54.2,
+      "pct_negative_years": 64.0,
+      "max_consecutive_losses": 4
+    },
+    "sp500": {
+      "cagr": 7.3,
+      "total_return": 482.22,
+      "volatility": 21.92,
+      "sharpe": 0.242,
+      "sortino": 0.46,
+      "calmar": 0.179,
+      "max_drawdown": -40.8,
+      "var_95": -23.7,
+      "pct_negative_years": 24.0,
+      "max_consecutive_losses": 2
+    }
+  },
+  "light_heavy_spread_cagr": 16.22,
+  "light_vs_spy": {
+    "excess_cagr": -4.48,
+    "information_ratio": -0.173,
+    "tracking_error": 17.85,
+    "up_capture": 89.2,
+    "down_capture": 136.7,
+    "beta": 1.0,
+    "alpha": -4.48,
+    "win_rate": 44.0
+  },
+  "avg_stock_counts": {
+    "light": 17.0,
+    "heavy": 26.0,
+    "total_universe": 1561.0
+  },
+  "cash_periods": {
+    "light": 0,
+    "heavy": 0
+  },
+  "decade_breakdown": [
+    {
+      "period": "2000-04",
+      "light_return": 10.5,
+      "heavy_return": -6.4,
+      "spread": 16.9,
+      "spy_return": -1.2
+    },
+    {
+      "period": "2005-09",
+      "light_return": 9.4,
+      "heavy_return": 1.7,
+      "spread": 7.7,
+      "spy_return": 6.2
+    },
+    {
+      "period": "2010-14",
+      "light_return": 14.7,
+      "heavy_return": -0.9,
+      "spread": 15.5,
+      "spy_return": 14.2
+    },
+    {
+      "period": "2015-19",
+      "light_return": -0.1,
+      "heavy_return": -11.8,
+      "spread": 11.7,
+      "spy_return": 6.3
+    },
+    {
+      "period": "2020-25",
+      "light_return": -2.4,
+      "heavy_return": -19.3,
+      "spread": 16.8,
+      "spy_return": 22.0
+    }
+  ],
+  "annual_returns": [
+    {
+      "year": 2000,
+      "light": -5.82,
+      "heavy": -34.39,
+      "spy": -23.68,
+      "light_count": 5,
+      "heavy_count": 10
+    },
+    {
+      "year": 2001,
+      "light": 28.42,
+      "heavy": -22.16,
+      "spy": 1.61,
+      "light_count": 2,
+      "heavy_count": 15
+    },
+    {
+      "year": 2002,
+      "light": -29.21,
+      "heavy": -43.41,
+      "spy": -23.62,
+      "light_count": 8,
+      "heavy_count": 19
+    },
+    {
+      "year": 2003,
+      "light": 38.92,
+      "heavy": 69.2,
+      "spy": 34.33,
+      "light_count": 5,
+      "heavy_count": 15
+    },
+    {
+      "year": 2004,
+      "light": 20.33,
+      "heavy": -1.02,
+      "spy": 5.23,
+      "light_count": 11,
+      "heavy_count": 14
+    },
+    {
+      "year": 2005,
+      "light": 16.47,
+      "heavy": 26.29,
+      "spy": 12.43,
+      "light_count": 13,
+      "heavy_count": 15
+    },
+    {
+      "year": 2006,
+      "light": 7.65,
+      "heavy": 2.99,
+      "spy": 11.6,
+      "light_count": 14,
+      "heavy_count": 22
+    },
+    {
+      "year": 2007,
+      "light": -14.82,
+      "heavy": -20.84,
+      "spy": -2.03,
+      "light_count": 16,
+      "heavy_count": 22
+    },
+    {
+      "year": 2008,
+      "light": -35.09,
+      "heavy": -55.58,
+      "spy": -39.11,
+      "light_count": 20,
+      "heavy_count": 23
+    },
+    {
+      "year": 2009,
+      "light": 72.78,
+      "heavy": 55.44,
+      "spy": 48.25,
+      "light_count": 12,
+      "heavy_count": 14
+    },
+    {
+      "year": 2010,
+      "light": 29.83,
+      "heavy": 18.57,
+      "spy": 15.27,
+      "light_count": 14,
+      "heavy_count": 25
+    },
+    {
+      "year": 2011,
+      "light": 8.41,
+      "heavy": -17.54,
+      "spy": 8.77,
+      "light_count": 14,
+      "heavy_count": 20
+    },
+    {
+      "year": 2012,
+      "light": -4.0,
+      "heavy": 7.45,
+      "spy": 12.46,
+      "light_count": 12,
+      "heavy_count": 16
+    },
+    {
+      "year": 2013,
+      "light": 28.88,
+      "heavy": 13.98,
+      "spy": 23.07,
+      "light_count": 11,
+      "heavy_count": 32
+    },
+    {
+      "year": 2014,
+      "light": 10.28,
+      "heavy": -26.76,
+      "spy": 11.41,
+      "light_count": 11,
+      "heavy_count": 37
+    },
+    {
+      "year": 2015,
+      "light": -10.97,
+      "heavy": -33.37,
+      "spy": 2.74,
+      "light_count": 16,
+      "heavy_count": 36
+    },
+    {
+      "year": 2016,
+      "light": 26.91,
+      "heavy": 20.47,
+      "spy": 16.08,
+      "light_count": 17,
+      "heavy_count": 40
+    },
+    {
+      "year": 2017,
+      "light": 14.49,
+      "heavy": -4.6,
+      "spy": 11.49,
+      "light_count": 22,
+      "heavy_count": 38
+    },
+    {
+      "year": 2018,
+      "light": 1.79,
+      "heavy": -12.32,
+      "spy": 13.17,
+      "light_count": 32,
+      "heavy_count": 39
+    },
+    {
+      "year": 2019,
+      "light": -32.93,
+      "heavy": -29.38,
+      "spy": -12.12,
+      "light_count": 28,
+      "heavy_count": 31
+    },
+    {
+      "year": 2020,
+      "light": 58.53,
+      "heavy": 66.36,
+      "spy": 65.36,
+      "light_count": 18,
+      "heavy_count": 18
+    },
+    {
+      "year": 2021,
+      "light": -30.32,
+      "heavy": -44.49,
+      "spy": 14.55,
+      "light_count": 32,
+      "heavy_count": 41
+    },
+    {
+      "year": 2022,
+      "light": -30.19,
+      "heavy": -54.24,
+      "spy": -7.73,
+      "light_count": 34,
+      "heavy_count": 45
+    },
+    {
+      "year": 2023,
+      "light": -13.01,
+      "heavy": -21.85,
+      "spy": 28.9,
+      "light_count": 25,
+      "heavy_count": 39
+    },
+    {
+      "year": 2024,
+      "light": 2.81,
+      "heavy": -42.06,
+      "spy": 8.8,
+      "light_count": 33,
+      "heavy_count": 35
+    }
+  ]
+}
