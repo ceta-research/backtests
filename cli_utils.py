@@ -42,7 +42,7 @@ EXCHANGE_PRESETS = {
     "australia": {"name": "ASX", "exchanges": ["ASX"]},
     "taiwan": {"name": "Taiwan", "exchanges": ["TAI", "TWO"]},
     "thailand": {"name": "SET", "exchanges": ["SET"]},
-    "singapore": {"name": "SGX", "exchanges": ["SGX"]},
+    "singapore": {"name": "SES", "exchanges": ["SES"]},
     # Other
     "brazil": {"name": "SAO", "exchanges": ["SAO"]},
     "mexico": {"name": "BMV", "exchanges": ["BMV"]},
