@@ -42,7 +42,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, REGIONAL_BENCHMARKS
+from data_utils import query_parquet, LOCAL_INDEX_BENCHMARKS
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -185,12 +185,12 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     # 5. Get all unique event symbols
     event_symbols = [r[0] for r in con.execute("SELECT DISTINCT symbol FROM unique_events").fetchall()]
 
-    # 6. Determine benchmark
+    # 6. Determine benchmark (local currency index — e.g. Sensex for India, Nikkei for Japan)
     benchmark = "SPY"
     if exchanges:
         for ex in exchanges:
-            if ex in REGIONAL_BENCHMARKS:
-                benchmark = REGIONAL_BENCHMARKS[ex]
+            if ex in LOCAL_INDEX_BENCHMARKS:
+                benchmark = LOCAL_INDEX_BENCHMARKS[ex]
                 break
 
     # 7. Fetch price data for event symbols + benchmark
