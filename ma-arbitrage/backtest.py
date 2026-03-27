@@ -51,7 +51,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet
+from data_utils import query_parquet, get_local_benchmark, get_benchmark_return
 from cli_utils import get_mktcap_threshold
 
 # --- Parameters ---
@@ -227,18 +227,26 @@ def fetch_data(client, args, verbose=False):
     return con
 
 
-def compute_event_returns(con, verbose=False):
-    """Compute abnormal returns at each window for all events."""
-    windows = WINDOWS
+def compute_event_returns(con, offset_days=1, verbose=False):
+    """Compute abnormal returns at each window for all events.
 
-    # Map each event to T+0 trading day (first trading day on or after deal_date)
-    print("    Mapping events to trading days...")
-    con.execute("""
+    offset_days=1 (MOC execution): T+0 baseline is the first trading day
+    AFTER the filing date, so returns are measurable if you enter at the
+    next-day close after the SEC filing appears.
+    offset_days=0: T+0 is the first trading day ON OR AFTER the filing
+    (same-bar entry, included for backward-compat via --no-next-day).
+    """
+    windows = WINDOWS
+    comparator = ">" if offset_days > 0 else ">="
+
+    # Map each event to T+0 trading day
+    print(f"    Mapping events to trading days (offset_days={offset_days})...")
+    con.execute(f"""
         CREATE TABLE event_t0 AS
         SELECT e.symbol, e.deal_date, e.role,
             td.day_num AS t0_num, td.trade_date AS t0_date
         FROM events e
-        ASOF JOIN trading_days td ON td.trade_date >= e.deal_date
+        ASOF JOIN trading_days td ON td.trade_date {comparator} e.deal_date
     """)
     n_mapped = con.execute("SELECT COUNT(*) FROM event_t0").fetchone()[0]
     print(f"    -> {n_mapped} events mapped to trading days")
@@ -483,9 +491,13 @@ def run(args):
         return None
     print(f"\nData fetched in {time.time() - t0:.0f}s")
 
+    offset_days = 0 if args.no_next_day else 1
+    exec_model = "same-day close (--no-next-day)" if args.no_next_day else "next-day close (MOC)"
+    print(f"  Execution: {exec_model}")
+
     print("\nPhase 2: Computing event-window returns...")
     t1 = time.time()
-    results = compute_event_returns(con, verbose=args.verbose)
+    results = compute_event_returns(con, offset_days=offset_days, verbose=args.verbose)
     print(f"Returns computed in {time.time() - t1:.0f}s")
 
     if not results:
@@ -557,6 +569,9 @@ def main():
                         help=f"End year (default: {DEFAULT_END_YEAR})")
     parser.add_argument("--verbose", action="store_true",
                         help="Print detailed progress")
+    parser.add_argument("--no-next-day", action="store_true",
+                        help="Use same-day close as T+0 baseline (backward compat). "
+                             "Default: next-day close (MOC execution)")
     args = parser.parse_args()
 
     if not args.api_key:
