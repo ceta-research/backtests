@@ -44,25 +44,25 @@ def cumulative_growth(returns):
     return curve
 
 
-def plot_cumulative(data, label, output_path):
-    """Cumulative growth chart: 52W-High Proximity vs SPY."""
+def plot_cumulative(data, label, benchmark_name, output_path):
+    """Cumulative growth chart: 52W-High Proximity vs local benchmark."""
     annual = data["annual_returns"]
     years = [ar["year"] for ar in annual]
     port_rets = [ar["portfolio"] for ar in annual]
-    spy_rets = [ar["spy"] for ar in annual]
+    bench_rets = [ar["spy"] for ar in annual]
 
     port_curve = cumulative_growth(port_rets)
-    spy_curve = cumulative_growth(spy_rets)
+    bench_curve = cumulative_growth(bench_rets)
 
     x = [years[0] - 1] + years
     fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.plot(x, port_curve, color=STRATEGY_COLOR, linewidth=2.5,
             label=f"52W-High Proximity  (CAGR: {data['portfolio']['cagr']:.1f}%)")
-    ax.plot(x, spy_curve, color=BENCHMARK_COLOR, linewidth=1.8, linestyle="--",
-            label=f"S&P 500 (SPY)  (CAGR: {data['spy']['cagr']:.1f}%)")
+    ax.plot(x, bench_curve, color=BENCHMARK_COLOR, linewidth=1.8, linestyle="--",
+            label=f"{benchmark_name}  (CAGR: {data['spy']['cagr']:.1f}%)")
 
-    ax.set_title(f"52-Week High Proximity vs S&P 500\n{label}",
+    ax.set_title(f"52-Week High Proximity vs {benchmark_name}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Portfolio Value ($1 Start)", fontsize=12)
@@ -92,12 +92,12 @@ def plot_cumulative(data, label, output_path):
     print(f"  Saved: {output_path}")
 
 
-def plot_annual(data, label, output_path):
-    """Annual returns bar chart: 52W-High Proximity vs SPY."""
+def plot_annual(data, label, benchmark_name, output_path):
+    """Annual returns bar chart: 52W-High Proximity vs local benchmark."""
     annual = data["annual_returns"]
     years = [ar["year"] for ar in annual]
     port_rets = [ar["portfolio"] for ar in annual]
-    spy_rets = [ar["spy"] for ar in annual]
+    bench_rets = [ar["spy"] for ar in annual]
 
     x = np.arange(len(years))
     width = 0.4
@@ -105,10 +105,10 @@ def plot_annual(data, label, output_path):
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.bar(x - width / 2, port_rets, width, label="52W-High Proximity",
            color=STRATEGY_COLOR, alpha=0.85)
-    ax.bar(x + width / 2, spy_rets, width, label="SPY", color=BENCHMARK_COLOR, alpha=0.7)
+    ax.bar(x + width / 2, bench_rets, width, label=benchmark_name, color=BENCHMARK_COLOR, alpha=0.7)
 
     ax.axhline(0, color="black", linewidth=0.8, linestyle="-")
-    ax.set_title(f"Annual Returns: 52-Week High Proximity vs S&P 500\n{label}",
+    ax.set_title(f"Annual Returns: 52-Week High Proximity vs {benchmark_name}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Annual Return (%)", fontsize=12)
@@ -207,26 +207,26 @@ def plot_comparison_drawdown(all_data, output_path):
     print(f"  Saved: {output_path}")
 
 
-# Exchange-to-display mapping
+# Exchange-to-display mapping (region_slug, region_label, benchmark_name)
 EXCHANGE_LABELS = {
-    "NYSE_NASDAQ_AMEX": ("us", "US (NYSE/NASDAQ/AMEX)"),
-    "NSE": ("india", "India (NSE)"),
-    "LSE": ("uk", "UK (LSE)"),
-    "XETRA": ("germany", "Germany (XETRA)"),
-    "JPX": ("japan", "Japan (JPX)"),
-    "SHZ_SHH": ("china", "China (SHZ/SHH)"),
-    "HKSE": ("hongkong", "Hong Kong (HKSE)"),
-    "KSC": ("korea", "Korea (KSC)"),
-    "TAI": ("taiwan", "Taiwan (TAI)"),
-    "TSX": ("canada", "Canada (TSX)"),
-    "SIX": ("switzerland", "Switzerland (SIX)"),
-    "STO": ("sweden", "Sweden (STO)"),
-    "SET": ("thailand", "Thailand (SET)"),
-    "JNB": ("southafrica", "South Africa (JNB)"),
-    "OSL": ("norway", "Norway (OSL)"),
-    "MIL": ("italy", "Italy (MIL)"),
-    "KLS": ("malaysia", "Malaysia (KLS)"),
-    "SES": ("singapore", "Singapore (SES)"),
+    "NYSE_NASDAQ_AMEX": ("us", "US (NYSE/NASDAQ/AMEX)", "S&P 500"),
+    "NSE": ("india", "India (NSE)", "Sensex"),
+    "LSE": ("uk", "UK (LSE)", "FTSE 100"),
+    "XETRA": ("germany", "Germany (XETRA)", "DAX"),
+    "JPX": ("japan", "Japan (JPX)", "Nikkei 225"),
+    "SHZ_SHH": ("china", "China (SHZ/SHH)", "SSE Composite"),
+    "HKSE": ("hongkong", "Hong Kong (HKSE)", "Hang Seng"),
+    "KSC": ("korea", "Korea (KSC)", "KOSPI"),
+    "TAI": ("taiwan", "Taiwan (TAI)", "TAIEX"),
+    "TSX": ("canada", "Canada (TSX)", "TSX Composite"),
+    "SIX": ("switzerland", "Switzerland (SIX)", "SMI"),
+    "STO": ("sweden", "Sweden (STO)", "OMX Stockholm 30"),
+    "SET": ("thailand", "Thailand (SET)", "SET Index"),
+    "JNB": ("southafrica", "South Africa (JNB)", "JSE All Share"),
+    "OSL": ("norway", "Norway (OSL)", "OSEAX"),
+    "MIL": ("italy", "Italy (MIL)", "FTSE MIB"),
+    "KLS": ("malaysia", "Malaysia (KLS)", "KLCI"),
+    "SES": ("singapore", "Singapore (SES)", "STI"),
 }
 
 
@@ -246,16 +246,16 @@ def main():
     print(f"Generating charts for {len(all_data)} exchanges...")
 
     # Per-exchange charts
-    for uni_key, (region_slug, region_label) in EXCHANGE_LABELS.items():
+    for uni_key, (region_slug, region_label, benchmark_name) in EXCHANGE_LABELS.items():
         data = all_data.get(uni_key)
         if not data or "error" in data or not data.get("annual_returns"):
             print(f"  Skipping {uni_key}: no data or error")
             continue
 
         print(f"\n{region_label}")
-        plot_cumulative(data, region_label,
+        plot_cumulative(data, region_label, benchmark_name,
                         os.path.join(CHARTS_DIR, f"1_{region_slug}_cumulative_growth.png"))
-        plot_annual(data, region_label,
+        plot_annual(data, region_label, benchmark_name,
                     os.path.join(CHARTS_DIR, f"2_{region_slug}_annual_returns.png"))
 
     # Comparison charts
