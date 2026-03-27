@@ -47,7 +47,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, REGIONAL_BENCHMARKS
+from data_utils import query_parquet, get_local_benchmark
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -145,17 +145,12 @@ def fetch_data(client, exchanges, mktcap_min, min_dip=MIN_DIP, verbose=False):
         con.close()
         return None
 
-    # 3. Determine benchmark
-    benchmark = "SPY"
-    if exchanges:
-        for ex in exchanges:
-            if ex in REGIONAL_BENCHMARKS:
-                benchmark = REGIONAL_BENCHMARKS[ex]
-                break
+    # 3. Determine benchmark (local currency index for accurate alpha measurement)
+    benchmark, benchmark_name = get_local_benchmark(exchanges)
 
     # 4. Fetch price data for all beat symbols + benchmark
     beat_symbols = [r[0] for r in con.execute("SELECT DISTINCT symbol FROM beats_mcap").fetchall()]
-    print(f"  Fetching prices for {len(beat_symbols)} symbols + {benchmark}...")
+    print(f"  Fetching prices for {len(beat_symbols)} symbols + {benchmark_name} ({benchmark})...")
     sym_list = beat_symbols + [benchmark]
     sym_in = ", ".join(f"'{s}'" for s in sym_list)
     price_sql = f"""
@@ -182,7 +177,7 @@ def fetch_data(client, exchanges, mktcap_min, min_dip=MIN_DIP, verbose=False):
         ORDER BY trade_date
     """)
     n_days = con.execute("SELECT COUNT(*) FROM trading_days").fetchone()[0]
-    print(f"    -> {n_days} trading days from {benchmark}")
+    print(f"    -> {n_days} trading days from {benchmark_name} ({benchmark})")
 
     # 6. Map each beat event to its announcement T0 trading day (ASOF join)
     con.execute("""
@@ -258,7 +253,7 @@ def fetch_data(client, exchanges, mktcap_min, min_dip=MIN_DIP, verbose=False):
         con.close()
         return None
 
-    con.execute(f"CREATE TABLE config AS SELECT '{benchmark}' AS benchmark, {min_dip} AS min_dip")
+    con.execute(f"CREATE TABLE config AS SELECT '{benchmark}' AS benchmark, '{benchmark_name}' AS benchmark_name, {min_dip} AS min_dip")
     return con
 
 
@@ -512,7 +507,10 @@ def run_single(cr, exchanges, universe_name, mktcap_min, min_dip=MIN_DIP,
     fetch_time = time.time() - t0
     print(f"\nData fetched in {fetch_time:.0f}s")
 
-    benchmark = con.execute("SELECT benchmark FROM config").fetchone()[0]
+    row = con.execute("SELECT benchmark, benchmark_name FROM config").fetchone()
+    benchmark = row[0]
+    benchmark_name = row[1]
+    print(f"  Benchmark: {benchmark_name} ({benchmark})")
 
     print(f"\nPhase 2: Computing post-dip recovery returns...")
     t1 = time.time()
@@ -546,6 +544,7 @@ def run_single(cr, exchanges, universe_name, mktcap_min, min_dip=MIN_DIP,
         "strategy": "Post-Earnings Dip Mean Reversion",
         "universe": universe_name,
         "benchmark": benchmark,
+        "benchmark_name": benchmark_name,
         "study_type": "event_study",
         "period": f"{START_YEAR}-{END_YEAR}",
         "filters": {

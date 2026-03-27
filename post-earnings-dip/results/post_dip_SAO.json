@@ -1,7 +1,8 @@
 {
   "strategy": "Post-Earnings Dip Mean Reversion",
   "universe": "SAO",
-  "benchmark": "EWZ",
+  "benchmark": "^BVSP",
+  "benchmark_name": "Bovespa",
   "study_type": "event_study",
   "period": "2000-2025",
   "filters": {
@@ -17,122 +18,122 @@
   ],
   "car_metrics": {
     "reaction_stats": {
-      "mean_pct": -6.8018,
-      "n": 225
+      "mean_pct": -8.0692,
+      "n": 223
     },
     "overall": {
-      "n": 225,
+      "n": 223,
       "T+5": {
-        "mean_car": -0.0912,
-        "median_car": -0.6496,
-        "t_stat": -0.203,
-        "n": 225,
-        "hit_rate": 45.33,
+        "mean_car": -0.5187,
+        "median_car": -0.9299,
+        "t_stat": -1.143,
+        "n": 223,
+        "hit_rate": 44.39,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+10": {
-        "mean_car": 0.5195,
-        "median_car": -0.3536,
-        "t_stat": 0.819,
-        "n": 219,
-        "hit_rate": 47.95,
+        "mean_car": -0.0194,
+        "median_car": -0.5694,
+        "t_stat": -0.032,
+        "n": 215,
+        "hit_rate": 46.98,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+21": {
-        "mean_car": -1.3208,
-        "median_car": -0.8538,
-        "t_stat": -1.708,
-        "n": 215,
-        "hit_rate": 46.05,
-        "significant_5pct": false,
+        "mean_car": -1.839,
+        "median_car": -2.523,
+        "t_stat": -2.451,
+        "n": 222,
+        "hit_rate": 40.54,
+        "significant_5pct": true,
         "significant_1pct": false
       },
       "T+63": {
-        "mean_car": -1.5505,
-        "median_car": -3.2333,
-        "t_stat": -1.049,
+        "mean_car": -1.9838,
+        "median_car": -4.2273,
+        "t_stat": -1.35,
         "n": 218,
-        "hit_rate": 41.28,
+        "hit_rate": 39.91,
         "significant_5pct": false,
         "significant_1pct": false
       }
     },
     "dip_5": {
-      "n": 173,
+      "n": 172,
       "T+5": {
-        "mean_car": -0.3005,
-        "median_car": -1.046,
-        "t_stat": -0.651,
-        "n": 173,
-        "hit_rate": 42.77,
+        "mean_car": -0.6628,
+        "median_car": -1.6744,
+        "t_stat": -1.383,
+        "n": 172,
+        "hit_rate": 41.28,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+10": {
-        "mean_car": 0.8454,
-        "median_car": -0.1299,
-        "t_stat": 1.178,
-        "n": 168,
-        "hit_rate": 48.81,
+        "mean_car": 0.2727,
+        "median_car": -0.4879,
+        "t_stat": 0.399,
+        "n": 167,
+        "hit_rate": 48.5,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+21": {
-        "mean_car": -1.0493,
-        "median_car": -0.4675,
-        "t_stat": -1.235,
-        "n": 165,
-        "hit_rate": 45.45,
-        "significant_5pct": false,
+        "mean_car": -1.6284,
+        "median_car": -2.4784,
+        "t_stat": -1.964,
+        "n": 171,
+        "hit_rate": 40.35,
+        "significant_5pct": true,
         "significant_1pct": false
       },
       "T+63": {
-        "mean_car": -2.1223,
-        "median_car": -3.5879,
-        "t_stat": -1.376,
+        "mean_car": -2.5488,
+        "median_car": -4.8894,
+        "t_stat": -1.661,
         "n": 167,
-        "hit_rate": 39.52,
+        "hit_rate": 38.32,
         "significant_5pct": false,
         "significant_1pct": false
       }
     },
     "dip_10": {
-      "n": 49,
+      "n": 48,
       "T+5": {
-        "mean_car": 0.2329,
-        "median_car": 0.4028,
-        "t_stat": 0.185,
-        "n": 49,
-        "hit_rate": 55.1,
+        "mean_car": -0.4043,
+        "median_car": 0.9017,
+        "t_stat": -0.322,
+        "n": 48,
+        "hit_rate": 54.17,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+10": {
-        "mean_car": -0.1019,
-        "median_car": -0.1925,
-        "t_stat": -0.072,
-        "n": 48,
-        "hit_rate": 47.92,
+        "mean_car": -0.802,
+        "median_car": -1.2954,
+        "t_stat": -0.554,
+        "n": 45,
+        "hit_rate": 42.22,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+21": {
-        "mean_car": -1.4436,
-        "median_car": -1.314,
-        "t_stat": -0.601,
-        "n": 47,
-        "hit_rate": 48.94,
+        "mean_car": -1.7523,
+        "median_car": -2.6816,
+        "t_stat": -0.843,
+        "n": 48,
+        "hit_rate": 41.67,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+63": {
-        "mean_car": -2.3302,
-        "median_car": -1.9034,
-        "t_stat": -0.6,
+        "mean_car": -2.4643,
+        "median_car": -3.3578,
+        "t_stat": -0.638,
         "n": 48,
-        "hit_rate": 43.75,
+        "hit_rate": 41.67,
         "significant_5pct": false,
         "significant_1pct": false
       }
@@ -140,40 +141,40 @@
     "dip_20": {
       "n": 3,
       "T+5": {
-        "mean_car": 8.1031,
-        "median_car": -0.1523,
-        "t_stat": 0.912,
+        "mean_car": 11.2783,
+        "median_car": 2.3954,
+        "t_stat": 0.972,
+        "n": 3,
+        "hit_rate": 66.67,
+        "significant_5pct": false,
+        "significant_1pct": false
+      },
+      "T+10": {
+        "mean_car": -5.5136,
+        "median_car": -0.687,
+        "t_stat": -0.982,
         "n": 3,
         "hit_rate": 33.33,
         "significant_5pct": false,
         "significant_1pct": false
       },
-      "T+10": {
-        "mean_car": -6.9431,
-        "median_car": -8.1203,
-        "t_stat": -2.14,
-        "n": 3,
-        "hit_rate": 0.0,
-        "significant_5pct": true,
-        "significant_1pct": false
-      },
       "T+21": {
-        "mean_car": -1.731,
-        "median_car": -10.7442,
-        "t_stat": -0.16,
+        "mean_car": -6.6036,
+        "median_car": -12.2224,
+        "t_stat": -0.613,
         "n": 3,
         "hit_rate": 33.33,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+63": {
-        "mean_car": 37.5147,
-        "median_car": 30.4778,
-        "t_stat": 3.224,
+        "mean_car": 33.6989,
+        "median_car": 20.4157,
+        "t_stat": 2.097,
         "n": 3,
         "hit_rate": 100.0,
         "significant_5pct": true,
-        "significant_1pct": true
+        "significant_1pct": false
       }
     }
   },
@@ -250,9 +251,9 @@
     },
     {
       "year": 2024,
-      "total": 26,
-      "dip_5": 18,
-      "dip_10": 8,
+      "total": 24,
+      "dip_5": 17,
+      "dip_10": 7,
       "dip_20": 0
     },
     {
@@ -263,5 +264,5 @@
       "dip_20": 0
     }
   ],
-  "n_total_events": 225
+  "n_total_events": 223
 }

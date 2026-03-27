@@ -1,7 +1,8 @@
 {
   "strategy": "Post-Earnings Dip Mean Reversion",
   "universe": "TAI_TWO",
-  "benchmark": "SPY",
+  "benchmark": "^TWII",
+  "benchmark_name": "TAIEX",
   "study_type": "event_study",
   "period": "2000-2025",
   "filters": {
@@ -17,124 +18,124 @@
   ],
   "car_metrics": {
     "reaction_stats": {
-      "mean_pct": -7.531,
-      "n": 384
+      "mean_pct": -6.2622,
+      "n": 411
     },
     "overall": {
-      "n": 384,
+      "n": 411,
       "T+5": {
-        "mean_car": 0.0362,
-        "median_car": -0.4675,
-        "t_stat": 0.108,
-        "n": 384,
-        "hit_rate": 45.31,
+        "mean_car": 0.03,
+        "median_car": -0.7103,
+        "t_stat": 0.099,
+        "n": 411,
+        "hit_rate": 45.5,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+10": {
-        "mean_car": 1.3496,
-        "median_car": 0.1331,
-        "t_stat": 2.64,
-        "n": 374,
-        "hit_rate": 50.8,
+        "mean_car": 1.1693,
+        "median_car": -0.2378,
+        "t_stat": 2.523,
+        "n": 411,
+        "hit_rate": 48.18,
         "significant_5pct": true,
-        "significant_1pct": true
+        "significant_1pct": false
       },
       "T+21": {
-        "mean_car": 1.7583,
-        "median_car": 0.2508,
-        "t_stat": 2.733,
-        "n": 368,
-        "hit_rate": 51.63,
+        "mean_car": 2.2026,
+        "median_car": 0.4599,
+        "t_stat": 3.747,
+        "n": 410,
+        "hit_rate": 51.71,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+63": {
-        "mean_car": 3.0394,
-        "median_car": -0.3212,
-        "t_stat": 2.466,
-        "n": 349,
-        "hit_rate": 49.0,
+        "mean_car": 3.8795,
+        "median_car": -0.2666,
+        "t_stat": 3.396,
+        "n": 407,
+        "hit_rate": 49.39,
         "significant_5pct": true,
-        "significant_1pct": false
+        "significant_1pct": true
       }
     },
     "dip_5": {
-      "n": 311,
+      "n": 334,
       "T+5": {
-        "mean_car": -0.3246,
-        "median_car": -0.9484,
-        "t_stat": -0.96,
-        "n": 311,
-        "hit_rate": 42.77,
+        "mean_car": -0.1086,
+        "median_car": -0.8461,
+        "t_stat": -0.338,
+        "n": 334,
+        "hit_rate": 44.31,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+10": {
-        "mean_car": 0.7036,
-        "median_car": -0.0631,
-        "t_stat": 1.4,
-        "n": 302,
-        "hit_rate": 50.0,
+        "mean_car": 0.6838,
+        "median_car": -0.4689,
+        "t_stat": 1.537,
+        "n": 334,
+        "hit_rate": 47.6,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+21": {
-        "mean_car": 0.8026,
-        "median_car": -0.0731,
-        "t_stat": 1.252,
-        "n": 299,
-        "hit_rate": 49.83,
-        "significant_5pct": false,
+        "mean_car": 1.1824,
+        "median_car": 0.0149,
+        "t_stat": 2.047,
+        "n": 334,
+        "hit_rate": 50.3,
+        "significant_5pct": true,
         "significant_1pct": false
       },
       "T+63": {
-        "mean_car": 1.7566,
-        "median_car": -0.8741,
-        "t_stat": 1.362,
-        "n": 277,
-        "hit_rate": 48.01,
-        "significant_5pct": false,
+        "mean_car": 2.5197,
+        "median_car": -1.2708,
+        "t_stat": 2.174,
+        "n": 330,
+        "hit_rate": 46.97,
+        "significant_5pct": true,
         "significant_1pct": false
       }
     },
     "dip_10": {
-      "n": 73,
+      "n": 77,
       "T+5": {
-        "mean_car": 1.5529,
-        "median_car": 1.5141,
-        "t_stat": 1.486,
-        "n": 73,
-        "hit_rate": 56.16,
+        "mean_car": 0.5326,
+        "median_car": 0.0662,
+        "t_stat": 0.584,
+        "n": 77,
+        "hit_rate": 50.65,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+10": {
-        "mean_car": 4.0545,
-        "median_car": 2.32,
-        "t_stat": 2.494,
-        "n": 72,
-        "hit_rate": 54.17,
+        "mean_car": 2.9718,
+        "median_car": 0.3957,
+        "t_stat": 1.966,
+        "n": 77,
+        "hit_rate": 50.65,
         "significant_5pct": true,
         "significant_1pct": false
       },
       "T+21": {
-        "mean_car": 6.5831,
-        "median_car": 2.9029,
-        "t_stat": 2.875,
-        "n": 69,
-        "hit_rate": 59.42,
+        "mean_car": 7.3499,
+        "median_car": 4.5463,
+        "t_stat": 3.633,
+        "n": 76,
+        "hit_rate": 57.89,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+63": {
-        "mean_car": 7.9301,
-        "median_car": 1.8072,
-        "t_stat": 2.305,
-        "n": 72,
-        "hit_rate": 52.78,
+        "mean_car": 9.2097,
+        "median_car": 2.8117,
+        "t_stat": 2.684,
+        "n": 77,
+        "hit_rate": 59.74,
         "significant_5pct": true,
-        "significant_1pct": false
+        "significant_1pct": true
       }
     }
   },
@@ -148,8 +149,8 @@
     },
     {
       "year": 2015,
-      "total": 25,
-      "dip_5": 22,
+      "total": 26,
+      "dip_5": 23,
       "dip_10": 3,
       "dip_20": 0
     },
@@ -169,15 +170,15 @@
     },
     {
       "year": 2018,
-      "total": 19,
-      "dip_5": 13,
-      "dip_10": 6,
+      "total": 18,
+      "dip_5": 11,
+      "dip_10": 7,
       "dip_20": 0
     },
     {
       "year": 2019,
-      "total": 18,
-      "dip_5": 16,
+      "total": 19,
+      "dip_5": 17,
       "dip_10": 2,
       "dip_20": 0
     },
@@ -190,39 +191,39 @@
     },
     {
       "year": 2021,
-      "total": 74,
-      "dip_5": 57,
-      "dip_10": 17,
+      "total": 84,
+      "dip_5": 65,
+      "dip_10": 19,
       "dip_20": 0
     },
     {
       "year": 2022,
-      "total": 46,
-      "dip_5": 41,
+      "total": 47,
+      "dip_5": 42,
       "dip_10": 5,
       "dip_20": 0
     },
     {
       "year": 2023,
-      "total": 37,
-      "dip_5": 31,
+      "total": 39,
+      "dip_5": 33,
       "dip_10": 6,
       "dip_20": 0
     },
     {
       "year": 2024,
-      "total": 53,
-      "dip_5": 35,
-      "dip_10": 18,
+      "total": 56,
+      "dip_5": 37,
+      "dip_10": 19,
       "dip_20": 0
     },
     {
       "year": 2025,
-      "total": 29,
-      "dip_5": 26,
+      "total": 39,
+      "dip_5": 36,
       "dip_10": 3,
       "dip_20": 0
     }
   ],
-  "n_total_events": 384
+  "n_total_events": 411
 }
