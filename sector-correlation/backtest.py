@@ -200,12 +200,13 @@ def get_regime_allocation(regime):
     return [BENCHMARK]
 
 
-def get_price_on_or_after(prices, symbol, target_date, lookahead=10):
-    """Get the first price for symbol on or after target_date."""
-    end = target_date + timedelta(days=lookahead)
+def get_price_on_or_after(prices, symbol, target_date, lookahead=10, offset_days=0):
+    """Get the first price for symbol on or after target_date + offset_days."""
+    shifted = target_date + timedelta(days=offset_days)
+    end = shifted + timedelta(days=lookahead)
     sym_prices = prices.get(symbol, [])
     for dt, px in sym_prices:
-        if target_date <= dt <= end:
+        if shifted <= dt <= end:
             return px
     return None
 
@@ -221,7 +222,8 @@ def generate_month_starts(start_year, end_year):
     return dates
 
 
-def run_backtest(prices, return_dict, trading_dates, use_costs=True, verbose=False):
+def run_backtest(prices, return_dict, trading_dates, use_costs=True, verbose=False,
+                 offset_days=1):
     """Run the correlation regime backtest. Returns list of period dicts."""
     month_starts = generate_month_starts(BACKTEST_START, BACKTEST_END)
 
@@ -239,11 +241,11 @@ def run_backtest(prices, return_dict, trading_dates, use_costs=True, verbose=Fal
         regime = classify_regime(avg_corr)
         allocation = get_regime_allocation(regime)
 
-        # Prices at entry and exit
+        # Prices at entry and exit (offset_days=1 → next-day close / MOC execution)
         period_returns = []
         for sym in allocation:
-            ep = get_price_on_or_after(prices, sym, entry_month)
-            xp = get_price_on_or_after(prices, sym, exit_month)
+            ep = get_price_on_or_after(prices, sym, entry_month, offset_days=offset_days)
+            xp = get_price_on_or_after(prices, sym, exit_month, offset_days=offset_days)
             if ep and xp and ep > 0:
                 period_returns.append((xp - ep) / ep)
 
@@ -254,8 +256,8 @@ def run_backtest(prices, return_dict, trading_dates, use_costs=True, verbose=Fal
             port_return -= ETF_COST
 
         # SPY benchmark
-        spy_ep = get_price_on_or_after(prices, BENCHMARK, entry_month)
-        spy_xp = get_price_on_or_after(prices, BENCHMARK, exit_month)
+        spy_ep = get_price_on_or_after(prices, BENCHMARK, entry_month, offset_days=offset_days)
+        spy_xp = get_price_on_or_after(prices, BENCHMARK, exit_month, offset_days=offset_days)
         spy_return = None
         if spy_ep and spy_xp and spy_ep > 0:
             spy_return = (spy_xp - spy_ep) / spy_ep
@@ -384,6 +386,8 @@ def main():
     parser.add_argument("--output", type=str, default=None)
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--no-costs", action="store_true")
+    parser.add_argument("--no-next-day", action="store_true",
+                        help="Use same-day prices (old behavior, for comparison)")
     parser.add_argument("--api-key", type=str, default=None)
     parser.add_argument("--base-url", type=str,
                         default="https://api.cetaresearch.com/api/v1")
@@ -391,6 +395,8 @@ def main():
 
     api_key = args.api_key or os.environ.get("CR_API_KEY") or os.environ.get("TS_API_KEY")
     use_costs = not args.no_costs
+    offset_days = 0 if args.no_next_day else 1
+    exec_model = "same-day close (old)" if args.no_next_day else "next-day close (MOC)"
     risk_free_rate = 0.020  # US 10Y Treasury
 
     print("=" * 65)
@@ -399,6 +405,7 @@ def main():
     print(f"  Signal: {CORR_WINDOW}-day avg pairwise correlation")
     print(f"  High >0.7: defensive | Low <0.4: all 9 ETFs | Medium: SPY")
     print(f"  Period: {BACKTEST_START}-{BACKTEST_END} | Monthly | Costs: {'yes' if use_costs else 'no'}")
+    print(f"  Execution: {exec_model}, Benchmark: S&P 500 (SPY)")
     print("=" * 65)
 
     cr = CetaResearch(api_key=api_key, base_url=args.base_url)
@@ -422,7 +429,8 @@ def main():
     print(f"\nPhase 2: Running monthly backtest ({BACKTEST_START}-{BACKTEST_END})...")
     t1 = time.time()
     results = run_backtest(prices, return_dict, trading_dates,
-                           use_costs=use_costs, verbose=args.verbose)
+                           use_costs=use_costs, verbose=args.verbose,
+                           offset_days=offset_days)
     bt_time = time.time() - t1
     print(f"  Backtest completed in {bt_time:.0f}s ({len(results)} periods)")
 
