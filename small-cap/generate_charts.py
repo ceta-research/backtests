@@ -345,6 +345,20 @@ if "SHZ_SHH" in data:
         "China (SHZ+SHH, returns in CNY)"
     )
 
+# Korea charts
+if "KSC" in data:
+    print("Korea charts...")
+    chart_cumulative(
+        ["KSC"], "1_korea_cumulative_growth.png",
+        "Growth of $10,000: Small-Cap Growth Korea vs S&P 500 (2000-2025)",
+        "Korea (KSC, returns in KRW)"
+    )
+    chart_annual_bars(
+        ["KSC"], "2_korea_annual_returns.png",
+        "Small-Cap Growth Korea: Year-by-Year Returns (2000-2024)",
+        "Korea (KSC, returns in KRW)"
+    )
+
 # Comparison charts
 print("Comparison charts...")
 chart_comparison_cagr("1_comparison_cagr.png")
