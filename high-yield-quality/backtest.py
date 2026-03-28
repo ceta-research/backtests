@@ -2,18 +2,18 @@
 """
 High Yield + Quality Backtest
 
-Dividend yield screen with Piotroski-inspired quality filters.
-Semi-annual rebalancing (April/October), top 30 by yield, equal weight.
+Dividend yield screen with quality filters (ROE, FCF, payout, debt).
+Annual rebalancing (July), top 30 by yield, equal weight.
 
-Signal: DivYield > 2%, ROA > 5%, CR > 1.0, D/E < 1.5, Payout < 80%
+Signal: DivYield 4-15%, ROE > 8%, FCF > 0, D/E < 2.0, Payout < 80%
 Portfolio: Top 30 by dividend yield DESC, equal weight. Cash if < 10 qualify.
-Rebalancing: Semi-annual (Apr/Oct), 2000-2025.
+Rebalancing: Annual (July), 2000-2025.
 
 Usage:
     python3 high-yield-quality/backtest.py
     python3 high-yield-quality/backtest.py --preset india
     python3 high-yield-quality/backtest.py --global
-    python3 high-yield-quality/backtest.py --frequency quarterly --no-costs
+    python3 high-yield-quality/backtest.py --frequency semi-annual --no-costs
 """
 
 import argparse
@@ -32,15 +32,15 @@ from costs import tiered_cost, apply_costs
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
 
 # --- Signal parameters ---
-DIVIDEND_YIELD_MIN = 0.02   # 2%
-ROA_MIN = 0.05              # 5%
-CR_MIN = 1.0                # Current ratio > 1
-DE_MAX = 1.5                # Debt/equity < 1.5
+DIVIDEND_YIELD_MIN = 0.04   # 4% floor - target meaningful high yield
+DIVIDEND_YIELD_MAX = 0.15   # 15% cap - exclude likely distressed situations
+ROE_MIN = 0.08              # Return on equity > 8%
+DE_MAX = 2.0                # Debt/equity < 2.0
 PAYOUT_MAX = 0.80           # Payout ratio < 80%
 MAX_STOCKS = 30
 MIN_STOCKS = 10
-DEFAULT_FREQUENCY = "semi-annual"
-DEFAULT_MONTHS = [4, 10]    # April & October
+DEFAULT_FREQUENCY = "annual"
+DEFAULT_MONTHS = [7]        # July
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
@@ -49,8 +49,9 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     Populates tables:
         universe(symbol VARCHAR)
         ratios_cache(symbol, dividendYield, dividendPayoutRatio, debtToEquityRatio,
-                     currentRatio, filing_epoch, period)
-        metrics_cache(symbol, marketCap, returnOnAssets, filing_epoch, period)
+                     filing_epoch, period)
+        metrics_cache(symbol, marketCap, returnOnEquity, filing_epoch, period)
+        fcf_cache(symbol, freeCashFlow, filing_epoch, period)
         prices_cache(symbol, trade_epoch, adjClose)
 
     Returns DuckDB connection or None.
@@ -85,15 +86,20 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     queries = [
         ("ratios_cache", f"""
             SELECT symbol, dividendYield, dividendPayoutRatio, debtToEquityRatio,
-                   currentRatio, dateEpoch as filing_epoch, period
+                   dateEpoch as filing_epoch, period
             FROM financial_ratios
             WHERE period = 'FY' AND dividendYield IS NOT NULL AND {sym_filter_sql}
-        """, "financial ratios (yield, payout, D/E, CR)"),
+        """, "financial ratios (yield, payout, D/E)"),
         ("metrics_cache", f"""
-            SELECT symbol, marketCap, returnOnAssets, dateEpoch as filing_epoch, period
+            SELECT symbol, marketCap, returnOnEquity, dateEpoch as filing_epoch, period
             FROM key_metrics
             WHERE period = 'FY' AND marketCap IS NOT NULL AND {sym_filter_sql}
-        """, "key metrics (market cap, ROA)"),
+        """, "key metrics (market cap, ROE)"),
+        ("fcf_cache", f"""
+            SELECT symbol, freeCashFlow, dateEpoch as filing_epoch, period
+            FROM cash_flow_statement
+            WHERE period = 'FY' AND freeCashFlow IS NOT NULL AND {sym_filter_sql}
+        """, "free cash flow"),
     ]
 
     for table_name, sql, label in queries:
@@ -140,31 +146,38 @@ def screen_stocks(con, target_date, mktcap_min):
     rows = con.execute("""
         WITH r AS (
             SELECT symbol, dividendYield, dividendPayoutRatio, debtToEquityRatio,
-                   currentRatio, filing_epoch,
+                   filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         ),
         m AS (
-            SELECT symbol, marketCap, returnOnAssets, filing_epoch,
+            SELECT symbol, marketCap, returnOnEquity, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
+        ),
+        f AS (
+            SELECT symbol, freeCashFlow, filing_epoch,
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+            FROM fcf_cache WHERE filing_epoch <= ?
         )
         SELECT r.symbol, r.dividendYield, m.marketCap
         FROM r
         JOIN m ON r.symbol = m.symbol AND m.rn = 1
+        JOIN f ON r.symbol = f.symbol AND f.rn = 1
         WHERE r.rn = 1
-          AND r.dividendYield > ?
-          AND m.returnOnAssets > ?
-          AND r.currentRatio > ?
+          AND r.dividendYield >= ?
+          AND r.dividendYield <= ?
+          AND m.returnOnEquity > ?
           AND r.debtToEquityRatio >= 0
           AND r.debtToEquityRatio < ?
           AND r.dividendPayoutRatio > 0
           AND r.dividendPayoutRatio < ?
+          AND f.freeCashFlow > 0
           AND m.marketCap > ?
         ORDER BY r.dividendYield DESC
         LIMIT ?
-    """, [cutoff_epoch, cutoff_epoch,
-          DIVIDEND_YIELD_MIN, ROA_MIN, CR_MIN, DE_MAX, PAYOUT_MAX,
+    """, [cutoff_epoch, cutoff_epoch, cutoff_epoch,
+          DIVIDEND_YIELD_MIN, DIVIDEND_YIELD_MAX, ROE_MIN, DE_MAX, PAYOUT_MAX,
           mktcap_min, MAX_STOCKS]).fetchall()
 
     return [(r[0], r[1], r[2]) for r in rows]
@@ -281,9 +294,9 @@ def main():
     # Use custom months for semi-annual (April/October)
     months = DEFAULT_MONTHS if frequency == "semi-annual" and not args.frequency else None
 
-    signal_desc = (f"DivYield > {DIVIDEND_YIELD_MIN*100:.0f}%, ROA > {ROA_MIN*100:.0f}%, "
-                   f"CR > {CR_MIN}, D/E < {DE_MAX}, Payout < {PAYOUT_MAX*100:.0f}%, "
-                   f"MCap > {mktcap_threshold/1e9:.0f}B local, top {MAX_STOCKS}")
+    signal_desc = (f"DivYield {DIVIDEND_YIELD_MIN*100:.0f}-{DIVIDEND_YIELD_MAX*100:.0f}%, "
+                   f"ROE > {ROE_MIN*100:.0f}%, FCF > 0, D/E < {DE_MAX}, "
+                   f"Payout < {PAYOUT_MAX*100:.0f}%, MCap > {mktcap_threshold/1e9:.0f}B local, top {MAX_STOCKS}")
     print_header("HIGH YIELD + QUALITY BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
