@@ -47,7 +47,7 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, REGIONAL_BENCHMARKS
+from data_utils import query_parquet, REGIONAL_BENCHMARKS, get_local_benchmark, LOCAL_INDEX_NAMES
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -276,13 +276,8 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
         con.close()
         return None
 
-    # 5. Determine benchmark
-    benchmark = "SPY"
-    if exchanges:
-        for ex in exchanges:
-            if ex in REGIONAL_BENCHMARKS:
-                benchmark = REGIONAL_BENCHMARKS[ex]
-                break
+    # 5. Determine benchmark (local index, not regional ETF proxy)
+    benchmark, benchmark_name = get_local_benchmark(exchanges)
 
     # 6. Fetch prices for event symbols + benchmark
     event_symbols = [r[0] for r in con.execute("SELECT DISTINCT symbol FROM events_filtered").fetchall()]
@@ -320,23 +315,27 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
         con.close()
         return None
 
-    con.execute(f"CREATE TABLE config AS SELECT '{benchmark}' AS benchmark")
+    con.execute(f"CREATE TABLE config AS SELECT '{benchmark}' AS benchmark, '{benchmark_name}' AS benchmark_name")
     return con
 
 
 def compute_event_returns(con, windows=WINDOWS, verbose=False):
     """Compute abnormal returns at each window for all events."""
-    benchmark = con.execute("SELECT benchmark FROM config").fetchone()[0]
+    row = con.execute("SELECT benchmark, benchmark_name FROM config").fetchone()
+    benchmark, benchmark_name = row[0], row[1]
 
-    # Map each event to its T+0 trading day (first trading day >= event_date)
-    print("    Mapping events to trading days...")
+    # Map each event to its entry trading day (first trading day AFTER event_date).
+    # MOC execution: analyst upgrades are published during the trading day.
+    # Using the same-day close as entry overstates achievable returns.
+    # Instead we enter at next-day close (T+0 in our window numbering = day after announcement).
+    print("    Mapping events to trading days (MOC: entry = next trading day after event)...")
     con.execute("""
         CREATE TABLE event_t0 AS
         SELECT e.symbol, e.event_date, e.action, e.magnitude, e.mag_label,
                e.cluster_status, e.category,
                td.day_num AS t0_num, td.trade_date AS t0_date
         FROM events_filtered e
-        ASOF JOIN trading_days td ON td.trade_date >= e.event_date
+        ASOF JOIN trading_days td ON td.trade_date > e.event_date
     """)
     n_mapped = con.execute("SELECT COUNT(*) FROM event_t0").fetchone()[0]
     print(f"    -> {n_mapped} events mapped to trading days")
@@ -629,7 +628,8 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
     fetch_time = time.time() - t0
     print(f"\nData fetched in {fetch_time:.0f}s")
 
-    benchmark = con.execute("SELECT benchmark FROM config").fetchone()[0]
+    row = con.execute("SELECT benchmark, benchmark_name FROM config").fetchone()
+    benchmark, benchmark_name = row[0], row[1]
 
     print(f"\nPhase 2: Computing event-window returns...")
     t1 = time.time()
@@ -659,10 +659,13 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
     total_time = time.time() - t0
     print(f"\n  Total time: {total_time:.0f}s (fetch: {fetch_time:.0f}s, compute: {compute_time:.0f}s)")
 
+    print(f"  Execution: MOC (entry = next trading day after event), Benchmark: {benchmark_name} ({benchmark})")
+
     output = {
         "strategy": "Analyst Rating Revision Momentum",
         "universe": universe_name,
         "benchmark": benchmark,
+        "benchmark_name": benchmark_name,
         "study_type": "event_study",
         "period": f"{START_YEAR}-{END_YEAR}",
         "filters": {
