@@ -40,7 +40,8 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates
+from data_utils import (query_parquet, get_prices, generate_rebalance_dates,
+                        get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, save_results, print_header,
@@ -132,20 +133,28 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         count = query_parquet(client, sql, con, table_name, verbose=verbose)
         print(f"    -> {count} rows")
 
-    # 4. Prices (only at rebalance dates + 10-day window)
+    # 4. Prices (only at rebalance dates + 11-day window, extra day for MOC execution offset)
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
+    bench_symbols = {"'SPY'"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(f"'{sym}'")
+    bench_list = ", ".join(bench_symbols)
+
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
-            symbol = 'SPY'
+            symbol IN ({bench_list})
             OR symbol IN (
                 SELECT DISTINCT symbol FROM key_metrics WHERE period = 'FY'
                     {f"AND {sym_filter_sql}" if sym_filter_sql != "1=1" else ""}
@@ -194,7 +203,8 @@ def screen_stocks(con, target_date, mktcap_min):
     return [(r[0], r[1]) for r in rows]
 
 
-def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
+                 offset_days=1, benchmark_symbol="SPY"):
     """Run FCF yield backtest. Returns list of period result dicts."""
     results = []
 
@@ -205,11 +215,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         portfolio = screen_stocks(con, entry_date, mktcap_min)
 
         if len(portfolio) < MIN_STOCKS:
-            spy_prices_entry = get_prices(con, ["SPY"], entry_date)
-            spy_prices_exit = get_prices(con, ["SPY"], exit_date)
-            spy_return = None
-            if "SPY" in spy_prices_entry and "SPY" in spy_prices_exit and spy_prices_entry["SPY"] > 0:
-                spy_return = (spy_prices_exit["SPY"] - spy_prices_entry["SPY"]) / spy_prices_entry["SPY"]
+            spy_return = get_benchmark_return(
+                con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
             results.append({
                 "rebalance_date": entry_date.isoformat(),
@@ -226,8 +233,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         symbols = [s for s, _ in portfolio]
         mcaps = {s: mc for s, mc in portfolio}
 
-        entry_prices = get_prices(con, symbols, entry_date)
-        exit_prices = get_prices(con, symbols, exit_date)
+        entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
+        exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
 
         returns = []
         for sym in symbols:
@@ -244,11 +251,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         port_return = sum(returns) / len(returns) if returns else 0.0
 
-        spy_prices_entry = get_prices(con, ["SPY"], entry_date)
-        spy_prices_exit = get_prices(con, ["SPY"], exit_date)
-        spy_return = None
-        if "SPY" in spy_prices_entry and "SPY" in spy_prices_exit and spy_prices_entry["SPY"] > 0:
-            spy_return = (spy_prices_exit["SPY"] - spy_prices_entry["SPY"]) / spy_prices_entry["SPY"]
+        spy_return = get_benchmark_return(
+            con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
         results.append({
             "rebalance_date": entry_date.isoformat(),
@@ -342,6 +346,11 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
     freq_map = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}
     periods_per_year = freq_map[frequency]
 
+    offset_days = 0 if getattr(args, 'no_next_day', False) else 1
+    exec_model = "next-day close (MOC)" if offset_days == 1 else "same-day close"
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges or [])
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+
     cr = CetaResearch(api_key=getattr(args, 'api_key', None),
                       base_url=getattr(args, 'base_url', None))
 
@@ -359,7 +368,8 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
     results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
-                           verbose=verbose)
+                           verbose=verbose, offset_days=offset_days,
+                           benchmark_symbol=benchmark_symbol)
     bt_time = time.time() - t1
     print(f"  Backtest completed in {bt_time:.0f}s")
 
@@ -375,7 +385,7 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
     metrics = compute_metrics(port_returns, spy_returns, periods_per_year,
                               risk_free_rate=risk_free_rate)
 
-    print(format_metrics(metrics, "FCF Yield", "S&P 500"))
+    print(format_metrics(metrics, "FCF Yield", benchmark_name))
 
     cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
     invested = [r["stocks_held"] for r in results if r["stocks_held"] > 0]
@@ -386,7 +396,7 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
     period_dates = [r["rebalance_date"] for r in valid]
     annual = compute_annual_returns(port_returns, spy_returns, period_dates, periods_per_year)
     if annual:
-        print(f"\n  {'Year':<8} {'FCF Yield':>10} {'SPY':>10} {'Excess':>10}")
+        print(f"\n  {'Year':<8} {'FCF Yield':>10} {benchmark_name:>12} {'Excess':>10}")
         print("  " + "-" * 40)
         for ar in annual:
             print(f"  {ar['year']:<8} {ar['portfolio']*100:>9.1f}% {ar['benchmark']*100:>9.1f}% "
