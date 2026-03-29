@@ -36,7 +36,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, get_local_benchmark, get_benchmark_return
 from metrics import compute_metrics as _compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
@@ -65,7 +65,7 @@ PRESETS_TO_RUN = [
     ("indonesia", ["JKT"]),
 ]
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, benchmark_symbol="SPY", verbose=False):
     """Fetch historical financial data and load into DuckDB.
 
     Populates tables:
@@ -127,12 +127,21 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
+    from data_utils import LOCAL_INDEX_BENCHMARKS
+    bench_symbols = {"'SPY'", f"'{benchmark_symbol}'"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(f"'{sym}'")
+    bench_list = ", ".join(bench_symbols)
+
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
-            symbol = 'SPY'
+            symbol IN ({bench_list})
             OR symbol IN (
                 SELECT DISTINCT symbol FROM income_statement WHERE period = 'FY'
                     {f"AND {sym_filter_sql}" if sym_filter_sql != "1=1" else ""}
@@ -254,13 +263,16 @@ def screen_stocks(con, target_date, mktcap_min):
 
 
 def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FREQUENCY,
-                 apply_costs=True, risk_free_rate=None, verbose=False):
+                 apply_costs=True, risk_free_rate=None, verbose=False,
+                 offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500"):
     """Run Graham Number timing backtest on specified exchanges."""
 
+    exec_model = "same-day close" if offset_days == 0 else "next-day close (MOC)"
     print(f"\n{'='*70}")
     print(f"Graham Number Timing Backtest")
     print(f"Exchanges: {', '.join(exchanges)}")
     print(f"Period: {start_year}-{end_year} ({frequency} rebalancing)")
+    print(f"Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print(f"{'='*70}\n")
 
     client = CetaResearch()
@@ -274,7 +286,7 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
     print(f"Market cap threshold: {mktcap_min:,.0f} (local currency)")
     print(f"Risk-free rate: {risk_free_rate*100:.1f}%\n")
 
-    con = fetch_data_via_api(client, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(client, exchanges, rebalance_dates, benchmark_symbol=benchmark_symbol, verbose=verbose)
     if not con:
         return None
 
@@ -310,8 +322,8 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
         else:
             # Get prices
             symbols = [s[0] for s in stocks]
-            entry_prices = get_prices(con, symbols, target_date)
-            exit_prices = get_prices(con, symbols, exit_date)
+            entry_prices = get_prices(con, symbols, target_date, offset_days=offset_days)
+            exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
 
             # Compute raw returns: (symbol, entry_price, exit_price, market_cap)
             raw_returns = []
@@ -360,16 +372,12 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
                     "portfolio_return": 0.0,
                 })
 
-        # SPY benchmark
-        spy_entry = get_prices(con, ["SPY"], target_date).get("SPY")
-        spy_exit = get_prices(con, ["SPY"], exit_date).get("SPY")
-        if spy_entry and spy_exit and spy_entry > 0:
-            spy_return = (spy_exit - spy_entry) / spy_entry
-            spy_returns.append(spy_return)
-        else:
-            spy_returns.append(0.0)
-            if verbose:
-                print(f"    SPY: Missing price data")
+        # Local benchmark
+        bench_return = get_benchmark_return(
+            con, benchmark_symbol, target_date, exit_date, offset_days=offset_days)
+        spy_returns.append(bench_return if bench_return is not None else 0.0)
+        if bench_return is None and verbose:
+            print(f"    {benchmark_symbol}: Missing price data")
 
     con.close()
 
@@ -422,6 +430,8 @@ def main():
     parser.add_argument("--end-year", type=int, default=2025)
     args = parser.parse_args()
 
+    offset_days = 0 if args.no_next_day else 1
+
     if args.global_bt:
         # Run all presets
         all_results = {}
@@ -430,6 +440,7 @@ def main():
             print(f"# Running preset: {preset_name.upper()}")
             print(f"{'#'*70}")
 
+            bsym, bname = get_local_benchmark(preset_exchanges)
             result = run_backtest(
                 preset_exchanges,
                 start_year=args.start_year,
@@ -437,7 +448,10 @@ def main():
                 frequency=args.frequency or DEFAULT_FREQUENCY,
                 apply_costs=not args.no_costs,
                 risk_free_rate=args.risk_free_rate,
-                verbose=args.verbose
+                verbose=args.verbose,
+                offset_days=offset_days,
+                benchmark_symbol=bsym,
+                benchmark_name=bname,
             )
 
             if result:
@@ -460,6 +474,7 @@ def main():
     else:
         # Single exchange run
         exchanges, universe_name = resolve_exchanges(args)
+        bsym, bname = get_local_benchmark(exchanges)
         result = run_backtest(
             exchanges,
             start_year=args.start_year,
@@ -467,7 +482,10 @@ def main():
             frequency=args.frequency or DEFAULT_FREQUENCY,
             apply_costs=not args.no_costs,
             risk_free_rate=args.risk_free_rate,
-            verbose=args.verbose
+            verbose=args.verbose,
+            offset_days=offset_days,
+            benchmark_symbol=bsym,
+            benchmark_name=bname,
         )
 
         if result:
@@ -480,7 +498,7 @@ def main():
                 print(f"\n{'='*70}")
                 print(f"✅ BACKTEST COMPLETE: {result['universe']}")
                 print(f"{'='*70}")
-                print(f"  CAGR:      {p['cagr']*100:>7.2f}%  (SPY: {s['cagr']*100:.2f}%)")
+                print(f"  CAGR:      {p['cagr']*100:>7.2f}%  ({bname}: {s['cagr']*100:.2f}%)")
                 print(f"  Excess:    {c['excess_cagr']*100:>+7.2f}%")
                 print(f"  Sharpe:    {(p['sharpe_ratio'] or 0):>7.3f}")
                 print(f"  Max DD:    {p['max_drawdown']*100:>7.2f}%")
