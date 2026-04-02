@@ -276,7 +276,7 @@ if "NSE" in data:
     print("\nIndia charts...")
     chart_cumulative(
         ["NSE"], "1_india_cumulative_growth.png",
-        "Growth of $10,000: Defensive Quality India vs S&P 500 (2000-2025)",
+        "Growth of $10,000: Defensive Quality India vs Sensex (2000-2025)",
         "NSE (returns in INR)"
     )
     chart_annual_bars(
@@ -304,7 +304,7 @@ if "LSE" in data:
     print("\nUK charts...")
     chart_cumulative(
         ["LSE"], "1_uk_cumulative_growth.png",
-        "Growth of $10,000: Defensive Quality UK vs S&P 500 (2000-2025)",
+        "Growth of $10,000: Defensive Quality UK vs FTSE 100 (2000-2025)",
         "LSE (returns in GBP)"
     )
     chart_annual_bars(
