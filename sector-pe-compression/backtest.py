@@ -176,10 +176,15 @@ def fetch_data_via_api(client, rebalance_dates, start_year, verbose=False):
     return con
 
 
-def get_etf_price(con, symbol, target_date):
-    """Get ETF price closest to (but not before) target_date within 10 trading days."""
-    start_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(target_date + timedelta(days=12), datetime.min.time()).timestamp())
+def get_etf_price(con, symbol, target_date, offset_days=0):
+    """Get ETF price closest to (but not before) target_date + offset within 10 trading days.
+
+    offset_days=0: same-day close (old behavior)
+    offset_days=1: next-day close (MOC execution)
+    """
+    base = target_date + timedelta(days=offset_days)
+    start_epoch = int(datetime.combine(base, datetime.min.time()).timestamp())
+    end_epoch = int(datetime.combine(base + timedelta(days=12), datetime.min.time()).timestamp())
 
     row = con.execute("""
         SELECT adjClose FROM etf_prices
@@ -283,7 +288,7 @@ def compute_sector_pe(con, as_of_epoch, lookback_years=5, data_lag_days=45):
     return result
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, offset_days=1):
     """Run quarterly sector P/E compression backtest."""
     results = []
 
@@ -306,8 +311,8 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
                     compressed.append((sector, etf, z))
 
         # SPY return for this period
-        spy_entry = get_etf_price(con, "SPY", entry_date)
-        spy_exit = get_etf_price(con, "SPY", exit_date)
+        spy_entry = get_etf_price(con, "SPY", entry_date, offset_days=offset_days)
+        spy_exit = get_etf_price(con, "SPY", exit_date, offset_days=offset_days)
         spy_return = None
         if spy_entry and spy_exit and spy_entry > 0:
             spy_return = (spy_exit - spy_entry) / spy_entry
@@ -322,8 +327,8 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
             etf_returns = []
             etfs_held = []
             for sector, etf, z in compressed:
-                entry_price = get_etf_price(con, etf, entry_date)
-                exit_price = get_etf_price(con, etf, exit_date)
+                entry_price = get_etf_price(con, etf, entry_date, offset_days=offset_days)
+                exit_price = get_etf_price(con, etf, exit_date, offset_days=offset_days)
                 if entry_price and exit_price and entry_price > 0:
                     raw_return = (exit_price - entry_price) / entry_price
                     # Guard against split artifacts: skip if ETF diverges >45% from SPY in one quarter
@@ -426,6 +431,8 @@ def main():
     parser.add_argument("--start-year", type=int, default=START_YEAR)
     parser.add_argument("--end-year", type=int, default=END_YEAR)
     parser.add_argument("--no-costs", action="store_true", help="Skip transaction costs")
+    parser.add_argument("--no-next-day", action="store_true",
+                        help="Use same-day close instead of next-day (MOC) execution")
     parser.add_argument("--output", default=None, help="JSON output path")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--api-key", default=os.environ.get("CR_API_KEY") or os.environ.get("TS_API_KEY"))
@@ -433,14 +440,16 @@ def main():
     args = parser.parse_args()
 
     use_costs = not args.no_costs
+    offset_days = 0 if args.no_next_day else 1
     risk_free_rate = 0.020  # US 10Y Treasury (approx over period)
     periods_per_year = 4    # Quarterly
 
+    exec_model = "next-day close (MOC)" if offset_days == 1 else "same-day close"
     print("=" * 65)
     print("  SECTOR P/E COMPRESSION BACKTEST")
     print(f"  Universe: S&P 500 sectors via FMP constituents")
     print(f"  Signal: Sector P/E z-score < {Z_THRESHOLD} (vs 5yr avg)")
-    print(f"  Execution: Compressed sector ETFs, equal weight")
+    print(f"  Execution: {exec_model}, Compressed sector ETFs, equal weight")
     print(f"  Period: {args.start_year}-{args.end_year}, quarterly rebalance")
     print(f"  Costs: {'0.2% round trip (ETFs)' if use_costs else 'none'}")
     print("=" * 65)
@@ -461,7 +470,8 @@ def main():
 
     print("\nPhase 2: Running backtest...")
     t1 = time.time()
-    results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=args.verbose)
+    results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=args.verbose,
+                           offset_days=offset_days)
     print(f"  Backtest done in {time.time()-t1:.0f}s")
 
     # Filter to periods with valid spy return
