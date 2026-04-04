@@ -30,9 +30,20 @@ CHARTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
 
 STRATEGY_NAME = "ETF Anti-Concentration"
 STRATEGY_COLOR = "#7B1FA2"  # Purple (distinct from crowding's blue)
-SPY_COLOR = "#FF9800"
+BENCH_COLOR = "#FF9800"
 EXCESS_POS_COLOR = "#4CAF50"
 EXCESS_NEG_COLOR = "#F44336"
+
+# Benchmark labels per exchange (matches LOCAL_INDEX_NAMES in data_utils.py)
+BENCHMARK_LABELS = {
+    "us": "S&P 500", "india": "Sensex", "germany": "DAX",
+    "china": "SSE Composite", "norway": "Oslo All Share",
+    "southafrica": "S&P 500", "hongkong": "Hang Seng",
+    "japan": "Nikkei 225", "korea": "KOSPI", "uk": "FTSE 100",
+    "sweden": "OMX Stockholm 30", "switzerland": "SMI",
+    "canada": "TSX Composite", "taiwan": "TAIEX",
+    "thailand": "SET Index", "singapore": "STI",
+}
 
 
 def load_results(filename):
@@ -41,7 +52,7 @@ def load_results(filename):
         return json.load(f)
 
 
-def cumulative_growth_chart(results, exchange_name, output_path):
+def cumulative_growth_chart(results, exchange_name, output_path, bench_label="S&P 500"):
     """Cumulative growth of $10,000."""
     annual = results.get("annual_returns", [])
     if not annual:
@@ -57,8 +68,8 @@ def cumulative_growth_chart(results, exchange_name, output_path):
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(range(len(port_cum)), port_cum, color=STRATEGY_COLOR, linewidth=2,
             label=f"{STRATEGY_NAME}")
-    ax.plot(range(len(spy_cum)), spy_cum, color=SPY_COLOR, linewidth=2,
-            label="S&P 500")
+    ax.plot(range(len(spy_cum)), spy_cum, color=BENCH_COLOR, linewidth=2,
+            label=bench_label)
 
     x_labels = [str(years[0] - 1)] + [str(y) for y in years]
     ax.set_xticks(range(len(x_labels)))
@@ -75,8 +86,8 @@ def cumulative_growth_chart(results, exchange_name, output_path):
     print(f"  Saved: {output_path}")
 
 
-def annual_returns_chart(results, exchange_name, output_path):
-    """Annual returns bar chart (strategy vs SPY)."""
+def annual_returns_chart(results, exchange_name, output_path, bench_label="S&P 500"):
+    """Annual returns bar chart (strategy vs benchmark)."""
     annual = results.get("annual_returns", [])
     if not annual:
         return
@@ -91,8 +102,8 @@ def annual_returns_chart(results, exchange_name, output_path):
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.bar([i - width / 2 for i in x], port_rets, width, color=STRATEGY_COLOR,
            label=STRATEGY_NAME, alpha=0.85)
-    ax.bar([i + width / 2 for i in x], spy_rets, width, color=SPY_COLOR,
-           label="S&P 500", alpha=0.85)
+    ax.bar([i + width / 2 for i in x], spy_rets, width, color=BENCH_COLOR,
+           label=bench_label, alpha=0.85)
 
     ax.set_xticks(list(x))
     ax.set_xticklabels(years, rotation=45, ha="right", fontsize=8)
@@ -133,7 +144,7 @@ def comparison_cagr_chart(all_results, output_path):
         label = f" {cagr:.1f}% (wt={avg_wt:.3f}%)"
         ax.text(max(cagr + 0.3, 0.5), i, label, va="center", fontsize=8)
 
-    ax.axvline(x=10.61, color=SPY_COLOR, linewidth=2, linestyle="--", label="SPY (10.61%)")
+    ax.axvline(x=10.61, color=BENCH_COLOR, linewidth=2, linestyle="--", label="SPY (10.61%)")
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=9)
     ax.set_xlabel("CAGR (%)")
@@ -164,7 +175,7 @@ def comparison_drawdown_chart(all_results, output_path):
 
     fig, ax = plt.subplots(figsize=(12, 8))
     ax.barh(range(len(names)), drawdowns, color="#E53935", alpha=0.75)
-    ax.axvline(x=-36.27, color=SPY_COLOR, linewidth=2, linestyle="--",
+    ax.axvline(x=-36.27, color=BENCH_COLOR, linewidth=2, linestyle="--",
                label="SPY (-36.27%)")
 
     for i, (name, dd) in enumerate(data):
@@ -192,6 +203,8 @@ def main():
         "returns_NSE.json": ("India (NSE)", "india"),
         "returns_XETRA.json": ("Germany (XETRA)", "germany"),
         "returns_SHZ_SHH.json": ("China (SHZ + SHH)", "china"),
+        "returns_OSL.json": ("Norway (OSL)", "norway"),
+        "returns_JNB.json": ("South Africa (JNB)", "southafrica"),
     }
 
     for filename, (display_name, short_name) in exchange_map.items():
@@ -201,20 +214,29 @@ def main():
             continue
 
         results = load_results(filename)
+        bench_label = BENCHMARK_LABELS.get(short_name, "S&P 500")
         print(f"\nGenerating charts for {display_name}...")
 
         cumulative_growth_chart(
             results, display_name,
-            os.path.join(CHARTS_DIR, f"1_{short_name}_cumulative_growth.png"))
+            os.path.join(CHARTS_DIR, f"1_{short_name}_cumulative_growth.png"),
+            bench_label=bench_label)
         annual_returns_chart(
             results, display_name,
-            os.path.join(CHARTS_DIR, f"2_{short_name}_annual_returns.png"))
+            os.path.join(CHARTS_DIR, f"2_{short_name}_annual_returns.png"),
+            bench_label=bench_label)
 
-    # Comparison charts
-    comp_path = os.path.join(RESULTS_DIR, "exchange_comparison.json")
-    if os.path.exists(comp_path):
-        print("\nGenerating comparison charts...")
-        all_results = load_results("exchange_comparison.json")
+    # Comparison charts - build from individual results files
+    print("\nGenerating comparison charts...")
+    all_results = {}
+    for fname in os.listdir(RESULTS_DIR):
+        if fname.startswith("returns_") and fname.endswith(".json"):
+            uni = fname.replace("returns_", "").replace(".json", "")
+            try:
+                all_results[uni] = load_results(fname)
+            except Exception:
+                pass
+    if all_results:
         comparison_cagr_chart(
             all_results,
             os.path.join(CHARTS_DIR, "1_comparison_cagr.png"))
