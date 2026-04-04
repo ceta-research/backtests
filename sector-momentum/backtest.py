@@ -36,7 +36,7 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, filter_returns
+from data_utils import query_parquet, filter_returns, get_local_benchmark, get_benchmark_return
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -65,7 +65,7 @@ def generate_rebalance_dates(start_year, end_year, months):
     return sorted(dates)
 
 
-def fetch_data(client, exchanges, mktcap_min, verbose=False):
+def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=False):
     """Fetch sector mappings and prices for sector momentum backtest.
 
     Prices are fetched ONLY at quarter-start dates (Jan/Apr/Jul/Oct, days 1-15)
@@ -77,19 +77,25 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
       sector_map(symbol VARCHAR, sector VARCHAR, market_cap DOUBLE)
       prices_cache(symbol VARCHAR, trade_date DATE, adjClose DOUBLE)
     """
+    # Always fetch SPY + local benchmark for comparison
+    bench_set = {"'SPY'"}
+    if benchmark_symbol and benchmark_symbol != "SPY":
+        bench_set.add(f"'{benchmark_symbol}'")
+    bench_list = ", ".join(bench_set)
+
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
         mktcap_filter = f"exchange IN ({ex_filter}) AND marketCap > {mktcap_min}"
         price_sym_filter = (
             f"(symbol IN (SELECT DISTINCT symbol FROM profile "
             f"WHERE exchange IN ({ex_filter}) AND marketCap > {mktcap_min}) "
-            f"OR symbol = 'SPY')"
+            f"OR symbol IN ({bench_list}))"
         )
     else:
         mktcap_filter = f"marketCap > {mktcap_min}"
         price_sym_filter = (
             f"(symbol IN (SELECT DISTINCT symbol FROM profile "
-            f"WHERE marketCap > {mktcap_min}) OR symbol = 'SPY')"
+            f"WHERE marketCap > {mktcap_min}) OR symbol IN ({bench_list}))"
         )
 
     con = duckdb.connect(":memory:")
@@ -211,23 +217,44 @@ def screen_sectors(con, target_date, n_best=N_BEST_SECTORS):
     return rows, n_qualifying
 
 
-def get_prices_at(con, symbols, year, month):
-    """Get first available prices in the given month/year for a list of symbols."""
+def get_prices_at(con, symbols, year, month, offset_days=0):
+    """Get prices in the given month/year for a list of symbols.
+    offset_days=0: first available price (used for signal computation and exit).
+    offset_days=1: second available price (MOC execution — enter next trading day)."""
     if not symbols:
         return {}
     sym_list = ", ".join(f"'{s}'" for s in symbols)
+    row_num = offset_days + 1  # row 1 for same-day, row 2 for next-day
     result = con.execute(f"""
         SELECT symbol, adjClose
         FROM prices_cache
         WHERE symbol IN ({sym_list})
           AND EXTRACT(YEAR FROM trade_date) = {year}
           AND EXTRACT(MONTH FROM trade_date) = {month}
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = 1
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = {row_num}
     """).fetchall()
+    if offset_days > 0:
+        # Fall back to row 1 for symbols with only one price available in the window
+        found = {r[0]: r[1] for r in result}
+        missing = [s for s in symbols if s not in found]
+        if missing:
+            miss_list = ", ".join(f"'{s}'" for s in missing)
+            fallback = con.execute(f"""
+                SELECT symbol, adjClose
+                FROM prices_cache
+                WHERE symbol IN ({miss_list})
+                  AND EXTRACT(YEAR FROM trade_date) = {year}
+                  AND EXTRACT(MONTH FROM trade_date) = {month}
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = 1
+            """).fetchall()
+            for r in fallback:
+                found[r[0]] = r[1]
+        return found
     return {r[0]: r[1] for r in result}
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_BEST_SECTORS):
+def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_BEST_SECTORS,
+                 offset_days=1, benchmark_symbol="SPY"):
     """Run sector momentum backtest. Returns list of period result dicts."""
     results = []
 
@@ -235,15 +262,12 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        # Screen: identify best sectors and their stocks at entry date
+        # Screen: identify best sectors and their stocks at entry date (signal uses first price)
         portfolio_rows, n_qualifying = screen_sectors(con, entry_date, n_best=n_best)
 
-        # SPY benchmark return for this period
-        spy_entry_prices = get_prices_at(con, ["SPY"], entry_date.year, entry_date.month)
-        spy_exit_prices = get_prices_at(con, ["SPY"], exit_date.year, exit_date.month)
-        spy_return = None
-        if "SPY" in spy_entry_prices and "SPY" in spy_exit_prices and spy_entry_prices["SPY"] > 0:
-            spy_return = (spy_exit_prices["SPY"] - spy_entry_prices["SPY"]) / spy_entry_prices["SPY"]
+        # Local benchmark return for this period
+        bench_return = get_benchmark_return(
+            con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
         # Cash period: insufficient qualifying sectors or stocks
         if n_qualifying < MIN_QUALIFYING_SECTORS or len(portfolio_rows) < MIN_PORTFOLIO_STOCKS:
@@ -253,7 +277,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
                 "rebalance_date": entry_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
                 "portfolio_return": 0.0,
-                "spy_return": spy_return,
+                "spy_return": bench_return,
                 "stocks_held": 0,
                 "sectors_selected": "",
                 "n_qualifying_sectors": n_qualifying,
@@ -264,10 +288,12 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
                 print(f"    {entry_date}: CASH ({reason}) | sectors: {sectors_txt or 'none'}")
             continue
 
-        # Get exit prices for portfolio
+        # Get entry and exit prices for portfolio
         symbols = [r[0] for r in portfolio_rows]
         mcaps = {r[0]: r[3] for r in portfolio_rows}  # current profile market cap
-        entry_prices_map = {r[0]: r[2] for r in portfolio_rows}  # from screen (at entry)
+        # Entry prices with offset for MOC execution (offset_days=1 = next-day close)
+        entry_prices_map = get_prices_at(con, symbols, entry_date.year, entry_date.month,
+                                         offset_days=offset_days)
         exit_prices_map = get_prices_at(con, symbols, exit_date.year, exit_date.month)
 
         # Build (symbol, entry_price, exit_price, market_cap) for filter_returns
@@ -286,7 +312,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
                 "rebalance_date": entry_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
                 "portfolio_return": 0.0,
-                "spy_return": spy_return,
+                "spy_return": bench_return,
                 "stocks_held": 0,
                 "sectors_selected": "",
                 "n_qualifying_sectors": n_qualifying,
@@ -313,7 +339,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
             "rebalance_date": entry_date.isoformat(),
             "exit_date": exit_date.isoformat(),
             "portfolio_return": round(port_return, 6),
-            "spy_return": round(spy_return, 6) if spy_return is not None else None,
+            "spy_return": round(bench_return, 6) if bench_return is not None else None,
             "stocks_held": len(clean),
             "sectors_selected": sectors_selected,
             "n_qualifying_sectors": n_qualifying,
@@ -321,12 +347,12 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
         })
 
         if verbose:
-            spy_str = f"{spy_return * 100:.1f}%" if spy_return is not None else "N/A"
+            bench_str = f"{bench_return * 100:.1f}%" if bench_return is not None else "N/A"
             excess_str = ""
-            if spy_return is not None:
-                excess_str = f"  ex={((port_return - spy_return) * 100):+.1f}%"
+            if bench_return is not None:
+                excess_str = f"  ex={((port_return - bench_return) * 100):+.1f}%"
             print(f"    {entry_date}: {len(clean)} stocks [{sectors_selected}] "
-                  f"port={port_return * 100:.1f}%, spy={spy_str}{excess_str}")
+                  f"port={port_return * 100:.1f}%, bench={bench_str}{excess_str}")
 
     return results
 
@@ -394,18 +420,23 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, verbose, output_path=None, n_best=N_BEST_SECTORS):
+               risk_free_rate, verbose, output_path=None, n_best=N_BEST_SECTORS,
+               offset_days=1):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
     mktcap_min = get_mktcap_threshold(exchanges)
     mktcap_label = (f"{mktcap_min / 1e9:.0f}B" if mktcap_min >= 1e9
                     else f"{mktcap_min / 1e6:.0f}M")
 
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+    exec_model = "next-day close (MOC)" if offset_days == 1 else "same-day close (biased)"
+
     signal_desc = (f"Top {n_best} sectors by 12M trailing return, "
                    f"MCap > {mktcap_label} local, equal weight")
     print_header("SECTOR MOMENTUM ROTATION BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate * 100:.1f}%")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 65)
 
     # Generate rebalance dates
@@ -415,7 +446,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 1: Fetch data
     print("\nPhase 1: Fetching data...")
     t0 = time.time()
-    con = fetch_data(cr, exchanges, mktcap_min, verbose=verbose)
+    con = fetch_data(cr, exchanges, mktcap_min, benchmark_symbol=benchmark_symbol, verbose=verbose)
     if con is None:
         print("  No data. Skipping.")
         return None
@@ -426,7 +457,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"\nPhase 2: Running {frequency} backtest ({BACKTEST_START}-{BACKTEST_END})...")
     t1 = time.time()
     results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=verbose,
-                           n_best=n_best)
+                           n_best=n_best, offset_days=offset_days, benchmark_symbol=benchmark_symbol)
     bt_time = time.time() - t1
     print(f"  Backtest complete in {bt_time:.0f}s")
 
@@ -443,7 +474,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     metrics = compute_metrics(port_returns, spy_returns, periods_per_year,
                               risk_free_rate=risk_free_rate)
-    print(format_metrics(metrics, "Sector Momentum", "S&P 500"))
+    print(format_metrics(metrics, "Sector Momentum", benchmark_name))
 
     cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
     invested = [r["stocks_held"] for r in results if r["stocks_held"] > 0]
@@ -465,7 +496,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     period_dates = [r["rebalance_date"] for r in valid]
     annual = compute_annual_returns(port_returns, spy_returns, period_dates, periods_per_year)
     if annual:
-        print(f"\n  {'Year':<8} {'SectorMom':>12} {'SPY':>10} {'Excess':>10}")
+        bench_col = benchmark_name[:10]
+        print(f"\n  {'Year':<8} {'SectorMom':>12} {bench_col:>10} {'Excess':>10}")
         print("  " + "-" * 44)
         for ar in annual:
             print(f"  {ar['year']:<8} {ar['portfolio'] * 100:>11.1f}% "
@@ -510,6 +542,7 @@ def main():
         return
 
     n_best = args.n_best
+    offset_days = 0 if args.no_next_day else 1
 
     exchanges, universe_name = resolve_exchanges(args)
     frequency = args.frequency or DEFAULT_FREQUENCY
@@ -559,7 +592,7 @@ def main():
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, args.verbose, output_path,
-                                    n_best=n_best)
+                                    n_best=n_best, offset_days=offset_days)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -607,7 +640,8 @@ def main():
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, args.verbose, args.output, n_best=n_best)
+               risk_free_rate, args.verbose, args.output, n_best=n_best,
+               offset_days=offset_days)
 
 
 if __name__ == "__main__":
