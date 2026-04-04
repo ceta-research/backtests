@@ -191,7 +191,7 @@ def main():
         "returns_NYSE_NASDAQ.json": ("US (NYSE + NASDAQ)", "us"),
         "returns_NSE.json": ("India (NSE)", "india"),
         "returns_XETRA.json": ("Germany (XETRA)", "germany"),
-        "returns_SHZ_SHH.json": ("China (SHZ + SHH)", "china"),
+        "returns_China.json": ("China (SHZ + SHH)", "china"),
         "returns_LSE.json": ("UK (LSE)", "uk"),
         "returns_TSX.json": ("Canada (TSX)", "canada"),
     }
