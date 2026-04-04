@@ -133,11 +133,11 @@ def comparison_cagr_chart(all_results, output_path):
         label = f" {cagr:.1f}% (ex: {excess:+.1f}%)"
         ax.text(max(cagr + 0.3, 0.5), i, label, va="center", fontsize=8)
 
-    ax.axvline(x=10.61, color=SPY_COLOR, linewidth=2, linestyle="--", label="SPY (10.61%)")
+    ax.axvline(x=10.59, color=SPY_COLOR, linewidth=2, linestyle="--", label="SPY (10.59%)")
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=9)
     ax.set_xlabel("CAGR (%)")
-    ax.set_title(f"{STRATEGY_NAME}: CAGR by Exchange (2005-2025)",
+    ax.set_title(f"{STRATEGY_NAME}: CAGR by Exchange vs Local Benchmarks (2005-2025)",
                  fontsize=13, fontweight="bold")
     ax.legend(loc="lower right")
     ax.grid(True, alpha=0.3, axis="x")
