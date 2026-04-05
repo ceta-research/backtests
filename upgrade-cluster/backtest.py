@@ -56,7 +56,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, REGIONAL_BENCHMARKS
+from data_utils import query_parquet, get_local_benchmark, LOCAL_INDEX_BENCHMARKS
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -239,20 +239,24 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     # 4. Get unique event symbols
     event_symbols = [r[0] for r in con.execute("SELECT DISTINCT symbol FROM unique_events").fetchall()]
 
-    # 5. Determine benchmark
-    benchmark = "SPY"
+    # 5. Determine benchmark (use local index)
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+
+    # 6. Build combined symbol list (event symbols + benchmarks)
+    bench_symbols = {"SPY"}  # Always include SPY for cross-market comparison
     if exchanges:
         for ex in exchanges:
-            if ex in REGIONAL_BENCHMARKS:
-                benchmark = REGIONAL_BENCHMARKS[ex]
-                break
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(sym)
 
-    # 6. Fetch prices
-    print(f"  Fetching prices for {len(event_symbols)} symbols + {benchmark}...")
-    sym_list = event_symbols + [benchmark]
-    sym_in = ", ".join(f"'{s}'" for s in sym_list)
+    all_symbols = event_symbols + list(bench_symbols)
+    sym_in = ", ".join(f"'{s}'" for s in all_symbols)
+
+    # 7. Fetch prices (with volume for potential liquidity filtering)
+    print(f"  Fetching prices for {len(event_symbols)} symbols + benchmarks ({benchmark_name})...")
     price_sql = f"""
-        SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose
+        SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose, volume
         FROM stock_eod
         WHERE symbol IN ({sym_in})
           AND CAST(date AS DATE) >= '{START_YEAR - 1}-01-01'
@@ -265,37 +269,55 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     con.execute("CREATE INDEX idx_prices ON prices(symbol, trade_date)")
     print(f"    -> {count} price rows")
 
-    # 7. Build trading day calendar from benchmark
+    # 8. Build trading day calendar from primary benchmark
     con.execute(f"""
         CREATE TABLE trading_days AS
         SELECT trade_date,
             ROW_NUMBER() OVER (ORDER BY trade_date) AS day_num
         FROM prices
-        WHERE symbol = '{benchmark}'
+        WHERE symbol = '{benchmark_symbol}'
         ORDER BY trade_date
     """)
     n_days = con.execute("SELECT COUNT(*) FROM trading_days").fetchone()[0]
-    print(f"    -> {n_days} trading days from {benchmark}")
+    print(f"    -> {n_days} trading days from {benchmark_name} ({benchmark_symbol})")
 
-    con.execute(f"CREATE TABLE config AS SELECT '{benchmark}' AS benchmark")
+    con.execute(f"""
+        CREATE TABLE config AS
+        SELECT '{benchmark_symbol}' AS benchmark_symbol,
+               '{benchmark_name}' AS benchmark_name
+    """)
     return con
 
 
-def compute_event_returns(con, windows=WINDOWS, verbose=False):
-    """Compute abnormal returns at each window for all cluster events."""
-    benchmark = con.execute("SELECT benchmark FROM config").fetchone()[0]
+def compute_event_returns(con, windows=WINDOWS, offset_days=1, verbose=False):
+    """Compute abnormal returns at each window for all cluster events.
 
-    # Map each event to its T+0 trading day
-    print("    Mapping events to trading days...")
-    con.execute("""
-        CREATE TABLE event_t0 AS
+    Args:
+        offset_days: 0 = same-day execution (biased), 1 = next-day MOC (honest)
+    """
+    benchmark = con.execute("SELECT benchmark_symbol FROM config").fetchone()[0]
+    benchmark_name = con.execute("SELECT benchmark_name FROM config").fetchone()[0]
+
+    # Map each event to its T+0 trading day (with MOC offset)
+    # offset_days=1 means: event observed on date D, execute at close of D+1
+    print(f"    Mapping events to trading days (offset={offset_days})...")
+    con.execute(f"""
+        CREATE TABLE event_t0_raw AS
         SELECT e.symbol, e.event_date, e.upgrade_delta, e.downgrade_delta, e.category,
-            td.day_num AS t0_num, td.trade_date AS t0_date
+            td.day_num AS raw_day_num, td.trade_date AS raw_date
         FROM unique_events e
         ASOF JOIN trading_days td ON td.trade_date >= e.event_date
     """)
+    con.execute(f"""
+        CREATE TABLE event_t0 AS
+        SELECT er.symbol, er.event_date, er.upgrade_delta, er.downgrade_delta, er.category,
+            td.day_num AS t0_num, td.trade_date AS t0_date
+        FROM event_t0_raw er
+        JOIN trading_days td ON td.day_num = er.raw_day_num + {offset_days}
+    """)
     n_mapped = con.execute("SELECT COUNT(*) FROM event_t0").fetchone()[0]
     print(f"    -> {n_mapped} events mapped to trading days")
+    con.execute("DROP TABLE event_t0_raw")
 
     # T+0 prices
     print("    Getting T+0 prices...")
@@ -520,13 +542,24 @@ def print_results(metrics, universe_name):
     print(f"{'=' * 70}")
 
 
-def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_path=None):
-    """Run upgrade cluster event study for a single exchange set."""
+def run_single(cr, exchanges, universe_name, mktcap_min, offset_days=1,
+               verbose=False, output_path=None):
+    """Run upgrade cluster event study for a single exchange set.
+
+    Args:
+        offset_days: 0 = same-day execution (biased), 1 = next-day MOC (honest)
+    """
     mktcap_label = (f"{mktcap_min/1e9:.0f}B" if mktcap_min >= 1e9
                     else f"{mktcap_min/1e6:.0f}M")
     signal_desc = (f"Bullish rating delta >= {MIN_DELTA} in {MIN_GAP_DAYS}–{MAX_GAP_DAYS}d window, "
                    f"MCap > {mktcap_label} local")
+
+    # Get benchmark info for header
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+    exec_model = "next-day MOC" if offset_days == 1 else "same-day close"
+
     print_header("ANALYST UPGRADE CLUSTERS EVENT STUDY", universe_name, exchanges, signal_desc)
+    print(f"  Execution: {exec_model} | Benchmark: {benchmark_name} ({benchmark_symbol})")
     print(f"  Windows: {', '.join(f'T+{w}' for w in WINDOWS)}")
     print(f"  Period: {START_YEAR}–{END_YEAR} | Gap filter: {MIN_GAP_DAYS}–{MAX_GAP_DAYS} days")
     print("=" * 65)
@@ -539,11 +572,12 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
     fetch_time = time.time() - t0
     print(f"\nData fetched in {fetch_time:.0f}s")
 
-    benchmark = con.execute("SELECT benchmark FROM config").fetchone()[0]
+    benchmark_symbol = con.execute("SELECT benchmark_symbol FROM config").fetchone()[0]
+    benchmark_name = con.execute("SELECT benchmark_name FROM config").fetchone()[0]
 
     print(f"\nPhase 2: Computing event-window returns...")
     t1 = time.time()
-    results = compute_event_returns(con, windows=WINDOWS, verbose=verbose)
+    results = compute_event_returns(con, windows=WINDOWS, offset_days=offset_days, verbose=verbose)
     compute_time = time.time() - t1
     print(f"Returns computed in {compute_time:.0f}s")
 
@@ -573,7 +607,9 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
     output = {
         "strategy": "Analyst Upgrade Clusters",
         "universe": universe_name,
-        "benchmark": benchmark,
+        "benchmark": benchmark_symbol,
+        "benchmark_name": benchmark_name,
+        "execution_model": exec_model,
         "study_type": "event_study",
         "period": f"{START_YEAR}-{END_YEAR}",
         "filters": {
@@ -581,6 +617,7 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
             "min_gap_days": MIN_GAP_DAYS,
             "max_gap_days": MAX_GAP_DAYS,
             "min_market_cap": mktcap_min,
+            "offset_days": offset_days,
         },
         "windows": WINDOWS,
         "car_metrics": metrics,
@@ -615,6 +652,8 @@ def main():
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
+
+    offset_days = 0 if args.no_next_day else 1
 
     if args.cloud:
         from cloud_runner import run_backtest_cloud
@@ -672,7 +711,8 @@ def main():
 
             try:
                 result = run_single(cr, preset_exchanges, uni_name, mktcap_threshold,
-                                    verbose=args.verbose, output_path=output_path)
+                                    offset_days=offset_days, verbose=args.verbose,
+                                    output_path=output_path)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -719,7 +759,7 @@ def main():
     mktcap_threshold = get_mktcap_threshold(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, mktcap_threshold,
-               verbose=args.verbose, output_path=args.output)
+               offset_days=offset_days, verbose=args.verbose, output_path=args.output)
 
 
 if __name__ == "__main__":
