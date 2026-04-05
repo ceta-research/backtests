@@ -42,7 +42,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet
+from data_utils import query_parquet, get_local_benchmark
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -67,7 +67,7 @@ START_YEAR        = 2005
 END_YEAR          = 2024
 
 
-def fetch_data_via_api(cr, exchanges, verbose=False):
+def fetch_data_via_api(cr, exchanges, verbose=False, benchmark_symbol="SPY"):
     """Fetch sector mapping, market caps, and full daily price history into DuckDB.
 
     Populates DuckDB tables:
@@ -175,7 +175,8 @@ def fetch_data_via_api(cr, exchanges, verbose=False):
     # ── Fetch daily prices (2004 onward) ──────────────────────────────────────
     # Extra year (2004) provides warmup for z-score lookback on first trading year
     print("  Fetching daily prices (2004-present)...")
-    price_syms = candidates + ["SPY"]
+    bench_syms = [benchmark_symbol] if benchmark_symbol not in candidates else []
+    price_syms = candidates + bench_syms
     price_sym_filter = ", ".join(f"'{s}'" for s in price_syms)
 
     price_sql = f"""
@@ -351,7 +352,7 @@ def estimate_spread_params(con, sym_a, sym_b, formation_start, formation_end):
 
 def simulate_pair_trades(con, sym_a, sym_b, beta,
                           trading_start, trading_end,
-                          mc_a, mc_b, use_costs=True):
+                          mc_a, mc_b, use_costs=True, offset_days=1):
     """Simulate active z-score trading for one pair during the trading year.
 
     Fetches daily z-scores for the pair, then iterates day by day tracking
@@ -412,13 +413,26 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
         return None
 
     trades = []
-    in_position   = False
-    entry_idx     = None
-    entry_z       = None
-    entry_pa      = None
-    entry_pb      = None
-    direction     = None   # +1 = long_spread (buy A, short B); -1 = short_spread
-    trading_day   = 0      # trading days since entry
+    in_position       = False
+    entry_idx         = None
+    entry_z           = None
+    entry_pa          = None
+    entry_pb          = None
+    direction         = None   # +1 = long_spread (buy A, short B); -1 = short_spread
+    trading_day       = 0      # trading days since entry
+    pending_entry_z   = None   # MOC: entry signal z-score, enter at next row's prices
+    pending_exit_type = None   # MOC: exit type flagged, execute at next row's prices
+
+    def _append_trade(ed, xd, ez, xz, xt, hd, pr):
+        trades.append({
+            "entry_date":   ed.isoformat() if hasattr(ed, "isoformat") else str(ed),
+            "exit_date":    xd.isoformat() if hasattr(xd, "isoformat") else str(xd),
+            "entry_z":      round(ez, 3),
+            "exit_z":       round(float(xz), 3) if xz is not None else 0.0,
+            "exit_type":    xt,
+            "holding_days": hd,
+            "pair_return":  round(pr, 6),
+        })
 
     for i, row in enumerate(rows):
         trade_date, pa, pb = row[0], float(row[1]), float(row[2])
@@ -426,16 +440,49 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
         if z is None or math.isnan(z):
             continue
 
+        # ── Execute pending exit at today's prices (signal fired yesterday) ────
+        if pending_exit_type is not None and in_position:
+            exit_type         = pending_exit_type
+            pending_exit_type = None
+            ret_a      = (pa - entry_pa) / entry_pa
+            ret_b      = (pb - entry_pb) / entry_pb
+            pair_return = direction * (ret_a - ret_b) / 2.0
+            if use_costs:
+                cost = 2 * tiered_cost(mc_a) + 2 * tiered_cost(mc_b)
+                pair_return -= cost
+            pair_return = max(pair_return, -MAX_SINGLE_RETURN)
+            _append_trade(rows[entry_idx][0], trade_date,
+                          entry_z, z, exit_type, trading_day, pair_return)
+            in_position = False
+            entry_idx   = None
+            trading_day = 0
+
+        # ── Execute pending entry at today's prices (signal fired yesterday) ───
+        if pending_entry_z is not None and not in_position:
+            sig_z           = pending_entry_z
+            pending_entry_z = None
+            in_position = True
+            entry_idx   = i
+            entry_z     = sig_z
+            entry_pa    = pa
+            entry_pb    = pb
+            direction   = -1 if sig_z > 0 else 1
+            trading_day = 0
+            continue  # don't evaluate exits on entry bar
+
         if not in_position:
             # Entry condition: |z| first crosses Z_ENTRY
             if abs(z) >= Z_ENTRY:
-                in_position = True
-                entry_idx   = i
-                entry_z     = z
-                entry_pa    = pa
-                entry_pb    = pb
-                direction   = -1 if z > 0 else 1   # short spread if z>0
-                trading_day = 0
+                if offset_days == 0:
+                    in_position = True
+                    entry_idx   = i
+                    entry_z     = z
+                    entry_pa    = pa
+                    entry_pb    = pb
+                    direction   = -1 if z > 0 else 1
+                    trading_day = 0
+                else:
+                    pending_entry_z = z   # enter tomorrow
         else:
             trading_day += 1
 
@@ -453,32 +500,24 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
                 exit_type = "loss_stop"
 
             if exit_type:
-                if use_costs:
-                    cost = 2 * tiered_cost(mc_a) + 2 * tiered_cost(mc_b)
-                    pair_return -= cost
-                pair_return = max(pair_return, -MAX_SINGLE_RETURN)
+                if offset_days == 0:
+                    if use_costs:
+                        cost = 2 * tiered_cost(mc_a) + 2 * tiered_cost(mc_b)
+                        pair_return -= cost
+                    pair_return = max(pair_return, -MAX_SINGLE_RETURN)
+                    _append_trade(rows[entry_idx][0], trade_date,
+                                  entry_z, z, exit_type, trading_day, pair_return)
+                    in_position = False
+                    entry_idx   = None
+                    trading_day = 0
+                else:
+                    pending_exit_type = exit_type   # exit tomorrow
 
-                trades.append({
-                    "entry_date":    rows[entry_idx][0].isoformat()
-                                     if hasattr(rows[entry_idx][0], "isoformat")
-                                     else str(rows[entry_idx][0]),
-                    "exit_date":     trade_date.isoformat()
-                                     if hasattr(trade_date, "isoformat")
-                                     else str(trade_date),
-                    "entry_z":       round(entry_z, 3),
-                    "exit_z":        round(z, 3),
-                    "exit_type":     exit_type,
-                    "holding_days":  trading_day,
-                    "pair_return":   round(pair_return, 6),
-                })
-                in_position = False
-                entry_idx   = None
-                trading_day = 0
-
-    # Force-close open position at year end
+    # Force-close: execute pending exit or open position at year end
     if in_position and rows:
         last = rows[-1]
         last_date, last_pa, last_pb, last_z = last[0], float(last[1]), float(last[2]), last[3]
+        final_exit = pending_exit_type if pending_exit_type else "year_end"
         if last_pa and last_pb and entry_pa and entry_pb:
             ret_a = (last_pa - entry_pa) / entry_pa
             ret_b = (last_pb - entry_pb) / entry_pb
@@ -488,25 +527,14 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
                 pair_return -= cost
             pair_return = max(pair_return, -MAX_SINGLE_RETURN)
             trading_day = len(rows) - 1 - entry_idx
-
-            trades.append({
-                "entry_date":    rows[entry_idx][0].isoformat()
-                                 if hasattr(rows[entry_idx][0], "isoformat")
-                                 else str(rows[entry_idx][0]),
-                "exit_date":     last_date.isoformat()
-                                 if hasattr(last_date, "isoformat")
-                                 else str(last_date),
-                "entry_z":       round(entry_z, 3),
-                "exit_z":        round(float(last_z), 3) if last_z else 0.0,
-                "exit_type":     "year_end",
-                "holding_days":  trading_day,
-                "pair_return":   round(pair_return, 6),
-            })
+            _append_trade(rows[entry_idx][0], last_date,
+                          entry_z, last_z, final_exit, trading_day, pair_return)
 
     return trades if trades else None
 
 
-def run_backtest(con, use_costs=True, verbose=False):
+def run_backtest(con, use_costs=True, verbose=False, offset_days=1,
+                 benchmark_symbol="SPY"):
     """Run annual z-score pairs backtest (START_YEAR to END_YEAR).
 
     Returns (annual_results, trade_stats) where:
@@ -546,16 +574,16 @@ def run_backtest(con, use_costs=True, verbose=False):
             print(f"  {year}: {len(candidates)} corr candidates → "
                   f"{len(selected)} with valid half-life  [{time.time()-t0:.1f}s]")
 
-        # ── Step 3: SPY benchmark return ──────────────────────────────────────
+        # ── Step 3: Benchmark annual return ───────────────────────────────────
         spy_start_row = con.execute(f"""
             SELECT adjClose FROM prices_cache
-            WHERE symbol = 'SPY'
+            WHERE symbol = '{benchmark_symbol}'
               AND trade_date >= '{trading_start.isoformat()}'
             ORDER BY trade_date ASC LIMIT 1
         """).fetchone()
         spy_end_row = con.execute(f"""
             SELECT adjClose FROM prices_cache
-            WHERE symbol = 'SPY'
+            WHERE symbol = '{benchmark_symbol}'
               AND trade_date <= '{trading_end.isoformat()}'
             ORDER BY trade_date DESC LIMIT 1
         """).fetchone()
@@ -601,7 +629,8 @@ def run_backtest(con, use_costs=True, verbose=False):
             trades = simulate_pair_trades(
                 con, sym_a, sym_b, beta,
                 trading_start, trading_end,
-                mc_a, mc_b, use_costs=use_costs
+                mc_a, mc_b, use_costs=use_costs,
+                offset_days=offset_days
             )
 
             if trades:
@@ -731,8 +760,10 @@ def build_output(m, annual, valid, results, trade_stats, universe_name):
 
 
 def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
-               verbose, output_path=None):
+               verbose, output_path=None, offset_days=1):
     """Run backtest for a single exchange set. Returns output dict or None."""
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+    exec_model = "next-day close (MOC)" if offset_days else "same-bar"
     signal_desc = (
         f"Same-sector corr > {MIN_CORR}, half-life {HALF_LIFE_MIN}-{HALF_LIFE_MAX}d, "
         f"top {MAX_PAIRS} pairs, z-entry > {Z_ENTRY}, z-exit < {Z_EXIT}, "
@@ -741,11 +772,13 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     print_header("Z-SCORE PAIRS TRADING BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Costs: {'size-tiered×4 legs' if use_costs else 'none'}  "
           f"RFR: {risk_free_rate*100:.1f}%")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 65)
 
     print("\nPhase 1: Fetching data via API...")
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, verbose=verbose,
+                             benchmark_symbol=benchmark_symbol)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -753,7 +786,9 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
 
     print(f"\nPhase 2: Running daily z-score simulation ({START_YEAR}-{END_YEAR})...")
     t1 = time.time()
-    results, trade_stats = run_backtest(con, use_costs=use_costs, verbose=verbose)
+    results, trade_stats = run_backtest(con, use_costs=use_costs, verbose=verbose,
+                                        offset_days=offset_days,
+                                        benchmark_symbol=benchmark_symbol)
     print(f"Backtest completed in {time.time()-t1:.0f}s")
 
     valid = [r for r in results if r["spy_return"] is not None]
@@ -766,7 +801,7 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     spy_returns  = [r["spy_return"]       for r in valid]
 
     m = compute_metrics(port_returns, spy_returns, 1, risk_free_rate=risk_free_rate)
-    print(format_metrics(m, "Pairs (z-score)", "S&P 500"))
+    print(format_metrics(m, "Pairs (z-score)", benchmark_name))
 
     # Trade statistics summary
     cash_periods = sum(1 for r in results if r["pairs_with_trades"] < MIN_PAIRS_ACTIVE)
@@ -782,14 +817,13 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     annual = compute_annual_returns(port_returns, spy_returns,
                                     [str(r["year"]) for r in valid], 1)
     if annual:
-        print(f"\n  {'Year':<8} {'Port':>8} {'SPY':>8} {'Excess':>8} "
-              f"{'Trades':>8} {'Conv%':>7}")
-        print("  " + "-" * 55)
+        bench_hdr = benchmark_name[:6] if len(benchmark_name) > 6 else benchmark_name
+        print(f"\n  {'Year':<8} {'Port':>8} {bench_hdr:>8} {'Excess':>8} "
+              f"{'Trades':>8}")
+        print("  " + "-" * 52)
         for i, ar in enumerate(annual):
             r = valid[i] if i < len(valid) else {}
             n_tr = r.get("total_trades", "-")
-            conv = (round(sum(1 for t in (trade_stats or {}) if False) * 100, 1)
-                    if False else "-")
             print(f"  {ar['year']:<8} {ar['portfolio']*100:>7.1f}%"
                   f" {ar['benchmark']*100:>7.1f}%"
                   f" {ar['excess']*100:>+7.1f}% {str(n_tr):>8}")
@@ -816,6 +850,7 @@ def main():
 
     exchanges, universe_name = resolve_exchanges(args)
     use_costs = not args.no_costs
+    offset_days = 0 if args.no_next_day else 1
 
     # ── Global mode ────────────────────────────────────────────────────────────
     if exchanges is None and universe_name in ("Global", "GLOBAL"):
@@ -858,7 +893,8 @@ def main():
             print(f"\n{'#'*65}\n# {preset_name.upper()} ({uni_name})\n{'#'*65}")
             try:
                 result = run_single(cr, preset_exchanges, uni_name,
-                                    use_costs, rfr, args.verbose, out_path)
+                                    use_costs, rfr, args.verbose, out_path,
+                                    offset_days=offset_days)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -912,7 +948,7 @@ def main():
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
-               args.verbose, args.output)
+               args.verbose, args.output, offset_days=offset_days)
 
 
 if __name__ == "__main__":
