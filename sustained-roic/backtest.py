@@ -33,7 +33,9 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates, filter_returns
+from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
+                        get_prices, get_local_benchmark, get_benchmark_return,
+                        LOCAL_INDEX_BENCHMARKS)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -127,20 +129,29 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                               memory_mb=4096, threads=2)
         print(f"    -> {count:,} rows")
 
-    # 5. Prices (only at rebalance dates + 10-day windows)
+    # 5. Prices (only at rebalance dates + 12-day windows, to cover offset_days=1)
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=12)
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
+    # Include SPY + local benchmark for this exchange set
+    bench_symbols = {"'SPY'"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(f"'{sym}'")
+    bench_list = ", ".join(bench_symbols)
+
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
-            symbol = 'SPY'
+            symbol IN ({bench_list})
             OR symbol IN (
                 SELECT DISTINCT symbol FROM income_statement WHERE period = 'FY'
                     AND {sym_filter_sql}
@@ -261,24 +272,13 @@ def classify_stocks(con, target_date, mktcap_min):
     return result
 
 
-def get_price(con, symbol, target_date):
-    """Get adjusted close price on or just after target_date."""
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(target_date + timedelta(days=10), datetime.min.time()).timestamp())
-    row = con.execute("""
-        SELECT adjClose FROM prices_cache
-        WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
-        ORDER BY trade_epoch ASC LIMIT 1
-    """, [symbol, target_epoch, end_epoch]).fetchone()
-    return row[0] if row else None
-
-
 def compute_portfolio_return(con, portfolio, entry_date, exit_date,
-                             use_costs=True, verbose=False):
+                             use_costs=True, verbose=False, offset_days=1):
     """Compute equal-weighted return for a portfolio of stocks.
 
     Args:
         portfolio: dict {symbol: (current_roic, years_above, group, market_cap)}
+        offset_days: int - 1 = MOC execution (next-day close), 0 = same-day
 
     Returns:
         tuple (mean_return, count, skipped_count)
@@ -286,10 +286,14 @@ def compute_portfolio_return(con, portfolio, entry_date, exit_date,
     if not portfolio:
         return 0.0, 0, 0
 
+    syms = list(portfolio.keys())
+    entry_prices = get_prices(con, syms, entry_date, offset_days=offset_days)
+    exit_prices = get_prices(con, syms, exit_date, offset_days=offset_days)
+
     symbol_returns = []
     for sym, (roic, yrs, group, mcap) in portfolio.items():
-        ep = get_price(con, sym, entry_date)
-        xp = get_price(con, sym, exit_date)
+        ep = entry_prices.get(sym)
+        xp = exit_prices.get(sym)
         symbol_returns.append((sym, ep, xp, mcap))
 
     clean, skipped = filter_returns(symbol_returns, verbose=verbose)
@@ -310,7 +314,8 @@ def compute_portfolio_return(con, portfolio, entry_date, exit_date,
     return mean_ret, len(returns), len(skipped)
 
 
-def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
+                 offset_days=1, benchmark_symbol="SPY"):
     """Run the full Sustained ROIC backtest with three portfolio tracks."""
     print(f"Phase 2: Running annual backtest "
           f"({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
@@ -338,15 +343,13 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                 ("low", low)]:
             ret, cnt, skip = compute_portfolio_return(
                 con, portfolio, entry_date, exit_date,
-                use_costs=use_costs, verbose=verbose
+                use_costs=use_costs, verbose=verbose, offset_days=offset_days
             )
             track_data[name] = {"return": ret, "count": cnt, "skipped": skip}
 
-        # Benchmark
-        spy_ep = get_price(con, "SPY", entry_date)
-        spy_xp = get_price(con, "SPY", exit_date)
-        spy_ret = ((spy_xp - spy_ep) / spy_ep
-                   if spy_ep and spy_xp and spy_ep > 0 else None)
+        # Benchmark (local index, MOC-adjusted)
+        spy_ret = get_benchmark_return(
+            con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
         periods.append({
             "year": entry_date.year,
@@ -377,7 +380,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
     return periods
 
 
-def build_output(periods, universe_name, risk_free_rate, periods_per_year):
+def build_output(periods, universe_name, risk_free_rate, periods_per_year,
+                 benchmark_name="S&P 500"):
     """Build output dict with all tracks + analysis."""
     valid = [p for p in periods if p["spy_return"] is not None]
     n = len(valid)
@@ -494,6 +498,7 @@ def build_output(periods, universe_name, risk_free_rate, periods_per_year):
         "transaction_costs": "0.1-0.5% per trade (size-tiered)",
         "signal": f"ROIC > {ROIC_THRESHOLD*100:.0f}% in {SUSTAINED_MIN_YEARS}+ of last {LOOKBACK_YEARS} FY",
         "roic_formula": "NOPAT / Invested Capital",
+        "benchmark_name": benchmark_name,
         "portfolios": {
             "sustained": results["sustained"],
             "single_year": results["single_year"],
@@ -565,10 +570,11 @@ def print_summary(m):
     print(header)
     print("-" * 95)
 
+    bench_label = m.get("benchmark_name", "S&P 500")
     for name, label in [("sustained", "Sustained (3+/5yr)"),
                          ("single_year", "Single-year ROIC"),
                          ("low", "Low ROIC"),
-                         ("sp500", "S&P 500")]:
+                         ("sp500", bench_label)]:
         d = p[name]
         sortino = d.get('sortino')
         calmar = d.get('calmar')
@@ -582,14 +588,14 @@ def print_summary(m):
               f"{sh_str} {s_str} {c_str} "
               f"{d['max_drawdown']:>7.1f}% {v_str}")
 
-    print(f"\nSustained vs SPY excess: {m['sustained_excess_cagr']:+.1f}% per year")
+    print(f"\nSustained vs {bench_label} excess: {m['sustained_excess_cagr']:+.1f}% per year")
     print(f"Persistence alpha (sustained vs single-year): "
           f"{m['persistence_alpha']:+.1f}% per year")
 
     # Sustained vs SPY comparison
     svs = m.get("sustained_vs_spy")
     if svs:
-        print(f"\nSustained vs S&P 500:")
+        print(f"\nSustained vs {bench_label}:")
         print(f"  Excess CAGR: {svs['excess_cagr']:+.2f}%")
         if svs.get('win_rate') is not None:
             print(f"  Win Rate: {svs['win_rate']:.1f}%")
@@ -632,6 +638,9 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
                     else f"{mktcap_threshold/1e6:.0f}M")
     use_costs = not args.no_costs
     periods_per_year = 1
+    offset_days = 0 if args.no_next_day else 1
+    exec_model = "same-day (close)" if offset_days == 0 else "next-day (MOC)"
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
 
     signal_desc = (f"ROIC > {ROIC_THRESHOLD*100:.0f}% in {SUSTAINED_MIN_YEARS}+/"
                    f"{LOOKBACK_YEARS}yr, MCap > {mktcap_label} local")
@@ -641,6 +650,7 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     print(f"  Rebalancing: Annual (April 1), {START_YEAR}-{END_YEAR}")
     print(f"  Costs: {'size-tiered' if use_costs else 'none'}, "
           f"Rf: {risk_free_rate*100:.1f}%")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 75)
 
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
@@ -661,11 +671,13 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     # Phase 2: Run backtest
     t1 = time.time()
     periods = run_backtest(con, rebalance_dates, mktcap_threshold,
-                           use_costs=use_costs, verbose=args.verbose)
+                           use_costs=use_costs, verbose=args.verbose,
+                           offset_days=offset_days, benchmark_symbol=benchmark_symbol)
     bt_time = time.time() - t1
 
     # Phase 3: Compute and display metrics
-    output = build_output(periods, universe_name, risk_free_rate, periods_per_year)
+    output = build_output(periods, universe_name, risk_free_rate, periods_per_year,
+                          benchmark_name=benchmark_name)
     print_summary(output)
 
     total_time = time.time() - t0

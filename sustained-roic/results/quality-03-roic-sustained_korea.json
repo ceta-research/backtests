@@ -1,0 +1,366 @@
+{
+  "universe": "KSC",
+  "period": "2001-2025 (24 years)",
+  "rebalancing": "annual (April 1)",
+  "weighting": "equal weight",
+  "transaction_costs": "0.1-0.5% per trade (size-tiered)",
+  "signal": "ROIC > 12% in 3+ of last 5 FY",
+  "roic_formula": "NOPAT / Invested Capital",
+  "benchmark_name": "KOSPI",
+  "portfolios": {
+    "sustained": {
+      "cagr": 3.99,
+      "total_return": 155.55,
+      "volatility": 21.54,
+      "sharpe": 0.046,
+      "sortino": 0.089,
+      "calmar": 0.109,
+      "max_drawdown": -36.7,
+      "var_95": -24.8,
+      "pct_negative_years": 42.0,
+      "max_consecutive_losses": 2
+    },
+    "single_year": {
+      "cagr": 3.1,
+      "total_return": 108.15,
+      "volatility": 25.53,
+      "sharpe": 0.004,
+      "sortino": 0.007,
+      "calmar": 0.068,
+      "max_drawdown": -45.3,
+      "var_95": -35.4,
+      "pct_negative_years": 42.0,
+      "max_consecutive_losses": 2
+    },
+    "low": {
+      "cagr": 6.79,
+      "total_return": 384.01,
+      "volatility": 25.83,
+      "sharpe": 0.147,
+      "sortino": 0.292,
+      "calmar": 0.191,
+      "max_drawdown": -35.6,
+      "var_95": -30.6,
+      "pct_negative_years": 33.0,
+      "max_consecutive_losses": 2
+    },
+    "sp500": {
+      "cagr": 6.81,
+      "total_return": 386.39,
+      "volatility": 30.23,
+      "sharpe": 0.126,
+      "sortino": 0.29,
+      "calmar": 0.17,
+      "max_drawdown": -40.0,
+      "var_95": -26.7,
+      "pct_negative_years": 42.0,
+      "max_consecutive_losses": 2
+    }
+  },
+  "sustained_excess_cagr": -2.82,
+  "persistence_alpha": 0.89,
+  "avg_stock_counts": {
+    "sustained": 30.0,
+    "single_year": 12.0,
+    "low": 124.0,
+    "total": 166.0
+  },
+  "cash_periods": {
+    "sustained": 2
+  },
+  "avg_sustained_pct": 18.9,
+  "decade_breakdown": [
+    {
+      "period": "2000-04",
+      "sustained_return": 6.8,
+      "single_year_return": 9.3,
+      "low_return": 10.6,
+      "spy_return": 27.4,
+      "sustained_vs_spy": -20.6
+    },
+    {
+      "period": "2005-09",
+      "sustained_return": 14.4,
+      "single_year_return": 7.1,
+      "low_return": 20.2,
+      "spy_return": 14.8,
+      "sustained_vs_spy": -0.4
+    },
+    {
+      "period": "2010-14",
+      "sustained_return": 10.8,
+      "single_year_return": 16.7,
+      "low_return": 9.1,
+      "spy_return": 3.7,
+      "sustained_vs_spy": 7.0
+    },
+    {
+      "period": "2015-19",
+      "sustained_return": -8.0,
+      "single_year_return": -10.0,
+      "low_return": -3.6,
+      "spy_return": -2.4,
+      "sustained_vs_spy": -5.7
+    },
+    {
+      "period": "2020-25",
+      "sustained_return": 6.0,
+      "single_year_return": 7.6,
+      "low_return": 12.4,
+      "spy_return": 12.2,
+      "sustained_vs_spy": -6.2
+    }
+  ],
+  "sustained_vs_spy": {
+    "excess_cagr": -2.83,
+    "information_ratio": -0.214,
+    "tracking_error": 21.07,
+    "up_capture": 59.9,
+    "down_capture": 65.3,
+    "beta": 0.511,
+    "alpha": -0.96,
+    "win_rate": 41.7
+  },
+  "annual_returns": [
+    {
+      "year": 2001,
+      "sustained": 0.0,
+      "single_year": 56.26,
+      "low": 37.8,
+      "spy": 75.73,
+      "sustained_count": 0,
+      "single_year_count": 1,
+      "low_count": 2
+    },
+    {
+      "year": 2002,
+      "sustained": 0.0,
+      "single_year": -41.49,
+      "low": -30.62,
+      "spy": -40.03,
+      "sustained_count": 0,
+      "single_year_count": 1,
+      "low_count": 3
+    },
+    {
+      "year": 2003,
+      "sustained": 43.16,
+      "single_year": 0.0,
+      "low": 27.22,
+      "spy": 62.77,
+      "sustained_count": 1,
+      "single_year_count": 0,
+      "low_count": 3
+    },
+    {
+      "year": 2004,
+      "sustained": -15.96,
+      "single_year": 22.53,
+      "low": 8.16,
+      "spy": 11.18,
+      "sustained_count": 1,
+      "single_year_count": 1,
+      "low_count": 3
+    },
+    {
+      "year": 2005,
+      "sustained": 20.64,
+      "single_year": 9.13,
+      "low": 47.48,
+      "spy": 40.43,
+      "sustained_count": 1,
+      "single_year_count": 2,
+      "low_count": 4
+    },
+    {
+      "year": 2006,
+      "sustained": 32.51,
+      "single_year": 0.0,
+      "low": 3.05,
+      "spy": 5.78,
+      "sustained_count": 2,
+      "single_year_count": 0,
+      "low_count": 5
+    },
+    {
+      "year": 2007,
+      "sustained": 11.64,
+      "single_year": 26.34,
+      "low": 36.99,
+      "spy": 19.37,
+      "sustained_count": 4,
+      "single_year_count": 1,
+      "low_count": 14
+    },
+    {
+      "year": 2008,
+      "sustained": -24.79,
+      "single_year": 0.0,
+      "low": -35.56,
+      "spy": -26.7,
+      "sustained_count": 8,
+      "single_year_count": 0,
+      "low_count": 20
+    },
+    {
+      "year": 2009,
+      "sustained": 32.02,
+      "single_year": 0.0,
+      "low": 49.12,
+      "spy": 34.97,
+      "sustained_count": 8,
+      "single_year_count": 0,
+      "low_count": 18
+    },
+    {
+      "year": 2010,
+      "sustained": 26.11,
+      "single_year": 56.21,
+      "low": 25.8,
+      "spy": 22.77,
+      "sustained_count": 40,
+      "single_year_count": 13,
+      "low_count": 109
+    },
+    {
+      "year": 2011,
+      "sustained": -1.17,
+      "single_year": -6.42,
+      "low": -8.11,
+      "spy": -4.09,
+      "sustained_count": 46,
+      "single_year_count": 20,
+      "low_count": 112
+    },
+    {
+      "year": 2012,
+      "sustained": 9.11,
+      "single_year": -14.43,
+      "low": 1.27,
+      "spy": -2.13,
+      "sustained_count": 57,
+      "single_year_count": 14,
+      "low_count": 131
+    },
+    {
+      "year": 2013,
+      "sustained": 10.5,
+      "single_year": 25.06,
+      "low": 12.19,
+      "spy": 0.56,
+      "sustained_count": 57,
+      "single_year_count": 9,
+      "low_count": 132
+    },
+    {
+      "year": 2014,
+      "sustained": 9.36,
+      "single_year": 23.3,
+      "low": 14.4,
+      "spy": 1.59,
+      "sustained_count": 52,
+      "single_year_count": 5,
+      "low_count": 152
+    },
+    {
+      "year": 2015,
+      "sustained": -3.4,
+      "single_year": -7.95,
+      "low": 4.78,
+      "spy": -2.47,
+      "sustained_count": 46,
+      "single_year_count": 9,
+      "low_count": 172
+    },
+    {
+      "year": 2016,
+      "sustained": -3.45,
+      "single_year": -14.17,
+      "low": -1.12,
+      "spy": 9.53,
+      "sustained_count": 42,
+      "single_year_count": 18,
+      "low_count": 216
+    },
+    {
+      "year": 2017,
+      "sustained": 3.79,
+      "single_year": 11.4,
+      "low": 11.49,
+      "spy": 12.76,
+      "sustained_count": 43,
+      "single_year_count": 21,
+      "low_count": 208
+    },
+    {
+      "year": 2018,
+      "sustained": -9.12,
+      "single_year": -3.82,
+      "low": -6.56,
+      "spy": -10.92,
+      "sustained_count": 51,
+      "single_year_count": 15,
+      "low_count": 227
+    },
+    {
+      "year": 2019,
+      "sustained": -28.06,
+      "single_year": -35.39,
+      "low": -26.82,
+      "spy": -20.78,
+      "sustained_count": 42,
+      "single_year_count": 18,
+      "low_count": 217
+    },
+    {
+      "year": 2020,
+      "sustained": 62.55,
+      "single_year": 54.51,
+      "low": 69.88,
+      "spy": 80.47,
+      "sustained_count": 37,
+      "single_year_count": 18,
+      "low_count": 208
+    },
+    {
+      "year": 2021,
+      "sustained": -12.71,
+      "single_year": -3.84,
+      "low": 2.43,
+      "spy": -11.4,
+      "sustained_count": 45,
+      "single_year_count": 29,
+      "low_count": 248
+    },
+    {
+      "year": 2022,
+      "sustained": -10.29,
+      "single_year": -19.49,
+      "low": -13.78,
+      "spy": -10.35,
+      "sustained_count": 50,
+      "single_year_count": 35,
+      "low_count": 274
+    },
+    {
+      "year": 2023,
+      "sustained": 0.15,
+      "single_year": 9.19,
+      "low": 5.29,
+      "spy": 11.36,
+      "sustained_count": 48,
+      "single_year_count": 26,
+      "low_count": 239
+    },
+    {
+      "year": 2024,
+      "sustained": -9.57,
+      "single_year": -2.19,
+      "low": -1.9,
+      "spy": -8.98,
+      "sustained_count": 38,
+      "single_year_count": 23,
+      "low_count": 262
+    }
+  ]
+}
