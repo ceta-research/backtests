@@ -39,7 +39,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, REGIONAL_BENCHMARKS
+from data_utils import query_parquet, get_local_benchmark
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -210,19 +210,14 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     event_symbols = [r[0] for r in con.execute("SELECT DISTINCT symbol FROM unique_events").fetchall()]
 
     # 5. Determine benchmark
-    benchmark = "SPY"
-    if exchanges:
-        for ex in exchanges:
-            if ex in REGIONAL_BENCHMARKS:
-                benchmark = REGIONAL_BENCHMARKS[ex]
-                break
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
 
-    # 6. Fetch price data
-    print(f"  Fetching prices for {len(event_symbols)} symbols + {benchmark}...")
-    sym_list = event_symbols + [benchmark]
+    # 6. Fetch price data (including volume and benchmark)
+    print(f"  Fetching prices for {len(event_symbols)} symbols + {benchmark_name} ({benchmark_symbol})...")
+    sym_list = event_symbols + [benchmark_symbol]
     sym_in = ", ".join(f"'{s}'" for s in sym_list)
     price_sql = f"""
-        SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose
+        SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose, volume
         FROM stock_eod
         WHERE symbol IN ({sym_in})
           AND CAST(date AS DATE) >= '{START_YEAR-1}-01-01'
@@ -241,13 +236,13 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
         SELECT trade_date,
             ROW_NUMBER() OVER (ORDER BY trade_date) AS day_num
         FROM prices
-        WHERE symbol = '{benchmark}'
+        WHERE symbol = '{benchmark_symbol}'
         ORDER BY trade_date
     """)
     n_days = con.execute("SELECT COUNT(*) FROM trading_days").fetchone()[0]
-    print(f"    -> {n_days} trading days from {benchmark}")
+    print(f"    -> {n_days} trading days from {benchmark_name}")
 
-    con.execute(f"CREATE TABLE config AS SELECT '{benchmark}' AS benchmark")
+    con.execute(f"CREATE TABLE config AS SELECT '{benchmark_symbol}' AS benchmark")
     return con
 
 
@@ -255,14 +250,14 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
     """Compute abnormal returns at each window for all streak events."""
     benchmark = con.execute("SELECT benchmark FROM config").fetchone()[0]
 
-    # Map each event to its T+0 trading day
+    # Map each event to its T+0 trading day (last trading day before announcement)
     print("    Mapping events to trading days...")
     con.execute("""
         CREATE TABLE event_t0 AS
         SELECT e.symbol, e.event_date, e.streak_length, e.category,
             td.day_num AS t0_num, td.trade_date AS t0_date
         FROM unique_events e
-        ASOF JOIN trading_days td ON td.trade_date >= e.event_date
+        ASOF JOIN trading_days td ON td.trade_date < e.event_date
     """)
     n_mapped = con.execute("SELECT COUNT(*) FROM event_t0").fetchone()[0]
     print(f"    -> {n_mapped} events mapped to trading days")
