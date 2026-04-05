@@ -6,129 +6,129 @@
   "period": "2000-2025",
   "execution_model": "T+1 (next-day close, MOC)",
   "entry_offset": 1,
-  "n_events": 679,
-  "n_additions": 465,
-  "n_removals": 214,
+  "n_events": 649,
+  "n_additions": 450,
+  "n_removals": 199,
   "hold_window_days": 21,
   "car_summary": {
     "addition": {
-      "n_events": 465,
+      "n_events": 450,
       "windows": {
         "T+1": {
-          "mean_car_pct": -0.1433,
-          "median_car_pct": -0.1544,
-          "t_stat": -0.915,
-          "n": 465,
-          "hit_rate_pct": 46.0,
+          "mean_car_pct": -0.116,
+          "median_car_pct": -0.1427,
+          "t_stat": -0.729,
+          "n": 450,
+          "hit_rate_pct": 46.4,
           "sig_5pct": false,
           "sig_1pct": false
         },
         "T+5": {
-          "mean_car_pct": -0.9832,
-          "median_car_pct": -0.6079,
-          "t_stat": -3.679,
-          "n": 465,
-          "hit_rate_pct": 44.3,
+          "mean_car_pct": -0.7994,
+          "median_car_pct": -0.5564,
+          "t_stat": -3.383,
+          "n": 450,
+          "hit_rate_pct": 44.4,
           "sig_5pct": true,
           "sig_1pct": true
         },
         "T+21": {
-          "mean_car_pct": -1.0634,
-          "median_car_pct": -1.1405,
-          "t_stat": -2.105,
-          "n": 464,
-          "hit_rate_pct": 44.2,
+          "mean_car_pct": -1.4309,
+          "median_car_pct": -1.2311,
+          "t_stat": -3.086,
+          "n": 449,
+          "hit_rate_pct": 43.9,
           "sig_5pct": true,
-          "sig_1pct": false
+          "sig_1pct": true
         },
         "T+63": {
-          "mean_car_pct": -1.2338,
-          "median_car_pct": -1.1366,
-          "t_stat": -1.561,
-          "n": 458,
-          "hit_rate_pct": 46.5,
+          "mean_car_pct": -1.3182,
+          "median_car_pct": -1.3846,
+          "t_stat": -1.646,
+          "n": 443,
+          "hit_rate_pct": 46.3,
           "sig_5pct": false,
           "sig_1pct": false
         }
       }
     },
     "removal": {
-      "n_events": 214,
+      "n_events": 199,
       "windows": {
         "T+1": {
-          "mean_car_pct": 4.1999,
-          "median_car_pct": -0.0733,
-          "t_stat": 1.1,
-          "n": 196,
-          "hit_rate_pct": 46.9,
+          "mean_car_pct": 0.5288,
+          "median_car_pct": -0.0683,
+          "t_stat": 0.746,
+          "n": 182,
+          "hit_rate_pct": 47.3,
           "sig_5pct": false,
           "sig_1pct": false
         },
         "T+5": {
-          "mean_car_pct": 3.7231,
-          "median_car_pct": -0.1534,
-          "t_stat": 0.968,
-          "n": 193,
-          "hit_rate_pct": 48.7,
+          "mean_car_pct": 0.7669,
+          "median_car_pct": -0.245,
+          "t_stat": 0.703,
+          "n": 179,
+          "hit_rate_pct": 48.0,
           "sig_5pct": false,
           "sig_1pct": false
         },
         "T+21": {
-          "mean_car_pct": 7.2209,
-          "median_car_pct": 0.7262,
-          "t_stat": 1.946,
-          "n": 191,
-          "hit_rate_pct": 53.9,
+          "mean_car_pct": 3.9503,
+          "median_car_pct": 0.5419,
+          "t_stat": 1.954,
+          "n": 179,
+          "hit_rate_pct": 53.1,
           "sig_5pct": false,
           "sig_1pct": false
         },
         "T+63": {
-          "mean_car_pct": 8.5973,
-          "median_car_pct": -0.1911,
-          "t_stat": 2.157,
-          "n": 186,
-          "hit_rate_pct": 48.9,
+          "mean_car_pct": 5.9986,
+          "median_car_pct": -0.3254,
+          "t_stat": 2.292,
+          "n": 174,
+          "hit_rate_pct": 47.7,
           "sig_5pct": true,
           "sig_1pct": false
         }
       }
     },
     "all": {
-      "n_events": 679,
+      "n_events": 649,
       "windows": {
         "T+1": {
-          "mean_car_pct": 1.1446,
-          "median_car_pct": -0.1429,
-          "t_stat": 1.006,
-          "n": 661,
-          "hit_rate_pct": 46.3,
+          "mean_car_pct": 0.0697,
+          "median_car_pct": -0.1347,
+          "t_stat": 0.298,
+          "n": 632,
+          "hit_rate_pct": 46.7,
           "sig_5pct": false,
           "sig_1pct": false
         },
         "T+5": {
-          "mean_car_pct": 0.3972,
+          "mean_car_pct": -0.3536,
           "median_car_pct": -0.4418,
-          "t_stat": 0.347,
-          "n": 658,
-          "hit_rate_pct": 45.6,
+          "t_stat": -0.999,
+          "n": 629,
+          "hit_rate_pct": 45.5,
           "sig_5pct": false,
           "sig_1pct": false
         },
         "T+21": {
-          "mean_car_pct": 1.3523,
-          "median_car_pct": -0.5959,
-          "t_stat": 1.179,
-          "n": 655,
-          "hit_rate_pct": 47.0,
+          "mean_car_pct": 0.1029,
+          "median_car_pct": -0.6156,
+          "t_stat": 0.153,
+          "n": 628,
+          "hit_rate_pct": 46.5,
           "sig_5pct": false,
           "sig_1pct": false
         },
         "T+63": {
-          "mean_car_pct": 1.6056,
-          "median_car_pct": -0.7671,
-          "t_stat": 1.244,
-          "n": 644,
-          "hit_rate_pct": 47.2,
+          "mean_car_pct": 0.7452,
+          "median_car_pct": -0.8802,
+          "t_stat": 0.79,
+          "n": 617,
+          "hit_rate_pct": 46.7,
           "sig_5pct": false,
           "sig_1pct": false
         }
@@ -139,28 +139,22 @@
     "strategy": "Long removals at T+21",
     "entry": "T+1",
     "exit": "T+22",
-    "n_months": 117,
-    "avg_events_per_month": 1.6324786324786325,
-    "cagr_pct": -2.52,
-    "spy_cagr_pct": 7.05,
-    "excess_cagr_pct": -9.57,
-    "max_drawdown_pct": -97.81,
-    "sharpe_ratio": -0.047,
-    "sortino_ratio": -0.099,
-    "win_rate_pct": 48.7
+    "n_months": 109,
+    "avg_events_per_month": 1.6422018348623852,
+    "cagr_pct": 26.37,
+    "spy_cagr_pct": 7.71,
+    "excess_cagr_pct": 18.65,
+    "max_drawdown_pct": -74.91,
+    "sharpe_ratio": 0.267,
+    "sortino_ratio": 0.679,
+    "win_rate_pct": 49.5
   },
   "annual_returns": [
     {
       "year": 2008,
-      "portfolio_pct": -32.25,
+      "portfolio_pct": -64.63,
       "benchmark_pct": -27.01,
-      "excess_pct": -5.24
-    },
-    {
-      "year": 2009,
-      "portfolio_pct": 275.6,
-      "benchmark_pct": 8.37,
-      "excess_pct": 267.23
+      "excess_pct": -37.61
     },
     {
       "year": 2013,
@@ -191,12 +185,6 @@
       "portfolio_pct": 234.77,
       "benchmark_pct": 26.51,
       "excess_pct": 208.26
-    },
-    {
-      "year": 2020,
-      "portfolio_pct": -46.9,
-      "benchmark_pct": 5.62,
-      "excess_pct": -52.52
     },
     {
       "year": 2023,
