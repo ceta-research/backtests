@@ -33,7 +33,8 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates, filter_returns
+from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
+                        get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -126,12 +127,20 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
+    bench_symbols = {"'SPY'"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(f"'{sym}'")
+    bench_list = ", ".join(bench_symbols)
+
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
-            symbol = 'SPY'
+            symbol IN ({bench_list})
             OR symbol IN (
                 SELECT DISTINCT symbol FROM key_metrics
                 WHERE period = 'FY'
@@ -215,10 +224,11 @@ def screen_stocks(con, target_date, mktcap_min):
     return result
 
 
-def get_price(con, symbol, target_date):
-    """Get adjusted close on or just after target_date."""
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(target_date + timedelta(days=10), datetime.min.time()).timestamp())
+def get_price(con, symbol, target_date, offset_days=0):
+    """Get adjusted close on or just after target_date + offset_days."""
+    shifted = target_date + timedelta(days=offset_days)
+    target_epoch = int(datetime.combine(shifted, datetime.min.time()).timestamp())
+    end_epoch = int(datetime.combine(shifted + timedelta(days=10), datetime.min.time()).timestamp())
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
@@ -228,15 +238,15 @@ def get_price(con, symbol, target_date):
 
 
 def compute_portfolio_return(con, portfolio, entry_date, exit_date,
-                             use_costs=True, verbose=False):
+                             use_costs=True, verbose=False, offset_days=1):
     """Compute equal-weighted return for a portfolio."""
     if not portfolio:
         return 0.0, 0, 0
 
     symbol_returns = []
     for sym, info in portfolio.items():
-        ep = get_price(con, sym, entry_date)
-        xp = get_price(con, sym, exit_date)
+        ep = get_price(con, sym, entry_date, offset_days=offset_days)
+        xp = get_price(con, sym, exit_date, offset_days=offset_days)
         symbol_returns.append((sym, ep, xp, info["mcap"]))
 
     clean, skipped = filter_returns(symbol_returns, verbose=verbose)
@@ -257,7 +267,8 @@ def compute_portfolio_return(con, portfolio, entry_date, exit_date,
     return mean_ret, len(returns), len(skipped)
 
 
-def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
+                 offset_days=1, benchmark_symbol="SPY"):
     """Run the full CCC backtest with four portfolio tracks."""
     print(f"Phase 2: Running annual backtest "
           f"({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
@@ -286,15 +297,13 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                 ("low_decreasing", low_decreasing)]:
             ret, cnt, skip = compute_portfolio_return(
                 con, portfolio, entry_date, exit_date,
-                use_costs=use_costs, verbose=verbose
+                use_costs=use_costs, verbose=verbose, offset_days=offset_days
             )
             track_data[name] = {"return": ret, "count": cnt, "skipped": skip}
 
-        # Benchmark
-        spy_ep = get_price(con, "SPY", entry_date)
-        spy_xp = get_price(con, "SPY", exit_date)
-        spy_ret = ((spy_xp - spy_ep) / spy_ep
-                   if spy_ep and spy_xp and spy_ep > 0 else None)
+        # Benchmark (local index or SPY)
+        spy_ret = get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
+                                       offset_days=offset_days)
 
         periods.append({
             "year": entry_date.year,
@@ -515,11 +524,12 @@ def print_summary(m):
     print(header)
     print("-" * 95)
 
+    bench_label = m.get("benchmark", {}).get("name", "S&P 500")
     for name, label in [("low_ccc", "Low CCC (<30d)"),
                          ("low_decreasing", "Low + Decreasing"),
                          ("mid_ccc", "Mid CCC (30-90d)"),
                          ("high_ccc", "High CCC (>90d)"),
-                         ("sp500", "S&P 500")]:
+                         ("sp500", bench_label)]:
         d = p[name]
         sortino = d.get('sortino')
         calmar = d.get('calmar')
@@ -533,12 +543,13 @@ def print_summary(m):
               f"{sh_str} {s_str} {c_str} "
               f"{d['max_drawdown']:>7.1f}% {v_str}")
 
+    bench_label = m.get("benchmark", {}).get("name", "S&P 500")
     print(f"\nLow-High CCC spread: {m['spread_cagr']:.1f}% per year")
-    print(f"Low CCC vs SPY: {m['low_vs_spy']:+.1f}%")
+    print(f"Low CCC vs {bench_label}: {m['low_vs_spy']:+.1f}%")
 
     lvs = m.get("low_vs_spy_detail")
     if lvs:
-        print(f"\nLow CCC vs S&P 500:")
+        print(f"\nLow CCC vs {bench_label}:")
         print(f"  Excess CAGR: {lvs['excess_cagr']:+.2f}%")
         if lvs.get('information_ratio') is not None:
             print(f"  Information Ratio: {lvs['information_ratio']:.3f}")
@@ -550,7 +561,7 @@ def print_summary(m):
 
     if m.get("decade_breakdown"):
         print(f"\n{'Period':<12} {'Low CCC':>10} {'High CCC':>10} "
-              f"{'Spread':>10} {'SPY':>10}")
+              f"{'Spread':>10} {bench_label:>10}")
         print("-" * 55)
         for d in m["decade_breakdown"]:
             print(f"{d['period']:<12} {d['low_return']:>9.1f}% "
@@ -579,6 +590,10 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     use_costs = not args.no_costs
     periods_per_year = 1
 
+    offset_days = 0 if args.no_next_day else 1
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+    exec_model = "same-day close (legacy)" if args.no_next_day else "next-day close (MOC)"
+
     signal_desc = (f"CCC buckets (<{CCC_LOW}d / {CCC_LOW}-{CCC_HIGH}d / >{CCC_HIGH}d), "
                    f"MCap > {mktcap_label} local, excl. financials")
     print_header("CASH CONVERSION CYCLE BACKTEST", universe_name,
@@ -588,6 +603,7 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     print(f"  Rebalancing: Annual (April 1), {START_YEAR}-{END_YEAR}")
     print(f"  Costs: {'size-tiered' if use_costs else 'none'}, "
           f"Rf: {risk_free_rate*100:.1f}%")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 75)
 
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
@@ -606,10 +622,13 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
 
     t1 = time.time()
     periods = run_backtest(con, rebalance_dates, mktcap_threshold,
-                           use_costs=use_costs, verbose=args.verbose)
+                           use_costs=use_costs, verbose=args.verbose,
+                           offset_days=offset_days, benchmark_symbol=benchmark_symbol)
     bt_time = time.time() - t1
 
     output = build_output(periods, universe_name, risk_free_rate, periods_per_year)
+    output["benchmark"] = {"symbol": benchmark_symbol, "name": benchmark_name}
+    output["execution"] = exec_model
     print_summary(output)
 
     total_time = time.time() - t0
