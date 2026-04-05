@@ -46,7 +46,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet
+from data_utils import query_parquet, get_local_benchmark, LOCAL_INDEX_BENCHMARKS
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -76,7 +76,7 @@ PORTFOLIO_SIZES   = [5, 10, 15, 20]
 _MAX_CANDIDATES   = 20 * 10   # Only look at top 200 correlation candidates
 
 
-def fetch_data_via_api(cr, exchanges, verbose=False):
+def fetch_data_via_api(cr, exchanges, verbose=False, benchmark_symbol="SPY"):
     """Fetch sector mapping, market caps, and full daily price history into DuckDB.
 
     Populates DuckDB tables:
@@ -184,7 +184,8 @@ def fetch_data_via_api(cr, exchanges, verbose=False):
     # ── Fetch daily prices (2004 onward) ──────────────────────────────────────
     # Extra year (2004) provides warmup for z-score lookback on first trading year
     print("  Fetching daily prices (2004-present)...")
-    price_syms = candidates + ["SPY"]
+    bench_syms = {"SPY", benchmark_symbol}  # always include SPY + local benchmark
+    price_syms = candidates + list(bench_syms)
     price_sym_filter = ", ".join(f"'{s}'" for s in price_syms)
 
     price_sql = f"""
@@ -403,7 +404,7 @@ def compute_spread_vol_during_formation(con, sym_a, sym_b, beta,
 
 def simulate_pair_trades(con, sym_a, sym_b, beta,
                           trading_start, trading_end,
-                          mc_a, mc_b, use_costs=True):
+                          mc_a, mc_b, use_costs=True, offset_days=1):
     """Simulate active z-score trading for one pair during the trading year.
 
     Fetches daily z-scores for the pair, then iterates day by day tracking
@@ -464,29 +465,50 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
         return None
 
     trades = []
-    in_position   = False
-    entry_idx     = None
-    entry_z       = None
-    entry_pa      = None
-    entry_pb      = None
-    direction     = None   # +1 = long_spread (buy A, short B); -1 = short_spread
-    trading_day   = 0
+    in_position     = False
+    entry_idx       = None
+    entry_z         = None
+    entry_pa        = None
+    entry_pb        = None
+    direction       = None   # +1 = long_spread (buy A, short B); -1 = short_spread
+    trading_day     = 0
+    pending_entry   = False  # MOC: signal fired, waiting for next-day execution
+    pending_z       = None
+    pending_dir     = None
 
     for i, row in enumerate(rows):
         trade_date, pa, pb = row[0], float(row[1]), float(row[2])
         z = row[3]
         if z is None or math.isnan(z):
+            pending_entry = False  # stale signal
             continue
 
         if not in_position:
-            if abs(z) >= Z_ENTRY:
-                in_position = True
-                entry_idx   = i
-                entry_z     = z
-                entry_pa    = pa
-                entry_pb    = pb
-                direction   = -1 if z > 0 else 1
-                trading_day = 0
+            if pending_entry and offset_days > 0:
+                # Execute at today's price (next-day MOC relative to signal)
+                in_position   = True
+                entry_idx     = i
+                entry_z       = pending_z
+                entry_pa      = pa
+                entry_pb      = pb
+                direction     = pending_dir
+                trading_day   = 0
+                pending_entry = False
+            elif abs(z) >= Z_ENTRY:
+                if offset_days == 0:
+                    # Same-day entry (legacy mode)
+                    in_position = True
+                    entry_idx   = i
+                    entry_z     = z
+                    entry_pa    = pa
+                    entry_pb    = pb
+                    direction   = -1 if z > 0 else 1
+                    trading_day = 0
+                else:
+                    # Signal fired; enter next day
+                    pending_entry = True
+                    pending_z     = z
+                    pending_dir   = -1 if z > 0 else 1
         else:
             trading_day += 1
 
@@ -556,7 +578,8 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
     return trades if trades else None
 
 
-def run_backtest_multi(con, use_costs=True, verbose=False):
+def run_backtest_multi(con, use_costs=True, verbose=False,
+                       benchmark_symbol="SPY", offset_days=1):
     """Run annual multi-pair backtest (START_YEAR to END_YEAR).
 
     Identical formation and signal logic as pairs-zscore, but collects
@@ -621,24 +644,24 @@ def run_backtest_multi(con, use_costs=True, verbose=False):
             print(f"  {year}: {len(candidates)} corr candidates → "
                   f"{len(selected)} with valid half-life  [{time.time()-t0:.1f}s]")
 
-        # ── Step 3: SPY benchmark return ──────────────────────────────────────
-        spy_start_row = con.execute(f"""
+        # ── Step 3: Benchmark return ───────────────────────────────────────────
+        bench_start_row = con.execute(f"""
             SELECT adjClose FROM prices_cache
-            WHERE symbol = 'SPY'
+            WHERE symbol = '{benchmark_symbol}'
               AND trade_date >= '{trading_start.isoformat()}'
             ORDER BY trade_date ASC LIMIT 1
         """).fetchone()
-        spy_end_row = con.execute(f"""
+        bench_end_row = con.execute(f"""
             SELECT adjClose FROM prices_cache
-            WHERE symbol = 'SPY'
+            WHERE symbol = '{benchmark_symbol}'
               AND trade_date <= '{trading_end.isoformat()}'
             ORDER BY trade_date DESC LIMIT 1
         """).fetchone()
-        spy_ret = None
-        if spy_start_row and spy_end_row:
-            spy_s, spy_e = float(spy_start_row[0]), float(spy_end_row[0])
-            if spy_s > 0:
-                spy_ret = (spy_e - spy_s) / spy_s
+        spy_ret = None  # key name kept for backward compat
+        if bench_start_row and bench_end_row:
+            bench_s, bench_e = float(bench_start_row[0]), float(bench_end_row[0])
+            if bench_s > 0:
+                spy_ret = (bench_e - bench_s) / bench_s
 
         # ── Step 4: Compute spread vols and simulate trades ───────────────────
         pair_results = []
@@ -679,7 +702,7 @@ def run_backtest_multi(con, use_costs=True, verbose=False):
             trades = simulate_pair_trades(
                 con, sym_a, sym_b, beta,
                 trading_start, trading_end,
-                mc_a, mc_b, use_costs=use_costs
+                mc_a, mc_b, use_costs=use_costs, offset_days=offset_days
             )
 
             annual_return = 0.0
@@ -863,7 +886,8 @@ def build_diversification_analysis(per_year_data, risk_free_rate=0.02):
 
 
 def build_output(m, per_year_data, primary_yearly, diversification_analysis,
-                 trade_stats, universe_name):
+                 trade_stats, universe_name, benchmark_name="S&P 500",
+                 benchmark_symbol="SPY"):
     """Build JSON output in standard exchange_comparison format.
 
     Primary portfolio = 20-pair inverse_vol configuration.
@@ -915,6 +939,8 @@ def build_output(m, per_year_data, primary_yearly, diversification_analysis,
         "years":                  f"{START_YEAR}-{END_YEAR}",
         "frequency":              "daily_zscore",
         "portfolio_config":       "20-pair inverse_vol",
+        "benchmark_name":         benchmark_name,
+        "benchmark_symbol":       benchmark_symbol,
         "cash_periods":           cash_periods,
         "invested_periods":       len(invested_yrs),
         "avg_active_pairs":       avg_active,
@@ -939,8 +965,10 @@ def build_output(m, per_year_data, primary_yearly, diversification_analysis,
 
 
 def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
-               verbose, output_path=None):
+               verbose, output_path=None, offset_days=1,
+               benchmark_symbol="SPY", benchmark_name="S&P 500"):
     """Run backtest for a single exchange set. Returns output dict or None."""
+    exec_model = "next-day close (MOC)" if offset_days > 0 else "same-day close (biased)"
     signal_desc = (
         f"Same-sector corr > {MIN_CORR}, half-life {HALF_LIFE_MIN}-{HALF_LIFE_MAX}d, "
         f"portfolio sizes {PORTFOLIO_SIZES}, z-entry > {Z_ENTRY}, z-exit < {Z_EXIT}, "
@@ -948,12 +976,14 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     )
     print_header("MULTI-PAIR PORTFOLIO BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Costs: {'size-tiered×4 legs' if use_costs else 'none'}  "
-          f"RFR: {risk_free_rate*100:.1f}%")
+          f"RFR: {risk_free_rate*100:.1f}%  "
+          f"Execution: {exec_model}  Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 65)
 
     print("\nPhase 1: Fetching data via API...")
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, verbose=verbose,
+                             benchmark_symbol=benchmark_symbol)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -962,7 +992,8 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     print(f"\nPhase 2: Running per-pair simulation ({START_YEAR}-{END_YEAR})...")
     t1 = time.time()
     per_year_data, trade_stats = run_backtest_multi(
-        con, use_costs=use_costs, verbose=verbose
+        con, use_costs=use_costs, verbose=verbose,
+        benchmark_symbol=benchmark_symbol, offset_days=offset_days
     )
     print(f"Simulation completed in {time.time()-t1:.0f}s")
 
@@ -986,7 +1017,7 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     spy_returns  = [y["spy_return"]       for y in valid_primary]
 
     m = compute_metrics(port_returns, spy_returns, 1, risk_free_rate=risk_free_rate)
-    print(format_metrics(m, "Multi-Pair 20 (inv-vol)", "S&P 500"))
+    print(format_metrics(m, "Multi-Pair 20 (inv-vol)", benchmark_name))
 
     # ── Trade stats summary ───────────────────────────────────────────────────
     cash_periods = sum(1 for y in primary_yearly if y["is_cash"])
@@ -1040,7 +1071,9 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     print(f"\n  Total time: {time.time()-t0:.0f}s")
 
     out = build_output(m, per_year_data, primary_yearly, diversification_analysis,
-                       trade_stats, universe_name)
+                       trade_stats, universe_name,
+                       benchmark_name=benchmark_name,
+                       benchmark_symbol=benchmark_symbol)
 
     if output_path:
         out_dir = os.path.dirname(output_path)
@@ -1068,6 +1101,7 @@ def main():
 
     exchanges, universe_name = resolve_exchanges(args)
     use_costs = not args.no_costs
+    offset_days = 0 if args.no_next_day else 1
 
     # ── Global mode ────────────────────────────────────────────────────────────
     if exchanges is None and universe_name in ("Global", "GLOBAL"):
@@ -1099,6 +1133,7 @@ def main():
         for preset_name, preset_exchanges in presets_to_run:
             uni_name = "_".join(preset_exchanges)
             rfr      = get_risk_free_rate(preset_exchanges, args.risk_free_rate)
+            bench_sym, bench_name = get_local_benchmark(preset_exchanges)
             out_path = None
             if args.output:
                 out_dir  = os.path.dirname(args.output) or "."
@@ -1107,7 +1142,10 @@ def main():
             print(f"\n{'#'*65}\n# {preset_name.upper()} ({uni_name})\n{'#'*65}")
             try:
                 result = run_single(cr, preset_exchanges, uni_name,
-                                    use_costs, rfr, args.verbose, out_path)
+                                    use_costs, rfr, args.verbose, out_path,
+                                    offset_days=offset_days,
+                                    benchmark_symbol=bench_sym,
+                                    benchmark_name=bench_name)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -1156,9 +1194,13 @@ def main():
 
     # ── Single exchange mode ───────────────────────────────────────────────────
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
+    bench_sym, bench_name = get_local_benchmark(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
-               args.verbose, args.output)
+               args.verbose, args.output,
+               offset_days=offset_days,
+               benchmark_symbol=bench_sym,
+               benchmark_name=bench_name)
 
 
 if __name__ == "__main__":
