@@ -113,7 +113,7 @@ def fetch_data(client, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # +1 for offset_days=1 (MOC execution)
         date_conditions.append(
             f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')"
         )
@@ -230,11 +230,16 @@ def screen_low_pe(con, target_date, universe_symbols):
     return [(r[0], r[1], r[2]) for r in rows]
 
 
-def get_price(con, symbol, target_date):
-    """Get adjusted close on or just after target_date."""
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
+def get_price(con, symbol, target_date, offset_days=1):
+    """Get adjusted close offset_days after target_date.
+
+    offset_days=1: next-day close (MOC execution, default)
+    offset_days=0: same-day close (legacy)
+    """
+    start = target_date + timedelta(days=offset_days)
+    target_epoch = int(datetime.combine(start, datetime.min.time()).timestamp())
     end_epoch = int(datetime.combine(
-        target_date + timedelta(days=10), datetime.min.time()
+        start + timedelta(days=10), datetime.min.time()
     ).timestamp())
     row = con.execute("""
         SELECT adjClose FROM prices_cache
@@ -245,15 +250,15 @@ def get_price(con, symbol, target_date):
 
 
 def compute_portfolio_return(con, stock_list, entry_date, exit_date,
-                              use_costs=True):
+                              use_costs=True, offset_days=1):
     """Compute equal-weighted return for a list of (symbol, pe, mcap)."""
     if not stock_list:
         return 0.0, 0, 0
 
     symbol_returns = []
     for sym, pe, mcap in stock_list:
-        ep = get_price(con, sym, entry_date)
-        xp = get_price(con, sym, exit_date)
+        ep = get_price(con, sym, entry_date, offset_days=offset_days)
+        xp = get_price(con, sym, exit_date, offset_days=offset_days)
         symbol_returns.append((sym, ep, xp, mcap or 1e9))
 
     clean, skipped = filter_returns(symbol_returns)
@@ -274,7 +279,7 @@ def compute_portfolio_return(con, stock_list, entry_date, exit_date,
     return mean_ret, len(returns), len(symbol_returns) - len(clean)
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, offset_days=1):
     """Run the biased vs unbiased backtest."""
     print(f"Phase 2: Running backtest "
           f"({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
@@ -300,13 +305,15 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False):
 
         # Compute returns
         b_ret, b_cnt, b_skip = compute_portfolio_return(
-            con, biased_stocks, entry_date, exit_date, use_costs)
+            con, biased_stocks, entry_date, exit_date, use_costs,
+            offset_days=offset_days)
         u_ret, u_cnt, u_skip = compute_portfolio_return(
-            con, unbiased_stocks, entry_date, exit_date, use_costs)
+            con, unbiased_stocks, entry_date, exit_date, use_costs,
+            offset_days=offset_days)
 
         # SPY benchmark
-        spy_ep = get_price(con, "SPY", entry_date)
-        spy_xp = get_price(con, "SPY", exit_date)
+        spy_ep = get_price(con, "SPY", entry_date, offset_days=offset_days)
+        spy_xp = get_price(con, "SPY", exit_date, offset_days=offset_days)
         spy_ret = ((spy_xp - spy_ep) / spy_ep
                    if spy_ep and spy_xp and spy_ep > 0 else None)
 
@@ -572,9 +579,14 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true")
     parser.add_argument("--no-costs", action="store_true",
                         help="Disable transaction costs")
+    parser.add_argument("--no-next-day", action="store_true",
+                        help="Use same-day close instead of next-day (legacy mode)")
     parser.add_argument("--api-key", help="CR API key")
     parser.add_argument("--base-url", help="Override API base URL")
     args = parser.parse_args()
+
+    offset_days = 0 if args.no_next_day else 1
+    exec_model = "next-day close (MOC)" if offset_days == 1 else "same-day close (legacy)"
 
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
 
@@ -585,6 +597,7 @@ def main():
     print(f"  Rebalancing: Quarterly, {START_YEAR}-{END_YEAR}")
     print(f"  Costs: {'size-tiered' if not args.no_costs else 'none'}")
     print(f"  Filing lag: {FILING_LAG_DAYS} days")
+    print(f"  Execution: {exec_model}")
     print("=" * 75)
 
     print("\nPhase 1: Fetching data via API...")
@@ -602,7 +615,7 @@ def main():
     t1 = time.time()
     use_costs = not args.no_costs
     periods = run_backtest(con, rebalance_dates, use_costs=use_costs,
-                            verbose=args.verbose)
+                            verbose=args.verbose, offset_days=offset_days)
     bt_time = time.time() - t1
 
     output = build_output(periods)
