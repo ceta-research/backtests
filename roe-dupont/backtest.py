@@ -38,7 +38,9 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates, filter_returns
+from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
+                        get_local_benchmark, get_benchmark_return,
+                        LOCAL_INDEX_BENCHMARKS)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -152,20 +154,28 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                               memory_mb=4096, threads=2)
         print(f"    -> {count:,} rows")
 
-    # 5. Prices (only at rebalance dates + 10-day windows)
+    # 5. Prices (only at rebalance dates + 11-day windows for MOC offset)
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
+    bench_symbols = {"'SPY'"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(f"'{sym}'")
+    bench_list = ", ".join(bench_symbols)
+
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
-            symbol = 'SPY'
+            symbol IN ({bench_list})
             OR symbol IN (
                 SELECT DISTINCT symbol FROM income_statement WHERE period = 'FY'
                     AND {sym_filter_sql}
@@ -276,10 +286,11 @@ def compute_dupont(con, target_date, mktcap_min):
     return result
 
 
-def get_price(con, symbol, target_date):
-    """Get adjusted close price on or just after target_date."""
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(target_date + timedelta(days=10), datetime.min.time()).timestamp())
+def get_price(con, symbol, target_date, offset_days=0):
+    """Get adjusted close price on or just after target_date + offset_days."""
+    shifted_date = target_date + timedelta(days=offset_days)
+    target_epoch = int(datetime.combine(shifted_date, datetime.min.time()).timestamp())
+    end_epoch = int(datetime.combine(shifted_date + timedelta(days=10), datetime.min.time()).timestamp())
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
@@ -289,12 +300,13 @@ def get_price(con, symbol, target_date):
 
 
 def compute_portfolio_return(con, portfolio_symbols, scored, entry_date, exit_date,
-                             use_costs=True, verbose=False):
+                             use_costs=True, verbose=False, offset_days=1):
     """Compute equal-weighted return for a portfolio of stocks.
 
     Args:
         portfolio_symbols: list of symbol strings
         scored: dict from compute_dupont()
+        offset_days: int - days to shift for MOC execution (1 = next-day close)
 
     Returns:
         tuple (mean_return, count, skipped_count)
@@ -304,8 +316,8 @@ def compute_portfolio_return(con, portfolio_symbols, scored, entry_date, exit_da
 
     symbol_returns = []
     for sym in portfolio_symbols:
-        ep = get_price(con, sym, entry_date)
-        xp = get_price(con, sym, exit_date)
+        ep = get_price(con, sym, entry_date, offset_days=offset_days)
+        xp = get_price(con, sym, exit_date, offset_days=offset_days)
         mcap = scored[sym]["market_cap"]
         symbol_returns.append((sym, ep, xp, mcap))
 
@@ -328,7 +340,8 @@ def compute_portfolio_return(con, portfolio_symbols, scored, entry_date, exit_da
     return mean_ret, len(returns), len(skipped)
 
 
-def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
+                 offset_days=1, benchmark_symbol="SPY"):
     """Run the full DuPont ROE backtest with four portfolio tracks."""
     print(f"Phase 2: Running annual backtest "
           f"({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
@@ -358,15 +371,13 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                            ("all_high_roe", all_roe)]:
             ret, cnt, skip = compute_portfolio_return(
                 con, syms, scored, entry_date, exit_date,
-                use_costs=use_costs, verbose=verbose
+                use_costs=use_costs, verbose=verbose, offset_days=offset_days
             )
             track_data[name] = {"return": ret, "count": cnt, "skipped": skip}
 
         # Benchmark
-        spy_ep = get_price(con, "SPY", entry_date)
-        spy_xp = get_price(con, "SPY", exit_date)
-        spy_ret = ((spy_xp - spy_ep) / spy_ep
-                   if spy_ep and spy_xp and spy_ep > 0 else None)
+        spy_ret = get_benchmark_return(
+            con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
         periods.append({
             "year": entry_date.year,
@@ -397,7 +408,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
     return periods
 
 
-def build_output(periods, universe_name, risk_free_rate, periods_per_year):
+def build_output(periods, universe_name, risk_free_rate, periods_per_year,
+                 benchmark_name="S&P 500", benchmark_symbol="SPY"):
     """Build output dict with all tracks + analysis."""
     valid = [p for p in periods if p["spy_return"] is not None]
     n = len(valid)
@@ -509,6 +521,8 @@ def build_output(periods, universe_name, risk_free_rate, periods_per_year):
         "weighting": "equal weight",
         "transaction_costs": "0.1-0.5% per trade (size-tiered)",
         "sector_exclusions": "Financial Services, Utilities",
+        "benchmark": benchmark_name,
+        "benchmark_symbol": benchmark_symbol,
         "signal": {
             "roe_min": ROE_MIN,
             "quality_filters": {
@@ -594,11 +608,12 @@ def print_summary(m):
     print(header)
     print("-" * 100)
 
+    bench_label = m.get("benchmark", "S&P 500")
     for name, label in [("quality_roe", "Quality ROE"),
                         ("margin_driven", "Margin-Driven (Q1)"),
                         ("all_high_roe", "All ROE > 15%"),
                         ("leverage_driven", "Leverage-Driven (Q1)"),
-                        ("sp500", "S&P 500")]:
+                        ("sp500", bench_label)]:
         d = p[name]
         sortino = d.get('sortino')
         calmar = d.get('calmar')
@@ -615,10 +630,10 @@ def print_summary(m):
     print(f"\nMargin-Leverage spread: {m['margin_leverage_spread']:+.1f}% per year")
     print(f"Quality ROE excess CAGR: {m['quality_excess_cagr']:+.1f}%")
 
-    # Quality ROE vs SPY comparison
+    # Quality ROE vs benchmark comparison
     qvs = m.get("quality_roe_vs_spy")
     if qvs:
-        print(f"\nQuality ROE vs S&P 500:")
+        print(f"\nQuality ROE vs {bench_label}:")
         print(f"  Excess CAGR: {qvs['excess_cagr']:+.2f}%")
         if qvs.get('win_rate') is not None:
             print(f"  Win Rate: {qvs['win_rate']:.1f}%")
@@ -632,7 +647,7 @@ def print_summary(m):
 
     if m.get("decade_breakdown"):
         print(f"\n{'Period':<12} {'Quality':>10} {'Margin':>10} {'Leverage':>10} "
-              f"{'M-L Spread':>12} {'SPY':>10}")
+              f"{'M-L Spread':>12} {bench_label[:10]:>10}")
         print("-" * 68)
         for d in m["decade_breakdown"]:
             print(f"{d['period']:<12} {d['quality_roe_return']:>9.1f}% "
@@ -662,6 +677,9 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
                     else f"{mktcap_threshold/1e6:.0f}M")
     use_costs = not args.no_costs
     periods_per_year = 1
+    offset_days = 0 if args.no_next_day else 1
+    exec_model = "same-day close" if offset_days == 0 else "next-day close (MOC)"
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
 
     signal_desc = (f"DuPont ROE decomposition, ROE > {ROE_MIN*100:.0f}%, "
                    f"MCap > {mktcap_label} local, excl. financials/utilities")
@@ -672,6 +690,7 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     print(f"  Rebalancing: Annual (April 1), {START_YEAR}-{END_YEAR}")
     print(f"  Costs: {'size-tiered' if use_costs else 'none'}, "
           f"Rf: {risk_free_rate*100:.1f}%")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 65)
 
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
@@ -692,11 +711,13 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     # Phase 2: Run backtest
     t1 = time.time()
     periods = run_backtest(con, rebalance_dates, mktcap_threshold,
-                           use_costs=use_costs, verbose=args.verbose)
+                           use_costs=use_costs, verbose=args.verbose,
+                           offset_days=offset_days, benchmark_symbol=benchmark_symbol)
     bt_time = time.time() - t1
 
     # Phase 3: Compute and display metrics
-    output = build_output(periods, universe_name, risk_free_rate, periods_per_year)
+    output = build_output(periods, universe_name, risk_free_rate, periods_per_year,
+                          benchmark_name=benchmark_name, benchmark_symbol=benchmark_symbol)
     print_summary(output)
 
     total_time = time.time() - t0
