@@ -423,15 +423,17 @@ def chart_india_alpha_dilution(all_data, output_path):
     """Chart 5: India CAGR vs portfolio size (equal weight vs inv-vol).
 
     Shows the alpha-dilution curve — how India CAGR drops as more pairs are added.
-    SPY reference line included.
+    Benchmark reference line included (Sensex for NSE-only, SPY for BSE+NSE).
     """
-    india_data = all_data.get("NSE", {})
+    # Look for NSE-only results first (new), then BSE_NSE (old) for backward compat
+    india_data = all_data.get("NSE") or all_data.get("BSE_NSE", {})
     div_analysis = india_data.get("diversification_analysis", [])
     if not div_analysis:
         print("WARNING: No India diversification data, skipping Chart 5.")
         return
 
-    spy_cagr = (india_data.get("spy") or {}).get("cagr", 9.81)
+    bench_cagr = (india_data.get("spy") or {}).get("cagr", 9.81)
+    bench_name = india_data.get("benchmark_name", "SPY")
     lookup   = {(d["n_pairs"], d["allocation"]): d for d in div_analysis}
     sizes    = sorted(set(d["n_pairs"] for d in div_analysis))
 
@@ -444,8 +446,8 @@ def chart_india_alpha_dilution(all_data, output_path):
             label="Equal weight")
     ax.plot(sizes, cagr_iv, color=COLOR_INV_VOL, linewidth=2.5, marker="s",
             linestyle="--", label="Inverse-vol")
-    ax.axhline(y=spy_cagr, color=COLOR_SPY, linewidth=1.8, linestyle=":",
-               label=f"SPY benchmark ({spy_cagr:.2f}% CAGR)")
+    ax.axhline(y=bench_cagr, color=COLOR_SPY, linewidth=1.8, linestyle=":",
+               label=f"{bench_name} benchmark ({bench_cagr:.2f}% CAGR)")
 
     ax.set_xlabel("Portfolio Size (N pairs)", fontsize=11)
     ax.set_ylabel("CAGR (%)", fontsize=11)
