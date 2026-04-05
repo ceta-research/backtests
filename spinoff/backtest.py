@@ -140,7 +140,7 @@ def fetch_data(client, events, verbose=False):
 
     print(f"  Fetching prices for {len(all_symbols)} symbols (2010 onward)...")
     price_sql = f"""
-        SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose
+        SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose, volume
         FROM stock_eod
         WHERE symbol IN ({sym_in})
           AND CAST(date AS DATE) >= '{min_year}-01-01'
@@ -185,8 +185,15 @@ def fetch_data(client, events, verbose=False):
     return con, found_syms
 
 
-def compute_event_returns(con, events, found_symbols, windows=WINDOWS, verbose=False):
-    """Compute CAR vs SPY for each event at each window."""
+def compute_event_returns(con, events, found_symbols, windows=WINDOWS,
+                          entry_offset=0, verbose=False):
+    """Compute CAR vs SPY for each event at each window.
+
+    Args:
+        entry_offset: Trading days after event date to use as entry price.
+            0 = event-date close (traditional event study).
+            1 = next-day close (MOC execution, more realistic for trading).
+    """
 
     results = []
 
@@ -217,30 +224,45 @@ def compute_event_returns(con, events, found_symbols, windows=WINDOWS, verbose=F
 
         t0_num, t0_date = t0_row
 
-        # Get T0 prices for stock and SPY
-        t0_prices = con.execute(f"""
+        # Entry price: T0 + entry_offset trading days
+        entry_num = t0_num + entry_offset
+        if entry_offset > 0:
+            entry_row = con.execute(f"""
+                SELECT trade_date FROM trading_days WHERE day_num = {entry_num}
+            """).fetchone()
+            if not entry_row:
+                if verbose:
+                    print(f"    Skipping {symbol} ({event_date}): no entry date at T+{entry_offset}")
+                continue
+            entry_date = entry_row[0]
+        else:
+            entry_date = t0_date
+
+        # Get entry prices for stock and SPY
+        entry_prices = con.execute(f"""
             SELECT
-                (SELECT adjClose FROM prices WHERE symbol = '{symbol}' AND trade_date = '{t0_date}') AS stock_t0,
-                (SELECT adjClose FROM prices WHERE symbol = 'SPY' AND trade_date = '{t0_date}') AS spy_t0
+                (SELECT adjClose FROM prices WHERE symbol = '{symbol}' AND trade_date = '{entry_date}') AS stock_entry,
+                (SELECT adjClose FROM prices WHERE symbol = 'SPY' AND trade_date = '{entry_date}') AS spy_entry
         """).fetchone()
 
-        if not t0_prices or t0_prices[0] is None or t0_prices[1] is None:
+        if not entry_prices or entry_prices[0] is None or entry_prices[1] is None:
             if verbose:
-                print(f"    Skipping {symbol} ({event_date}): no T0 price on {t0_date}")
+                print(f"    Skipping {symbol} ({event_date}): no entry price on {entry_date}")
             continue
 
-        stock_t0, spy_t0 = t0_prices
+        stock_entry, spy_entry = entry_prices
 
         result = {
             "symbol": symbol,
             "event_date": event_date,
             "t0_date": str(t0_date),
+            "entry_date": str(entry_date),
             "category": category,
             "description": description,
         }
 
         for w in windows:
-            # Find T+W trading day
+            # Find T+W trading day (from event date T0, not entry)
             tw_row = con.execute(f"""
                 SELECT trade_date
                 FROM trading_days
@@ -269,8 +291,8 @@ def compute_event_returns(con, events, found_symbols, windows=WINDOWS, verbose=F
                 continue
 
             stock_tw, spy_tw = tw_prices
-            stock_ret = (stock_tw - stock_t0) / stock_t0 * 100
-            spy_ret = (spy_tw - spy_t0) / spy_t0 * 100
+            stock_ret = (stock_tw - stock_entry) / stock_entry * 100
+            spy_ret = (spy_tw - spy_entry) / spy_entry * 100
             ar = stock_ret - spy_ret
 
             result[f"ar_{w}"] = round(ar, 4)
@@ -378,7 +400,7 @@ def print_results(metrics):
     print(f"\n  * p<0.05  ** p<0.01")
 
 
-def save_results(results, metrics, output_dir):
+def save_results(results, metrics, output_dir, execution_model="Event-date close (T+0)"):
     """Save results to output_dir."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -386,6 +408,7 @@ def save_results(results, metrics, output_dir):
     summary = {
         "strategy": "Corporate Spinoff Event Study",
         "benchmark": "SPY",
+        "execution": execution_model,
         "n_spinoffs": len(SPINOFFS),
         "windows": WINDOWS,
         "methodology": "Curated list of major US corporate spinoffs, 2011-2024",
@@ -398,7 +421,7 @@ def save_results(results, metrics, output_dir):
 
     # --- individual_spinoffs.csv ---
     csv_path = os.path.join(output_dir, "individual_spinoffs.csv")
-    fieldnames = ["symbol", "event_date", "t0_date", "category", "description"]
+    fieldnames = ["symbol", "event_date", "t0_date", "entry_date", "category", "description"]
     for w in WINDOWS:
         fieldnames.extend([f"ar_{w}", f"stock_ret_{w}", f"spy_ret_{w}"])
 
@@ -460,13 +483,19 @@ def main():
                         help="Output directory (default: spinoff/results)")
     parser.add_argument("--start-year", type=int, default=None, help="Include spinoffs from this year onward")
     parser.add_argument("--end-year", type=int, default=None, help="Include spinoffs up to this year")
+    parser.add_argument("--no-next-day", action="store_true",
+                        help="Use event-date close as entry (T+0). Default: next-day close (T+1)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     args = parser.parse_args()
+
+    entry_offset = 0 if args.no_next_day else 1
+    exec_model = "Event-date close (T+0)" if entry_offset == 0 else "Next-day close (MOC, T+1)"
 
     print("=" * 65)
     print("  CORPORATE SPINOFF EVENT STUDY")
     print("  Signal: Curated list of major US corporate spinoffs")
     print("  Benchmark: SPY")
+    print(f"  Execution: {exec_model}")
     print(f"  Windows: {', '.join(f'T+{w}' for w in WINDOWS)}")
     print("=" * 65)
 
@@ -492,7 +521,8 @@ def main():
     # Compute returns
     print("\nPhase 2: Computing event-window returns...")
     t1 = time.time()
-    results = compute_event_returns(con, events, found_symbols, windows=WINDOWS, verbose=args.verbose)
+    results = compute_event_returns(con, events, found_symbols, windows=WINDOWS,
+                                    entry_offset=entry_offset, verbose=args.verbose)
     compute_time = time.time() - t1
     print(f"  {len(results)} events with returns computed in {compute_time:.0f}s")
 
@@ -517,7 +547,7 @@ def main():
 
     # Save results
     print("\nPhase 4: Saving results...")
-    save_results(results, metrics, args.output)
+    save_results(results, metrics, args.output, execution_model=exec_model)
     print("\nDone.")
 
     con.close()
