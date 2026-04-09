@@ -457,6 +457,156 @@ def get_benchmark_tickers(exchanges, factor_type=None):
     return benchmarks
 
 
+def remove_price_oscillations(con, table_name="prices_cache", verbose=True,
+                              spike_threshold=2.0, mild_threshold=1.3,
+                              min_mild_count=5):
+    """Remove rows with oscillating adjClose from a DuckDB price table.
+
+    FMP's EOD data contains bad rows where adjClose spikes for 1-2 days then
+    reverts. These are phantom holiday rows or broken split adjustments.
+    Legitimate stock splits don't revert — the adjustment factor changes permanently.
+
+    Two-tier detection (single pass, no iteration):
+      Tier 1 (spike_threshold, default 2.0x): Any spike+revert is flagged.
+        A 100%+ move that fully reverts in 1-2 days is always bad data.
+      Tier 2 (mild_threshold, default 1.3x): Only flagged if the symbol has
+        >= min_mild_count such oscillations. Catches BSAC-style persistent
+        oscillation (30-40% flips, 70+ times) without flagging legitimate
+        earnings-day volatility.
+
+    Detection uses ±1 and ±2 neighbor windows:
+      ±1: adjClose[N]/adjClose[N-1] spikes AND adjClose[N-1] ≈ adjClose[N+1]
+      ±2: adjClose[N] far from both adjClose[N-2] and adjClose[N+2], which agree
+
+    Args:
+        con: duckdb.Connection with price table loaded
+        table_name: str - DuckDB table name (default "prices_cache")
+        verbose: bool - print summary
+        spike_threshold: float - tier 1 threshold (default 2.0 = 100% move)
+        mild_threshold: float - tier 2 threshold (default 1.3 = 30% move)
+        min_mild_count: int - minimum mild oscillations per symbol (default 5)
+
+    Returns:
+        dict with keys: rows_removed, symbols_affected, rows_before, rows_after
+    """
+    try:
+        rows_before = con.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+    except Exception:
+        return {"rows_removed": 0, "symbols_affected": 0, "rows_before": 0, "rows_after": 0}
+
+    # Determine date column name
+    date_col = None
+    for col in ["trade_epoch", "trade_date", "dateEpoch"]:
+        try:
+            con.execute(f"SELECT {col} FROM {table_name} LIMIT 0")
+            date_col = col
+            break
+        except Exception:
+            continue
+    if not date_col:
+        return {"rows_removed": 0, "symbols_affected": 0,
+                "rows_before": rows_before, "rows_after": rows_before}
+
+    st = spike_threshold
+    inv_st = 1.0 / st
+    mt = mild_threshold
+    inv_mt = 1.0 / mt
+
+    # Build neighbor table once
+    con.execute(f"""
+        CREATE TEMPORARY TABLE _nb AS
+        SELECT symbol, {date_col} AS dt, adjClose,
+            LAG(adjClose, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS p1,
+            LEAD(adjClose, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS n1,
+            LAG(adjClose, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS p2,
+            LEAD(adjClose, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS n2
+        FROM {table_name}
+        WHERE adjClose > 0
+    """)
+
+    # Tier 1: definite spikes (>= spike_threshold, always flagged)
+    con.execute(f"""
+        CREATE TEMPORARY TABLE _tier1 AS
+        SELECT symbol, dt FROM _nb
+        WHERE
+            (p1 > 0 AND n1 > 0
+             AND (adjClose / p1 > {st} OR adjClose / p1 < {inv_st})
+             AND n1 / p1 BETWEEN 0.5 AND 2.0)
+            OR
+            (p2 > 0 AND n2 > 0
+             AND (adjClose / p2 > {st} OR adjClose / p2 < {inv_st})
+             AND (adjClose / n2 > {st} OR adjClose / n2 < {inv_st})
+             AND n2 / p2 BETWEEN 0.5 AND 2.0)
+    """)
+
+    # Tier 2: mild oscillations (>= mild_threshold, only if symbol has enough)
+    con.execute(f"""
+        CREATE TEMPORARY TABLE _mild_all AS
+        SELECT symbol, dt FROM _nb
+        WHERE (
+            (p1 > 0 AND n1 > 0
+             AND (adjClose / p1 > {mt} OR adjClose / p1 < {inv_mt})
+             AND n1 / p1 BETWEEN 0.5 AND 2.0)
+            OR
+            (p2 > 0 AND n2 > 0
+             AND (adjClose / p2 > {mt} OR adjClose / p2 < {inv_mt})
+             AND (adjClose / n2 > {mt} OR adjClose / n2 < {inv_mt})
+             AND n2 / p2 BETWEEN 0.5 AND 2.0)
+        )
+        AND (symbol, dt) NOT IN (SELECT symbol, dt FROM _tier1)
+    """)
+
+    # Keep only mild rows from symbols with >= min_mild_count oscillations
+    con.execute(f"""
+        CREATE TEMPORARY TABLE _tier2 AS
+        SELECT m.symbol, m.dt
+        FROM _mild_all m
+        JOIN (
+            SELECT symbol FROM _mild_all GROUP BY symbol HAVING COUNT(*) >= {min_mild_count}
+        ) freq ON m.symbol = freq.symbol
+    """)
+
+    # Combine and delete
+    con.execute(f"""
+        CREATE TEMPORARY TABLE _bad_rows AS
+        SELECT symbol, dt FROM _tier1
+        UNION
+        SELECT symbol, dt FROM _tier2
+    """)
+
+    bad_count = con.execute("SELECT COUNT(*) FROM _bad_rows").fetchone()[0]
+    bad_symbols = con.execute("SELECT COUNT(DISTINCT symbol) FROM _bad_rows").fetchone()[0]
+
+    if bad_count > 0:
+        tier1_count = con.execute("SELECT COUNT(*) FROM _tier1").fetchone()[0]
+        tier2_count = con.execute("SELECT COUNT(*) FROM _tier2").fetchone()[0]
+
+        con.execute(f"""
+            DELETE FROM {table_name}
+            WHERE (symbol, {date_col}) IN (SELECT symbol, dt FROM _bad_rows)
+        """)
+
+        if verbose:
+            print(f"  Price oscillation filter: removed {bad_count} bad rows "
+                  f"across {bad_symbols} symbols "
+                  f"(tier1: {tier1_count} rows >{spike_threshold}x, "
+                  f"tier2: {tier2_count} rows >{mild_threshold}x with >={min_mild_count}/sym) "
+                  f"({rows_before} → {rows_before - bad_count} rows)")
+
+    # Cleanup temp tables
+    for t in ["_nb", "_tier1", "_mild_all", "_tier2", "_bad_rows"]:
+        con.execute(f"DROP TABLE IF EXISTS {t}")
+
+    rows_after = rows_before - bad_count
+
+    return {
+        "rows_removed": bad_count,
+        "symbols_affected": bad_symbols,
+        "rows_before": rows_before,
+        "rows_after": rows_after,
+    }
+
+
 def validate_price_data(con, max_price_ratio=1000, verbose=True):
     """Check prices_cache for data quality issues. Returns list of flagged symbols.
 

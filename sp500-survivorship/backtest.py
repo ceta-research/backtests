@@ -26,7 +26,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates, filter_returns
+from data_utils import query_parquet, generate_rebalance_dates, filter_returns, remove_price_oscillations
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 
@@ -132,6 +132,7 @@ def fetch_data(client, rebalance_dates, verbose=False):
                           verbose=verbose, limit=10000000, timeout=600,
                           memory_mb=4096, threads=2)
     con.execute("CREATE INDEX IF NOT EXISTS idx_prices ON prices_cache(symbol, trade_epoch)")
+    remove_price_oscillations(con, verbose=verbose)
     print(f"    -> {count:,} price rows")
 
     return con

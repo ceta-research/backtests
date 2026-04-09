@@ -46,7 +46,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_local_benchmark, LOCAL_INDEX_BENCHMARKS
+from data_utils import query_parquet, get_local_benchmark, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -204,6 +204,7 @@ def fetch_data_via_api(cr, exchanges, verbose=False, benchmark_symbol="SPY"):
 
     print(f"  Price rows: {count:,}")
     con.execute("CREATE INDEX idx_pc_sym_date ON prices_cache(symbol, trade_date)")
+    remove_price_oscillations(con, verbose=verbose)
     return con
 
 

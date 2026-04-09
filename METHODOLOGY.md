@@ -676,6 +676,25 @@ Returns are denominated in the local currency of the exchange:
 
 **Quarterly vs annual:** Most strategies use annual fiscal year (FY) statements only. This ensures global consistency (most non-US companies don't file quarterly) but means signals can be up to 15 months stale in the worst case (fiscal year ended 12 months ago + 90-day filing delay + waited 45 days for next rebalance).
 
+### Price Data Quality (FMP EOD Anomalies)
+
+**Status:** Known issue, mitigation in progress
+
+FMP's EOD price data contains phantom rows on non-trading days (exchange holidays, ex-dividend dates) for some symbols. These rows have identical OHLC values (open = high = low = close, indicating no real trading occurred) and incorrect split/dividend adjustment factors. The pattern: a stock's normal split factor (e.g., 3.37x) flips to ~1.0x on the phantom day, then reverts the next trading day. This creates false price spikes of 50-400%+ followed by equivalent reversals.
+
+**Scope (as of April 2026):** ~2,500 symbols across all 19 exchanges. Most severe on LSE (252 symbols, 30,268 affected days, concentrated around UK bank holidays in 2004-2005), NASDAQ (821 symbols), and JNB/Johannesburg (46 symbols). US large-cap occurrences are mostly isolated to 1-2 days in 1970s-1980s data. Affected symbols include blue chips (ExxonMobil, Barclays, Rio Tinto, Wipro).
+
+**Root cause:** FMP inserts rows for dates when the exchange was closed (holidays, special closures). These rows carry unadjusted prices rather than the correctly adjusted values used on actual trading days. Confirmed by querying FMP's `/stable/eod-bulk` API directly.
+
+**Impact on backtests:**
+- US (2000+): Minimal. Most US flips are outside typical backtest windows. The 200% quarterly return cap provides additional protection.
+- LSE/UK: Moderate. ~100 FTSE constituents have affected days in 2004-2005.
+- JNB/South Africa: Severe. Thin universe + widespread errors. SA excluded from published content.
+
+**Mitigation (backtest layer):** Backtests should exclude symbols with any day where `open = high = low = close` AND the day-over-day price ratio exceeds 5x, within the backtest period. This removes phantom holiday rows while preserving legitimate low-volatility days (which have non-zero intraday ranges).
+
+**Mitigation (warehouse layer):** The data pipeline cleanup worker detects and removes rows with extreme day-over-day ratios (>5x threshold).
+
 ### Benchmark Limitations
 
 **SPY for non-US:** The S&P 500 (SPY) is used as the primary benchmark for all strategies, even those on non-US exchanges. This provides consistency but introduces two issues:

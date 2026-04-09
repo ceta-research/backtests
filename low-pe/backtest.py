@@ -35,7 +35,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, remove_price_oscillations
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import add_common_args, resolve_exchanges, save_results, print_header, get_mktcap_threshold
@@ -140,6 +140,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     count = query_parquet(client, price_sql, con, "prices_cache",
                           verbose=verbose, limit=5000000, timeout=600)
     con.execute("CREATE INDEX idx_prices_sym_epoch ON prices_cache(symbol, trade_epoch)")
+    remove_price_oscillations(con, verbose=verbose)
     print(f"    -> {count} price rows")
 
     return con

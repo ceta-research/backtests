@@ -217,6 +217,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         return None
 
     print(f"    -> {total_price_rows} total price rows")
+    remove_price_oscillations(con, verbose=verbose)
 
     # 5. Compute daily log returns
     print("  Computing daily log returns...")
