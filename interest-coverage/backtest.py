@@ -35,10 +35,14 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, filter_returns
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
+
+# --- Data quality constants ---
+MIN_ENTRY_PRICE = 1.0    # skip stocks with entry price < $1 (bad adjClose, penny stocks)
+MAX_SINGLE_RETURN = 2.0  # skip stocks with single-period return > 200% (price artifacts)
 
 # --- Signal parameters ---
 COVERAGE_MIN = 5.0
@@ -209,18 +213,21 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
 
+        symbol_data = [(sym, entry_prices.get(sym), exit_prices.get(sym), mcaps.get(sym))
+                       for sym in symbols if entry_prices.get(sym) and exit_prices.get(sym)]
+        clean, _skipped = filter_returns(symbol_data,
+                                         min_entry_price=MIN_ENTRY_PRICE,
+                                         max_single_return=MAX_SINGLE_RETURN,
+                                         verbose=verbose)
+
         returns = []
-        for sym in symbols:
-            ep = entry_prices.get(sym)
-            xp = exit_prices.get(sym)
-            if ep and xp and ep > 0:
-                raw_ret = (xp - ep) / ep
-                if use_costs:
-                    cost = tiered_cost(mcaps.get(sym))
-                    net_ret = apply_costs(raw_ret, cost)
-                else:
-                    net_ret = raw_ret
-                returns.append(net_ret)
+        for sym, raw_ret, mcap in clean:
+            if use_costs:
+                cost = tiered_cost(mcap)
+                net_ret = apply_costs(raw_ret, cost)
+            else:
+                net_ret = raw_ret
+            returns.append(net_ret)
 
         port_return = sum(returns) / len(returns) if returns else 0.0
 
