@@ -5,7 +5,7 @@ Deleveraging Strategy Backtest
 Quarterly rebalancing, equal weight, top 30 by largest year-over-year D/E reduction.
 Fetches data via configurable provider, caches in DuckDB, runs locally.
 
-Signal: D/E YoY reduction > 10%, prior D/E > 0.1, current D/E >= 0, ROE > 8%
+Signal: D/E YoY reduction > 10%, prior D/E > 0.1, current D/E > 0.01, ROE > 8%
 Portfolio: Top 30 by magnitude of deleveraging, equal weight. Cash if < 10 qualify.
 Rebalancing: Quarterly (Jan/Apr/Jul/Oct), 2001-2025.
 
@@ -40,7 +40,8 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS)
+                        get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
+                         remove_price_oscillations)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -49,7 +50,7 @@ from cli_utils import (add_common_args, resolve_exchanges, print_header,
 # --- Signal parameters ---
 DE_CHANGE_THRESHOLD = -0.10   # D/E must drop at least 10% YoY
 DE_PRIOR_MIN = 0.1            # Prior D/E must be meaningful (had actual debt)
-DE_CURRENT_MIN = 0.0          # Current D/E must be non-negative (not in distress)
+DE_CURRENT_MIN = 0.01         # Excludes zero D/E (FMP FY2012 data errors)
 ROE_MIN = 0.08                # Return on equity > 8% (profitable deleveraging)
 PRIOR_LOOKBACK_DAYS = 410     # ~13.5 months back for prior FY filing
 MAX_STOCKS = 30
@@ -156,6 +157,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                           verbose=verbose, limit=5000000, timeout=600,
                           memory_mb=2048, threads=1)
     con.execute("CREATE INDEX idx_prices_sym_epoch ON prices_cache(symbol, trade_epoch)")
+    remove_price_oscillations(con, verbose=verbose)
     print(f"    -> {count} price rows")
 
     return con

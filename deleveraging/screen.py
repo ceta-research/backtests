@@ -26,6 +26,7 @@ from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold
 # Signal parameters (same as backtest)
 DE_CHANGE_THRESHOLD = -0.10   # D/E must drop at least 10% YoY
 DE_PRIOR_MIN = 0.1            # Prior D/E must be meaningful
+DE_CURRENT_MIN = 0.01         # Excludes zero D/E (FMP FY2012 data errors)
 ROE_MIN = 0.08                # ROE > 8%
 LIMIT = 30
 
@@ -76,7 +77,7 @@ JOIN prior_fy pr ON c.symbol = pr.symbol
 JOIN km k ON c.symbol = k.symbol
 JOIN profile p ON c.symbol = p.symbol
 WHERE pr.de_prior > {DE_PRIOR_MIN}
-  AND c.de_current >= 0
+  AND c.de_current > {DE_CURRENT_MIN}
   AND (c.de_current - pr.de_prior) / pr.de_prior < {DE_CHANGE_THRESHOLD}
   AND k.roe > {ROE_MIN}
   AND k.marketCap > {mktcap_min}
