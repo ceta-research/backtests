@@ -36,8 +36,11 @@ import sys
 import time
 from datetime import date, datetime, timedelta
 
+import duckdb
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
+from data_utils import remove_price_oscillations
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 
 STRATEGY_NAME = "Index Reconstitution Event Study"
@@ -46,6 +49,10 @@ END_DATE = "2026-01-31"
 WINDOWS = [1, 5, 21, 63]      # Trading-day windows for CAR measurement
 HOLD_WINDOW = 21               # Primary hold window for portfolio simulation
 RISK_FREE_RATE = 0.02          # US 10Y Treasury proxy
+
+# Data quality thresholds
+MIN_ENTRY_PRICE = 1.0          # skip stocks with entry price < $1 (bad adjClose)
+MAX_SINGLE_RETURN = 2.0        # cap single-event return at 200% in portfolio sim
 
 INDEX_CONFIGS = {
     "sp500": {
@@ -194,6 +201,38 @@ def build_trading_calendar(prices, benchmark_etf):
     return sorted(bench_prices.keys())
 
 
+def clean_price_oscillations(prices, verbose=False):
+    """Remove price oscillations from fetched price dict via DuckDB.
+
+    Loads dict into a temporary DuckDB table, runs remove_price_oscillations(),
+    then converts back. Catches phantom holiday rows and broken split adjustments.
+    """
+    price_rows = []
+    for sym, dates in prices.items():
+        for d, px in dates.items():
+            price_rows.append((sym, d, px))
+
+    if not price_rows:
+        return prices
+
+    con = duckdb.connect()
+    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_date DATE, adjClose DOUBLE)")
+    con.executemany("INSERT INTO prices_cache VALUES (?, ?, ?)", price_rows)
+
+    result = remove_price_oscillations(con, table_name="prices_cache", verbose=verbose)
+
+    if result["rows_removed"] > 0:
+        cleaned = con.execute("SELECT symbol, trade_date, adjClose FROM prices_cache").fetchall()
+        prices = {}
+        for sym, d, px in cleaned:
+            if sym not in prices:
+                prices[sym] = {}
+            prices[sym][d] = px
+
+    con.close()
+    return prices
+
+
 def get_price_at_offset(prices, symbol, event_date, offset_days, calendar):
     """Get the price at T+offset_days trading days from event_date.
 
@@ -238,6 +277,10 @@ def compute_event_returns(events, prices, benchmark_etf, calendar, windows, verb
         bench_p0, _ = get_price_at_offset(prices, benchmark_etf, event_date, 0, calendar)
 
         if p0 is None or bench_p0 is None:
+            missing_prices += 1
+            continue
+
+        if p0 < MIN_ENTRY_PRICE:
             missing_prices += 1
             continue
 
@@ -323,7 +366,7 @@ def compute_car_summary(results, windows):
 # ---------------------------------------------------------------------------
 
 def simulate_removal_portfolio(results, benchmark_etf, prices, calendar,
-                               hold_window=21, entry_offset=0):
+                               hold_window=21, entry_offset=0, verbose=False):
     """Simulate a monthly portfolio that goes long on every removal event.
 
     For each calendar month:
@@ -334,6 +377,7 @@ def simulate_removal_portfolio(results, benchmark_etf, prices, calendar,
 
     Args:
         entry_offset: 0 = event-day close (T+0), 1 = next-day close (MOC execution)
+        verbose: print skipped events
 
     Returns list of dicts: {month, portfolio_return, benchmark_return, n_events}
     """
@@ -343,6 +387,7 @@ def simulate_removal_portfolio(results, benchmark_etf, prices, calendar,
 
     # Compute per-event returns with entry offset
     by_month = {}
+    skipped_quality = 0
     for r in removals:
         sym = r["symbol"]
         evt_str = r["event_date"]
@@ -361,7 +406,19 @@ def simulate_removal_portfolio(results, benchmark_etf, prices, calendar,
         if p_entry is None or p_exit is None or p_entry <= 0:
             continue
 
+        # Data quality: skip penny stocks and extreme returns (M&A artifacts)
+        if p_entry < MIN_ENTRY_PRICE:
+            skipped_quality += 1
+            continue
+
         stock_ret = (p_exit - p_entry) / p_entry
+        if stock_ret > MAX_SINGLE_RETURN:
+            skipped_quality += 1
+            if verbose:
+                print(f"      Portfolio sim: skipped {sym} ({evt_str[:10]}): "
+                      f"return {stock_ret*100:.0f}% > {MAX_SINGLE_RETURN*100:.0f}% cap")
+            continue
+
         ym = evt_str[:7]
         if ym not in by_month:
             by_month[ym] = []
@@ -377,6 +434,9 @@ def simulate_removal_portfolio(results, benchmark_etf, prices, calendar,
         bench_monthly[ym]["end"] = bench_prices.get(d)
         if bench_monthly[ym]["start"] is None:
             bench_monthly[ym]["start"] = bench_prices.get(d)
+
+    if skipped_quality > 0 and verbose:
+        print(f"      Portfolio sim: {skipped_quality} events skipped (data quality)")
 
     # Build period results for months that had removal events
     period_results = []
@@ -444,6 +504,10 @@ def run_index(client, index_key, verbose=False, output_dir=None, entry_offset=1)
     print(f"\nPhase 2: Fetching prices...")
     event_symbols = list(set(e["symbol"] for e in events))
     prices = fetch_prices(client, event_symbols, benchmark_etf, verbose=verbose)
+
+    # Data quality: remove price oscillations (phantom holidays, broken splits)
+    prices = clean_price_oscillations(prices, verbose=verbose)
+
     calendar = build_trading_calendar(prices, benchmark_etf)
     print(f"  {len(prices)} symbols loaded, {len(calendar)} trading days")
 
@@ -471,7 +535,8 @@ def run_index(client, index_key, verbose=False, output_dir=None, entry_offset=1)
     # 4. Portfolio simulation
     print(f"\nPhase 4: Simulating 'long removals T+{HOLD_WINDOW}' portfolio ({exec_model})...")
     period_results = simulate_removal_portfolio(event_results, benchmark_etf, prices, calendar,
-                                                HOLD_WINDOW, entry_offset=entry_offset)
+                                                HOLD_WINDOW, entry_offset=entry_offset,
+                                                verbose=verbose)
 
     if len(period_results) < 12:
         print(f"  WARNING: Only {len(period_results)} monthly periods — not enough for metrics.")
