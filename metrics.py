@@ -22,7 +22,8 @@ import math
 
 
 def compute_metrics(period_returns, benchmark_returns, periods_per_year,
-                    risk_free_rate=0.02, additional_benchmarks=None):
+                    risk_free_rate=0.02, additional_benchmarks=None,
+                    years=None):
     """Compute full metrics suite for a strategy vs benchmark(s).
 
     Args:
@@ -32,6 +33,16 @@ def compute_metrics(period_returns, benchmark_returns, periods_per_year,
         risk_free_rate: float - annual risk-free rate (default 0.02 = 2%)
         additional_benchmarks: dict[str, list[float]] - optional extra benchmarks
             e.g. {"INDA": [0.03, ...], "QUAL": [0.02, ...]}
+        years: optional float - explicit wall-clock years spanned by the returns.
+            If None (default), derived as `len(returns) / periods_per_year`.
+            This default is correct ONLY when `periods_per_year` matches the
+            actual sampling frequency — which is the case for every current
+            caller in this repo (quarterly backtests pass ppy=4, annual pass
+            ppy=1, etc.). If you ever pass daily returns that are calendar-day
+            forward-filled together with ppy=252, the default will under-count
+            years by ~1/1.45 and deflate CAGR. Pass `years` explicitly in that
+            case. See strategy-backtester/lib/equity_curve.py for the type-safe
+            variant used in the position-level simulator.
 
     Returns:
         dict with keys: "portfolio", "benchmark", "comparison", "additional_benchmarks"
@@ -45,10 +56,10 @@ def compute_metrics(period_returns, benchmark_returns, periods_per_year,
     rf_period = risk_free_rate / ppy
 
     # Portfolio metrics
-    port = _compute_series_metrics(period_returns, ppy, risk_free_rate)
+    port = _compute_series_metrics(period_returns, ppy, risk_free_rate, years=years)
 
     # Benchmark metrics
-    bench = _compute_series_metrics(benchmark_returns, ppy, risk_free_rate)
+    bench = _compute_series_metrics(benchmark_returns, ppy, risk_free_rate, years=years)
 
     # Comparison metrics (portfolio vs primary benchmark)
     comp = _compute_comparison(period_returns, benchmark_returns, ppy, risk_free_rate,
@@ -65,7 +76,7 @@ def compute_metrics(period_returns, benchmark_returns, periods_per_year,
         result["additional_benchmarks"] = {}
         for name, bench_rets in additional_benchmarks.items():
             if len(bench_rets) == n:
-                ab_metrics = _compute_series_metrics(bench_rets, ppy, risk_free_rate)
+                ab_metrics = _compute_series_metrics(bench_rets, ppy, risk_free_rate, years=years)
                 ab_comp = _compute_comparison(period_returns, bench_rets, ppy,
                                               risk_free_rate, port["cagr"], ab_metrics["cagr"])
                 result["additional_benchmarks"][name] = {
@@ -76,8 +87,12 @@ def compute_metrics(period_returns, benchmark_returns, periods_per_year,
     return result
 
 
-def _compute_series_metrics(returns, ppy, risk_free_rate):
-    """Compute metrics for a single return series."""
+def _compute_series_metrics(returns, ppy, risk_free_rate, years=None):
+    """Compute metrics for a single return series.
+
+    `years`: optional wall-clock years. If None, uses `len(returns) / ppy`.
+    See compute_metrics() docstring for when to pass explicitly.
+    """
     n = len(returns)
     if n < 2:
         return {}
@@ -120,8 +135,11 @@ def _compute_series_metrics(returns, ppy, risk_free_rate):
         if duration > max_dd_duration:
             max_dd_duration = duration
 
-    # CAGR
-    years = n / ppy
+    # CAGR. Default: sample-count-based (correct when ppy matches sampling).
+    # Caller may pass wall-clock `years` for forward-filled / mixed-frequency
+    # curves where n / ppy is wrong.
+    if years is None:
+        years = n / ppy
     if cumulative > 0 and years > 0:
         cagr = cumulative ** (1.0 / years) - 1
     else:
