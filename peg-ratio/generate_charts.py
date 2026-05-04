@@ -42,15 +42,45 @@ EXCHANGE_LABELS = {
     "OSL": "PEG Norway (OSL)",
     "JKT": "PEG Indonesia (JKT)",
     "SHZ_SHH": "PEG China (SHZ+SHH)",
+    "SHH": "PEG China (SHH)",
     "XETRA": "PEG Germany (XETRA)",
     "SIX": "PEG Switzerland (SIX)",
     "TAI": "PEG Taiwan (TAI)",
+    "TAI_TWO": "PEG Taiwan (TAI)",
     "KSC": "PEG Korea (KSC)",
     "SES": "PEG Singapore (SES)",
     "HKSE": "PEG Hong Kong (HKSE)",
     "SET": "PEG Thailand (SET)",
     "KLS": "PEG Malaysia (KLS)",
     "MIL": "PEG Italy (MIL)",
+    "JPX": "PEG Japan (JPX)",
+    "LSE": "PEG UK (LSE)",
+}
+
+# Local benchmark name per exchange key. The "spy" field in each JSON
+# carries values for whichever benchmark the strategy used.
+BENCHMARK_NAMES = {
+    "NYSE_NASDAQ_AMEX": "S&P 500",
+    "NSE": "Sensex",
+    "JNB": "S&P 500",
+    "TSX": "TSX Composite",
+    "STO": "OMX Stockholm 30",
+    "OSL": "Oslo All Share",
+    "JKT": "S&P 500",
+    "SHZ_SHH": "SSE Composite",
+    "SHH": "SSE Composite",
+    "XETRA": "DAX",
+    "SIX": "SMI",
+    "TAI": "TAIEX",
+    "TAI_TWO": "TAIEX",
+    "KSC": "KOSPI",
+    "SES": "STI",
+    "HKSE": "Hang Seng",
+    "SET": "SET Index",
+    "KLS": "S&P 500",
+    "MIL": "S&P 500",
+    "JPX": "Nikkei 225",
+    "LSE": "FTSE 100",
 }
 
 
@@ -65,8 +95,8 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
-    """Get SPY cumulative from any exchange (all have same SPY data)."""
+def get_benchmark_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
+    """Get cumulative growth of the benchmark series stored under 'spy' key."""
     ex = data[ref_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
@@ -77,15 +107,16 @@ def get_spy_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Generate cumulative growth chart for given exchanges vs local benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
     if ref_key is None:
         ref_key = exchanges[0]
-    spy_years, spy_vals = get_spy_cumulative(ref_key)
-    spy_cagr = data[ref_key]["spy"]["cagr"]
-    ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+    bench_years, bench_vals = get_benchmark_cumulative(ref_key)
+    bench_cagr = data[ref_key]["spy"]["cagr"]
+    bench_name = BENCHMARK_NAMES.get(ref_key, "Benchmark")
+    ax.plot(bench_years, bench_vals, color=COLORS["SPY"], linewidth=1.8,
+            label=f"{bench_name} ({bench_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -95,21 +126,21 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
         ax.plot(years, vals, color=COLORS.get(ex_key, "#95a5a6"), linewidth=2.2, label=label)
 
         final_k = vals[-1] / 1000
-        ax.annotate(f"${final_k:,.0f}K",
+        ax.annotate(f"{final_k:,.0f}K",
                     xy=(years[-1], vals[-1]),
                     xytext=(8, 0), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS.get(ex_key, "#95a5a6"))
 
-    spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(f"${spy_final_k:,.0f}K",
-                xy=(spy_years[-1], spy_vals[-1]),
+    bench_final_k = bench_vals[-1] / 1000
+    ax.annotate(f"{bench_final_k:,.0f}K",
+                xy=(bench_years[-1], bench_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
+    ax.set_ylabel("Portfolio Value", fontsize=12, fontweight="bold")
     ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"{x:,.0f}"))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_axisbelow(True)
@@ -126,10 +157,12 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
 
 
 def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart for given exchanges vs SPY."""
-    ex = data[exchanges[0]]
+    """Generate annual returns bar chart for given exchanges vs local benchmark."""
+    ex_key = exchanges[0]
+    ex = data[ex_key]
     years = [ar["year"] for ar in ex["annual_returns"]]
-    spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
+    bench_returns = [ar["spy"] for ar in ex["annual_returns"]]
+    bench_name = BENCHMARK_NAMES.get(ex_key, "Benchmark")
 
     n_series = len(exchanges) + 1
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -138,8 +171,8 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     x = list(range(len(years)))
     offsets = [i - (n_series - 1) * width / 2 for i in x]
 
-    ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+    ax.bar([o + 0 * width for o in offsets], bench_returns, width,
+           label=bench_name, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -271,20 +304,20 @@ chart_annual_bars(
 print("Generating charts for blogs/india/...")
 chart_cumulative(
     ["NSE"], "india_cumulative_growth.png",
-    "Growth of $10,000: PEG Ratio India vs S&P 500 (2000-2025)",
-    "NSE (returns in INR, benchmark in USD)"
+    "Growth of 10,000: PEG Ratio India vs Sensex (2000-2025)",
+    "NSE (returns in INR, benchmark Sensex in INR)"
 )
 chart_annual_bars(
     ["NSE"], "india_annual_returns.png",
-    "PEG Ratio India vs S&P 500: Year-by-Year Returns (2000-2025)",
+    "PEG Ratio India vs Sensex: Year-by-Year Returns (2000-2025)",
     "NSE (returns in INR)"
 )
 
 print("Generating charts for blogs/southafrica/...")
 chart_cumulative(
     ["JNB"], "southafrica_cumulative_growth.png",
-    "Growth of $10,000: PEG Ratio South Africa vs S&P 500 (2000-2025)",
-    "JNB (returns in ZAR, benchmark in USD)"
+    "Growth of 10,000: PEG Ratio South Africa vs S&P 500 (2000-2025)",
+    "JNB (returns in ZAR, benchmark S&P 500 in USD)"
 )
 chart_annual_bars(
     ["JNB"], "southafrica_annual_returns.png",
@@ -295,25 +328,37 @@ chart_annual_bars(
 print("Generating charts for blogs/canada/...")
 chart_cumulative(
     ["TSX"], "canada_cumulative_growth.png",
-    "Growth of $10,000: PEG Ratio Canada vs S&P 500 (2000-2025)",
-    "TSX (returns in CAD, benchmark in USD)"
+    "Growth of 10,000: PEG Ratio Canada vs TSX Composite (2000-2025)",
+    "TSX (returns in CAD, benchmark TSX Composite in CAD)"
 )
 chart_annual_bars(
     ["TSX"], "canada_annual_returns.png",
-    "PEG Ratio Canada vs S&P 500: Year-by-Year Returns (2000-2025)",
+    "PEG Ratio Canada vs TSX Composite: Year-by-Year Returns (2000-2025)",
     "TSX (returns in CAD)"
 )
 
 print("Generating charts for blogs/sweden/...")
 chart_cumulative(
     ["STO"], "sweden_cumulative_growth.png",
-    "Growth of $10,000: PEG Ratio Sweden vs S&P 500 (2000-2025)",
-    "STO (returns in SEK, benchmark in USD)"
+    "Growth of 10,000: PEG Ratio Sweden vs OMX Stockholm 30 (2000-2025)",
+    "STO (returns in SEK, benchmark OMX30 in SEK)"
 )
 chart_annual_bars(
     ["STO"], "sweden_annual_returns.png",
-    "PEG Ratio Sweden vs S&P 500: Year-by-Year Returns (2000-2025)",
+    "PEG Ratio Sweden vs OMX Stockholm 30: Year-by-Year Returns (2000-2025)",
     "STO (returns in SEK)"
+)
+
+print("Generating charts for blogs/japan/...")
+chart_cumulative(
+    ["JPX"], "japan_cumulative_growth.png",
+    "Growth of 10,000: PEG Ratio Japan vs Nikkei 225 (2000-2025)",
+    "JPX (returns in JPY, benchmark Nikkei 225 in JPY)"
+)
+chart_annual_bars(
+    ["JPX"], "japan_annual_returns.png",
+    "PEG Ratio Japan vs Nikkei 225: Year-by-Year Returns (2000-2025)",
+    "JPX (returns in JPY)"
 )
 
 print("Generating charts for blogs/comparison/...")
