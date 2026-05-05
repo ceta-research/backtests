@@ -43,7 +43,8 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, LOCAL_INDEX_BENCHMARKS, get_local_benchmark
+from data_utils import (query_parquet, LOCAL_INDEX_BENCHMARKS, get_local_benchmark,
+                        remove_price_oscillations)
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -52,6 +53,8 @@ from cli_utils import (add_common_args, resolve_exchanges, print_header,
 MIN_ESTIMATE = 0.01           # |epsEstimated| > $0.01 (avoid extreme ratios)
 MAX_SURPRISE = 2.0            # Cap surprise at 200% to reduce outlier noise
 MAX_RETURN = 2.0              # Cap individual event returns at 200%
+MIN_ENTRY_PRICE = 1.0         # Skip events with entry price < $1 (bad adjClose, penny stocks)
+MAX_SINGLE_RETURN = 2.0       # Skip events with single-period return > 200% (price artifacts)
 WINSORIZE_PCT = 1.0           # Winsorize at 1st/99th percentile
 WINDOWS = [1, 5, 21, 63]      # Trading day windows post-event
 START_YEAR = 2000
@@ -183,6 +186,12 @@ def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=Fa
     con.execute("CREATE INDEX idx_prices ON prices(symbol, trade_date)")
     print(f"    -> {count} price rows")
 
+    # Data quality: remove rows where adjClose oscillates (phantom holiday rows,
+    # broken split adjustments). Must run BEFORE any price lookups.
+    osc = remove_price_oscillations(con, table_name="prices", verbose=verbose)
+    if osc.get("rows_removed", 0) > 0:
+        print(f"    -> oscillation cleanup: removed {osc['rows_removed']} rows from {osc['symbols_affected']} symbols")
+
     # 6. Build trading day calendar from benchmark
     con.execute(f"""
         CREATE TABLE trading_days AS
@@ -225,6 +234,7 @@ def compute_event_returns(con, windows=WINDOWS, offset_days=1, verbose=False):
     print(f"    -> {n_mapped} events mapped to trading days")
 
     # Step 2: Get entry prices (T+offset for MOC execution)
+    # Apply MIN_ENTRY_PRICE filter: skip penny stocks and broken adjClose data.
     entry_label = f"T+{offset_days}" if offset_days > 0 else "T+0"
     print(f"    Getting {entry_label} prices (entry)...")
     con.execute(f"""
@@ -237,10 +247,11 @@ def compute_event_returns(con, windows=WINDOWS, offset_days=1, verbose=False):
         JOIN trading_days td_entry ON td_entry.day_num = et.t0_num + {offset_days}
         JOIN prices sp ON et.symbol = sp.symbol AND td_entry.trade_date = sp.trade_date
         JOIN prices bp ON bp.symbol = '{benchmark}' AND td_entry.trade_date = bp.trade_date
-        WHERE sp.adjClose > 0 AND bp.adjClose > 0
+        WHERE sp.adjClose >= {MIN_ENTRY_PRICE} AND bp.adjClose > 0
     """)
     n_priced = con.execute("SELECT COUNT(*) FROM event_base").fetchone()[0]
-    print(f"    -> {n_priced} events with T+0 prices")
+    n_dropped_entry = n_mapped - n_priced
+    print(f"    -> {n_priced} events with entry prices ({n_dropped_entry} dropped: missing/penny stock)")
 
     # Drop intermediate table to free memory
     con.execute("DROP TABLE event_t0")
@@ -251,6 +262,8 @@ def compute_event_returns(con, windows=WINDOWS, offset_days=1, verbose=False):
 
         # Join event_base -> trading_days (target day_num) -> prices
         # Windows measured from entry (T+offset), so target = entry_num + w
+        # Filter MAX_SINGLE_RETURN: drop events with abs raw return > MAX_SINGLE_RETURN
+        # (catches symbol reassignments, broken adjClose, extreme price artifacts).
         con.execute(f"""
             CREATE OR REPLACE TABLE window_{w}_returns AS
             SELECT eb.symbol, eb.event_date,
@@ -262,10 +275,11 @@ def compute_event_returns(con, windows=WINDOWS, offset_days=1, verbose=False):
             JOIN trading_days td ON td.day_num = eb.entry_num + {w}
             JOIN prices sp ON eb.symbol = sp.symbol AND td.trade_date = sp.trade_date
             JOIN prices bp ON bp.symbol = '{benchmark}' AND td.trade_date = bp.trade_date
+            WHERE ABS((sp.adjClose - eb.stock_t0) / eb.stock_t0) <= {MAX_SINGLE_RETURN}
         """)
 
         n_computed = con.execute(f"SELECT COUNT(*) FROM window_{w}_returns").fetchone()[0]
-        print(f"      -> {n_computed} events with T+{w} returns")
+        print(f"      -> {n_computed} events with T+{w} returns (after {MAX_SINGLE_RETURN*100:.0f}% return filter)")
 
     # Step 4: Join all windows and extract results
     print("    Joining window results...")
