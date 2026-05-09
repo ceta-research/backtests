@@ -47,8 +47,8 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                        get_local_benchmark, get_local_currency, get_benchmark_return,
+                        LOCAL_INDEX_BENCHMARKS, remove_price_oscillations)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -83,13 +83,27 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Returns DuckDB connection or None.
     """
+    # Quality filters at universe selection: exclude funds, ETFs, delisted tickers.
+    # Currency filter on cash_flow_statement excludes foreign-listed parent filings
+    # (e.g., Lam Research's German XETRA listing reports USD against EUR mktcap,
+    # producing unit-mismatched FCF yields).
+    quality_filters = "AND isFund = false AND isEtf = false AND isActivelyTrading = true"
+    local_ccy = get_local_currency(exchanges) if exchanges else None
+    ccy_filter = f"AND reportedCurrency = '{local_ccy}'" if local_ccy else ""
+
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        exchange_where = f"WHERE exchange IN ({ex_filter}) {quality_filters}"
+        sym_filter_sql = (
+            f"symbol IN (SELECT DISTINCT symbol FROM profile "
+            f"WHERE exchange IN ({ex_filter}) {quality_filters})"
+        )
     else:
-        exchange_where = ""
-        sym_filter_sql = "1=1"
+        exchange_where = f"WHERE 1=1 {quality_filters}"
+        sym_filter_sql = (
+            f"symbol IN (SELECT DISTINCT symbol FROM profile "
+            f"WHERE 1=1 {quality_filters})"
+        )
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -101,12 +115,14 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     if not profiles:
         print("  No symbols found for these exchanges.")
         return None
-    print(f"  Universe: {len(profiles)} symbols")
+    print(f"  Universe: {len(profiles)} symbols (post quality filters)")
+    if local_ccy:
+        print(f"  Currency filter: reportedCurrency = '{local_ccy}'")
 
     sym_values = ",".join(f"('{r['symbol']}')" for r in profiles)
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
 
-    # 2. FCF from cash_flow_statement (FY only, positive FCF)
+    # 2. FCF from cash_flow_statement (FY only, positive FCF, local currency)
     queries = [
         ("fcf_cache", f"""
             SELECT symbol, freeCashFlow, dateEpoch AS filing_epoch, period
@@ -114,6 +130,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
             WHERE period = 'FY'
               AND freeCashFlow IS NOT NULL
               AND freeCashFlow > 0
+              {ccy_filter}
               AND {sym_filter_sql}
         """, "cash flow (free cash flow)"),
 

@@ -92,6 +92,53 @@ LOCAL_INDEX_NAMES = {
 }
 
 
+# Local reporting currency by exchange (matches cash_flow_statement.reportedCurrency)
+# Used to filter out foreign-listed ADRs whose parent filings are in a different currency
+# than the local listing's market cap, which produces unit-mismatched FCF yields.
+LOCAL_CURRENCY = {
+    "NYSE": "USD", "NASDAQ": "USD", "AMEX": "USD",
+    "TSX": "CAD", "TSXV": "CAD",
+    "XETRA": "EUR", "FSX": "EUR",
+    "STO": "SEK",
+    "LSE": "GBP",
+    "JPX": "JPY",
+    "HKSE": "HKD",
+    "KSC": "KRW", "KOE": "KRW",
+    "TAI": "TWD", "TWO": "TWD",
+    "SHH": "CNY", "SHZ": "CNY",
+    "NSE": "INR", "BSE": "INR",
+    "SIX": "CHF",
+    "SET": "THB",
+    "OSL": "NOK",
+    "SAU": "SAR",
+    "ASX": "AUD",
+    "SAO": "BRL",
+    "SGX": "SGD", "SES": "SGD",
+    "JNB": "ZAR",
+}
+
+
+def get_local_currency(exchanges):
+    """Get the reportedCurrency for a set of exchanges.
+
+    Returns the local currency string for filtering cash_flow_statement
+    by reportedCurrency. Single-currency presets only; mixed-currency
+    exchange sets return None (caller should not apply the filter).
+
+    Args:
+        exchanges: list[str] or None - exchange codes
+
+    Returns:
+        str or None - currency code, or None if mixed/unknown
+    """
+    if not exchanges:
+        return None
+    currencies = {LOCAL_CURRENCY.get(ex) for ex in exchanges if LOCAL_CURRENCY.get(ex)}
+    if len(currencies) == 1:
+        return currencies.pop()
+    return None
+
+
 def get_local_benchmark(exchanges):
     """Get the local currency index symbol for a set of exchanges.
 
