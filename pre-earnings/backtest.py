@@ -49,7 +49,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_local_benchmark, LOCAL_INDEX_BENCHMARKS
+from data_utils import query_parquet, get_local_benchmark, remove_price_oscillations, LOCAL_INDEX_BENCHMARKS
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -60,6 +60,9 @@ MIN_PRIOR_FOR_HABITUAL = 8   # Min prior quarters for habitual_beater/misser lab
 HABITUAL_BEATER_THRESHOLD = 0.75   # Beat rate > 75% = habitual beater
 HABITUAL_MISSER_THRESHOLD = 0.25   # Beat rate < 25% = habitual misser
 WINSORIZE_PCT = 1.0          # Winsorize at 1st/99th percentile
+
+MIN_ENTRY_PRICE = 1.0        # Skip events with pre-window price < $1 (bad adjClose, penny stocks)
+MAX_SINGLE_RETURN = 2.0      # Skip events with |window return| > 200% (price data artifacts)
 
 PRE_WINDOWS = [10, 5, 1]     # Trading days before event (T-10, T-5, T-1)
 POST_WINDOWS = [1]           # Trading days after event (T+1, announcement day)
@@ -243,6 +246,9 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     con.execute("CREATE INDEX idx_prices ON prices(symbol, trade_date)")
     print(f"    -> {price_count} price rows")
 
+    # Data quality: remove phantom-holiday rows and broken split adjustments (1-2 day adjClose spikes that revert)
+    remove_price_oscillations(con, table_name="prices", verbose=verbose)
+
     # 7. Build trading day calendar from benchmark
     con.execute(f"""
         CREATE TABLE trading_days AS
@@ -301,6 +307,7 @@ def compute_event_returns(con, verbose=False):
     # Step 3: Compute PRE-event returns (T-W to T0)
     # Return = (price_T0 - price_T-W) / price_T-W (stock went up before earnings)
     # Abnormal = stock_window_return - benchmark_window_return
+    # Data quality filter: skip events where entry price < MIN_ENTRY_PRICE or |stock_ret| > MAX_SINGLE_RETURN
     for w in PRE_WINDOWS:
         print(f"    Computing T-{w} pre-event returns...")
         con.execute(f"""
@@ -317,11 +324,15 @@ def compute_event_returns(con, verbose=False):
             JOIN trading_days td ON td.day_num = eb.t0_num - {w}
             JOIN prices sp ON eb.symbol = sp.symbol AND td.trade_date = sp.trade_date
             JOIN prices bp ON bp.symbol = '{benchmark}' AND td.trade_date = bp.trade_date
+            WHERE sp.adjClose >= {MIN_ENTRY_PRICE}
+              AND eb.stock_t0 >= {MIN_ENTRY_PRICE}
+              AND ABS((eb.stock_t0 - sp.adjClose) / sp.adjClose) <= {MAX_SINGLE_RETURN}
         """)
         n = con.execute(f"SELECT COUNT(*) FROM pre_window_{w}_returns").fetchone()[0]
         print(f"      -> {n} events with T-{w} returns")
 
     # Step 4: Compute POST-event returns (T0 to T+W)
+    # Data quality filter: skip events where entry price < MIN_ENTRY_PRICE or |stock_ret| > MAX_SINGLE_RETURN
     for w in POST_WINDOWS:
         print(f"    Computing T+{w} post-event returns...")
         con.execute(f"""
@@ -338,6 +349,9 @@ def compute_event_returns(con, verbose=False):
             JOIN trading_days td ON td.day_num = eb.t0_num + {w}
             JOIN prices sp ON eb.symbol = sp.symbol AND td.trade_date = sp.trade_date
             JOIN prices bp ON bp.symbol = '{benchmark}' AND td.trade_date = bp.trade_date
+            WHERE eb.stock_t0 >= {MIN_ENTRY_PRICE}
+              AND sp.adjClose >= {MIN_ENTRY_PRICE}
+              AND ABS((sp.adjClose - eb.stock_t0) / eb.stock_t0) <= {MAX_SINGLE_RETURN}
         """)
         n = con.execute(f"SELECT COUNT(*) FROM post_window_{w}_returns").fetchone()[0]
         print(f"      -> {n} events with T+{w} returns")
