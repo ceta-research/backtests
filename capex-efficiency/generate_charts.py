@@ -18,6 +18,7 @@ COLORS = {
     "XETRA": "#27ae60",
     "China": "#c0392b",
     "LSE": "#8e44ad",
+    "Switzerland": "#d4ac0d",
     "SPY": "#aab7b8",
 }
 
@@ -27,6 +28,7 @@ EXCHANGE_LABELS = {
     "XETRA": "Capex Efficiency XETRA (Germany)",
     "China": "Capex Efficiency China (SHZ+SHH)",
     "LSE": "Capex Efficiency UK (LSE)",
+    "Switzerland": "Capex Efficiency Switzerland (SIX)",
 }
 
 
@@ -104,21 +106,22 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
 
 
 def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart for given exchanges vs SPY."""
+    """Generate annual returns bar chart for given exchanges vs local benchmark."""
     ex = data[exchanges[0]]
     years = [ar["year"] for ar in ex["annual_returns"]]
-    spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
+    bench_returns = [ar["spy"] for ar in ex["annual_returns"]]
+    bench_name = ex.get("benchmark_name", "S&P 500")
 
-    n_series = len(exchanges) + 1  # exchanges + SPY
+    n_series = len(exchanges) + 1  # exchanges + benchmark
     fig, ax = plt.subplots(figsize=(14, 5))
 
     width = 0.8 / n_series
     x = list(range(len(years)))
 
-    # SPY bars
+    # Benchmark bars
     offsets = [i - (n_series - 1) * width / 2 for i in x]
-    ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+    ax.bar([o + 0 * width for o in offsets], bench_returns, width,
+           label=bench_name, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -166,10 +169,10 @@ def chart_comparison_cagr(filename):
     fig, ax = plt.subplots(figsize=(10, 7))
     bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
 
-    # SPY reference line
+    # SPY reference line (US benchmark only here for cross-market comparison)
     spy_cagr = data["US_MAJOR"]["spy"]["cagr"]
     ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr}% CAGR)")
+               label=f"S&P 500 ({spy_cagr}% CAGR, US bench)")
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=11)
@@ -289,6 +292,18 @@ chart_annual_bars(
     ["LSE"], "2_uk_annual_returns.png",
     "Capital Efficiency UK vs FTSE 100: Year-by-Year Returns (2000-2024)",
     "LSE (returns in GBP)"
+)
+
+print("Generating charts for Switzerland blog...")
+chart_cumulative(
+    ["Switzerland"], "1_switzerland_cumulative_growth.png",
+    "Growth of $10,000: Capital Efficiency Switzerland vs SMI (2000-2025)",
+    "SIX (returns in CHF)"
+)
+chart_annual_bars(
+    ["Switzerland"], "2_switzerland_annual_returns.png",
+    "Capital Efficiency Switzerland vs SMI: Year-by-Year Returns (2000-2024)",
+    "SIX (returns in CHF)"
 )
 
 print("Generating charts for comparison blog...")

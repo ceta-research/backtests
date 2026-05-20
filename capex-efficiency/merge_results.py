@@ -10,21 +10,23 @@ from metrics import compute_annual_returns
 
 results_dir = Path(__file__).parent / "results"
 
-# Exchange mapping: preset_name -> exchange_key
+# Mapping: chart_key -> (metrics_filename_stem, benchmark_name)
+# chart_key is what generate_charts.py uses (must match exchange_comparison.json keys)
 exchanges = {
-    "India": ("BSE", "NSE"),  # Will combine BSE+NSE returns
-    "US_MAJOR": ("US_MAJOR",),
-    "XETRA": ("XETRA",),
-    "China": ("SHZ", "SHH"),  # Will combine SHZ+SHH returns
+    "US_MAJOR":    ("US_MAJOR", "S&P 500"),
+    "India":       ("NSE", "Sensex"),
+    "XETRA":       ("XETRA", "DAX"),
+    "China":       ("China", "SSE Composite"),
+    "LSE":         ("LSE", "FTSE 100"),
+    "Switzerland": ("SIX", "SMI"),
 }
 
 output = {}
 
-for preset_name, exchange_codes in exchanges.items():
-    print(f"Processing {preset_name}...")
+for chart_key, (metrics_stem, bench_name) in exchanges.items():
+    print(f"Processing {chart_key} ({metrics_stem})...")
 
-    # Load metrics JSON
-    metrics_file = results_dir / f"capex-efficiency_metrics_{preset_name}.json"
+    metrics_file = results_dir / f"capex-efficiency_metrics_{metrics_stem}.json"
     if not metrics_file.exists():
         print(f"  Skipping: {metrics_file} not found")
         continue
@@ -32,25 +34,21 @@ for preset_name, exchange_codes in exchanges.items():
     with open(metrics_file) as f:
         metrics = json.load(f)
 
-    # Load returns CSV
-    returns_file = results_dir / f"returns_{preset_name}.csv"
+    returns_file = results_dir / f"returns_{metrics_stem}.csv"
     if not returns_file.exists():
         print(f"  Skipping: {returns_file} not found")
         continue
 
     df = pd.read_csv(returns_file)
 
-    # Extract period returns and dates
     period_returns = df["return"].tolist()
     period_dates = df["start_date"].tolist()
-    spy_returns = [0.08] * len(period_returns)  # Placeholder (annual)
+    bench_returns_per_period = df["spy_return"].tolist()  # actually local benchmark now
 
-    # Compute annual returns
     annual_returns_data = compute_annual_returns(
-        period_returns, spy_returns, period_dates, periods_per_year=1
+        period_returns, bench_returns_per_period, period_dates, periods_per_year=1
     )
 
-    # Convert decimals to percentages for annual_returns
     annual_returns = [
         {
             "year": ar["year"],
@@ -61,9 +59,8 @@ for preset_name, exchange_codes in exchanges.items():
         for ar in annual_returns_data
     ]
 
-    # Build output structure matching exchange_comparison.json format
-    # Convert decimal values to percentages where needed
-    output[preset_name] = {
+    output[chart_key] = {
+        "benchmark_name": bench_name,
         "portfolio": {
             "cagr": round(metrics["portfolio"]["cagr"] * 100, 2),
             "total_return": round(metrics["portfolio"]["total_return"] * 100, 2),
@@ -80,7 +77,7 @@ for preset_name, exchange_codes in exchanges.items():
             "pct_negative_periods": round(metrics["portfolio"]["pct_negative_periods"] * 100, 2),
             "max_consecutive_losses": metrics["portfolio"]["max_consecutive_losses"],
         },
-        "spy": {
+        "spy": {  # key name kept for generate_charts.py back-compat; values are local benchmark
             "cagr": round(metrics["benchmark"]["cagr"] * 100, 2),
             "total_return": round(metrics["benchmark"]["total_return"] * 100, 2),
             "max_drawdown": round(metrics["benchmark"]["max_drawdown"] * 100, 2) if metrics["benchmark"]["max_drawdown"] != 0 else 0.0,
@@ -108,9 +105,8 @@ for preset_name, exchange_codes in exchanges.items():
         "invested_periods": len(period_returns),
     }
 
-    print(f"  ✓ {preset_name}: {output[preset_name]['portfolio']['cagr']}% CAGR")
+    print(f"  ✓ {chart_key}: {output[chart_key]['portfolio']['cagr']}% CAGR")
 
-# Save to exchange_comparison.json
 output_file = results_dir / "exchange_comparison.json"
 with open(output_file, "w") as f:
     json.dump(output, f, indent=2)
