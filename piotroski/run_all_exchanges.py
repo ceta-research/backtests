@@ -16,7 +16,9 @@ import subprocess
 import sys
 import time
 
-# Exchanges to test, ordered by expected data depth
+# Exchanges to test, ordered by expected data depth.
+# ASX, SAO, SGX excluded due to fatal FMP adjClose data quality issues
+# (see backtests/DATA_QUALITY_ISSUES.md).
 EXCHANGES_TO_TEST = [
     # Tier 1: Large, deep data
     ("us", "US_MAJOR"),
@@ -26,17 +28,14 @@ EXCHANGES_TO_TEST = [
     ("hongkong", "HKSE"),
     ("germany", "XETRA"),
     ("korea", "KSC"),
-    ("australia", "ASX"),
     # Tier 2: Good data, smaller universe
     ("china", "China"),
     ("taiwan", "Taiwan"),
     ("canada", "Canada"),
     ("sweden", "STO"),
     ("thailand", "SET"),
-    ("brazil", "SAO"),
     ("southafrica", "JSE"),
     ("switzerland", "SIX"),
-    ("singapore", "SGX"),
     ("norway", "OSL"),
 ]
 
