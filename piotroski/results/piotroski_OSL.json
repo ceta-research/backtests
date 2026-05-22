@@ -1,101 +1,211 @@
 {
   "universe": "OSL",
-  "period": "1985-2025 (32 years)",
+  "period": "1985-2025 (12 years)",
   "rebalancing": "annual (April 1)",
   "weighting": "equal weight",
   "transaction_costs": "0.1-0.5% per trade (size-tiered)",
   "portfolios": {
     "score_8_9": {
-      "cagr": -1.51,
-      "total_return": -38.64,
-      "volatility": 24.3,
-      "sharpe": -0.186,
-      "sortino": -0.26,
-      "calmar": -0.017,
-      "max_drawdown": -88.1,
-      "var_95": -29.4,
-      "pct_negative_years": 12.0,
+      "cagr": 4.17,
+      "total_return": 63.2,
+      "volatility": 27.31,
+      "sharpe": 0.043,
+      "sortino": 0.065,
+      "calmar": 0.072,
+      "max_drawdown": -58.2,
+      "var_95": -58.2,
+      "pct_negative_years": 17.0,
       "max_consecutive_losses": 1
     },
     "score_0_2": {
-      "cagr": 2.1,
-      "total_return": 94.43,
-      "volatility": 26.2,
-      "sharpe": -0.034,
-      "sortino": -0.079,
-      "calmar": 0.037,
-      "max_drawdown": -56.8,
-      "var_95": -15.5,
-      "pct_negative_years": 6.0,
+      "cagr": 5.41,
+      "total_return": 88.1,
+      "volatility": 22.04,
+      "sharpe": 0.109,
+      "sortino": 0.444,
+      "calmar": 0.401,
+      "max_drawdown": -13.5,
+      "var_95": -13.5,
+      "pct_negative_years": 8.0,
       "max_consecutive_losses": 1
     },
     "all_value": {
-      "cagr": 12.06,
-      "total_return": 3723.38,
-      "volatility": 34.58,
-      "sharpe": 0.262,
-      "sortino": 0.707,
-      "calmar": 0.225,
-      "max_drawdown": -53.6,
-      "var_95": -30.7,
-      "pct_negative_years": 19.0,
-      "max_consecutive_losses": 2
+      "cagr": 16.7,
+      "total_return": 537.81,
+      "volatility": 29.68,
+      "sharpe": 0.461,
+      "sortino": 1.259,
+      "calmar": 0.53,
+      "max_drawdown": -31.5,
+      "var_95": -31.5,
+      "pct_negative_years": 17.0,
+      "max_consecutive_losses": 1
     },
     "sp500": {
-      "cagr": 10.18,
-      "total_return": 2127.52,
-      "volatility": 21.05,
-      "sharpe": 0.341,
-      "sortino": 0.68,
-      "calmar": 0.25,
-      "max_drawdown": -40.8,
-      "var_95": -23.7,
-      "pct_negative_years": 19.0,
-      "max_consecutive_losses": 2
+      "cagr": 10.52,
+      "total_return": 232.01,
+      "volatility": 17.71,
+      "sharpe": 0.424,
+      "sortino": 0.919,
+      "calmar": 0.509,
+      "max_drawdown": -20.7,
+      "var_95": -20.7,
+      "pct_negative_years": 25.0,
+      "max_consecutive_losses": 1
     }
   },
-  "spread_cagr": -3.61,
+  "spread_cagr": -1.24,
   "alpha_decomposition": {
-    "selection_alpha": -13.6,
-    "avoidance_alpha": 10.0
+    "selection_alpha": -12.5,
+    "avoidance_alpha": 11.3
   },
   "decade_breakdown": [
     {
-      "decade": "1990s",
-      "high_return": 0.0,
-      "low_return": 0.0,
-      "spread": 0.0
-    },
-    {
-      "decade": "2000s",
-      "high_return": 5.5,
-      "low_return": 5.6,
-      "spread": -0.1
-    },
-    {
       "decade": "2010s",
-      "high_return": -0.8,
-      "low_return": 7.0,
-      "spread": -7.8
+      "high_return": 3.3,
+      "low_return": 10.1,
+      "spread": -6.8
     },
     {
       "decade": "2020-25",
-      "high_return": 14.6,
-      "low_return": 5.6,
-      "spread": 9.0
+      "high_return": 15.4,
+      "low_return": 2.8,
+      "spread": 12.7
     }
   ],
   "publication_effect": {
-    "pre_2000_spread": 0.0,
-    "post_2000_spread": -1.3
+    "pre_2000_spread": null,
+    "post_2000_spread": 1.3
   },
   "high_vs_spy": {
-    "excess_cagr": -11.7,
-    "information_ratio": -0.323,
-    "tracking_error": 26.2,
-    "up_capture": 43.2,
-    "down_capture": 88.0,
-    "beta": 0.391,
-    "alpha": -7.33
-  }
+    "excess_cagr": -6.35,
+    "information_ratio": -0.178,
+    "tracking_error": 19.51,
+    "up_capture": 90.7,
+    "down_capture": 171.8,
+    "beta": 1.083,
+    "alpha": -6.97
+  },
+  "annual_returns": [
+    {
+      "year": 2013,
+      "high": 20.6,
+      "low": 0.0,
+      "all": 21.0,
+      "spy": 18.84,
+      "high_count": 2,
+      "low_count": 0,
+      "all_count": 7
+    },
+    {
+      "year": 2014,
+      "high": 5.78,
+      "low": 0.0,
+      "all": 11.55,
+      "spy": 11.76,
+      "high_count": 2,
+      "low_count": 0,
+      "all_count": 8
+    },
+    {
+      "year": 2015,
+      "high": 0.0,
+      "low": 0.0,
+      "all": -12.21,
+      "spy": -11.23,
+      "high_count": 0,
+      "low_count": 0,
+      "all_count": 8
+    },
+    {
+      "year": 2016,
+      "high": 55.06,
+      "low": 70.82,
+      "all": 56.39,
+      "spy": 23.94,
+      "high_count": 1,
+      "low_count": 1,
+      "all_count": 9
+    },
+    {
+      "year": 2017,
+      "high": 0.0,
+      "low": 0.0,
+      "all": 12.82,
+      "spy": 19.76,
+      "high_count": 0,
+      "low_count": 0,
+      "all_count": 11
+    },
+    {
+      "year": 2018,
+      "high": 0.0,
+      "low": 0.0,
+      "all": 14.25,
+      "spy": 8.91,
+      "high_count": 0,
+      "low_count": 0,
+      "all_count": 12
+    },
+    {
+      "year": 2019,
+      "high": -58.17,
+      "low": 0.0,
+      "all": -31.48,
+      "spy": -20.68,
+      "high_count": 2,
+      "low_count": 0,
+      "all_count": 12
+    },
+    {
+      "year": 2020,
+      "high": 21.88,
+      "low": 0.0,
+      "all": 83.63,
+      "spy": 47.17,
+      "high_count": 1,
+      "low_count": 0,
+      "all_count": 13
+    },
+    {
+      "year": 2021,
+      "high": 24.66,
+      "low": 27.27,
+      "all": 33.26,
+      "spy": 22.38,
+      "high_count": 1,
+      "low_count": 1,
+      "all_count": 15
+    },
+    {
+      "year": 2022,
+      "high": -2.31,
+      "low": -13.48,
+      "all": 3.73,
+      "spy": -3.31,
+      "high_count": 2,
+      "low_count": 1,
+      "all_count": 14
+    },
+    {
+      "year": 2023,
+      "high": 0.0,
+      "low": 0.0,
+      "all": 23.24,
+      "spy": 13.81,
+      "high_count": 0,
+      "low_count": 0,
+      "all_count": 13
+    },
+    {
+      "year": 2024,
+      "high": 32.89,
+      "low": 0.0,
+      "all": 24.6,
+      "spy": 10.8,
+      "high_count": 3,
+      "low_count": 0,
+      "all_count": 13
+    }
+  ]
 }

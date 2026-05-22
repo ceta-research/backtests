@@ -36,7 +36,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
+from data_utils import query_parquet, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, filter_returns
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
@@ -45,6 +45,8 @@ from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktc
 # MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 PB_QUINTILE = 0.20  # Bottom 20% by P/B
 DEFAULT_FREQUENCY = "annual"
+MIN_ENTRY_PRICE = 1.0    # skip stocks with entry price < $1 (bad adjClose, penny stocks)
+MAX_SINGLE_RETURN = 2.0  # skip stocks with single-period return > 200% (price artifacts)
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
@@ -309,18 +311,23 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         track_returns = {}
         for name, portfolio in [("high", high), ("low", low), ("all", scored)]:
-            returns = []
+            symbol_data = []
             for sym, (score, mcap) in portfolio.items():
                 ep = get_price(con, sym, entry_date, offset_days=offset_days)
                 xp = get_price(con, sym, exit_date, offset_days=offset_days)
-                if ep and xp and ep > 0:
-                    raw_ret = (xp - ep) / ep
-                    if use_costs:
-                        cost = tiered_cost(mcap)
-                        net_ret = apply_costs(raw_ret, cost)
-                    else:
-                        net_ret = raw_ret
-                    returns.append(net_ret)
+                symbol_data.append((sym, ep, xp, mcap))
+            clean, _ = filter_returns(symbol_data,
+                                     min_entry_price=MIN_ENTRY_PRICE,
+                                     max_single_return=MAX_SINGLE_RETURN,
+                                     verbose=verbose)
+            returns = []
+            for sym, raw_ret, mcap in clean:
+                if use_costs:
+                    cost = tiered_cost(mcap)
+                    net_ret = apply_costs(raw_ret, cost)
+                else:
+                    net_ret = raw_ret
+                returns.append(net_ret)
             track_returns[name] = sum(returns) / len(returns) if returns else 0.0
 
         bench_return = get_benchmark_return(
