@@ -81,14 +81,40 @@ def get_spy_cumulative(initial=10000):
     return years, values
 
 
+def get_benchmark_cumulative(exchange_key, initial=10000):
+    """Get local benchmark cumulative from a single exchange's results.
+
+    The `spy` JSON field actually holds the local benchmark series after the
+    MOC/local-benchmark refactor; the key name is preserved for backward compat.
+    """
+    ex = data[exchange_key]
+    values = [initial]
+    years = [ex["annual_returns"][0]["year"] - 1]
+    for ar in ex["annual_returns"]:
+        values.append(values[-1] * (1 + ar["spy"] / 100))
+        years.append(ar["year"])
+    return years, values
+
+
 def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Generate cumulative growth chart for given exchanges.
+
+    Single-exchange charts use that exchange's local benchmark. Multi-exchange
+    charts use SPY as the cross-market reference.
+    """
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
-    spy_cagr = data["us"]["spy"]["cagr"]
+    if len(exchanges) == 1:
+        bench_years, bench_vals = get_benchmark_cumulative(exchanges[0])
+        bench_cagr = data[exchanges[0]]["spy"]["cagr"]
+        bench_name = data[exchanges[0]].get("benchmark_name", "S&P 500")
+    else:
+        bench_years, bench_vals = get_spy_cumulative()
+        bench_cagr = data["us"]["spy"]["cagr"]
+        bench_name = "S&P 500"
+    spy_years, spy_vals = bench_years, bench_vals
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{bench_name} ({bench_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -129,10 +155,11 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
 
 
 def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart for given exchanges vs SPY."""
+    """Generate annual returns bar chart for given exchanges vs local benchmark."""
     ex = data[exchanges[0]]
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
+    bench_label = ex.get("benchmark_name", "S&P 500") if len(exchanges) == 1 else "S&P 500"
 
     n_series = len(exchanges) + 1
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -142,7 +169,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench_label, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -268,61 +295,73 @@ chart_annual_bars(
 print("Generating charts for India blog...")
 chart_cumulative(
     ["india"], "india_cumulative_growth.png",
-    "Growth of $10,000: High Yield + Quality India vs S&P 500 (2000-2025)",
-    "NSE (returns in INR, benchmark in USD)"
+    "Growth of $10,000: High Yield + Quality India vs Sensex (2000-2025)",
+    "NSE (returns in INR vs Sensex)"
 )
 chart_annual_bars(
     ["india"], "india_annual_returns.png",
-    "High Yield + Quality India vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "NSE (returns in INR)"
+    "High Yield + Quality India vs Sensex: Year-by-Year Returns (2000-2025)",
+    "NSE (returns in INR vs Sensex)"
 )
 
 print("Generating charts for Germany blog...")
 chart_cumulative(
     ["germany"], "germany_cumulative_growth.png",
-    "Growth of $10,000: High Yield + Quality Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
+    "Growth of $10,000: High Yield + Quality Germany vs DAX (2000-2025)",
+    "XETRA (returns in EUR vs DAX)"
 )
 chart_annual_bars(
     ["germany"], "germany_annual_returns.png",
-    "High Yield + Quality Germany vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "XETRA (returns in EUR)"
+    "High Yield + Quality Germany vs DAX: Year-by-Year Returns (2000-2025)",
+    "XETRA (returns in EUR vs DAX)"
 )
 
 print("Generating charts for UK blog...")
 chart_cumulative(
     ["uk"], "uk_cumulative_growth.png",
-    "Growth of $10,000: High Yield + Quality UK vs S&P 500 (2000-2025)",
-    "LSE (returns in GBP, benchmark in USD)"
+    "Growth of $10,000: High Yield + Quality UK vs FTSE 100 (2000-2025)",
+    "LSE (returns in GBP vs FTSE 100)"
 )
 chart_annual_bars(
     ["uk"], "uk_annual_returns.png",
-    "High Yield + Quality UK vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "LSE (returns in GBP)"
+    "High Yield + Quality UK vs FTSE 100: Year-by-Year Returns (2000-2025)",
+    "LSE (returns in GBP vs FTSE 100)"
 )
 
 print("Generating charts for Hong Kong blog...")
 chart_cumulative(
     ["hongkong"], "hongkong_cumulative_growth.png",
-    "Growth of $10,000: High Yield + Quality Hong Kong vs S&P 500 (2000-2025)",
-    "HKSE (HKD pegged to USD)"
+    "Growth of $10,000: High Yield + Quality Hong Kong vs Hang Seng (2000-2025)",
+    "HKSE (returns in HKD vs Hang Seng)"
 )
 chart_annual_bars(
     ["hongkong"], "hongkong_annual_returns.png",
-    "High Yield + Quality Hong Kong vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "HKSE (HKD pegged to USD)"
+    "High Yield + Quality Hong Kong vs Hang Seng: Year-by-Year Returns (2000-2025)",
+    "HKSE (returns in HKD vs Hang Seng)"
 )
 
 print("Generating charts for Sweden blog...")
 chart_cumulative(
     ["sweden"], "sweden_cumulative_growth.png",
-    "Growth of $10,000: High Yield + Quality Sweden vs S&P 500 (2000-2025)",
-    "STO (returns in SEK, benchmark in USD)"
+    "Growth of $10,000: High Yield + Quality Sweden vs OMX Stockholm 30 (2000-2025)",
+    "STO (returns in SEK vs OMX30)"
 )
 chart_annual_bars(
     ["sweden"], "sweden_annual_returns.png",
-    "High Yield + Quality Sweden vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "STO (returns in SEK)"
+    "High Yield + Quality Sweden vs OMX Stockholm 30: Year-by-Year Returns (2000-2025)",
+    "STO (returns in SEK vs OMX30)"
+)
+
+print("Generating charts for Canada blog...")
+chart_cumulative(
+    ["canada"], "canada_cumulative_growth.png",
+    "Growth of $10,000: High Yield + Quality Canada vs TSX Composite (2000-2025)",
+    "TSX (returns in CAD vs TSX Composite)"
+)
+chart_annual_bars(
+    ["canada"], "canada_annual_returns.png",
+    "High Yield + Quality Canada vs TSX Composite: Year-by-Year Returns (2000-2025)",
+    "TSX (returns in CAD vs TSX Composite)"
 )
 
 print("Generating comparison charts...")
