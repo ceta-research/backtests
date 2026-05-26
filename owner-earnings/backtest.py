@@ -76,7 +76,7 @@ EXCLUDED_PRESETS = {
     "france",       # PAR: pipeline gap (1 FY symbol in warehouse)
     "nyse",         # Covered by "us" preset
     "nasdaq",       # Covered by "us" preset
-    "uk",           # LSE: 651% return in 2010 (price data artifact)
+    # "uk" removed: 2010 LSE artifact now caught by MAX_SINGLE_RETURN filter
     "norway",       # OSL: 44% cash periods (11/25), universe too thin
     "germany",      # XETRA: adjClose split artifacts (DAP.DE, EL45.DE)
     "canada",       # TSX: adjClose split artifacts (SGU.V)
