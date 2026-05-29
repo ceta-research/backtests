@@ -87,7 +87,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         exchange_where = ""
 
     con = duckdb.connect(":memory:")
-    con.execute("SET memory_limit='4GB'")
+    con.execute("SET memory_limit='12GB'")
 
     # 1. Universe
     print("  Fetching exchange membership...")
