@@ -490,13 +490,20 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
             "pct_negative_periods": pct(s.get("pct_negative_periods")),
         }
 
+    # n_periods reports benchmark-valid periods (used for metrics).
+    # total_rebalances counts every rebalance the strategy actually ran, including
+    # those without benchmark data (relevant for OSL where ^OSEAX has FMP gaps).
+    # invested_periods is derived from total_rebalances so cash_periods +
+    # invested_periods = total_rebalances regardless of benchmark coverage.
+    total_rebalances = len(results)
     return {
         "universe": universe_name,
         "n_periods": len(valid),
+        "total_rebalances": total_rebalances,
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
         "cash_periods": cash_periods,
-        "invested_periods": len(valid) - cash_periods,
+        "invested_periods": total_rebalances - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
         "portfolio": format_series(p),
         "spy": format_series(b),
