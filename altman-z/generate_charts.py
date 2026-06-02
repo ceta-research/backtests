@@ -48,6 +48,7 @@ EXCHANGE_COLORS = {
     "LSE": "#16a085", "SIX": "#d35400", "STO": "#f39c12",
     "KSC": "#95a5a6", "SAO": "#c0392b", "Taiwan": "#e67e22",
     "SGX": "#2c3e50", "JSE": "#27ae60", "PAR": "#8e44ad",
+    "JPX": "#c0392b",
 }
 
 EXCHANGE_LABELS = {
@@ -58,7 +59,7 @@ EXCHANGE_LABELS = {
     "STO": "Sweden (STO)", "KSC": "Korea (KSC)",
     "SAO": "Brazil (SAO)", "Taiwan": "Taiwan (TAI+TWO)",
     "SGX": "Singapore (SGX)", "JSE": "South Africa (JNB)",
-    "PAR": "France (PAR)",
+    "PAR": "France (PAR)", "JPX": "Japan (JPX)",
 }
 
 FOOTER = ("Data: Ceta Research | Altman Z-Score, annual rebalance (April), "
