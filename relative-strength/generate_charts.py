@@ -75,15 +75,17 @@ def plot_cumulative(data, label, output_path):
     port_curve = cumulative_growth(port_rets)
     spy_curve = cumulative_growth(spy_rets)
 
+    bench_name = data.get("benchmark_name", "S&P 500")
+
     x = [years[0] - 1] + years
     fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.plot(x, port_curve, color=STRATEGY_COLOR, linewidth=2.5,
             label=f"Relative Strength  (CAGR: {data['portfolio']['cagr']:.1f}%)")
     ax.plot(x, spy_curve, color=BENCHMARK_COLOR, linewidth=1.8, linestyle="--",
-            label=f"S&P 500 (SPY)  (CAGR: {data['spy']['cagr']:.1f}%)")
+            label=f"{bench_name}  (CAGR: {data['spy']['cagr']:.1f}%)")
 
-    ax.set_title(f"Sector-Adjusted Momentum vs S&P 500\n{label}",
+    ax.set_title(f"Sector-Adjusted Momentum vs {bench_name}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Portfolio Value ($1 Start)", fontsize=12)
@@ -123,6 +125,8 @@ def plot_annual_returns(data, label, output_path):
     port_rets = [ar["portfolio"] for ar in annual]
     spy_rets = [ar["spy"] for ar in annual]
 
+    bench_name = data.get("benchmark_name", "S&P 500")
+
     x = np.arange(len(years))
     width = 0.38
 
@@ -131,9 +135,9 @@ def plot_annual_returns(data, label, output_path):
            color=[POSITIVE_COLOR if r >= 0 else NEGATIVE_COLOR for r in port_rets],
            alpha=0.85, label="Relative Strength")
     ax.bar(x + width / 2, spy_rets, width,
-           color=BENCHMARK_COLOR, alpha=0.6, label="S&P 500")
+           color=BENCHMARK_COLOR, alpha=0.6, label=bench_name)
 
-    ax.set_title(f"Annual Returns: Sector-Adjusted Momentum vs S&P 500\n{label}",
+    ax.set_title(f"Annual Returns: Sector-Adjusted Momentum vs {bench_name}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Annual Return (%)", fontsize=12)
@@ -180,7 +184,7 @@ def plot_cagr_comparison(all_data, output_path):
     bars1 = ax.barh(y + height / 2, strategy_cagrs, height,
                     color=STRATEGY_COLOR, alpha=0.85, label="Relative Strength")
     bars2 = ax.barh(y - height / 2, spy_cagrs, height,
-                    color=BENCHMARK_COLOR, alpha=0.65, label="Local Benchmark (SPY)")
+                    color=BENCHMARK_COLOR, alpha=0.65, label="Local Benchmark")
 
     # Annotate excess CAGR
     for i, (bar, exc) in enumerate(zip(bars1, excesses)):
@@ -232,7 +236,7 @@ def plot_drawdown_comparison(all_data, output_path):
     ax.barh(y + height / 2, strat_dds, height,
             color=NEGATIVE_COLOR, alpha=0.75, label="Relative Strength")
     ax.barh(y - height / 2, spy_dds, height,
-            color=BENCHMARK_COLOR, alpha=0.5, label="SPY")
+            color=BENCHMARK_COLOR, alpha=0.5, label="Local Benchmark")
 
     ax.set_title("Sector-Adjusted Momentum: Max Drawdown by Exchange",
                  fontsize=14, fontweight="bold", pad=12)
