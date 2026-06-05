@@ -44,8 +44,8 @@ def cumulative_growth(returns):
     return curve
 
 
-def plot_cumulative(data, label, output_path):
-    """Cumulative growth chart: Earnings Consistency vs SPY."""
+def plot_cumulative(data, label, output_path, bench_label="S&P 500 (SPY)"):
+    """Cumulative growth chart: Earnings Consistency vs local benchmark."""
     annual = data["annual_returns"]
     years = [ar["year"] for ar in annual]
     port_rets = [ar["portfolio"] for ar in annual]
@@ -60,9 +60,9 @@ def plot_cumulative(data, label, output_path):
     ax.plot(x, port_curve, color=STRATEGY_COLOR, linewidth=2.5,
             label=f"Earnings Consistency  (CAGR: {data['portfolio']['cagr']:.1f}%)")
     ax.plot(x, spy_curve, color=BENCHMARK_COLOR, linewidth=1.8, linestyle="--",
-            label=f"S&P 500 (SPY)  (CAGR: {data['spy']['cagr']:.1f}%)")
+            label=f"{bench_label}  (CAGR: {data['spy']['cagr']:.1f}%)")
 
-    ax.set_title(f"Earnings Growth Consistency vs S&P 500\n{label}",
+    ax.set_title(f"Earnings Growth Consistency vs {bench_label}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Portfolio Value ($1 Start)", fontsize=12)
@@ -95,12 +95,13 @@ def plot_cumulative(data, label, output_path):
     print(f"  Saved: {output_path}")
 
 
-def plot_annual_returns(data, label, output_path):
-    """Annual returns bar chart: Earnings Consistency vs SPY."""
+def plot_annual_returns(data, label, output_path, bench_label="S&P 500 (SPY)"):
+    """Annual returns bar chart: Earnings Consistency vs local benchmark."""
     annual = data["annual_returns"]
     years = [ar["year"] for ar in annual]
     port_rets = [ar["portfolio"] for ar in annual]
     spy_rets = [ar["spy"] for ar in annual]
+    bench_short = bench_label.split(" (")[0]
 
     x = np.arange(len(years))
     width = 0.38
@@ -110,9 +111,9 @@ def plot_annual_returns(data, label, output_path):
            color=[POSITIVE_COLOR if r >= 0 else NEGATIVE_COLOR for r in port_rets],
            alpha=0.85, label="Earnings Consistency")
     ax.bar(x + width / 2, spy_rets, width,
-           color=BENCHMARK_COLOR, alpha=0.6, label="S&P 500")
+           color=BENCHMARK_COLOR, alpha=0.6, label=bench_short)
 
-    ax.set_title(f"Annual Returns: Earnings Consistency vs S&P 500\n{label}",
+    ax.set_title(f"Annual Returns: Earnings Consistency vs {bench_short}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Annual Return (%)", fontsize=12)
@@ -133,7 +134,8 @@ def plot_comparison_cagr(all_data, output_path):
     """CAGR comparison bar chart across all exchanges."""
     exchanges = []
     cagrs = []
-    spy_cagr = None
+    # SPY (USD) reference line uses the actual US benchmark, not the first exchange's local index
+    spy_cagr = ((all_data.get("NYSE_NASDAQ_AMEX", {}) or {}).get("spy") or {}).get("cagr")
 
     for exch, data in sorted(all_data.items(),
                               key=lambda x: (x[1].get("portfolio") or {}).get("cagr") or -999,
@@ -144,8 +146,6 @@ def plot_comparison_cagr(all_data, output_path):
         if cagr is not None:
             exchanges.append(exch.replace("_", "+"))
             cagrs.append(cagr)
-            if spy_cagr is None:
-                spy_cagr = data["spy"].get("cagr")
 
     if not exchanges:
         return
@@ -156,14 +156,14 @@ def plot_comparison_cagr(all_data, output_path):
 
     if spy_cagr:
         ax.axvline(spy_cagr, color=BENCHMARK_COLOR, linewidth=2, linestyle="--",
-                   label=f"S&P 500 ({spy_cagr:.1f}%)")
+                   label=f"S&P 500, USD ({spy_cagr:.1f}%)")
         ax.legend(fontsize=11)
 
     for bar, val in zip(bars, cagrs):
         ax.text(val + 0.1, bar.get_y() + bar.get_height() / 2,
                 f"{val:.1f}%", va="center", fontsize=9)
 
-    ax.set_title("Earnings Growth Consistency: CAGR by Exchange (2001–2024)",
+    ax.set_title("Earnings Growth Consistency: CAGR by Exchange, local currency (2000-2024)",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("CAGR (%)", fontsize=12)
     ax.xaxis.set_major_formatter(mtick.PercentFormatter())
@@ -196,7 +196,7 @@ def plot_comparison_drawdown(all_data, output_path):
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.barh(exchanges, drawdowns, color=NEGATIVE_COLOR, alpha=0.75)
 
-    ax.set_title("Earnings Growth Consistency: Max Drawdown by Exchange (2001–2024)",
+    ax.set_title("Earnings Growth Consistency: Max Drawdown by Exchange (2000-2024)",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Max Drawdown (%)", fontsize=12)
     ax.xaxis.set_major_formatter(mtick.PercentFormatter())
@@ -235,6 +235,28 @@ EXCHANGE_LABELS = {
     "KLS":              ("malaysia",    "Malaysia (KLS)"),
 }
 
+# Benchmark label per exchange key (must match what backtest.py used: local index, or
+# SPY fallback for exchanges without a local index in the dataset).
+BENCHMARK_LABELS = {
+    "NYSE_NASDAQ_AMEX": "S&P 500 (SPY)",
+    "NSE":     "Sensex",
+    "LSE":     "FTSE 100",
+    "XETRA":   "DAX",
+    "JPX":     "Nikkei 225",
+    "SHZ_SHH": "SSE Composite",
+    "HKSE":    "Hang Seng",
+    "KSC":     "KOSPI",
+    "TAI_TWO": "TAIEX",
+    "TSX":     "TSX Composite",
+    "SIX":     "SMI",
+    "STO":     "OMX Stockholm 30",
+    "SET":     "SET Index",
+    "JNB":     "S&P 500 (SPY)",
+    "OSL":     "Oslo All Share",
+    "MIL":     "S&P 500 (SPY)",
+    "KLS":     "S&P 500 (SPY)",
+}
+
 
 def main():
     os.makedirs(CHARTS_DIR, exist_ok=True)
@@ -256,14 +278,17 @@ def main():
             print(f"  Skipping {exch_key} (no results)")
             continue
 
-        print(f"\n  {label}")
+        bench_label = BENCHMARK_LABELS.get(exch_key, "S&P 500 (SPY)")
+        print(f"\n  {label}  (benchmark: {bench_label})")
         plot_cumulative(
             data, label,
-            os.path.join(CHARTS_DIR, f"1_{region_slug}_cumulative_growth.png")
+            os.path.join(CHARTS_DIR, f"1_{region_slug}_cumulative_growth.png"),
+            bench_label=bench_label,
         )
         plot_annual_returns(
             data, label,
-            os.path.join(CHARTS_DIR, f"2_{region_slug}_annual_returns.png")
+            os.path.join(CHARTS_DIR, f"2_{region_slug}_annual_returns.png"),
+            bench_label=bench_label,
         )
 
     # Comparison charts
