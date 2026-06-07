@@ -45,8 +45,15 @@ EXCHANGE_LABELS = {
     "KSC": "Coverage Korea (KSC)",
 }
 
+# Local benchmark name per exchange (stored in each result's "spy" field for backward compat)
+BENCH_NAMES = {
+    "NYSE_NASDAQ_AMEX": "S&P 500", "NSE": "Sensex", "XETRA": "DAX", "LSE": "FTSE 100",
+    "STO": "OMX Stockholm 30", "TSX": "TSX Composite", "JPX": "Nikkei 225",
+    "HKSE": "Hang Seng", "TAI": "TAIEX", "SHZ_SHH": "SSE Composite", "KSC": "KOSPI", "SIX": "SMI",
+}
+
 # Exchanges with dedicated blogs
-DEDICATED = ["NYSE_NASDAQ_AMEX", "NSE", "XETRA", "LSE", "STO", "TSX", "ASX", "JPX"]
+DEDICATED = ["NYSE_NASDAQ_AMEX", "NSE", "XETRA", "LSE", "STO", "TSX", "JPX"]
 # All exchanges with data (for comparison charts)
 ALL_WITH_DATA = [k for k in data if data[k].get("invested_periods", 0) > 0]
 
@@ -62,9 +69,9 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from any exchange (all have same SPY data)."""
-    ex = data["NYSE_NASDAQ_AMEX"]
+def get_benchmark_cumulative(exchange_key, initial=10000):
+    """Cumulative growth of the exchange's local benchmark (stored in 'spy' field)."""
+    ex = data[exchange_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
     for ar in ex["annual_returns"]:
@@ -77,9 +84,11 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     """Generate cumulative growth chart for given exchanges vs SPY."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    bench_key = exchanges[0]
+    bench_name = BENCH_NAMES.get(bench_key, "S&P 500")
+    spy_years, spy_vals = get_benchmark_cumulative(bench_key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({data['NYSE_NASDAQ_AMEX']['spy']['cagr']}% CAGR)", linestyle="--")
+            label=f"{bench_name} ({data[bench_key]['spy']['cagr']}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -125,6 +134,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
 
+    bench_name = BENCH_NAMES.get(exchanges[0], "S&P 500")
     n_series = len(exchanges) + 1
     fig, ax = plt.subplots(figsize=(14, 5))
 
@@ -133,7 +143,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench_name, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -256,20 +266,20 @@ per_exchange_charts = {
     "uk": (["LSE"], "LSE (returns in GBP)"),
     "sweden": (["STO"], "STO (returns in SEK)"),
     "canada": (["TSX"], "TSX (returns in CAD)"),
-    "australia": (["ASX"], "ASX (returns in AUD)"),
     "japan": (["JPX"], "JPX (returns in JPY)"),
 }
 
 for region, (exchanges, universe) in per_exchange_charts.items():
     print(f"Generating charts for {region}...")
+    bench_name = BENCH_NAMES.get(exchanges[0], "S&P 500")
     chart_cumulative(
         exchanges, f"1_{region}_cumulative_growth.png",
-        f"Growth of $10,000: Dividend Coverage {region.title()} vs S&P 500 (2000-2025)",
+        f"Growth of $10,000: Dividend Coverage {region.title()} vs {bench_name} (2000-2025)",
         universe
     )
     chart_annual_bars(
         exchanges, f"2_{region}_annual_returns.png",
-        f"Dividend Coverage {region.title()} vs S&P 500: Annual Returns (2000-2024)",
+        f"Dividend Coverage {region.title()} vs {bench_name}: Annual Returns (2000-2024)",
         universe
     )
 
