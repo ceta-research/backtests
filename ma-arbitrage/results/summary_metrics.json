@@ -17,165 +17,165 @@
   ],
   "car_metrics": {
     "overall": {
-      "n_events": 2069,
+      "n_events": 1821,
       "car_1d": {
-        "mean": 0.0192,
-        "median": -0.0847,
-        "t_stat": 0.264,
+        "mean": -0.0641,
+        "median": -0.0863,
+        "t_stat": -1.164,
         "significant": false,
-        "hit_rate": 46.93,
-        "n_obs": 2069
+        "hit_rate": 46.46,
+        "n_obs": 1821
       },
       "car_5d": {
-        "mean": 0.0205,
-        "median": -0.1955,
-        "t_stat": 0.158,
+        "mean": 0.0318,
+        "median": -0.162,
+        "t_stat": 0.276,
         "significant": false,
-        "hit_rate": 47.25,
-        "n_obs": 2057
+        "hit_rate": 47.85,
+        "n_obs": 1816
       },
       "car_21d": {
-        "mean": -0.6894,
-        "median": -0.8182,
-        "t_stat": -2.533,
+        "mean": -0.7077,
+        "median": -0.6883,
+        "t_stat": -2.925,
         "significant": true,
-        "hit_rate": 44.47,
-        "n_obs": 2033
+        "hit_rate": 45.06,
+        "n_obs": 1800
       },
       "car_63d": {
-        "mean": -1.3166,
-        "median": -1.7676,
-        "t_stat": -2.687,
+        "mean": -1.441,
+        "median": -1.5216,
+        "t_stat": -3.511,
         "significant": true,
-        "hit_rate": 44.1,
-        "n_obs": 1941
+        "hit_rate": 44.67,
+        "n_obs": 1717
       }
     },
     "target": {
-      "n_events": 441,
+      "n_events": 371,
       "car_1d": {
-        "mean": -0.216,
-        "median": -0.1218,
-        "t_stat": -1.606,
+        "mean": -0.0916,
+        "median": -0.1009,
+        "t_stat": -0.717,
         "significant": false,
-        "hit_rate": 43.76,
-        "n_obs": 441
+        "hit_rate": 44.47,
+        "n_obs": 371
       },
       "car_5d": {
-        "mean": -0.6333,
-        "median": -0.336,
-        "t_stat": -2.646,
-        "significant": true,
-        "hit_rate": 43.74,
-        "n_obs": 439
+        "mean": -0.3237,
+        "median": -0.3575,
+        "t_stat": -1.769,
+        "significant": false,
+        "hit_rate": 42.82,
+        "n_obs": 369
       },
       "car_21d": {
-        "mean": -1.564,
-        "median": -0.8182,
-        "t_stat": -3.312,
+        "mean": -1.4101,
+        "median": -0.9423,
+        "t_stat": -3.369,
         "significant": true,
-        "hit_rate": 43.42,
-        "n_obs": 433
+        "hit_rate": 42.98,
+        "n_obs": 363
       },
       "car_63d": {
-        "mean": -3.3627,
-        "median": -2.1312,
-        "t_stat": -3.358,
+        "mean": -2.7949,
+        "median": -2.4756,
+        "t_stat": -2.971,
         "significant": true,
-        "hit_rate": 41.67,
-        "n_obs": 348
+        "hit_rate": 39.86,
+        "n_obs": 286
       }
     },
     "acquirer": {
-      "n_events": 1628,
+      "n_events": 1450,
       "car_1d": {
-        "mean": 0.0968,
-        "median": -0.0627,
-        "t_stat": 1.13,
+        "mean": -0.0587,
+        "median": -0.0769,
+        "t_stat": -0.951,
         "significant": false,
-        "hit_rate": 47.79,
-        "n_obs": 1628
+        "hit_rate": 46.97,
+        "n_obs": 1450
       },
       "car_5d": {
-        "mean": 0.1656,
-        "median": -0.1211,
-        "t_stat": 1.078,
+        "mean": 0.1276,
+        "median": -0.0468,
+        "t_stat": 0.93,
         "significant": false,
-        "hit_rate": 48.21,
-        "n_obs": 1618
+        "hit_rate": 49.14,
+        "n_obs": 1447
       },
       "car_21d": {
-        "mean": -0.4521,
-        "median": -0.8355,
-        "t_stat": -1.403,
+        "mean": -0.5158,
+        "median": -0.6533,
+        "t_stat": -1.79,
         "significant": false,
-        "hit_rate": 44.75,
-        "n_obs": 1600
+        "hit_rate": 45.58,
+        "n_obs": 1437
       },
       "car_63d": {
-        "mean": -0.7685,
-        "median": -1.6642,
-        "t_stat": -1.349,
-        "significant": false,
-        "hit_rate": 44.63,
-        "n_obs": 1593
+        "mean": -1.1749,
+        "median": -1.1347,
+        "t_stat": -2.566,
+        "significant": true,
+        "hit_rate": 45.63,
+        "n_obs": 1431
       }
     }
   },
   "yearly_stats": [
     {
       "year": 2000,
-      "total": 85,
-      "target": 9,
-      "acquirer": 76
+      "total": 83,
+      "target": 10,
+      "acquirer": 73
     },
     {
       "year": 2001,
-      "total": 80,
+      "total": 75,
       "target": 8,
-      "acquirer": 72
+      "acquirer": 67
     },
     {
       "year": 2002,
-      "total": 42,
-      "target": 4,
-      "acquirer": 38
-    },
-    {
-      "year": 2003,
-      "total": 38,
-      "target": 7,
-      "acquirer": 31
-    },
-    {
-      "year": 2004,
-      "total": 41,
-      "target": 5,
+      "total": 37,
+      "target": 1,
       "acquirer": 36
     },
     {
-      "year": 2005,
-      "total": 43,
+      "year": 2003,
+      "total": 36,
       "target": 3,
-      "acquirer": 40
+      "acquirer": 33
+    },
+    {
+      "year": 2004,
+      "total": 35,
+      "target": 1,
+      "acquirer": 34
+    },
+    {
+      "year": 2005,
+      "total": 38,
+      "target": 5,
+      "acquirer": 33
     },
     {
       "year": 2006,
-      "total": 49,
-      "target": 8,
-      "acquirer": 41
+      "total": 47,
+      "target": 4,
+      "acquirer": 43
     },
     {
       "year": 2007,
-      "total": 35,
-      "target": 8,
+      "total": 31,
+      "target": 4,
       "acquirer": 27
     },
     {
       "year": 2008,
-      "total": 45,
-      "target": 8,
-      "acquirer": 37
+      "total": 42,
+      "target": 6,
+      "acquirer": 36
     },
     {
       "year": 2009,
@@ -185,104 +185,104 @@
     },
     {
       "year": 2010,
-      "total": 26,
-      "target": 3,
-      "acquirer": 23
-    },
-    {
-      "year": 2011,
-      "total": 35,
-      "target": 4,
-      "acquirer": 31
-    },
-    {
-      "year": 2012,
       "total": 24,
       "target": 1,
       "acquirer": 23
     },
     {
-      "year": 2013,
-      "total": 44,
+      "year": 2011,
+      "total": 34,
       "target": 5,
-      "acquirer": 39
+      "acquirer": 29
+    },
+    {
+      "year": 2012,
+      "total": 22,
+      "target": 1,
+      "acquirer": 21
+    },
+    {
+      "year": 2013,
+      "total": 41,
+      "target": 6,
+      "acquirer": 35
     },
     {
       "year": 2014,
-      "total": 52,
-      "target": 9,
-      "acquirer": 43
+      "total": 47,
+      "target": 7,
+      "acquirer": 40
     },
     {
       "year": 2015,
-      "total": 75,
-      "target": 15,
-      "acquirer": 60
+      "total": 64,
+      "target": 11,
+      "acquirer": 53
     },
     {
       "year": 2016,
-      "total": 88,
-      "target": 24,
-      "acquirer": 64
+      "total": 85,
+      "target": 25,
+      "acquirer": 60
     },
     {
       "year": 2017,
-      "total": 86,
-      "target": 25,
-      "acquirer": 61
+      "total": 75,
+      "target": 20,
+      "acquirer": 55
     },
     {
       "year": 2018,
-      "total": 139,
-      "target": 42,
-      "acquirer": 97
+      "total": 122,
+      "target": 30,
+      "acquirer": 92
     },
     {
       "year": 2019,
-      "total": 83,
-      "target": 11,
-      "acquirer": 72
+      "total": 77,
+      "target": 10,
+      "acquirer": 67
     },
     {
       "year": 2020,
-      "total": 124,
-      "target": 15,
-      "acquirer": 109
-    },
-    {
-      "year": 2021,
-      "total": 282,
-      "target": 71,
-      "acquirer": 211
-    },
-    {
-      "year": 2022,
-      "total": 150,
-      "target": 42,
-      "acquirer": 108
-    },
-    {
-      "year": 2023,
-      "total": 170,
-      "target": 46,
-      "acquirer": 124
-    },
-    {
-      "year": 2024,
-      "total": 134,
-      "target": 38,
+      "total": 109,
+      "target": 13,
       "acquirer": 96
     },
     {
+      "year": 2021,
+      "total": 245,
+      "target": 70,
+      "acquirer": 175
+    },
+    {
+      "year": 2022,
+      "total": 111,
+      "target": 32,
+      "acquirer": 79
+    },
+    {
+      "year": 2023,
+      "total": 137,
+      "target": 37,
+      "acquirer": 100
+    },
+    {
+      "year": 2024,
+      "total": 111,
+      "target": 32,
+      "acquirer": 79
+    },
+    {
       "year": 2025,
-      "total": 82,
-      "target": 29,
-      "acquirer": 53
+      "total": 76,
+      "target": 28,
+      "acquirer": 48
     }
   ],
-  "n_total_events": 2069,
-  "n_target_events": 441,
-  "n_acquirer_events": 1628,
+  "n_total_events": 1821,
+  "n_target_events": 371,
+  "n_acquirer_events": 1450,
   "data_notes": [
     "transactionDate = SEC filing date, may differ from press announcement date",
     "No deal price, premium, or deal type in source data",

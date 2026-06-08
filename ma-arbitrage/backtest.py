@@ -51,7 +51,8 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_local_benchmark, get_benchmark_return
+from data_utils import (query_parquet, get_local_benchmark, get_benchmark_return,
+                        remove_price_oscillations, filter_returns)
 from cli_utils import get_mktcap_threshold
 
 # --- Parameters ---
@@ -60,6 +61,8 @@ BENCHMARK = "SPY"
 WINDOWS = [1, 5, 21, 63]          # Post-announcement windows (trading days)
 WINSORIZE_PCT = 1.0                # Clip at 1st/99th percentile
 MAX_RETURN_CAP = 3.0               # Cap extreme returns (data artifacts)
+MIN_ENTRY_PRICE = 1.0              # skip events with T+0 entry price < $1 (bad adjClose, penny stocks)
+MAX_SINGLE_RETURN = 2.0            # skip events with T+1 stock return > 200% (price artifacts)
 DEFAULT_START_YEAR = 2000
 DEFAULT_END_YEAR = 2025
 DEFAULT_MKTCAP_MIN = 1_000_000_000  # $1B USD (US-only strategy)
@@ -207,6 +210,10 @@ def fetch_data(client, args, verbose=False):
 
     con.execute("CREATE INDEX idx_prices ON prices(symbol, trade_date)")
 
+    # Data quality: strip phantom holiday rows and broken split adjustments
+    # (adjClose spikes that revert in 1-2 days) before any price lookups.
+    remove_price_oscillations(con, table_name="prices", verbose=verbose)
+
     # 5. Build trading day calendar from SPY
     con.execute(f"""
         CREATE TABLE trading_days AS
@@ -287,7 +294,7 @@ def compute_event_returns(con, offset_days=1, verbose=False):
 
     # Join all windows
     print("    Joining window results...")
-    select_cols = ["eb.symbol", "eb.deal_date", "eb.role"]
+    select_cols = ["eb.symbol", "eb.deal_date", "eb.role", "eb.stock_t0"]
     join_clauses = []
     for w in windows:
         select_cols.extend([
@@ -308,7 +315,7 @@ def compute_event_returns(con, offset_days=1, verbose=False):
         ORDER BY eb.deal_date
     """
     rows = con.execute(result_sql).fetchall()
-    col_names = ["symbol", "deal_date", "role"]
+    col_names = ["symbol", "deal_date", "role", "entry_price"]
     for w in windows:
         col_names.extend([f"stock_ret_{w}d", f"bench_ret_{w}d", f"abnormal_ret_{w}d"])
 
@@ -327,6 +334,20 @@ def compute_event_returns(con, offset_days=1, verbose=False):
 
     skipped = n_mapped - len(results)
     print(f"    -> {len(results)} events with returns, {skipped} skipped (no price data)")
+
+    # Data quality: drop events with a bad T+0 entry price (< $1, penny/bad adjClose)
+    # or an artifact T+1 stock move (> MAX_SINGLE_RETURN). Filtering on the raw stock
+    # return (not the abnormal return) targets price-data errors, not real deal pops.
+    qual_input = [(str(i), r["entry_price"], r["entry_price"] * (1.0 + r["stock_ret_1d"]), None)
+                  for i, r in enumerate(results)
+                  if r.get("entry_price") is not None and r.get("stock_ret_1d") is not None]
+    clean, dropped = filter_returns(qual_input, min_entry_price=MIN_ENTRY_PRICE,
+                                    max_single_return=MAX_SINGLE_RETURN, verbose=verbose)
+    keep_idx = {int(c[0]) for c in clean}
+    if dropped:
+        results = [r for i, r in enumerate(results) if i in keep_idx]
+        print(f"    -> filter_returns dropped {len(dropped)} events "
+              f"(entry < ${MIN_ENTRY_PRICE:.0f} or T+1 stock ret > {MAX_SINGLE_RETURN*100:.0f}%)")
 
     for w in windows:
         con.execute(f"DROP TABLE IF EXISTS window_{w}_returns")
