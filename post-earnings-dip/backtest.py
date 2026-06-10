@@ -47,7 +47,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_local_benchmark
+from data_utils import query_parquet, get_local_benchmark, remove_price_oscillations
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -58,6 +58,8 @@ WINSORIZE_PCT = 1.0       # Winsorize at 1st/99th percentile
 WINDOWS = [5, 10, 21, 63] # Trading day windows post-dip (from T+1)
 START_YEAR = 2000
 END_YEAR = 2025
+MIN_ENTRY_PRICE = 1.0     # skip events with T+1 entry price < 1.0 (bad adjClose, penny stocks)
+MAX_SINGLE_RETURN = 2.0   # skip window returns > 200% (price artifacts, symbol reassignments)
 
 
 def fetch_data(client, exchanges, mktcap_min, min_dip=MIN_DIP, verbose=False):
@@ -166,6 +168,7 @@ def fetch_data(client, exchanges, mktcap_min, min_dip=MIN_DIP, verbose=False):
                             memory_mb=4096, threads=2)
     con.execute("CREATE INDEX idx_prices ON prices(symbol, trade_date)")
     print(f"    -> {p_count} price rows")
+    remove_price_oscillations(con, table_name="prices", verbose=True)
 
     # 5. Build trading day calendar from benchmark
     con.execute(f"""
@@ -235,7 +238,16 @@ def fetch_data(client, exchanges, mktcap_min, min_dip=MIN_DIP, verbose=False):
                END AS category
         FROM events_with_reaction
         WHERE (price_tp1 - price_tm1) / price_tm1 <= -{min_dip}
+          AND price_tp1 >= {MIN_ENTRY_PRICE}
     """)
+
+    n_below_floor = con.execute(f"""
+        SELECT COUNT(*) FROM events_with_reaction
+        WHERE (price_tp1 - price_tm1) / price_tm1 <= -{min_dip}
+          AND price_tp1 < {MIN_ENTRY_PRICE}
+    """).fetchone()[0]
+    if n_below_floor:
+        print(f"    -> {n_below_floor} events skipped (entry price < {MIN_ENTRY_PRICE})")
 
     n_dips = con.execute("SELECT COUNT(*) FROM dip_events").fetchone()[0]
     cat_counts = con.execute("""
@@ -292,9 +304,18 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
             JOIN trading_days td ON td.day_num = eb.tp1_num + {w}
             JOIN prices sp ON eb.symbol = sp.symbol AND td.trade_date = sp.trade_date
             JOIN prices bp ON bp.symbol = '{benchmark}' AND td.trade_date = bp.trade_date
+            WHERE (sp.adjClose - eb.stock_base) / eb.stock_base <= {MAX_SINGLE_RETURN}
         """)
         n_comp = con.execute(f"SELECT COUNT(*) FROM window_{w}_returns").fetchone()[0]
-        print(f"      -> {n_comp} events with T+{w} returns")
+        n_capped = con.execute(f"""
+            SELECT COUNT(*)
+            FROM event_base eb
+            JOIN trading_days td ON td.day_num = eb.tp1_num + {w}
+            JOIN prices sp ON eb.symbol = sp.symbol AND td.trade_date = sp.trade_date
+            WHERE (sp.adjClose - eb.stock_base) / eb.stock_base > {MAX_SINGLE_RETURN}
+        """).fetchone()[0]
+        cap_note = f" ({n_capped} skipped, return > {MAX_SINGLE_RETURN * 100:.0f}%)" if n_capped else ""
+        print(f"      -> {n_comp} events with T+{w} returns{cap_note}")
 
     # Join all windows
     print("    Joining window results...")
@@ -551,6 +572,9 @@ def run_single(cr, exchanges, universe_name, mktcap_min, min_dip=MIN_DIP,
             "min_market_cap": mktcap_min,
             "min_estimate": MIN_ESTIMATE,
             "min_dip": min_dip,
+            "min_entry_price": MIN_ENTRY_PRICE,
+            "max_single_return": MAX_SINGLE_RETURN,
+            "price_oscillation_filter": True,
         },
         "windows": WINDOWS,
         "car_metrics": metrics,
@@ -612,6 +636,7 @@ def main():
         # Exchanges included: sufficient events (>=200) and data history (>=10yr).
         # Excluded: ASX (136 events, 8yr history), SET (94 events), OSL (85 events),
         #           SIX (81 events) — all too thin for statistically meaningful results.
+        # Excluded: SAO — fatal adjClose data quality (see DATA_QUALITY_ISSUES.md).
         # Note on LSE: data sparse pre-2022 (data pipeline issue). Included but content
         #   should caveat limited history.
         # Note on SHZ_SHH (China): beat rate 32-36% vs 41-60% elsewhere. Include but
@@ -626,7 +651,6 @@ def main():
             ("taiwan",      ["TAI", "TWO"]),
             ("sweden",      ["STO"]),
             ("korea",       ["KSC"]),
-            ("brazil",      ["SAO"]),
             ("hongkong",    ["HKSE"]),
             ("china",       ["SHZ", "SHH"]),
         ]
