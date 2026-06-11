@@ -40,6 +40,19 @@ EXCHANGE_LABELS = {
     "TAI": "Net-Net TAI (Taiwan)",
 }
 
+# Benchmark label per exchange key (must match backtest.py: local index per exchange).
+BENCHMARK_LABELS = {
+    "US_MAJOR": "S&P 500",
+    "JPX": "Nikkei 225",
+    "HKSE": "Hang Seng",
+    "NSE": "Sensex",
+    "India": "Sensex",
+    "KSC": "KOSPI",
+    "TSX": "TSX Composite",
+    "LSE": "FTSE 100",
+    "TAI": "TAIEX",
+}
+
 FOOTER = "Data: Ceta Research | Graham Net-Net (price < NCAV/share), annual rebalance April, equal weight, 2001-2024"
 
 
@@ -54,13 +67,10 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from any exchange (all have same SPY data)."""
-    for k in ["US_MAJOR", "JPX"]:
-        if k in data and data[k].get("annual_returns"):
-            ex = data[k]
-            break
-    else:
+def get_benchmark_cumulative(ex_key, initial=10000):
+    """Cumulative growth of the exchange's own benchmark series (local index)."""
+    ex = data.get(ex_key, {})
+    if not ex.get("annual_returns"):
         return [], []
 
     values = [initial]
@@ -72,14 +82,16 @@ def get_spy_cumulative(initial=10000):
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Generate cumulative growth chart for given exchanges vs their local benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    bench_key = exchanges[0]
+    bench_label = BENCHMARK_LABELS.get(bench_key, "S&P 500")
+    spy_years, spy_vals = get_benchmark_cumulative(bench_key)
     if spy_years:
-        spy_cagr = data.get("US_MAJOR", {}).get("spy", {}).get("cagr", "?")
+        spy_cagr = data.get(bench_key, {}).get("spy", {}).get("cagr", "?")
         ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-                label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+                label=f"{bench_label} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data or data[ex_key]["invested_periods"] == 0:
@@ -138,8 +150,9 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     x = list(range(len(years)))
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
+    bench_label = BENCHMARK_LABELS.get(active[0], "S&P 500")
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench_label, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(active):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -183,7 +196,7 @@ def chart_comparison_cagr(filename):
     spy_cagr = data.get("US_MAJOR", {}).get("spy", {}).get("cagr")
     if spy_cagr:
         ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-                   label=f"S&P 500 ({spy_cagr}% CAGR)")
+                   label=f"S&P 500, USD ({spy_cagr}% CAGR)")
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=10)
@@ -226,7 +239,7 @@ def chart_comparison_drawdown(filename):
     spy_dd = data.get("US_MAJOR", {}).get("spy", {}).get("max_drawdown")
     if spy_dd:
         ax.axvline(x=spy_dd, color="#e74c3c", linewidth=1.5, linestyle="--",
-                   label=f"S&P 500 ({spy_dd:.1f}%)")
+                   label=f"S&P 500, USD ({spy_dd:.1f}%)")
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=10)
@@ -267,84 +280,84 @@ chart_annual_bars(
 print("Generating charts for Japan...")
 chart_cumulative(
     ["JPX"], "japan_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Japan vs S&P 500 (2007-2024)",
-    "JPX (returns in JPY, benchmark in USD)"
+    "Growth of $10,000: Graham Net-Net Japan vs Nikkei 225 (2001-2024)",
+    "JPX (returns and benchmark in JPY)"
 )
 chart_annual_bars(
     ["JPX"], "japan_annual_returns.png",
-    "Graham Net-Net Japan vs S&P 500: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Japan vs Nikkei 225: Year-by-Year Returns (2001-2024)",
     "JPX (returns in JPY)"
 )
 
 print("Generating charts for India (NSE)...")
 chart_cumulative(
     ["NSE"], "india_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net India (NSE) vs S&P 500 (2001-2024)",
+    "Growth of $10,000: Graham Net-Net India (NSE) vs Sensex (2001-2024)",
     "NSE, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["NSE"], "india_annual_returns.png",
-    "Graham Net-Net India (NSE) vs S&P 500: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net India (NSE) vs Sensex: Year-by-Year Returns (2001-2024)",
     "NSE, annual rebalance April, equal weight"
 )
 
 print("Generating charts for Korea (KSC)...")
 chart_cumulative(
     ["KSC"], "korea_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Korea vs S&P 500 (2001-2024)",
+    "Growth of $10,000: Graham Net-Net Korea vs KOSPI (2001-2024)",
     "KSC, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["KSC"], "korea_annual_returns.png",
-    "Graham Net-Net Korea vs S&P 500: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Korea vs KOSPI: Year-by-Year Returns (2001-2024)",
     "KSC, annual rebalance April, equal weight"
 )
 
 print("Generating charts for Canada (TSX)...")
 chart_cumulative(
     ["TSX"], "canada_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Canada vs S&P 500 (2001-2024)",
+    "Growth of $10,000: Graham Net-Net Canada vs TSX Composite (2001-2024)",
     "TSX, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["TSX"], "canada_annual_returns.png",
-    "Graham Net-Net Canada vs S&P 500: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Canada vs TSX Composite: Year-by-Year Returns (2001-2024)",
     "TSX, annual rebalance April, equal weight"
 )
 
 print("Generating charts for Hong Kong (HKSE)...")
 chart_cumulative(
     ["HKSE"], "hongkong_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Hong Kong vs S&P 500 (2001-2024)",
+    "Growth of $10,000: Graham Net-Net Hong Kong vs Hang Seng (2001-2024)",
     "HKSE, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["HKSE"], "hongkong_annual_returns.png",
-    "Graham Net-Net Hong Kong vs S&P 500: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Hong Kong vs Hang Seng: Year-by-Year Returns (2001-2024)",
     "HKSE, annual rebalance April, equal weight"
 )
 
 print("Generating charts for UK (LSE)...")
 chart_cumulative(
     ["LSE"], "uk_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net UK vs S&P 500 (2001-2024)",
+    "Growth of $10,000: Graham Net-Net UK vs FTSE 100 (2001-2024)",
     "LSE, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["LSE"], "uk_annual_returns.png",
-    "Graham Net-Net UK vs S&P 500: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net UK vs FTSE 100: Year-by-Year Returns (2001-2024)",
     "LSE, annual rebalance April, equal weight"
 )
 
 print("Generating charts for Taiwan (TAI)...")
 chart_cumulative(
     ["TAI"], "taiwan_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Taiwan vs S&P 500 (2001-2024)",
+    "Growth of $10,000: Graham Net-Net Taiwan vs TAIEX (2001-2024)",
     "TAI+TWO, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["TAI"], "taiwan_annual_returns.png",
-    "Graham Net-Net Taiwan vs S&P 500: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Taiwan vs TAIEX: Year-by-Year Returns (2001-2024)",
     "TAI+TWO, annual rebalance April, equal weight"
 )
 

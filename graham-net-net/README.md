@@ -20,7 +20,7 @@ A stock is a net-net when you can buy it for less than you'd theoretically recov
 | Max portfolio | 30 stocks |
 | Cash rule | Hold cash if fewer than 5 qualifying |
 | Financial data lag | 45 days (prevents look-ahead bias) |
-| Benchmark | S&P 500 Total Return (SPY) |
+| Benchmark | Local index per exchange (S&P 500 for US, Nikkei for JPX, etc.) |
 | Period | 2001–2024 |
 
 ## Data Quality
@@ -34,17 +34,20 @@ Without this filter, single stocks like AWH (51,142%) and LMFA (23,187%) dominat
 
 ## Results Summary
 
-| Exchange | CAGR | SPY CAGR | Excess | Sharpe | MaxDD | Avg Stocks |
-|----------|------|----------|--------|--------|-------|------------|
-| US (NYSE+NASDAQ+AMEX) | 5.02% | 8.84% | -3.81% | 0.078 | -54.4% | 28.5 |
-| Japan (JPX) | 8.85% | 8.84% | +0.02% | 0.416 | -33.7% | 27.9 |
-| India (NSE) | 8.28% | 8.84% | -0.55% | 0.042 | -57.7% | 26.0 |
-| Korea (KSC) | 6.60% | 8.84% | -2.24% | 0.162 | -39.3% | — |
-| Canada (TSX) | 7.49% | 8.84% | -1.34% | 0.133 | -55.9% | — |
-| Hong Kong (HKSE) | -3.17% | 8.84% | -12.01% | -0.199 | -82.1% | 24.1 |
-| UK (LSE) | -0.62% | 8.84% | -9.46% | -0.149 | -43.5% | — |
+Each exchange is benchmarked against its local index (run of 2026-06-11, with oscillation filter):
 
-Japan is the only market with competitive risk-adjusted returns (Sharpe 0.416 vs S&P 500's 0.411). The net-net premium has largely eroded in developed markets. Hong Kong's -82% drawdown reflects real market deterioration (protests 2019, regulatory crackdowns 2020-2023), not a data artifact.
+| Exchange | CAGR | Local Bench | Excess | Sharpe | MaxDD | Avg Stocks |
+|----------|------|-------------|--------|--------|-------|------------|
+| Canada (TSX) | 8.73% | TSX Comp 5.12% | +3.61% | 0.176 | -52.9% | 21.4 |
+| Taiwan (TAI+TWO) | 9.02% | TAIEX 5.72% | +3.30% | 0.292 | -39.0% | 11.4 |
+| Japan (JPX) | 7.39% | Nikkei 4.32% | +3.06% | 0.318 | -45.5% | 26.8 |
+| Korea (KSC) | 5.70% | KOSPI 6.81% | -1.11% | 0.138 | -32.0% | 25.7 |
+| US (NYSE+NASDAQ+AMEX) | 5.55% | S&P 500 8.86% | -3.32% | 0.091 | -60.4% | 28.7 |
+| Hong Kong (HKSE) | -1.42% | Hang Seng 2.53% | -3.95% | -0.162 | -63.9% | 24.8 |
+| UK (LSE) | -2.47% | FTSE 100 1.81% | -4.28% | -0.287 | -69.1% | 16.2 |
+| India (NSE) | 8.56% | Sensex 13.63% | -5.07% | 0.049 | -58.1% | 24.9 |
+
+Three markets beat their local benchmarks: Canada (largest premium, but beta 1.49), Taiwan (thin universe, 11.4 avg stocks), and Japan (best risk-adjusted, 45% down capture). Hong Kong's -64% drawdown reflects real market deterioration (protests 2019, regulatory crackdowns 2020-2023), not a data artifact. The UK is the worst absolute performer; with cleaned price data, three formerly-cash years (2008, 2010, 2012) now invest and lose.
 
 ## Exchange Notes
 
@@ -52,7 +55,6 @@ Japan is the only market with competitive risk-adjusted returns (Sharpe 0.416 vs
 - ASX (Australia): adjClose split adjustment issues
 - SAO (Brazil): adjClose split adjustment issues
 - SHH/SHZ (China): avg ~4 qualifying stocks/year — too thin for a portfolio
-- Taiwan (TAI/TWO): borderline ~20/year, insufficient alpha to justify content
 - BSE: BSE+NSE combined creates duplicate positions (same company on both exchanges)
 
 **India:** Use NSE-only (`returns_NSE.json`). NSE has 8 cash periods (2001-2008) because the NCAV data didn't cover Indian stocks sufficiently before 2009.
