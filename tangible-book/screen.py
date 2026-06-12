@@ -41,6 +41,7 @@ def run_screen(client, exchanges, mktcap_min, verbose=False):
     sql = f"""
         WITH bs AS (
             SELECT symbol,
+                   reportedCurrency,
                    totalStockholdersEquity,
                    COALESCE(goodwill, 0) AS goodwill,
                    COALESCE(intangibleAssets, 0) AS intangibleAssets,
@@ -59,8 +60,7 @@ def run_screen(client, exchanges, mktcap_min, verbose=False):
             p.exchange,
             p.sector,
             ROUND(k.marketCap / NULLIF(bs.tangible_equity, 0), 2) AS p_tbv,
-            ROUND(k.bookValuePerShareTTM, 2) AS bvps,
-            ROUND(k.tangibleBookValuePerShareTTM, 2) AS tbvps,
+            ROUND(k.marketCap / NULLIF(bs.totalStockholdersEquity, 0), 2) AS p_b,
             ROUND(k.returnOnEquityTTM * 100, 2) AS roe_pct,
             ROUND(k.returnOnAssetsTTM * 100, 2) AS roa_pct,
             ROUND(f.operatingProfitMarginTTM * 100, 2) AS opm_pct,
@@ -73,6 +73,10 @@ def run_screen(client, exchanges, mktcap_min, verbose=False):
         JOIN financial_ratios_ttm f ON bs.symbol = f.symbol
         WHERE bs.rn = 1
           AND bs.tangible_equity > 0
+          AND bs.reportedCurrency = p.currency
+          AND p.isFund = false
+          AND p.isEtf = false
+          AND p.isActivelyTrading = true
           AND k.returnOnEquityTTM > {ROE_MIN}
           AND k.returnOnAssetsTTM > {ROA_MIN}
           AND f.operatingProfitMarginTTM > {OPM_MIN}
@@ -80,7 +84,9 @@ def run_screen(client, exchanges, mktcap_min, verbose=False):
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Asset Management%')
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Shell Companies%')
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Closed-End Fund%')
+          AND bs.symbol NOT LIKE '%-P%'
           {exchange_filter}
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY p.companyName ORDER BY bs.symbol) = 1
         ORDER BY p_tbv ASC
         LIMIT {MAX_STOCKS}
     """
@@ -123,13 +129,13 @@ def main():
         print("No stocks qualify.")
         return
 
-    print(f"\n{'#':<4} {'Symbol':<10} {'Company':<28} {'P/TBV':>6} {'BVPS':>7} "
-          f"{'TBVPS':>7} {'ROE%':>6} {'ROA%':>6} {'OPM%':>6} {'MCap$B':>8}")
+    print(f"\n{'#':<4} {'Symbol':<10} {'Company':<28} {'P/TBV':>6} {'P/B':>7} "
+          f"{'ROE%':>6} {'ROA%':>6} {'OPM%':>6} {'MCap(B)':>8}")
     print("-" * 100)
     for i, r in enumerate(results, 1):
         print(f"{i:<4} {r['symbol']:<10} {r.get('companyName', '')[:26]:<28} "
-              f"{r.get('p_tbv', ''):>6} {r.get('bvps', ''):>7} "
-              f"{r.get('tbvps', ''):>7} {r.get('roe_pct', ''):>6} "
+              f"{r.get('p_tbv', ''):>6} {r.get('p_b', ''):>7} "
+              f"{r.get('roe_pct', ''):>6} "
               f"{r.get('roa_pct', ''):>6} {r.get('opm_pct', ''):>6} "
               f"{r.get('mktcap_b', ''):>8}")
 
