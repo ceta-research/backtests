@@ -61,9 +61,9 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from US exchange data."""
-    ex = data["NYSE_NASDAQ_AMEX"]
+def get_spy_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
+    """Get benchmark cumulative from an exchange's "spy" field (local index for non-US)."""
+    ex = data[ref_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
     for ar in ex["annual_returns"]:
@@ -72,14 +72,21 @@ def get_spy_cumulative(initial=10000):
     return years, values
 
 
-def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None,
+                     benchmark_name="S&P 500"):
+    """Generate cumulative growth chart for given exchanges vs benchmark.
+
+    For non-US exchanges the backtest stores the local index (Sensex, DAX, ...)
+    in the "spy" field, so pass the local index name to label the line correctly.
+    """
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
+    if ref_key is None:
+        ref_key = exchanges[0]
+    spy_years, spy_vals = get_spy_cumulative(ref_key)
+    spy_cagr = data[ref_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_name} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data:
@@ -121,8 +128,9 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     plt.close()
 
 
-def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart."""
+def chart_annual_bars(exchanges, filename, title, footer_universe,
+                      benchmark_name="S&P 500"):
+    """Generate annual returns bar chart vs the exchange's local benchmark."""
     ex = data[exchanges[0]]
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
@@ -135,7 +143,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_name, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         if ex_key not in data:
@@ -224,73 +232,85 @@ chart_annual_bars(
 print("India charts...")
 chart_cumulative(
     ["NSE"], "1_india_cumulative_growth.png",
-    "Growth of $10,000: P/TBV India vs S&P 500 (2000-2025)",
-    "NSE"
+    "Growth of $10,000: P/TBV India vs Sensex (2000-2025)",
+    "NSE", benchmark_name="Sensex"
 )
 chart_annual_bars(
     ["NSE"], "2_india_annual_returns.png",
-    "P/TBV India: Year-by-Year Returns (2002-2024)",
-    "NSE"
+    "P/TBV India vs Sensex: Year-by-Year Returns (2000-2024)",
+    "NSE", benchmark_name="Sensex"
 )
 
 print("UK charts...")
 chart_cumulative(
     ["LSE"], "1_uk_cumulative_growth.png",
-    "Growth of $10,000: P/TBV UK vs S&P 500 (2000-2025)",
-    "London Stock Exchange (LSE)"
+    "Growth of $10,000: P/TBV UK vs FTSE 100 (2000-2025)",
+    "London Stock Exchange (LSE)", benchmark_name="FTSE 100"
 )
 chart_annual_bars(
     ["LSE"], "2_uk_annual_returns.png",
-    "P/TBV UK: Year-by-Year Returns (2000-2024)",
-    "London Stock Exchange (LSE)"
+    "P/TBV UK vs FTSE 100: Year-by-Year Returns (2000-2024)",
+    "London Stock Exchange (LSE)", benchmark_name="FTSE 100"
 )
 
 print("Germany charts...")
 chart_cumulative(
     ["XETRA"], "1_germany_cumulative_growth.png",
-    "Growth of $10,000: P/TBV Germany vs S&P 500 (2000-2025)",
-    "XETRA"
+    "Growth of $10,000: P/TBV Germany vs DAX (2000-2025)",
+    "XETRA", benchmark_name="DAX"
 )
 chart_annual_bars(
     ["XETRA"], "2_germany_annual_returns.png",
-    "P/TBV Germany: Year-by-Year Returns (2000-2024)",
-    "XETRA"
+    "P/TBV Germany vs DAX: Year-by-Year Returns (2000-2024)",
+    "XETRA", benchmark_name="DAX"
 )
 
 print("China charts...")
 chart_cumulative(
     ["SHZ_SHH"], "1_china_cumulative_growth.png",
-    "Growth of $10,000: P/TBV China vs S&P 500 (2000-2025)",
-    "Shenzhen + Shanghai"
+    "Growth of $10,000: P/TBV China vs SSE Composite (2000-2025)",
+    "Shenzhen + Shanghai", benchmark_name="SSE Composite"
 )
 chart_annual_bars(
     ["SHZ_SHH"], "2_china_annual_returns.png",
-    "P/TBV China: Year-by-Year Returns (2000-2024)",
-    "Shenzhen + Shanghai"
+    "P/TBV China vs SSE Composite: Year-by-Year Returns (2000-2024)",
+    "Shenzhen + Shanghai", benchmark_name="SSE Composite"
 )
 
 print("Sweden charts...")
 chart_cumulative(
     ["STO"], "1_sweden_cumulative_growth.png",
-    "Growth of $10,000: P/TBV Sweden vs S&P 500 (2000-2025)",
-    "Stockholm Stock Exchange (STO)"
+    "Growth of $10,000: P/TBV Sweden vs OMX Stockholm 30 (2000-2025)",
+    "Stockholm Stock Exchange (STO)", benchmark_name="OMX Stockholm 30"
 )
 chart_annual_bars(
     ["STO"], "2_sweden_annual_returns.png",
-    "P/TBV Sweden: Year-by-Year Returns (2004-2024)",
-    "Stockholm Stock Exchange (STO)"
+    "P/TBV Sweden vs OMX Stockholm 30: Year-by-Year Returns (2004-2024)",
+    "Stockholm Stock Exchange (STO)", benchmark_name="OMX Stockholm 30"
 )
 
 print("Canada charts...")
 chart_cumulative(
     ["TSX"], "1_canada_cumulative_growth.png",
-    "Growth of $10,000: P/TBV Canada vs S&P 500 (2000-2025)",
-    "Toronto Stock Exchange (TSX)"
+    "Growth of $10,000: P/TBV Canada vs TSX Composite (2000-2025)",
+    "Toronto Stock Exchange (TSX)", benchmark_name="TSX Composite"
 )
 chart_annual_bars(
     ["TSX"], "2_canada_annual_returns.png",
-    "P/TBV Canada: Year-by-Year Returns (2000-2024)",
-    "Toronto Stock Exchange (TSX)"
+    "P/TBV Canada vs TSX Composite: Year-by-Year Returns (2000-2024)",
+    "Toronto Stock Exchange (TSX)", benchmark_name="TSX Composite"
+)
+
+print("Hong Kong charts...")
+chart_cumulative(
+    ["HKSE"], "1_hongkong_cumulative_growth.png",
+    "Growth of $10,000: P/TBV Hong Kong vs Hang Seng (2000-2025)",
+    "Hong Kong Stock Exchange (HKSE)", benchmark_name="Hang Seng"
+)
+chart_annual_bars(
+    ["HKSE"], "2_hongkong_annual_returns.png",
+    "P/TBV Hong Kong vs Hang Seng: Year-by-Year Returns (2000-2024)",
+    "Hong Kong Stock Exchange (HKSE)", benchmark_name="Hang Seng"
 )
 
 print("Comparison charts...")
