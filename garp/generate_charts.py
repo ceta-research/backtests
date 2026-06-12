@@ -76,8 +76,14 @@ def get_spy_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
     return years, values
 
 
-def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None,
+                     benchmark_name="S&P 500"):
+    """Generate cumulative growth chart for given exchanges vs benchmark.
+
+    benchmark_name labels the benchmark line. For non-US exchanges the
+    backtest stores the local index (Sensex, DAX, ...) in the "spy" field,
+    so pass the local index name to label the line correctly.
+    """
     fig, ax = plt.subplots(figsize=(12, 6))
 
     if ref_key is None:
@@ -85,7 +91,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
     spy_years, spy_vals = get_spy_cumulative(ref_key)
     spy_cagr = data[ref_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_name} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -125,8 +131,9 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
     plt.close()
 
 
-def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart for given exchanges vs SPY."""
+def chart_annual_bars(exchanges, filename, title, footer_universe,
+                      benchmark_name="S&P 500"):
+    """Generate annual returns bar chart for given exchanges vs benchmark."""
     ex = data[exchanges[0]]
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
@@ -139,7 +146,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     offsets = [i - (n_series - 1) * width / 2 for i in x]
 
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_name, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -271,25 +278,29 @@ chart_annual_bars(
 print("Generating charts for blogs/india/...")
 chart_cumulative(
     ["NSE"], "india_cumulative_growth.png",
-    "Growth of $10,000: GARP India vs S&P 500 (2000-2025)",
-    "NSE (returns in INR, benchmark in USD)"
+    "Growth of $10,000: GARP India vs Sensex (2000-2025)",
+    "NSE (returns in INR, benchmark Sensex in INR)",
+    benchmark_name="Sensex"
 )
 chart_annual_bars(
     ["NSE"], "india_annual_returns.png",
-    "GARP India vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "NSE (returns in INR)"
+    "GARP India vs Sensex: Year-by-Year Returns (2000-2025)",
+    "NSE (returns in INR)",
+    benchmark_name="Sensex"
 )
 
 print("Generating charts for blogs/germany/...")
 chart_cumulative(
     ["XETRA"], "germany_cumulative_growth.png",
-    "Growth of $10,000: GARP Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
+    "Growth of $10,000: GARP Germany vs DAX (2000-2025)",
+    "XETRA (returns in EUR, benchmark DAX in EUR)",
+    benchmark_name="DAX"
 )
 chart_annual_bars(
     ["XETRA"], "germany_annual_returns.png",
-    "GARP Germany vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "XETRA (returns in EUR)"
+    "GARP Germany vs DAX: Year-by-Year Returns (2000-2025)",
+    "XETRA (returns in EUR)",
+    benchmark_name="DAX"
 )
 
 print("Generating charts for blogs/comparison/...")
