@@ -169,11 +169,16 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     plt.close()
 
 
+# Excluded from the cross-exchange comparison charts:
+#   OSL = >30% cash (not a clean test), SAO = corrupted adjusted-close data.
+EXCLUDE_FROM_COMPARISON = {"OSL", "SAO"}
+
+
 def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange (all exchanges with data)."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0
+        if v.get("invested_periods", 0) > 0 and k not in EXCLUDE_FROM_COMPARISON
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -216,7 +221,7 @@ def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0
+        if v.get("invested_periods", 0) > 0 and k not in EXCLUDE_FROM_COMPARISON
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 
@@ -294,17 +299,19 @@ chart_annual_bars(
     "TSX (returns in CAD)"
 )
 
-print("Generating charts for blogs/brazil/...")
-chart_cumulative(
-    ["SAO"], "brazil_cumulative_growth.png",
-    "Growth of $10,000: Price-to-Book Brazil vs S&P 500 (2000-2025)",
-    "SAO (returns in BRL, benchmark in USD)"
-)
-chart_annual_bars(
-    ["SAO"], "brazil_annual_returns.png",
-    "Price-to-Book Brazil vs S&P 500: Year-by-Year Returns (2000-2025)",
-    "SAO (returns in BRL)"
-)
+# Brazil (SAO) excluded: corrupted adjusted-close data, blog unpublished.
+if "SAO" in data:
+    print("Generating charts for blogs/brazil/...")
+    chart_cumulative(
+        ["SAO"], "brazil_cumulative_growth.png",
+        "Growth of $10,000: Price-to-Book Brazil vs S&P 500 (2000-2025)",
+        "SAO (returns in BRL, benchmark in USD)"
+    )
+    chart_annual_bars(
+        ["SAO"], "brazil_annual_returns.png",
+        "Price-to-Book Brazil vs S&P 500: Year-by-Year Returns (2000-2025)",
+        "SAO (returns in BRL)"
+    )
 
 print("Generating charts for blogs/japan/...")
 chart_cumulative(
