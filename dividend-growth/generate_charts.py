@@ -28,11 +28,23 @@ RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
 CHARTS_DIR = os.path.join(SCRIPT_DIR, "charts")
 
 EXCHANGE_LABELS = {
-    "NYSE_NASDAQ_AMEX": "US", "NSE": "India", "XETRA": "Germany",
+    "NYSE_NASDAQ_AMEX": "US", "US": "US", "NSE": "India", "XETRA": "Germany",
     "STO": "Sweden", "TSX": "Canada", "SHZ_SHH": "China",
     "HKSE": "Hong Kong", "JPX": "Japan", "LSE": "UK", "ASX": "Australia",
     "KSC": "Korea", "SIX": "Switzerland", "TAI": "Taiwan",
     "JNB": "South Africa", "PAR": "France",
+}
+
+# Benchmark line label per exchange. The results JSON stores the local benchmark
+# under the "spy" key for backward compat, so the legend must name the actual index.
+BENCHMARK_NAMES = {
+    "NYSE_NASDAQ_AMEX": "S&P 500", "US": "S&P 500",
+    "NSE": "Sensex", "TSX": "TSX Composite", "LSE": "FTSE 100",
+    "XETRA": "DAX", "SIX": "SMI", "STO": "OMX Stockholm 30",
+    "HKSE": "Hang Seng", "JPX": "Nikkei 225", "TAI": "TAIEX",
+    "SHZ_SHH": "SSE Composite", "KSC": "KOSPI",
+    "JNB": "S&P 500",  # JNB falls back to SPY (no local index in FMP)
+    "ASX": "ASX 200", "PAR": "CAC 40",
 }
 
 STRATEGY_NAME = "Dividend Growth"
@@ -60,9 +72,10 @@ def plot_cumulative(data, exchange_key, label):
         port_vals.append(port_vals[-1] * (1 + a["portfolio"] / 100))
         spy_vals.append(spy_vals[-1] * (1 + a["spy"] / 100))
 
+    bench_name = BENCHMARK_NAMES.get(exchange_key, "S&P 500")
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(years + [years[-1] + 1], port_vals, "b-", linewidth=2, label=STRATEGY_NAME)
-    ax.plot(years + [years[-1] + 1], spy_vals, "r--", linewidth=1.5, label="S&P 500")
+    ax.plot(years + [years[-1] + 1], spy_vals, "r--", linewidth=1.5, label=bench_name)
     ax.set_title(f"{STRATEGY_NAME}: Cumulative Growth ({label})", fontsize=14)
     ax.set_xlabel("Year")
     ax.set_ylabel("Growth of $1")
@@ -90,9 +103,10 @@ def plot_annual(data, exchange_key, label):
     x = np.arange(len(years))
     width = 0.35
 
+    bench_name = BENCHMARK_NAMES.get(exchange_key, "S&P 500")
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.bar(x - width/2, port_ret, width, label=STRATEGY_NAME, color="#2196F3")
-    ax.bar(x + width/2, spy_ret, width, label="S&P 500", color="#FF5722", alpha=0.7)
+    ax.bar(x + width/2, spy_ret, width, label=bench_name, color="#FF5722", alpha=0.7)
     ax.set_title(f"{STRATEGY_NAME}: Annual Returns ({label})", fontsize=14)
     ax.set_xlabel("Year")
     ax.set_ylabel("Return (%)")
