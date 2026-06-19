@@ -64,15 +64,15 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from any exchange (all have same SPY data)."""
-    for k in ["NYSE_NASDAQ_AMEX", "LSE", "XETRA"]:
-        if k in data and data[k].get("annual_returns"):
-            ex = data[k]
-            break
-    else:
-        return [], []
+def get_benchmark_cumulative(exchange_key, initial=10000):
+    """Get benchmark cumulative from an exchange's own annual 'spy' series.
 
+    The 'spy' field holds whatever benchmark the backtest used for that
+    exchange (SPY for US/JNB/SAU, local index otherwise).
+    """
+    if exchange_key not in data or not data[exchange_key].get("annual_returns"):
+        return [], []
+    ex = data[exchange_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
     for ar in ex["annual_returns"]:
@@ -81,19 +81,16 @@ def get_spy_cumulative(initial=10000):
     return years, values
 
 
-def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+def chart_cumulative(exchanges, filename, title, footer_universe, bench_label="S&P 500"):
+    """Generate cumulative growth chart for given exchanges vs their benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    bench_key = exchanges[0]
+    spy_years, spy_vals = get_benchmark_cumulative(bench_key)
     if spy_years:
-        spy_cagr = None
-        for k in ["NYSE_NASDAQ_AMEX", "LSE", "XETRA"]:
-            if k in data:
-                spy_cagr = data[k].get("spy", {}).get("cagr", "?")
-                break
+        spy_cagr = data.get(bench_key, {}).get("spy", {}).get("cagr", "?")
         ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-                label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+                label=f"{bench_label} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data or data[ex_key].get("invested_periods", 0) == 0:
@@ -134,8 +131,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     plt.close()
 
 
-def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart for given exchanges vs SPY."""
+def chart_annual_bars(exchanges, filename, title, footer_universe, bench_label="S&P 500"):
+    """Generate annual returns bar chart for given exchanges vs their benchmark."""
     active = [e for e in exchanges if e in data and data[e].get("invested_periods", 0) > 0]
     if not active:
         print(f"  Skipping {filename}: no data for {exchanges}")
@@ -153,7 +150,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench_label, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(active):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -289,61 +286,61 @@ chart_annual_bars(
 print("Generating charts for India...")
 chart_cumulative(
     ["NSE"], "1_india_cumulative_growth.png",
-    "Growth of $10,000: Earnings Yield India vs S&P 500 (2000-2025)",
-    "NSE (returns in INR, benchmark in USD)"
+    "Growth of $10,000: Earnings Yield India vs Sensex (2000-2025)",
+    "NSE (returns in INR vs Sensex)", bench_label="Sensex"
 )
 chart_annual_bars(
     ["NSE"], "2_india_annual_returns.png",
-    "Earnings Yield India vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "NSE (returns in INR)"
+    "Earnings Yield India vs Sensex: Year-by-Year Returns (2000-2025)",
+    "NSE (returns in INR vs Sensex)", bench_label="Sensex"
 )
 
 print("Generating charts for UK...")
 chart_cumulative(
     ["LSE"], "1_uk_cumulative_growth.png",
-    "Growth of $10,000: Earnings Yield UK vs S&P 500 (2000-2025)",
-    "LSE (returns in GBP, benchmark in USD)"
+    "Growth of $10,000: Earnings Yield UK vs FTSE 100 (2000-2025)",
+    "LSE (returns in GBP vs FTSE 100)", bench_label="FTSE 100"
 )
 chart_annual_bars(
     ["LSE"], "2_uk_annual_returns.png",
-    "Earnings Yield UK vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "LSE (returns in GBP)"
+    "Earnings Yield UK vs FTSE 100: Year-by-Year Returns (2000-2025)",
+    "LSE (returns in GBP vs FTSE 100)", bench_label="FTSE 100"
 )
 
 print("Generating charts for Germany...")
 chart_cumulative(
     ["XETRA"], "1_germany_cumulative_growth.png",
-    "Growth of $10,000: Earnings Yield Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
+    "Growth of $10,000: Earnings Yield Germany vs DAX (2000-2025)",
+    "XETRA (returns in EUR vs DAX)", bench_label="DAX"
 )
 chart_annual_bars(
     ["XETRA"], "2_germany_annual_returns.png",
-    "Earnings Yield Germany vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "XETRA (returns in EUR)"
+    "Earnings Yield Germany vs DAX: Year-by-Year Returns (2000-2025)",
+    "XETRA (returns in EUR vs DAX)", bench_label="DAX"
 )
 
 print("Generating charts for Japan...")
 chart_cumulative(
     ["JPX"], "1_japan_cumulative_growth.png",
-    "Growth of $10,000: Earnings Yield Japan vs S&P 500 (2000-2025)",
-    "JPX (returns in JPY, benchmark in USD)"
+    "Growth of $10,000: Earnings Yield Japan vs Nikkei 225 (2000-2025)",
+    "JPX (returns in JPY vs Nikkei 225)", bench_label="Nikkei 225"
 )
 chart_annual_bars(
     ["JPX"], "2_japan_annual_returns.png",
-    "Earnings Yield Japan vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "JPX (returns in JPY)"
+    "Earnings Yield Japan vs Nikkei 225: Year-by-Year Returns (2000-2025)",
+    "JPX (returns in JPY vs Nikkei 225)", bench_label="Nikkei 225"
 )
 
 print("Generating charts for Hong Kong...")
 chart_cumulative(
     ["HKSE"], "1_hongkong_cumulative_growth.png",
-    "Growth of $10,000: Earnings Yield Hong Kong vs S&P 500 (2000-2025)",
-    "HKSE (HKD pegged to USD)"
+    "Growth of $10,000: Earnings Yield Hong Kong vs Hang Seng (2000-2025)",
+    "HKSE (HKD vs Hang Seng)", bench_label="Hang Seng"
 )
 chart_annual_bars(
     ["HKSE"], "2_hongkong_annual_returns.png",
-    "Earnings Yield Hong Kong vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "HKSE (HKD pegged to USD)"
+    "Earnings Yield Hong Kong vs Hang Seng: Year-by-Year Returns (2000-2025)",
+    "HKSE (HKD vs Hang Seng)", bench_label="Hang Seng"
 )
 
 print("Generating comparison charts...")
