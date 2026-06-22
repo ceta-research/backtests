@@ -95,15 +95,33 @@ def get_spy_cumulative(initial=10000):
     return years, values
 
 
+def get_benchmark_cumulative(ex_key, initial=10000):
+    """Compute local-benchmark cumulative growth from a market's annual 'spy' field.
+
+    The backtest stores the LOCAL benchmark return under the 'spy' key for
+    backward compatibility, so this returns the local index (e.g. SMI, Nikkei),
+    not the S&P 500.
+    """
+    ex = data[ex_key]
+    values = [initial]
+    years = [ex["annual_returns"][0]["year"] - 1]
+    for ar in ex["annual_returns"]:
+        values.append(values[-1] * (1 + ar["spy"] / 100))
+        years.append(ar["year"])
+    return years, values
+
+
 def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Generate cumulative growth chart for given exchanges vs their local benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    primary = exchanges[0]
+    bench_name = data.get(primary, {}).get("benchmark_name", "Benchmark")
+    bench_cagr = data.get(primary, {}).get("spy", {}).get("cagr", "?")
+    spy_years, spy_vals = get_benchmark_cumulative(primary)
     if spy_years:
-        spy_cagr = data.get("US_MAJOR", {}).get("spy", {}).get("cagr", "?")
         ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-                label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+                label=f"{bench_name} ({bench_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data or data[ex_key].get("invested_periods", 0) == 0:
@@ -155,6 +173,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
 
+    bench_name = data[active[0]].get("benchmark_name", "Benchmark")
     n_series = len(active) + 1
     fig, ax = plt.subplots(figsize=(14, 5))
 
@@ -163,7 +182,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench_name, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(active):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -339,14 +358,15 @@ individual_exchanges = {
 for ex_key, (region_slug, region_label) in individual_exchanges.items():
     if ex_key in data and data[ex_key].get("invested_periods", 0) > 0:
         print(f"Generating {region_label} charts...")
+        bench_name = data[ex_key].get("benchmark_name", "Benchmark")
         chart_cumulative(
             [ex_key], f"1_{region_slug}_cumulative_growth.png",
-            f"Growth of $10,000: OCF Growth {region_label} vs S&P 500 (2000-2025)",
+            f"Growth of $10,000: OCF Growth {region_label} vs {bench_name} (2000-2025)",
             f"{region_label}, annual rebalance, equal weight"
         )
         chart_annual_bars(
             [ex_key], f"2_{region_slug}_annual_returns.png",
-            f"OCF Growth {region_label} vs S&P 500: Year-by-Year Returns (2000-2024)",
+            f"OCF Growth {region_label} vs {bench_name}: Year-by-Year Returns (2000-2024)",
             f"{region_label}, annual rebalance, equal weight"
         )
 

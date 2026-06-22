@@ -109,15 +109,34 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
               AND growthOperatingCashFlow IS NOT NULL
               AND {sym_filter_sql}
         """, "cash flow growth (OCF, FCF)"),
-        # 3. Income statement growth (FY)
+        # 3. Net income growth (FY) — reconstructed from raw income_statement.
+        # The warehouse income_statement_growth table lost its historical rows
+        # (only the most recent fiscal year is populated), so we recompute YoY
+        # growth from income_statement.netIncome using FMP's (curr-prev)/prev
+        # convention. Signal is unchanged; only the data source is repaired.
         ("ni_growth_cache", f"""
-            SELECT symbol, growthNetIncome as growthNI,
-                   dateEpoch as filing_epoch, period
-            FROM income_statement_growth
-            WHERE period = 'FY'
-              AND growthNetIncome IS NOT NULL
-              AND {sym_filter_sql}
-        """, "income statement growth (NI)"),
+            WITH ni_dedup AS (
+                SELECT symbol, fiscalYear, netIncome, dateEpoch,
+                    ROW_NUMBER() OVER (PARTITION BY symbol, fiscalYear
+                                       ORDER BY dateEpoch DESC) AS rn
+                FROM income_statement
+                WHERE period = 'FY'
+                  AND netIncome IS NOT NULL
+                  AND {sym_filter_sql}
+            ),
+            ni_yoy AS (
+                SELECT symbol, dateEpoch,
+                    (netIncome - LAG(netIncome) OVER (PARTITION BY symbol
+                                                      ORDER BY fiscalYear)) /
+                    NULLIF(LAG(netIncome) OVER (PARTITION BY symbol
+                                                ORDER BY fiscalYear), 0) AS growthNI
+                FROM ni_dedup
+                WHERE rn = 1
+            )
+            SELECT symbol, growthNI, dateEpoch AS filing_epoch, 'FY' AS period
+            FROM ni_yoy
+            WHERE growthNI IS NOT NULL
+        """, "net income growth (reconstructed from income_statement)"),
         # 4. Key metrics (ROE, market cap)
         ("metrics_cache", f"""
             SELECT symbol, returnOnEquity, marketCap,
