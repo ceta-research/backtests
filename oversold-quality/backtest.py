@@ -670,6 +670,8 @@ def main():
             ("norway", ["OSL"]),
             ("italy", ["MIL"]),
             ("malaysia", ["KLS"]),
+            ("uk", ["LSE"]),
+            ("japan", ["JPX"]),
         ]
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)

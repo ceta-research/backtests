@@ -34,6 +34,8 @@ COLORS = {
     "KLS": "#1abc9c",
     "MIL": "#e91e63",
     "HKSE": "#a569bd",
+    "LSE": "#34495e",
+    "JPX": "#d98880",
     "SPY": "#aab7b8",
 }
 
@@ -54,7 +56,33 @@ EXCHANGE_LABELS = {
     "KLS": "OQ Malaysia (KLS)",
     "MIL": "OQ Italy (MIL)",
     "HKSE": "OQ Hong Kong (HKSE)",
+    "LSE": "OQ UK (LSE)",
+    "JPX": "OQ Japan (JPX)",
 }
+
+# Local benchmark name per exchange (the "spy" field in each result holds the
+# LOCAL index return, not SPY, since backtests run with get_local_benchmark()).
+BENCHMARK_NAMES = {
+    "NYSE_NASDAQ_AMEX": "S&P 500",
+    "NSE": "Sensex",
+    "SHZ_SHH": "SSE Composite",
+    "XETRA": "DAX",
+    "TSX": "TSX Composite",
+    "STO": "OMX Stockholm 30",
+    "KSC": "KOSPI",
+    "SIX": "SMI",
+    "TAI": "TAIEX",
+    "HKSE": "Hang Seng",
+    "SET": "SET Index",
+    "OSL": "Oslo All Share",
+    "LSE": "FTSE 100",
+    "JPX": "Nikkei 225",
+}
+
+# Exchanges with corrupted/meaningless stats (benchmark data gaps or near-100%
+# cash leaving too few invested quarters to measure). Excluded from CAGR and
+# drawdown charts; noted in the comparison blog with a footnote instead.
+MIN_INVESTED_FOR_CHART = 5
 
 
 def get_cumulative_growth(exchange_key, initial=10000):
@@ -87,8 +115,9 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
         ref_key = exchanges[0]
     spy_years, spy_vals = get_spy_cumulative(ref_key)
     spy_cagr = data[ref_key]["spy"]["cagr"]
+    bench_name = BENCHMARK_NAMES.get(ref_key, "S&P 500")
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{bench_name} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -141,8 +170,9 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     x = list(range(len(years)))
     offsets = [i - (n_series - 1) * width / 2 for i in x]
 
+    bench_name = BENCHMARK_NAMES.get(exchanges[0], "S&P 500")
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench_name, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -174,7 +204,7 @@ def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange (all exchanges with data)."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if isinstance(v, dict) and v.get("invested_periods", 0) > 0
+        if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_FOR_CHART
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -217,7 +247,7 @@ def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if isinstance(v, dict) and v.get("invested_periods", 0) > 0
+        if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_FOR_CHART
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 
@@ -262,6 +292,7 @@ def chart_cash_periods(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if isinstance(v, dict) and v.get("n_periods", 0) > 0
+        and v.get("invested_periods", 0) >= 0  # drop rows with broken benchmark coverage (e.g. OSL)
     ]
     exchanges_with_data.sort(key=lambda x: x[1].get("cash_periods", 0) / max(x[1].get("n_periods", 1), 1))
 
@@ -336,13 +367,13 @@ if "XETRA" in available_exchanges:
     print("\nGenerating charts for blogs/germany/...")
     chart_cumulative(
         ["XETRA"], "germany_cumulative_growth.png",
-        "Growth of $10,000: Oversold Quality Germany vs S&P 500 (2000-2025)",
-        "XETRA (returns in EUR, benchmark in USD)"
+        "Growth of $10,000: Oversold Quality Germany vs DAX (2000-2025)",
+        "XETRA, returns and benchmark in EUR"
     )
     chart_annual_bars(
         ["XETRA"], "germany_annual_returns.png",
-        "Oversold Quality Germany vs S&P 500: Year-by-Year Returns (2000-2025)",
-        "XETRA (returns in EUR)"
+        "Oversold Quality Germany vs DAX: Year-by-Year Returns (2000-2025)",
+        "XETRA, returns in EUR"
     )
 
 if "TSX" in available_exchanges:
@@ -388,13 +419,13 @@ if "SHZ_SHH" in available_exchanges:
     print("\nGenerating charts for blogs/china/...")
     chart_cumulative(
         ["SHZ_SHH"], "china_cumulative_growth.png",
-        "Growth of $10,000: Oversold Quality China vs S&P 500 (2000-2025)",
-        "SHZ + SHH (returns in CNY, benchmark in USD)"
+        "Growth of $10,000: Oversold Quality China vs SSE Composite (2000-2025)",
+        "SHZ + SHH, returns and benchmark in CNY"
     )
     chart_annual_bars(
         ["SHZ_SHH"], "china_annual_returns.png",
-        "Oversold Quality China vs S&P 500: Year-by-Year Returns (2000-2025)",
-        "SHZ + SHH (returns in CNY)"
+        "Oversold Quality China vs SSE Composite: Year-by-Year Returns (2000-2025)",
+        "SHZ + SHH, returns in CNY"
     )
 
 if len(available_exchanges) >= 8:
