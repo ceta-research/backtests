@@ -42,7 +42,8 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, LOCAL_INDEX_BENCHMARKS
+from data_utils import (query_parquet, LOCAL_INDEX_BENCHMARKS,
+                        remove_price_oscillations)
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -53,6 +54,18 @@ WINSORIZE_PCT = 1.0       # Winsorize abnormal returns at 1st/99th percentile
 WINDOWS = [1, 5, 21, 63]  # Trading day windows post-event
 START_YEAR = 2000
 END_YEAR = 2025
+
+# --- Data quality guards ---
+# Mirror data_utils.filter_returns, applied in SQL because the event study computes
+# per-window returns inside DuckDB rather than as Python (symbol, entry, exit) tuples:
+#   - entry-price floor  -> applied to the entry price in event_base
+#   - single-window ceiling -> applied to each window's stock return
+MIN_ENTRY_PRICE = 1.0     # skip events with entry price < $1 (bad adjClose, penny artifacts)
+MAX_SINGLE_RETURN = 2.0   # skip events with a single-window stock return > 200% (price artifacts)
+
+# MOC execution: enter at the next close (T+1), skipping the announcement day so the
+# untradeable announcement-day jump is excluded from every window. --no-next-day -> 0 (T+0).
+ENTRY_OFFSET_DAYS = 1
 
 
 def fetch_data(client, exchanges, mktcap_min, verbose=False):
@@ -211,6 +224,11 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     con.execute("CREATE INDEX idx_prices ON prices(symbol, trade_date)")
     print(f"    -> {count} price rows")
 
+    # 7b. Data quality: strip phantom holiday rows and broken split adjustments
+    #     (adjClose spikes that revert in 1-2 days). Must run before the trading-day
+    #     calendar is built and before any price lookups.
+    remove_price_oscillations(con, table_name="prices", verbose=verbose)
+
     # 8. Build trading day calendar from benchmark
     con.execute(f"""
         CREATE TABLE trading_days AS
@@ -227,8 +245,14 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     return con
 
 
-def compute_event_returns(con, windows=WINDOWS, verbose=False):
-    """Compute abnormal returns at each window for all events."""
+def compute_event_returns(con, windows=WINDOWS, offset_days=ENTRY_OFFSET_DAYS, verbose=False):
+    """Compute abnormal returns at each window for all events.
+
+    offset_days shifts the entry baseline forward from the announcement trading day
+    (T+0). With offset_days=1 the strategy enters at the next close (T+1), so the
+    untradeable announcement-day jump is excluded and every window measures drift
+    relative to that entry. offset_days=0 reproduces same-day (T+0) entry.
+    """
     benchmark = con.execute("SELECT benchmark FROM config").fetchone()[0]
 
     # Map each event to its T+0 trading day using ASOF JOIN
@@ -243,23 +267,28 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
     n_mapped = con.execute("SELECT COUNT(*) FROM event_t0").fetchone()[0]
     print(f"    -> {n_mapped} events mapped to trading days")
 
-    # T+0 prices for events (stock + benchmark)
-    print("    Getting T+0 prices...")
+    # Entry prices at T+offset_days (stock + benchmark). Entry-price floor applied
+    # here so a bad/near-zero adjClose entry drops the event from every window.
+    print(f"    Getting entry prices at T+{offset_days}...")
     con.execute(f"""
         CREATE TABLE event_base AS
         SELECT et.symbol, et.event_date, et.surprise_raw, et.category, et.quintile,
-            et.t0_num, et.t0_date,
+            et.t0_num, tdb.trade_date AS entry_date,
             sp.adjClose AS stock_t0, bp.adjClose AS bench_t0
         FROM event_t0 et
-        JOIN prices sp ON et.symbol = sp.symbol AND et.t0_date = sp.trade_date
-        JOIN prices bp ON bp.symbol = '{benchmark}' AND et.t0_date = bp.trade_date
-        WHERE sp.adjClose > 0 AND bp.adjClose > 0
+        JOIN trading_days tdb ON tdb.day_num = et.t0_num + {offset_days}
+        JOIN prices sp ON et.symbol = sp.symbol AND tdb.trade_date = sp.trade_date
+        JOIN prices bp ON bp.symbol = '{benchmark}' AND tdb.trade_date = bp.trade_date
+        WHERE sp.adjClose >= {MIN_ENTRY_PRICE} AND bp.adjClose > 0
     """)
     n_priced = con.execute("SELECT COUNT(*) FROM event_base").fetchone()[0]
-    print(f"    -> {n_priced} events with T+0 prices")
+    print(f"    -> {n_priced} events with entry (T+{offset_days}) prices "
+          f"(entry-price floor ${MIN_ENTRY_PRICE:.2f})")
     con.execute("DROP TABLE event_t0")
 
-    # Compute returns at each window
+    # Compute returns at each window. Windows are measured from the entry day
+    # (t0_num + offset_days). Single-window return ceiling applied here to drop
+    # price-artifact events (stock return > MAX_SINGLE_RETURN over the window).
     for w in windows:
         print(f"    Computing T+{w} returns...")
         con.execute(f"""
@@ -270,12 +299,22 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
                 ROUND((sp.adjClose - eb.stock_t0) / eb.stock_t0
                      - (bp.adjClose - eb.bench_t0) / eb.bench_t0, 8) AS abnormal_ret
             FROM event_base eb
-            JOIN trading_days td ON td.day_num = eb.t0_num + {w}
+            JOIN trading_days td ON td.day_num = eb.t0_num + {offset_days} + {w}
             JOIN prices sp ON eb.symbol = sp.symbol AND td.trade_date = sp.trade_date
             JOIN prices bp ON bp.symbol = '{benchmark}' AND td.trade_date = bp.trade_date
+            WHERE (sp.adjClose - eb.stock_t0) / eb.stock_t0 <= {MAX_SINGLE_RETURN}
         """)
-        n_computed = con.execute(f"SELECT COUNT(*) FROM window_{w}_returns").fetchone()[0]
-        print(f"      -> {n_computed} events with T+{w} returns")
+        n_kept = con.execute(f"SELECT COUNT(*) FROM window_{w}_returns").fetchone()[0]
+        n_all = con.execute(f"""
+            SELECT COUNT(*)
+            FROM event_base eb
+            JOIN trading_days td ON td.day_num = eb.t0_num + {offset_days} + {w}
+            JOIN prices sp ON eb.symbol = sp.symbol AND td.trade_date = sp.trade_date
+            JOIN prices bp ON bp.symbol = '{benchmark}' AND td.trade_date = bp.trade_date
+        """).fetchone()[0]
+        dropped = n_all - n_kept
+        print(f"      -> {n_kept} events with T+{w} returns "
+              f"({dropped} dropped by {MAX_SINGLE_RETURN*100:.0f}% return ceiling)")
 
     # Join all windows
     print("    Joining window results...")
@@ -490,16 +529,20 @@ def print_results(metrics, universe_name, windows=WINDOWS):
     print(f"{'=' * 75}")
 
 
-def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_path=None):
+def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_path=None,
+               offset_days=ENTRY_OFFSET_DAYS):
     """Run earnings surprise event study for a single exchange set."""
     mktcap_label = (f"{mktcap_min/1e9:.0f}B" if mktcap_min >= 1e9
                     else f"{mktcap_min/1e6:.0f}M")
     signal_desc = (f"Surprise = (epsActual - epsEstimated) / |epsEstimated|, "
                    f"MCap > {mktcap_label} local, |est| > ${MIN_ESTIMATE}, "
                    f"cap at {MAX_SURPRISE*100:.0f}%")
+    exec_model = (f"next-day close (enter T+{offset_days}, skip announcement day)"
+                  if offset_days > 0 else "same-day close (T+0)")
     print_header("EARNINGS SURPRISE EVENT STUDY", universe_name, exchanges, signal_desc)
-    print(f"  Windows: {', '.join(f'T+{w}' for w in WINDOWS)}")
+    print(f"  Windows: {', '.join(f'T+{w}' for w in WINDOWS)} (measured from entry)")
     print(f"  Categories: positive / negative / Q1-Q5 (quintile by surprise magnitude)")
+    print(f"  Execution: {exec_model}")
     print("=" * 65)
 
     print("\nPhase 1: Fetching data via API...")
@@ -514,7 +557,7 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
 
     print(f"\nPhase 2: Computing event-window returns...")
     t1 = time.time()
-    results = compute_event_returns(con, windows=WINDOWS, verbose=verbose)
+    results = compute_event_returns(con, windows=WINDOWS, offset_days=offset_days, verbose=verbose)
     compute_time = time.time() - t1
     print(f"Returns computed in {compute_time:.0f}s")
 
@@ -545,11 +588,15 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
         "universe": universe_name,
         "benchmark": benchmark,
         "study_type": "event_study",
+        "execution": exec_model,
+        "entry_offset_days": offset_days,
         "period": f"{START_YEAR}-{END_YEAR}",
         "filters": {
             "min_market_cap": mktcap_min,
             "min_estimate": MIN_ESTIMATE,
             "max_surprise": MAX_SURPRISE,
+            "min_entry_price": MIN_ENTRY_PRICE,
+            "max_single_return": MAX_SINGLE_RETURN,
         },
         "windows": WINDOWS,
         "car_metrics": metrics,
@@ -586,6 +633,9 @@ def main():
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
 
+    # MOC execution: enter at next close (T+1) by default; --no-next-day -> T+0
+    offset_days = 0 if getattr(args, "no_next_day", False) else ENTRY_OFFSET_DAYS
+
     if args.cloud:
         from cloud_runner import run_backtest_cloud
         cloud_args = [a for a in sys.argv[1:] if a != "--cloud"]
@@ -606,7 +656,8 @@ def main():
         print("=" * 65)
 
         all_results = {}
-        # Note: ASX excluded (adjClose split adjustment artifacts). SAO included (ok for event studies).
+        # Excluded for fatal FMP adjClose data quality (see DATA_QUALITY_ISSUES.md):
+        # ASX, SAO (Brazil), SGX. The event study uses adjClose, so these are not safe.
         presets_to_run = [
             ("us", ["NYSE", "NASDAQ", "AMEX"]),
             ("canada", ["TSX"]),
@@ -618,7 +669,6 @@ def main():
             ("korea", ["KSC"]),
             ("sweden", ["STO"]),
             ("hongkong", ["HKSE"]),
-            ("brazil", ["SAO"]),   # SAO ok for event studies (no adjClose needed)
             ("switzerland", ["SIX"]),
             ("taiwan", ["TAI", "TWO"]),
             ("thailand", ["SET"]),
@@ -642,7 +692,8 @@ def main():
 
             try:
                 result = run_single(cr, preset_exchanges, uni_name, mktcap_threshold,
-                                    verbose=args.verbose, output_path=output_path)
+                                    verbose=args.verbose, output_path=output_path,
+                                    offset_days=offset_days)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -708,7 +759,8 @@ def main():
     mktcap_threshold = get_mktcap_threshold(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, mktcap_threshold,
-               verbose=args.verbose, output_path=args.output)
+               verbose=args.verbose, output_path=args.output,
+               offset_days=offset_days)
 
 
 if __name__ == "__main__":

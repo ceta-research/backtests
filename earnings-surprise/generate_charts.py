@@ -66,7 +66,7 @@ QUINTILE_COLORS = {
 QUINTILE_LABELS = {
     "Q1": "Q1 (largest misses)",
     "Q2": "Q2",
-    "Q3": "Q3 (near-zero)",
+    "Q3": "Q3 (near-consensus)",
     "Q4": "Q4",
     "Q5": "Q5 (largest beats)",
 }
@@ -251,6 +251,8 @@ def chart_comparison_t1(comparison_data, output_dir):
     for ex_key, d in comparison_data.items():
         if "error" in d or not d.get("car_metrics"):
             continue
+        if ex_key in ("OSL", "SAO"):  # excluded from comparison (negative spread / data quality)
+            continue
         label = EXCHANGE_LABELS.get(ex_key, ex_key)
         cm = d["car_metrics"]
         val = _get_metric(cm, "positive", "car_1d")
@@ -286,7 +288,7 @@ def chart_comparison_t1(comparison_data, output_dir):
     ax.set_yticklabels(labels)
     ax.set_xlabel("Beats Mean CAR at T+1 (%)")
     ax.set_title("PEAD: T+1 Post-Earnings Drift (Beats) by Exchange\n"
-                 "(Exchange-specific MCap filters, 2000-2025, abnormal return vs regional ETF)",
+                 "(Exchange-specific MCap filters, 2000-2025, next-day entry, abnormal return vs local index)",
                  fontsize=11, fontweight="bold")
     ax.grid(axis="x", alpha=0.3)
     ax.spines["top"].set_visible(False)
@@ -311,6 +313,8 @@ def chart_comparison_t63(comparison_data, output_dir):
     rows = []
     for ex_key, d in comparison_data.items():
         if "error" in d or not d.get("car_metrics"):
+            continue
+        if ex_key in ("OSL", "SAO"):  # excluded from comparison (negative spread / data quality)
             continue
         label = EXCHANGE_LABELS.get(ex_key, ex_key)
         cm = d["car_metrics"]
@@ -347,7 +351,7 @@ def chart_comparison_t63(comparison_data, output_dir):
     ax.set_yticklabels(labels)
     ax.set_xlabel("Beats Mean CAR at T+63 (~3 months post-earnings) (%)")
     ax.set_title("PEAD: T+63 Post-Earnings Drift (Beats) by Exchange\n"
-                 "(Exchange-specific MCap filters, 2000-2025, abnormal return vs regional ETF)",
+                 "(Exchange-specific MCap filters, 2000-2025, next-day entry, abnormal return vs local index)",
                  fontsize=11, fontweight="bold")
     ax.grid(axis="x", alpha=0.3)
     ax.spines["top"].set_visible(False)
