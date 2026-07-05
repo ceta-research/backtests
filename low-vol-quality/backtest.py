@@ -35,7 +35,8 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS)
+                        get_local_benchmark, get_benchmark_return, remove_price_oscillations,
+                        LOCAL_INDEX_BENCHMARKS)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,

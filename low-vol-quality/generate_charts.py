@@ -83,6 +83,26 @@ COMPARISON_LABELS = {
 }
 
 
+# Local benchmark display names per exchange (the "spy" field in each exchange's
+# results now holds the LOCAL benchmark return, so regional charts label it correctly).
+BENCH_NAMES = {
+    "NYSE_NASDAQ_AMEX": "S&P 500",
+    "NSE": "Sensex",
+    "TSX": "TSX Composite",
+    "STO": "OMX Stockholm 30",
+    "SHZ_SHH": "SSE Composite",
+    "HKSE": "Hang Seng",
+    "TAI": "TAIEX",
+    "LSE": "FTSE 100",
+    "KSC": "KOSPI",
+    "JPX": "Nikkei 225",
+    "SIX": "SMI",
+    "XETRA": "DAX",
+    "SET": "SET Index",
+    "SAU": "S&P 500",
+}
+
+
 def get_cumulative_growth(exchange_key, initial=10000):
     """Compute cumulative growth from annual returns."""
     ex = data[exchange_key]
@@ -109,11 +129,11 @@ def chart_cumulative(exchange_key, filename, title):
     """Generate cumulative growth chart for one exchange vs SPY."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    ref_key = "NYSE_NASDAQ_AMEX" if "NYSE_NASDAQ_AMEX" in data else list(data.keys())[0]
-    spy_years, spy_vals = get_spy_cumulative(ref_key)
-    spy_cagr = data[ref_key]["spy"]["cagr"]
+    bench_name = BENCH_NAMES.get(exchange_key, "S&P 500")
+    spy_years, spy_vals = get_spy_cumulative(exchange_key)
+    spy_cagr = data[exchange_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{bench_name} ({spy_cagr}% CAGR)", linestyle="--")
 
     years, vals = get_cumulative_growth(exchange_key)
     ex = data[exchange_key]
@@ -165,7 +185,7 @@ def chart_annual_bars(exchange_key, filename, title):
     x = list(range(len(years)))
 
     ax.bar([xi - width / 2 for xi in x], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=BENCH_NAMES.get(exchange_key, "S&P 500"), color=COLORS["SPY"], alpha=0.7)
     ax.bar([xi + width / 2 for xi in x], port_returns, width,
            label=EXCHANGE_LABELS[exchange_key], color=COLORS[exchange_key], alpha=0.85)
 
@@ -300,12 +320,12 @@ for key, (slug, name) in BLOG_EXCHANGES.items():
         chart_cumulative(
             key,
             f"1_{slug}_cumulative_growth.png",
-            f"Growth of $10,000: Low Vol + Quality {name} vs S&P 500 (2000-2025)"
+            f"Growth of $10,000: Low Vol + Quality {name} vs {BENCH_NAMES.get(key, 'S&P 500')} (2000-2025)"
         )
         chart_annual_bars(
             key,
             f"2_{slug}_annual_returns.png",
-            f"Low Vol + Quality {name}: Year-by-Year Returns (2000-2024)"
+            f"Low Vol + Quality {name}: Year-by-Year Returns (2000-2025)"
         )
 
 print("\nComparison charts...")
