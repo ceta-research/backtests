@@ -165,7 +165,7 @@ def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0 and k != "SET"  # Exclude Thailand
+        if v["invested_periods"] > 0 and k not in ("ASX", "SAO")  # Exclude Australia + Brazil (fatal data quality)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -211,7 +211,7 @@ def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0 and k != "SET"
+        if v["invested_periods"] > 0 and k not in ("ASX", "SAO")
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 
