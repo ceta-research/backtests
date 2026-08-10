@@ -42,7 +42,9 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, remove_price_oscillations
+from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
+                        remove_price_oscillations, get_local_benchmark, get_benchmark_return,
+                        LOCAL_INDEX_BENCHMARKS)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -60,7 +62,7 @@ DEFAULT_FREQUENCY = "annual"
 DEFAULT_REBALANCE_MONTHS = [4]  # April — covers Dec/Mar FY-end companies with 45-day lag
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, exclude_funds=False):
     """Fetch financial data and load into DuckDB.
 
     Populates tables:
@@ -72,10 +74,22 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Returns DuckDB connection or None.
     """
+    # Optional universe guard. Closed-end funds and ETFs report investment income as
+    # "revenue", which swings with mark-to-market and dominates an acceleration ranking.
+    # Off by default so the published signal is unchanged. isActivelyTrading is
+    # deliberately NOT used here: it would drop delisted names retroactively and add
+    # survivorship bias to a historical run.
+    fund_guard = " AND isFund = false AND isEtf = false" if exclude_funds else ""
+
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){fund_guard}"
+        sym_filter_sql = (f"symbol IN (SELECT DISTINCT symbol FROM profile "
+                          f"WHERE exchange IN ({ex_filter}){fund_guard})")
+    elif exclude_funds:
+        exchange_where = "WHERE isFund = false AND isEtf = false"
+        sym_filter_sql = ("symbol IN (SELECT DISTINCT symbol FROM profile "
+                          "WHERE isFund = false AND isEtf = false)")
     else:
         exchange_where = ""
         sym_filter_sql = "1=1"
@@ -133,17 +147,27 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        # +1 day of slack so the MOC (next-day) entry window is fully covered
+        end = d + timedelta(days=11)
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
+    # Benchmark symbols: SPY always, plus the local index for these exchanges
+    bench_symbols = {"'SPY'"}
+    if exchanges:
+        for ex in exchanges:
+            sym = LOCAL_INDEX_BENCHMARKS.get(ex)
+            if sym:
+                bench_symbols.add(f"'{sym}'")
+    bench_list = ", ".join(sorted(bench_symbols))
+
     # Filter price symbols using income_statement coverage (cheaper than full universe)
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
-            symbol = 'SPY'
+            symbol IN ({bench_list})
             OR symbol IN (
                 SELECT DISTINCT symbol FROM income_statement
                 WHERE period = 'FY' AND revenue > 0
@@ -241,8 +265,13 @@ def screen_stocks(con, target_date, mktcap_min):
     return [(r[0], r[1]) for r in rows]  # (symbol, marketCap)
 
 
-def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False):
-    """Run Revenue Acceleration backtest. Returns list of period result dicts."""
+def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
+                 offset_days=1, benchmark_symbol="SPY"):
+    """Run Revenue Acceleration backtest. Returns list of period result dicts.
+
+    offset_days=1 executes at the next session's close (market-on-close), so the
+    screen is never filled at a price observed on the same bar it was computed from.
+    """
     results = []
 
     for i in range(len(rebalance_dates) - 1):
@@ -251,11 +280,15 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         portfolio = screen_stocks(con, entry_date, mktcap_min)
 
-        spy_prices_entry = get_prices(con, ["SPY"], entry_date)
-        spy_prices_exit = get_prices(con, ["SPY"], exit_date)
-        spy_return = None
-        if "SPY" in spy_prices_entry and "SPY" in spy_prices_exit and spy_prices_entry["SPY"] > 0:
-            spy_return = (spy_prices_exit["SPY"] - spy_prices_entry["SPY"]) / spy_prices_entry["SPY"]
+        # Primary benchmark = local index (SPY for US). SPY is also always kept as a
+        # secondary, cross-market comparable since it is total-return in USD.
+        spy_return = get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
+                                          offset_days=offset_days)
+        if benchmark_symbol == "SPY":
+            spy_usd_return = spy_return
+        else:
+            spy_usd_return = get_benchmark_return(con, "SPY", entry_date, exit_date,
+                                                  offset_days=offset_days)
 
         if len(portfolio) < MIN_STOCKS:
             results.append({
@@ -263,6 +296,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "exit_date": exit_date.isoformat(),
                 "portfolio_return": 0.0,
                 "spy_return": spy_return,
+                "spy_usd_return": spy_usd_return,
                 "stocks_held": 0,
                 "holdings": f"CASH ({len(portfolio)} passed)",
             })
@@ -273,8 +307,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         symbols = [s for s, _ in portfolio]
         mcaps = {s: mc for s, mc in portfolio}
 
-        entry_prices = get_prices(con, symbols, entry_date)
-        exit_prices = get_prices(con, symbols, exit_date)
+        entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
+        exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
 
         symbol_data = [(sym, entry_prices.get(sym), exit_prices.get(sym), mcaps.get(sym))
                        for sym in symbols]
@@ -299,6 +333,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "exit_date": exit_date.isoformat(),
             "portfolio_return": round(port_return, 6),
             "spy_return": round(spy_return, 6) if spy_return is not None else None,
+            "spy_usd_return": round(spy_usd_return, 6) if spy_usd_return is not None else None,
             "stocks_held": len(returns),
             "holdings": ",".join(symbols[:20]),
         })
@@ -308,13 +343,15 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             if spy_return is not None:
                 excess = f"  ex={((port_return - spy_return) * 100):+.1f}%"
             print(f"    {entry_date}: {len(returns)} stocks, "
-                  f"port={port_return * 100:.1f}%, spy={spy_return * 100 if spy_return else 0:.1f}%{excess}")
+                  f"port={port_return * 100:.1f}%, bench={spy_return * 100 if spy_return else 0:.1f}%{excess}")
 
     return results
 
 
 def build_output(metrics, annual, valid, results, universe_name, frequency,
-                 periods_per_year, cash_periods, avg_stocks):
+                 periods_per_year, cash_periods, avg_stocks,
+                 benchmark_symbol="SPY", benchmark_name="S&P 500", execution="next-day close",
+                 spy_metrics=None, spy_annual=None):
     """Build JSON output in standard format."""
     p = metrics["portfolio"]
     b = metrics["benchmark"]
@@ -340,11 +377,40 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
             "pct_negative_periods": pct(s.get("pct_negative_periods")),
         }
 
+    # Secondary comparison: SPY in USD. Identical to the primary block for US runs,
+    # so it is only emitted when the primary benchmark is a local index.
+    spy_block = {}
+    if spy_metrics is not None and benchmark_symbol != "SPY":
+        sc = spy_metrics["comparison"]
+        spy_block = {
+            "spy_usd": format_series(spy_metrics["benchmark"]),
+            "comparison_vs_spy": {
+                "excess_cagr": pct(sc.get("excess_cagr")),
+                "win_rate": pct(sc.get("win_rate")),
+                "information_ratio": rnd(sc.get("information_ratio")),
+                "up_capture": pct(sc.get("up_capture")),
+                "down_capture": pct(sc.get("down_capture")),
+                "beta": rnd(sc.get("beta")),
+                "alpha": pct(sc.get("alpha")),
+            },
+            "excess_cagr_vs_spy": pct(sc.get("excess_cagr")),
+            "annual_returns_vs_spy": [
+                {"year": ar["year"],
+                 "portfolio": round(ar["portfolio"] * 100, 2),
+                 "spy": round(ar["benchmark"] * 100, 2),
+                 "excess": round(ar["excess"] * 100, 2)}
+                for ar in (spy_annual or [])
+            ],
+        }
+
     return {
         "universe": universe_name,
         "n_periods": len(valid),
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
+        "benchmark_symbol": benchmark_symbol,
+        "benchmark_name": benchmark_name,
+        "execution": execution,
         "cash_periods": cash_periods,
         "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
@@ -369,13 +435,18 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
              "excess": round(ar["excess"] * 100, 2)}
             for ar in annual
         ],
+        **spy_block,
     }
 
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, verbose, output_path=None):
+               risk_free_rate, verbose, output_path=None, offset_days=1,
+               exclude_funds=False):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
+
+    benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
+    exec_model = "next-day close (MOC)" if offset_days else "same-day close"
 
     mktcap_threshold = get_mktcap_threshold(exchanges)
     mktcap_label = (f"{mktcap_threshold/1e9:.0f}B"
@@ -386,6 +457,9 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                    f"MCap > {mktcap_label} local, Top {MAX_STOCKS}")
     print_header("REVENUE ACCELERATION BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
+    print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+    if exclude_funds:
+        print("  Universe guard: closed-end funds and ETFs excluded (isFund/isEtf)")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
     print("=" * 65)
 
@@ -393,7 +467,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = generate_rebalance_dates(2000, 2025, frequency,
                                                months=DEFAULT_REBALANCE_MONTHS)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
+                             exclude_funds=exclude_funds)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -403,7 +478,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
-                           use_costs=use_costs, verbose=verbose)
+                           use_costs=use_costs, verbose=verbose,
+                           offset_days=offset_days, benchmark_symbol=benchmark_symbol)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -418,7 +494,30 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     metrics = compute_metrics(port_returns, spy_returns, periods_per_year,
                               risk_free_rate=risk_free_rate)
-    print(format_metrics(metrics, "Revenue Acceleration", "S&P 500"))
+    print(format_metrics(metrics, "Revenue Acceleration", benchmark_name))
+
+    # Secondary: same portfolio measured against SPY (USD, total return) so the
+    # cross-market comparison has one consistent yardstick.
+    spy_metrics = None
+    spy_annual = None
+    if benchmark_symbol != "SPY":
+        spy_valid = [r for r in results
+                     if r["portfolio_return"] is not None and r.get("spy_usd_return") is not None]
+        if spy_valid:
+            spy_metrics = compute_metrics(
+                [r["portfolio_return"] for r in spy_valid],
+                [r["spy_usd_return"] for r in spy_valid],
+                periods_per_year, risk_free_rate=risk_free_rate)
+            spy_annual = compute_annual_returns(
+                [r["portfolio_return"] for r in spy_valid],
+                [r["spy_usd_return"] for r in spy_valid],
+                [r["rebalance_date"] for r in spy_valid], periods_per_year)
+            sx = spy_metrics["comparison"].get("excess_cagr")
+            sb = spy_metrics["benchmark"].get("cagr")
+            print(f"\n  Secondary benchmark S&P 500 (SPY, USD): "
+                  f"{sb * 100:.2f}% CAGR, excess {sx * 100:+.2f}%"
+                  if sx is not None and sb is not None else
+                  "\n  Secondary benchmark S&P 500 (SPY, USD): unavailable")
 
     cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
     invested = [r["stocks_held"] for r in results if r["stocks_held"] > 0]
@@ -429,7 +528,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     period_dates = [r["rebalance_date"] for r in valid]
     annual = compute_annual_returns(port_returns, spy_returns, period_dates, periods_per_year)
     if annual:
-        print(f"\n  {'Year':<8} {'RevAccel':>12} {'SPY':>10} {'Excess':>10}")
+        print(f"\n  {'Year':<8} {'RevAccel':>12} {benchmark_name:>10} {'Excess':>10}")
         print("  " + "-" * 42)
         for ar in annual:
             print(f"  {ar['year']:<8} {ar['portfolio']*100:>11.1f}% {ar['benchmark']*100:>9.1f}% "
@@ -439,7 +538,12 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"\n  Total time: {total_time:.0f}s (fetch: {fetch_time:.0f}s, backtest: {bt_time:.0f}s)")
 
     output = build_output(metrics, annual, valid, results, universe_name,
-                          frequency, periods_per_year, cash_periods, avg_stocks)
+                          frequency, periods_per_year, cash_periods, avg_stocks,
+                          benchmark_symbol=benchmark_symbol,
+                          benchmark_name=benchmark_name,
+                          execution=exec_model,
+                          spy_metrics=spy_metrics,
+                          spy_annual=spy_annual)
 
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
@@ -456,6 +560,9 @@ def main():
     add_common_args(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--exclude-funds", action="store_true",
+                        help="Exclude closed-end funds and ETFs from the universe "
+                             "(diagnostic: their investment income is reported as revenue)")
     args = parser.parse_args()
 
     if args.cloud:
@@ -472,6 +579,7 @@ def main():
     exchanges, universe_name = resolve_exchanges(args)
     frequency = args.frequency or DEFAULT_FREQUENCY
     use_costs = not args.no_costs
+    offset_days = 0 if args.no_next_day else 1
 
     # --global mode: loop all presets
     if exchanges is None and universe_name in ("Global", "GLOBAL"):
@@ -516,7 +624,9 @@ def main():
 
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
-                                    use_costs, rfr, args.verbose, output_path)
+                                    use_costs, rfr, args.verbose, output_path,
+                                    offset_days=offset_days,
+                                    exclude_funds=args.exclude_funds)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -533,8 +643,8 @@ def main():
         print(f"\n\n{'=' * 80}")
         print("EXCHANGE COMPARISON SUMMARY")
         print(f"{'=' * 80}")
-        print(f"{'Exchange':<20} {'CAGR':>8} {'Excess':>8} {'Sharpe':>8} {'MaxDD':>8} {'Cash%':>8} {'AvgStk':>8}")
-        print("-" * 80)
+        print(f"{'Exchange':<20} {'Benchmark':<18} {'CAGR':>8} {'Excess':>8} {'Sharpe':>8} {'MaxDD':>8} {'Cash%':>7} {'AvgStk':>7}")
+        print("-" * 96)
         for uni, r in sorted(all_results.items(),
                               key=lambda x: (x[1].get("portfolio") or {}).get("cagr") or -999,
                               reverse=True):
@@ -551,19 +661,21 @@ def main():
             sharpe = p.get("sharpe_ratio")
             maxdd = p.get("max_drawdown")
             avg = r.get("avg_stocks_when_invested")
-            print(f"{uni:<20} {cagr if cagr is not None else 'N/A':>7}% "
+            bench = r.get("benchmark_name", "S&P 500")
+            print(f"{uni:<20} {bench:<18} {cagr if cagr is not None else 'N/A':>7}% "
                   f"{f'{excess:+.2f}' if excess is not None else 'N/A':>7}% "
                   f"{sharpe if sharpe is not None else 'N/A':>8} "
                   f"{maxdd if maxdd is not None else 'N/A':>7}% "
-                  f"{cash_pct:>7.0f}% {avg if avg is not None else 'N/A':>8}")
-        print("=" * 80)
+                  f"{cash_pct:>6.0f}% {avg if avg is not None else 'N/A':>7}")
+        print("=" * 96)
         return
 
     # Single exchange mode
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, args.verbose, args.output)
+               risk_free_rate, args.verbose, args.output, offset_days=offset_days,
+               exclude_funds=args.exclude_funds)
 
 
 if __name__ == "__main__":

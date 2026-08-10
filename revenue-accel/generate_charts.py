@@ -87,11 +87,17 @@ def load_results():
         return json.load(f)
 
 
+def bench_name(data):
+    """Benchmark display name for a result dict (local index, or SPY for US)."""
+    return data.get("benchmark_name") or "S&P 500"
+
+
 def plot_cumulative_growth(exchange_key, data, label, filename):
-    """Plot cumulative growth of strategy vs SPY."""
+    """Plot cumulative growth of strategy vs its benchmark."""
     annual = data.get("annual_returns", [])
     if not annual:
         return
+    bench = bench_name(data)
 
     years = [ar["year"] for ar in annual]
     port_cum = [1.0]
@@ -106,13 +112,13 @@ def plot_cumulative_growth(exchange_key, data, label, filename):
     ax.plot(x_labels, port_cum, color=COLORS["strategy"], linewidth=2.5,
             label=f"{STRATEGY_NAME} ({data['portfolio']['cagr']}% CAGR)")
     ax.plot(x_labels, spy_cum, color=COLORS["spy"], linewidth=2, linestyle="--",
-            label=f"S&P 500 ({data['spy']['cagr']}% CAGR)")
+            label=f"{bench} ({data['spy']['cagr']}% CAGR)")
 
-    ax.set_title(f"{STRATEGY_NAME} vs S&P 500 — {label}",
+    ax.set_title(f"{STRATEGY_NAME} vs {bench}: {label}",
                  fontsize=14, fontweight="bold", pad=15)
     ax.set_xlabel("Year", fontsize=11)
-    ax.set_ylabel("Portfolio Value ($1 invested)", fontsize=11)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:.1f}"))
+    ax.set_ylabel("Portfolio Value (1 unit invested)", fontsize=11)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.1f}x"))
     ax.legend(fontsize=10)
     ax.grid(True, alpha=0.3)
 
@@ -147,6 +153,7 @@ def plot_annual_returns(exchange_key, data, label, filename):
     years = [ar["year"] for ar in annual]
     port_rets = [ar["portfolio"] for ar in annual]
     spy_rets = [ar["spy"] for ar in annual]
+    bench = bench_name(data)
 
     x = range(len(years))
     width = 0.38
@@ -156,10 +163,10 @@ def plot_annual_returns(exchange_key, data, label, filename):
            color=[COLORS["positive"] if r >= 0 else COLORS["negative"] for r in port_rets],
            alpha=0.85, label=STRATEGY_NAME)
     ax.bar([i + width/2 for i in x], spy_rets, width,
-           color=COLORS["spy"], alpha=0.5, label="S&P 500")
+           color=COLORS["spy"], alpha=0.5, label=bench)
 
     ax.axhline(y=0, color="black", linewidth=0.8, alpha=0.5)
-    ax.set_title(f"Annual Returns — {STRATEGY_NAME} vs S&P 500 ({label})",
+    ax.set_title(f"Annual Returns: {STRATEGY_NAME} vs {bench} ({label})",
                  fontsize=13, fontweight="bold", pad=12)
     ax.set_ylabel("Annual Return (%)", fontsize=11)
     ax.set_xticks(list(x))
@@ -176,8 +183,14 @@ def plot_annual_returns(exchange_key, data, label, filename):
     print(f"  Saved: {filename}")
 
 
+def spy_series(data):
+    """SPY (USD, total return) series. Cross-market charts must use this, not the
+    primary block, which holds a different local index for each exchange."""
+    return data.get("spy_usd") or data["spy"]
+
+
 def plot_comparison_cagr(all_data, filename="1_comparison_cagr.png"):
-    """CAGR comparison bar chart across all exchanges."""
+    """CAGR comparison bar chart across all exchanges, benchmarked to SPY."""
     labels = []
     port_cagrs = []
     spy_cagrs = []
@@ -188,7 +201,7 @@ def plot_comparison_cagr(all_data, filename="1_comparison_cagr.png"):
         label = EXCHANGE_LABELS.get(key, key)
         labels.append(label)
         port_cagrs.append(data["portfolio"]["cagr"])
-        spy_cagrs.append(data["spy"]["cagr"])
+        spy_cagrs.append(spy_series(data)["cagr"])
 
     if not labels:
         return
@@ -205,9 +218,9 @@ def plot_comparison_cagr(all_data, filename="1_comparison_cagr.png"):
                   for c, s in zip(port_cagrs, spy_cagrs)],
            alpha=0.85, label=STRATEGY_NAME)
     ax.bar([i + width/2 for i in x], spy_cagrs, width,
-           color=COLORS["spy"], alpha=0.5, label="Local Benchmark (SPY)")
+           color=COLORS["spy"], alpha=0.5, label="S&P 500 (SPY, USD)")
 
-    ax.set_title(f"{STRATEGY_NAME} CAGR — All Exchanges (2000-2025)",
+    ax.set_title(f"{STRATEGY_NAME} CAGR vs S&P 500: all exchanges (2000-2025)",
                  fontsize=13, fontweight="bold", pad=12)
     ax.set_ylabel("CAGR (%)", fontsize=11)
     ax.set_xticks(list(x))
@@ -236,7 +249,7 @@ def plot_comparison_drawdown(all_data, filename="2_comparison_drawdown.png"):
         label = EXCHANGE_LABELS.get(key, key)
         labels.append(label)
         port_mdd.append(abs(data["portfolio"]["max_drawdown"]))
-        spy_mdd.append(abs(data["spy"]["max_drawdown"]))
+        spy_mdd.append(abs(spy_series(data)["max_drawdown"]))
 
     if not labels:
         return
@@ -251,9 +264,9 @@ def plot_comparison_drawdown(all_data, filename="2_comparison_drawdown.png"):
     ax.bar([i - width/2 for i in x], port_mdd, width, color=COLORS["negative"],
            alpha=0.8, label=STRATEGY_NAME)
     ax.bar([i + width/2 for i in x], spy_mdd, width, color=COLORS["spy"],
-           alpha=0.5, label="SPY")
+           alpha=0.5, label="S&P 500 (SPY, USD)")
 
-    ax.set_title(f"Max Drawdown — {STRATEGY_NAME} vs SPY (2000-2025)",
+    ax.set_title(f"Max Drawdown: {STRATEGY_NAME} vs S&P 500 (2000-2025)",
                  fontsize=13, fontweight="bold", pad=12)
     ax.set_ylabel("Max Drawdown (%, lower = better)", fontsize=11)
     ax.set_xticks(list(x))
