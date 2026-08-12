@@ -65,9 +65,18 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from US_MAJOR (all exchanges share same SPY data)."""
-    ex = data["US_MAJOR"]
+def benchmark_name(exchange_key):
+    """Local benchmark name for an exchange (Sensex, FTSE 100, ...)."""
+    return data.get(exchange_key, {}).get("benchmark_name", "Benchmark")
+
+
+def get_spy_cumulative(exchange_key="US_MAJOR", initial=10000):
+    """Cumulative growth of an exchange's OWN benchmark series.
+
+    The "spy" key holds whichever benchmark that exchange was measured
+    against, which for non-US markets is the local index, not SPY.
+    """
+    ex = data[exchange_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
     for ar in ex["annual_returns"]:
@@ -77,12 +86,14 @@ def get_spy_cumulative(initial=10000):
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Cumulative growth for given exchanges vs their own local benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    bench_key = exchanges[0]
+    spy_years, spy_vals = get_spy_cumulative(bench_key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({data['US_MAJOR']['spy']['cagr']}% CAGR)", linestyle="--")
+            label=f"{benchmark_name(bench_key)} ({data[bench_key]['spy']['cagr']}% CAGR)",
+            linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -138,7 +149,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_name(exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -300,41 +311,28 @@ def chart_comparison_sharpe(filename):
 
 # ---- Generate all charts ----
 
-print("Generating charts for blog.md (US)...")
-chart_cumulative(
-    ["US_MAJOR"], "us_cumulative_growth.png",
-    "Growth of $10,000: Dogs of the Dow vs S&P 500 (2000-2025)",
-    "Dow 30, top 10 by dividend yield"
-)
-chart_annual_bars(
-    ["US_MAJOR"], "us_annual_returns.png",
-    "Dogs of the Dow vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "Dow 30, top 10 by dividend yield"
-)
+REGIONAL_CHARTS = [
+    ("US_MAJOR", "us", "Dogs of the Dow", "Dow 30, top 10 by dividend yield"),
+    # The India blog is written on BSE (Bombay) results, so chart BSE, not NSE.
+    ("BSE", "india", "High Yield Blue Chips India",
+     "BSE, top 30 by market cap, top 10 by yield"),
+    ("STO", "sweden", "High Yield Blue Chips Sweden",
+     "STO, top 30 by market cap, top 10 by yield"),
+]
 
-print("Generating charts for blog_india.md...")
-chart_cumulative(
-    ["NSE"], "india_cumulative_growth.png",
-    "Growth of $10,000: High Yield Blue Chips India vs S&P 500 (2000-2025)",
-    "NSE, top 30 by market cap, top 10 by yield"
-)
-chart_annual_bars(
-    ["NSE"], "india_annual_returns.png",
-    "High Yield Blue Chips India vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "NSE, top 30 by market cap, top 10 by yield"
-)
-
-print("Generating charts for blog_sweden.md...")
-chart_cumulative(
-    ["STO"], "sweden_cumulative_growth.png",
-    "Growth of $10,000: High Yield Blue Chips Sweden vs S&P 500 (2000-2025)",
-    "STO, top 30 by market cap, top 10 by yield"
-)
-chart_annual_bars(
-    ["STO"], "sweden_annual_returns.png",
-    "High Yield Blue Chips Sweden vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "STO, top 30 by market cap, top 10 by yield"
-)
+for ex_key, slug, strategy_label, footer in REGIONAL_CHARTS:
+    print(f"Generating charts for blog_{slug}.md...")
+    bench = benchmark_name(ex_key)
+    chart_cumulative(
+        [ex_key], f"{slug}_cumulative_growth.png",
+        f"Growth of $10,000: {strategy_label} vs {bench} (2000-2025)",
+        footer
+    )
+    chart_annual_bars(
+        [ex_key], f"{slug}_annual_returns.png",
+        f"{strategy_label} vs {bench}: Year-by-Year Returns (2000-2024)",
+        footer
+    )
 
 print("Generating charts for blog_comparison.md...")
 chart_comparison_cagr("global_cagr_comparison.png")

@@ -60,8 +60,13 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
+def benchmark_name(exchange_key):
+    """Local benchmark name for an exchange (Sensex, FTSE 100, ...)."""
+    return data.get(exchange_key, {}).get("benchmark_name", "Benchmark")
+
+
 def get_spy_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
-    """Get SPY cumulative from reference exchange."""
+    """Cumulative growth of that exchange's OWN benchmark series."""
     ex = data[ref_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
@@ -75,10 +80,10 @@ def chart_cumulative(exchange_key, filename, title, footer_exchange):
     """Generate cumulative growth chart for one exchange vs SPY."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
+    spy_years, spy_vals = get_spy_cumulative(exchange_key)
+    spy_cagr = data[exchange_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_name(exchange_key)} ({spy_cagr}% CAGR)", linestyle="--")
 
     ex = data[exchange_key]
     years, vals = get_cumulative_growth(exchange_key)
@@ -131,7 +136,7 @@ def chart_annual_bars(exchange_key, filename, title, footer_exchange):
     x = list(range(len(years)))
 
     ax.bar([xi - width / 2 for xi in x], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_name(exchange_key), color=COLORS["SPY"], alpha=0.7)
     ax.bar([xi + width / 2 for xi in x], pairs_returns, width,
            label=EXCHANGE_LABELS[exchange_key], color=COLORS[exchange_key], alpha=0.85)
 
@@ -264,33 +269,24 @@ def chart_comparison_cash(filename):
 
 # ---- Generate all charts ----
 
-print("Generating US charts...")
-chart_cumulative(
-    "NYSE_NASDAQ_AMEX",
-    "1_us_cumulative_growth.png",
-    "Growth of $10,000: Pairs Trading US vs S&P 500 (2005-2024)",
-    "NYSE + NASDAQ + AMEX"
-)
-chart_annual_bars(
-    "NYSE_NASDAQ_AMEX",
-    "2_us_annual_returns.png",
-    "Pairs Trading US vs S&P 500: Year-by-Year Returns (2005-2024)",
-    "NYSE + NASDAQ + AMEX"
-)
-
-print("Generating Japan charts...")
-chart_cumulative(
-    "JPX",
-    "1_japan_cumulative_growth.png",
-    "Growth of $10,000: Pairs Trading Japan vs S&P 500 (2005-2024)",
-    "JPX (Tokyo Stock Exchange)"
-)
-chart_annual_bars(
-    "JPX",
-    "2_japan_annual_returns.png",
-    "Pairs Trading Japan vs S&P 500: Year-by-Year Returns (2005-2024)",
-    "JPX (Tokyo Stock Exchange)"
-)
+for _ex_key, _slug, _region, _footer in [
+    ("NYSE_NASDAQ_AMEX", "us", "US", "NYSE + NASDAQ + AMEX"),
+    ("JPX", "japan", "Japan", "JPX (Tokyo Stock Exchange)"),
+]:
+    print(f"Generating {_region} charts...")
+    _bench = benchmark_name(_ex_key)
+    chart_cumulative(
+        _ex_key,
+        f"1_{_slug}_cumulative_growth.png",
+        f"Growth of $10,000: Pairs Trading {_region} vs {_bench} (2005-2024)",
+        _footer
+    )
+    chart_annual_bars(
+        _ex_key,
+        f"2_{_slug}_annual_returns.png",
+        f"Pairs Trading {_region} vs {_bench}: Year-by-Year Returns (2005-2024)",
+        _footer
+    )
 
 print("Generating comparison charts...")
 chart_comparison_cagr("1_comparison_cagr.png")

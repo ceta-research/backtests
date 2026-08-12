@@ -69,6 +69,11 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
+def benchmark_name(exchange_key):
+    """Local benchmark name for an exchange (Sensex, FTSE 100, ...)."""
+    return data.get(exchange_key, {}).get("benchmark_name", "Benchmark")
+
+
 def get_spy_cumulative(ref_key, initial=10000):
     ex = data[ref_key]
     values = [initial]
@@ -87,7 +92,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
     spy_years, spy_vals = get_spy_cumulative(ref_key)
     spy_cagr = data[ref_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_name(ref_key)} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -139,7 +144,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     offsets = [i - (n_series - 1) * width / 2 for i in x]
 
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_name(exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -270,12 +275,12 @@ if "NYSE_NASDAQ_AMEX" in available:
     print("\nGenerating US charts...")
     chart_cumulative(
         ["NYSE_NASDAQ_AMEX"], "1_us_cumulative_growth.png",
-        "Growth of $10,000: Volume-Confirmed Momentum US vs S&P 500 (2001-2025)",
+        f"Growth of $10,000: Volume-Confirmed Momentum US vs {benchmark_name("NYSE_NASDAQ_AMEX")} (2001-2025)",
         "NYSE + NASDAQ + AMEX"
     )
     chart_annual_bars(
         ["NYSE_NASDAQ_AMEX"], "2_us_annual_returns.png",
-        "Volume-Confirmed Momentum US vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Volume-Confirmed Momentum US vs {benchmark_name("NYSE_NASDAQ_AMEX")}: Year-by-Year Returns (2001-2025)",
         "NYSE + NASDAQ + AMEX"
     )
 
@@ -284,12 +289,12 @@ if "NSE" in available:
     print("\nGenerating India charts...")
     chart_cumulative(
         ["NSE"], "1_india_cumulative_growth.png",
-        "Growth of $10,000: Volume-Confirmed Momentum India vs S&P 500 (2001-2025)",
-        "NSE (returns in INR, benchmark in USD)"
+        f"Growth of $10,000: Volume-Confirmed Momentum India vs {benchmark_name("NSE")} (2001-2025)",
+        "NSE (returns and benchmark in INR)"
     )
     chart_annual_bars(
         ["NSE"], "2_india_annual_returns.png",
-        "Volume-Confirmed Momentum India vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Volume-Confirmed Momentum India vs {benchmark_name("NSE")}: Year-by-Year Returns (2001-2025)",
         "NSE (returns in INR)"
     )
 
@@ -298,12 +303,12 @@ if "LSE" in available:
     print("\nGenerating UK charts...")
     chart_cumulative(
         ["LSE"], "1_uk_cumulative_growth.png",
-        "Growth of $10,000: Volume-Confirmed Momentum UK vs S&P 500 (2001-2025)",
-        "LSE (returns in GBP, benchmark in USD)"
+        f"Growth of $10,000: Volume-Confirmed Momentum UK vs {benchmark_name("LSE")} (2001-2025)",
+        "LSE (returns and benchmark in GBP)"
     )
     chart_annual_bars(
         ["LSE"], "2_uk_annual_returns.png",
-        "Volume-Confirmed Momentum UK vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Volume-Confirmed Momentum UK vs {benchmark_name("LSE")}: Year-by-Year Returns (2001-2025)",
         "LSE (returns in GBP)"
     )
 
@@ -312,12 +317,12 @@ if "XETRA" in available:
     print("\nGenerating Germany charts...")
     chart_cumulative(
         ["XETRA"], "1_germany_cumulative_growth.png",
-        "Growth of $10,000: Volume-Confirmed Momentum Germany vs S&P 500 (2001-2025)",
-        "XETRA (returns in EUR, benchmark in USD)"
+        f"Growth of $10,000: Volume-Confirmed Momentum Germany vs {benchmark_name("XETRA")} (2001-2025)",
+        "XETRA (returns and benchmark in EUR)"
     )
     chart_annual_bars(
         ["XETRA"], "2_germany_annual_returns.png",
-        "Volume-Confirmed Momentum Germany vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Volume-Confirmed Momentum Germany vs {benchmark_name("XETRA")}: Year-by-Year Returns (2001-2025)",
         "XETRA (returns in EUR)"
     )
 
@@ -326,12 +331,12 @@ if "JPX" in available:
     print("\nGenerating Japan charts...")
     chart_cumulative(
         ["JPX"], "1_japan_cumulative_growth.png",
-        "Growth of $10,000: Volume-Confirmed Momentum Japan vs S&P 500 (2001-2025)",
-        "JPX (returns in JPY, benchmark in USD)"
+        f"Growth of $10,000: Volume-Confirmed Momentum Japan vs {benchmark_name("JPX")} (2001-2025)",
+        "JPX (returns and benchmark in JPY)"
     )
     chart_annual_bars(
         ["JPX"], "2_japan_annual_returns.png",
-        "Volume-Confirmed Momentum Japan vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Volume-Confirmed Momentum Japan vs {benchmark_name("JPX")}: Year-by-Year Returns (2001-2025)",
         "JPX (returns in JPY)"
     )
 
@@ -340,12 +345,12 @@ if "TSX" in available:
     print("\nGenerating Canada charts...")
     chart_cumulative(
         ["TSX"], "1_canada_cumulative_growth.png",
-        "Growth of $10,000: Volume-Confirmed Momentum Canada vs S&P 500 (2001-2025)",
-        "TSX (returns in CAD, benchmark in USD)"
+        f"Growth of $10,000: Volume-Confirmed Momentum Canada vs {benchmark_name("TSX")} (2001-2025)",
+        "TSX (returns and benchmark in CAD)"
     )
     chart_annual_bars(
         ["TSX"], "2_canada_annual_returns.png",
-        "Volume-Confirmed Momentum Canada vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Volume-Confirmed Momentum Canada vs {benchmark_name("TSX")}: Year-by-Year Returns (2001-2025)",
         "TSX (returns in CAD)"
     )
 
@@ -354,12 +359,12 @@ if "KSC" in available:
     print("\nGenerating Korea charts...")
     chart_cumulative(
         ["KSC"], "1_korea_cumulative_growth.png",
-        "Growth of $10,000: Volume-Confirmed Momentum Korea vs S&P 500 (2001-2025)",
-        "KSC (returns in KRW, benchmark in USD)"
+        f"Growth of $10,000: Volume-Confirmed Momentum Korea vs {benchmark_name("KSC")} (2001-2025)",
+        "KSC (returns and benchmark in KRW)"
     )
     chart_annual_bars(
         ["KSC"], "2_korea_annual_returns.png",
-        "Volume-Confirmed Momentum Korea vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Volume-Confirmed Momentum Korea vs {benchmark_name("KSC")}: Year-by-Year Returns (2001-2025)",
         "KSC (returns in KRW)"
     )
 
@@ -368,12 +373,12 @@ if "SHZ_SHH" in available:
     print("\nGenerating China charts...")
     chart_cumulative(
         ["SHZ_SHH"], "1_china_cumulative_growth.png",
-        "Growth of $10,000: Volume-Confirmed Momentum China vs S&P 500 (2001-2025)",
-        "SHZ + SHH (returns in CNY, benchmark in USD)"
+        f"Growth of $10,000: Volume-Confirmed Momentum China vs {benchmark_name("SHZ_SHH")} (2001-2025)",
+        "SHZ + SHH (returns and benchmark in CNY)"
     )
     chart_annual_bars(
         ["SHZ_SHH"], "2_china_annual_returns.png",
-        "Volume-Confirmed Momentum China vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Volume-Confirmed Momentum China vs {benchmark_name("SHZ_SHH")}: Year-by-Year Returns (2001-2025)",
         "SHZ + SHH (returns in CNY)"
     )
 
@@ -382,12 +387,12 @@ if "STO" in available:
     print("\nGenerating Sweden charts...")
     chart_cumulative(
         ["STO"], "1_sweden_cumulative_growth.png",
-        "Growth of $10,000: Volume-Confirmed Momentum Sweden vs S&P 500 (2001-2025)",
-        "STO (returns in SEK, benchmark in USD)"
+        f"Growth of $10,000: Volume-Confirmed Momentum Sweden vs {benchmark_name("STO")} (2001-2025)",
+        "STO (returns and benchmark in SEK)"
     )
     chart_annual_bars(
         ["STO"], "2_sweden_annual_returns.png",
-        "Volume-Confirmed Momentum Sweden vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Volume-Confirmed Momentum Sweden vs {benchmark_name("STO")}: Year-by-Year Returns (2001-2025)",
         "STO (returns in SEK)"
     )
 
