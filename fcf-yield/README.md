@@ -19,7 +19,7 @@ Portfolio: top 30 by FCF yield (highest first), equal weight. Rebalance annually
 
 ## Academic Basis
 
-Gray & Vogel (2012) compared 9 valuation metrics from 1971-2010. FCF/TEV was the second-best performing metric at 16.6% annually, beating P/E (14.3%), P/B (14.5%), and EV/EBITDA (17.7% was top). The Novy-Marx (2013) finding that combining value with quality improves results motivates the ROE and margin filters.
+Gray & Vogel (2012) compared 9 valuation metrics from 1971-2010. FCF/TEV was the second-best performing metric at 16.6% annually, behind EBITDA/EV at 17.7% and ahead of P/E and price-to-book. The Novy-Marx (2013) finding that combining value with quality improves results motivates the ROE and margin filters.
 
 ## Usage
 
@@ -55,7 +55,10 @@ python3 fcf-yield/backtest.py --no-costs
 - **Universe**: Full exchange (NYSE+NASDAQ+AMEX for US). Not index-constrained.
 - **Data**: FMP financial data via Ceta Research warehouse
 - **Rebalancing**: Annual, July. FY annual filings used with 45-day lag.
-- **Costs**: Size-tiered transaction costs (0.05-0.15% per trade, varies by market cap)
+- **Execution**: Entry and exit at the next day's close after the rebalance date
+- **Benchmark**: Each market's own local index in local currency (S&P 500 for the US, FTSE 100 for the UK, DAX for Germany, and so on)
+- **Costs**: Size-tiered one-way transaction costs: 0.1% above $10B, 0.3% for $2-10B, 0.5% below $2B
+- **Data quality guards**: FCF yield capped at 50%, entry price floor of $1, and single-period returns above 200% excluded as price artifacts
 - **Min holding**: 10 stocks required. Cash position if fewer qualify.
 - **Period**: 2000-2025 (25 annual periods)
 
