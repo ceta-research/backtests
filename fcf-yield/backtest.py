@@ -42,7 +42,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                        remove_price_oscillations, filter_returns)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, save_results, print_header,
@@ -56,6 +56,8 @@ IC_MIN = 3.0               # Interest coverage > 3x (can service debt comfortabl
 OPM_MIN = 0.10             # Operating profit margin > 10% (genuine pricing power)
 MAX_STOCKS = 30
 MIN_STOCKS = 10
+MIN_ENTRY_PRICE = 1.0      # skip stocks with entry price < $1 (bad adjClose, penny stocks)
+MAX_SINGLE_RETURN = 2.0    # skip stocks with single-period return > 200% (price artifacts)
 DEFAULT_FREQUENCY = "annual"
 DEFAULT_REBALANCE_MONTHS = [7]  # July (annual FY filings available, 45-day lag)
 
@@ -67,6 +69,7 @@ EXCLUDED_PRESETS = {
     "australia",    # ASX: adjClose split artifacts
     "southafrica",  # JNB: historically <8 qualifying stocks (too thin)
     "france",       # PAR: pipeline gap (1 FY symbol in warehouse)
+    "singapore",    # SES/SGX: 0 symbols in profile table
     "nyse",         # Covered by "us" preset
     "nasdaq",       # Covered by "us" preset
 }
@@ -238,18 +241,21 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
 
+        symbol_data = [(sym, entry_prices.get(sym), exit_prices.get(sym), mcaps.get(sym))
+                       for sym in symbols
+                       if entry_prices.get(sym) and exit_prices.get(sym)]
+        clean, skipped = filter_returns(symbol_data,
+                                        min_entry_price=MIN_ENTRY_PRICE,
+                                        max_single_return=MAX_SINGLE_RETURN,
+                                        verbose=verbose)
+
         returns = []
-        for sym in symbols:
-            ep = entry_prices.get(sym)
-            xp = exit_prices.get(sym)
-            if ep and xp and ep > 0:
-                raw_ret = (xp - ep) / ep
-                if use_costs:
-                    cost = tiered_cost(mcaps.get(sym))
-                    net_ret = apply_costs(raw_ret, cost)
-                else:
-                    net_ret = raw_ret
-                returns.append(net_ret)
+        for sym, raw_ret, mcap in clean:
+            if use_costs:
+                net_ret = apply_costs(raw_ret, tiered_cost(mcap))
+            else:
+                net_ret = raw_ret
+            returns.append(net_ret)
 
         port_return = sum(returns) / len(returns) if returns else 0.0
 
@@ -434,6 +440,8 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
 
     output = {
         "universe": universe_name,
+        "benchmark_name": benchmark_name,
+        "benchmark_symbol": benchmark_symbol,
         "n_periods": len(valid),
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,

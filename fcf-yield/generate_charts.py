@@ -22,14 +22,14 @@ COLORS = {
     "HKSE": "#8e44ad",
     "KSC": "#2c3e50",
     "Taiwan": "#c0392b",
-    "Indonesia": "#f39c12",
-    "Thailand": "#27ae60",
+    "SET": "#27ae60",
     "Canada": "#7f8c8d",
     "China": "#e74c3c",
-    "Sweden": "#1abc9c",
-    "Switzerland": "#e67e22",
-    "Norway": "#3498db",
-    "SPY": "#aab7b8",
+    "NSE": "#f39c12",
+    "STO": "#1abc9c",
+    "SIX": "#e67e22",
+    "OSL": "#3498db",
+    "BENCH": "#aab7b8",
 }
 
 EXCHANGE_LABELS = {
@@ -40,14 +40,19 @@ EXCHANGE_LABELS = {
     "HKSE": "FCF Yield HKSE (Hong Kong)",
     "KSC": "FCF Yield KSC (Korea)",
     "Taiwan": "FCF Yield Taiwan (TAI+TWO)",
-    "Indonesia": "FCF Yield JKT (Indonesia)",
-    "Thailand": "FCF Yield SET (Thailand)",
+    "SET": "FCF Yield SET (Thailand)",
     "Canada": "FCF Yield TSX (Canada)",
     "China": "FCF Yield China (SHH+SHZ)",
-    "Sweden": "FCF Yield STO (Sweden)",
-    "Switzerland": "FCF Yield SIX (Switzerland)",
-    "Norway": "FCF Yield OSL (Norway)",
+    "NSE": "FCF Yield NSE (India)",
+    "STO": "FCF Yield STO (Sweden)",
+    "SIX": "FCF Yield SIX (Switzerland)",
+    "OSL": "FCF Yield OSL (Norway)",
 }
+
+
+def benchmark_name(exchange_key):
+    """Local benchmark name for an exchange (Sensex, FTSE 100, ...)."""
+    return data.get(exchange_key, {}).get("benchmark_name", "Benchmark")
 
 FOOTER = "Data: Ceta Research | FCF Yield >8%, ROE >10%, IC >3x, OPM >10%, annual rebalance, equal weight, 2000-2025"
 
@@ -63,21 +68,11 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from US data."""
-    for k in ["US_MAJOR"]:
-        if k in data and data[k].get("annual_returns"):
-            ex = data[k]
-            break
-    else:
-        # fall back to any exchange
-        for k in data:
-            if data[k].get("annual_returns"):
-                ex = data[k]
-                break
-        else:
-            return [], []
-
+def get_benchmark_cumulative(exchange_key, initial=10000):
+    """Compute cumulative growth of an exchange's own local benchmark."""
+    ex = data.get(exchange_key)
+    if not ex or not ex.get("annual_returns"):
+        return [], []
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
     for ar in ex["annual_returns"]:
@@ -87,14 +82,15 @@ def get_spy_cumulative(initial=10000):
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Cumulative growth for given exchanges vs their own local benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
-    if spy_years:
-        spy_cagr = data.get("US_MAJOR", {}).get("spy", {}).get("cagr", "?")
-        ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-                label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+    bench_key = exchanges[0]
+    bench_years, bench_vals = get_benchmark_cumulative(bench_key)
+    if bench_years:
+        bench_cagr = data[bench_key]["spy"]["cagr"]
+        ax.plot(bench_years, bench_vals, color=COLORS["BENCH"], linewidth=1.8,
+                label=f"{benchmark_name(bench_key)} ({bench_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data or data[ex_key]["invested_periods"] == 0:
@@ -111,12 +107,12 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
                     xytext=(8, 0), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS.get(ex_key, "#95a5a6"))
 
-    if spy_years:
-        spy_final_k = spy_vals[-1] / 1000
-        ax.annotate(f"${spy_final_k:,.0f}K",
-                    xy=(spy_years[-1], spy_vals[-1]),
+    if bench_years:
+        bench_final_k = bench_vals[-1] / 1000
+        ax.annotate(f"${bench_final_k:,.0f}K",
+                    xy=(bench_years[-1], bench_vals[-1]),
                     xytext=(8, -12), textcoords="offset points",
-                    fontsize=9, fontweight="bold", color=COLORS["SPY"])
+                    fontsize=9, fontweight="bold", color=COLORS["BENCH"])
 
     ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
     ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
@@ -136,7 +132,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
 
 
 def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart for given exchanges vs SPY."""
+    """Annual returns bar chart for given exchanges vs their own local benchmark."""
     active = [e for e in exchanges if e in data and data[e]["invested_periods"] > 0]
     if not active:
         print(f"  Skipping {filename}: no data for {exchanges}")
@@ -144,7 +140,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     ex = data[active[0]]
     years = [ar["year"] for ar in ex["annual_returns"]]
-    spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
+    bench_returns = [ar["spy"] for ar in ex["annual_returns"]]
 
     n_series = len(active) + 1
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -153,8 +149,8 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     x = list(range(len(years)))
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
-    ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+    ax.bar([o + 0 * width for o in offsets], bench_returns, width,
+           label=benchmark_name(active[0]), color=COLORS["BENCH"], alpha=0.7)
 
     for idx, ex_key in enumerate(active):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -312,65 +308,27 @@ def chart_comparison_sharpe(filename):
 
 # ---- Generate all charts ----
 
-print("Generating US charts...")
-chart_cumulative(
-    ["US_MAJOR"], "1_us_cumulative_growth.png",
-    "Growth of $10,000: FCF Yield US vs S&P 500 (2000-2025)",
-    "NYSE + NASDAQ + AMEX, annual rebalance, equal weight"
-)
-chart_annual_bars(
-    ["US_MAJOR"], "2_us_annual_returns.png",
-    "FCF Yield US vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "NYSE + NASDAQ + AMEX, annual rebalance, equal weight"
-)
+REGIONAL_CHARTS = [
+    ("US_MAJOR", "us", "US", "NYSE + NASDAQ + AMEX, annual rebalance, equal weight"),
+    ("LSE", "uk", "UK", "LSE, returns and benchmark in GBP"),
+    ("XETRA", "germany", "Germany", "XETRA, returns and benchmark in EUR"),
+    ("JPX", "japan", "Japan", "JPX, returns and benchmark in JPY"),
+    ("HKSE", "hongkong", "Hong Kong", "HKSE, returns and benchmark in HKD"),
+]
 
-print("Generating UK charts...")
-chart_cumulative(
-    ["LSE"], "1_uk_cumulative_growth.png",
-    "Growth of $10,000: FCF Yield UK vs S&P 500 (2000-2025)",
-    "LSE (returns in GBP, benchmark in USD)"
-)
-chart_annual_bars(
-    ["LSE"], "2_uk_annual_returns.png",
-    "FCF Yield UK vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "LSE (returns in GBP)"
-)
-
-print("Generating Germany charts...")
-chart_cumulative(
-    ["XETRA"], "1_germany_cumulative_growth.png",
-    "Growth of $10,000: FCF Yield Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
-)
-chart_annual_bars(
-    ["XETRA"], "2_germany_annual_returns.png",
-    "FCF Yield Germany vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "XETRA (returns in EUR)"
-)
-
-print("Generating Japan charts...")
-chart_cumulative(
-    ["JPX"], "1_japan_cumulative_growth.png",
-    "Growth of $10,000: FCF Yield Japan vs S&P 500 (2000-2025)",
-    "JPX (returns in JPY, benchmark in USD)"
-)
-chart_annual_bars(
-    ["JPX"], "2_japan_annual_returns.png",
-    "FCF Yield Japan vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "JPX (returns in JPY)"
-)
-
-print("Generating Hong Kong charts...")
-chart_cumulative(
-    ["HKSE"], "1_hongkong_cumulative_growth.png",
-    "Growth of $10,000: FCF Yield Hong Kong vs S&P 500 (2000-2025)",
-    "HKSE (HKD pegged to USD)"
-)
-chart_annual_bars(
-    ["HKSE"], "2_hongkong_annual_returns.png",
-    "FCF Yield Hong Kong vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "HKSE (HKD pegged to USD)"
-)
+for ex_key, slug, region, footer in REGIONAL_CHARTS:
+    print(f"Generating {region} charts...")
+    bench = benchmark_name(ex_key)
+    chart_cumulative(
+        [ex_key], f"1_{slug}_cumulative_growth.png",
+        f"Growth of $10,000: FCF Yield {region} vs {bench} (2000-2025)",
+        footer
+    )
+    chart_annual_bars(
+        [ex_key], f"2_{slug}_annual_returns.png",
+        f"FCF Yield {region} vs {bench}: Year-by-Year Returns (2000-2024)",
+        footer
+    )
 
 print("Generating comparison charts...")
 chart_comparison_cagr("1_comparison_cagr.png")
