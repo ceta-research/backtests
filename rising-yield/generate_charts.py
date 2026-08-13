@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -67,24 +70,22 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from US data."""
-    ex = data["NYSE_NASDAQ_AMEX"]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
+def get_spy_cumulative(ref_key, initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark series.
+
+    The "spy" field holds whichever index the exchange was measured against,
+    which for non-US markets is the local index.
+    """
+    return benchmark_cumulative(data, ref_key, initial)
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
     """Generate cumulative growth chart for given exchanges vs SPY."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    spy_years, spy_vals = get_spy_cumulative(exchanges[0])
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({data['NYSE_NASDAQ_AMEX']['spy']['cagr']}% CAGR)", linestyle="--")
+            label=f"{benchmark_label(data, exchanges[0])} ({data[exchanges[0]]['spy']['cagr']}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -136,7 +137,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -265,60 +266,60 @@ chart_annual_bars(
 print("Generating charts for India blog...")
 chart_cumulative(
     ["NSE"], "1_india_cumulative_growth.png",
-    "Growth of $10,000: Rising Yield India vs S&P 500 (2000-2025)",
-    "NSE (returns in INR, benchmark in USD)"
+    f"Growth of $10,000: Rising Yield India vs {benchmark_label(data, 'NSE')} (2000-2025)",
+    "NSE (returns and benchmark in INR)"
 )
 chart_annual_bars(
     ["NSE"], "2_india_annual_returns.png",
-    "Rising Yield India vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Rising Yield India vs {benchmark_label(data, 'NSE')}: Year-by-Year Returns (2000-2024)",
     "NSE (returns in INR)"
 )
 
 print("Generating charts for Germany blog...")
 chart_cumulative(
     ["XETRA"], "1_germany_cumulative_growth.png",
-    "Growth of $10,000: Rising Yield Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
+    f"Growth of $10,000: Rising Yield Germany vs {benchmark_label(data, 'XETRA')} (2000-2025)",
+    "XETRA (returns and benchmark in EUR)"
 )
 chart_annual_bars(
     ["XETRA"], "2_germany_annual_returns.png",
-    "Rising Yield Germany vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Rising Yield Germany vs {benchmark_label(data, 'XETRA')}: Year-by-Year Returns (2000-2024)",
     "XETRA (returns in EUR)"
 )
 
 print("Generating charts for Canada blog...")
 chart_cumulative(
     ["TSX"], "1_canada_cumulative_growth.png",
-    "Growth of $10,000: Rising Yield Canada vs S&P 500 (2000-2025)",
-    "TSX (returns in CAD, benchmark in USD)"
+    f"Growth of $10,000: Rising Yield Canada vs {benchmark_label(data, 'TSX')} (2000-2025)",
+    "TSX (returns and benchmark in CAD)"
 )
 chart_annual_bars(
     ["TSX"], "2_canada_annual_returns.png",
-    "Rising Yield Canada vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Rising Yield Canada vs {benchmark_label(data, 'TSX')}: Year-by-Year Returns (2000-2024)",
     "TSX (returns in CAD)"
 )
 
 print("Generating charts for Japan blog...")
 chart_cumulative(
     ["JPX"], "1_japan_cumulative_growth.png",
-    "Growth of $10,000: Rising Yield Japan vs S&P 500 (2000-2025)",
-    "JPX (returns in JPY, benchmark in USD)"
+    f"Growth of $10,000: Rising Yield Japan vs {benchmark_label(data, 'JPX')} (2000-2025)",
+    "JPX (returns and benchmark in JPY)"
 )
 chart_annual_bars(
     ["JPX"], "2_japan_annual_returns.png",
-    "Rising Yield Japan vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Rising Yield Japan vs {benchmark_label(data, 'JPX')}: Year-by-Year Returns (2000-2024)",
     "JPX (returns in JPY)"
 )
 
 print("Generating charts for UK blog...")
 chart_cumulative(
     ["LSE"], "1_uk_cumulative_growth.png",
-    "Growth of $10,000: Rising Yield UK vs S&P 500 (2000-2025)",
-    "LSE (returns in GBP, benchmark in USD)"
+    f"Growth of $10,000: Rising Yield UK vs {benchmark_label(data, 'LSE')} (2000-2025)",
+    "LSE (returns and benchmark in GBP)"
 )
 chart_annual_bars(
     ["LSE"], "2_uk_annual_returns.png",
-    "Rising Yield UK vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Rising Yield UK vs {benchmark_label(data, 'LSE')}: Year-by-Year Returns (2000-2024)",
     "LSE (returns in GBP)"
 )
 

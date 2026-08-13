@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -63,15 +66,13 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from any exchange."""
-    ex = data["NYSE_NASDAQ_AMEX"]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
+def get_spy_cumulative(ref_key, initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark series.
+
+    The "spy" field holds whichever index the exchange was measured against,
+    which for non-US markets is the local index.
+    """
+    return benchmark_cumulative(data, ref_key, initial)
 
 
 def get_local_benchmark_cumulative(exchange_key, initial=10000):
@@ -119,8 +120,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe,
         bench_cagr = data[benchmark_exchange]["spy"]["cagr"]
         bench_name = benchmark_label or LOCAL_BENCHMARK_NAMES.get(benchmark_exchange, "Benchmark")
     else:
-        bench_years, bench_vals = get_spy_cumulative()
-        bench_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
+        bench_years, bench_vals = get_spy_cumulative(exchanges[0])
+        bench_cagr = data[exchanges[0]]["spy"]["cagr"]
         bench_name = "S&P 500"
 
     ax.plot(bench_years, bench_vals, color=COLORS["SPY"], linewidth=1.8,
@@ -266,7 +267,7 @@ chart_annual_bars(
 print("India charts...")
 chart_cumulative(
     ["NSE"], "india_cumulative_growth.png",
-    "Growth of $10,000: Asset Growth India vs S&P 500 (2000-2025)",
+    f"Growth of $10,000: Asset Growth India vs {benchmark_label(data, 'NSE')} (2000-2025)",
     "NSE (returns in INR)"
 )
 chart_annual_bars(

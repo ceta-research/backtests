@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -70,25 +73,23 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from US exchange data."""
-    ex = data["NYSE_NASDAQ_AMEX"]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
+def get_spy_cumulative(ref_key, initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark series.
+
+    The "spy" field holds whichever index the exchange was measured against,
+    which for non-US markets is the local index.
+    """
+    return benchmark_cumulative(data, ref_key, initial)
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
     """Generate cumulative growth chart for given exchanges vs SPY."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
+    spy_years, spy_vals = get_spy_cumulative(exchanges[0])
+    spy_cagr = data[exchanges[0]]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data:
@@ -142,7 +143,7 @@ def chart_annual_bars(exchange_key, filename, title, footer_universe):
     width = 0.35
     x = list(range(len(years)))
     ax.bar([xi - width / 2 for xi in x], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchange_key), color=COLORS["SPY"], alpha=0.7)
     ax.bar([xi + width / 2 for xi in x], port_returns, width,
            label=EXCHANGE_LABELS.get(exchange_key, exchange_key),
            color=COLORS.get(exchange_key, "#1a5276"), alpha=0.85)
@@ -268,34 +269,34 @@ chart_annual_bars("NYSE_NASDAQ_AMEX", "2_us_annual_returns.png",
 
 print("\nUK charts...")
 chart_cumulative(["LSE"], "1_uk_cumulative_growth.png",
-                 "Growth of $10,000: Yield Gap UK vs S&P 500 (2000-2025)",
+                 f"Growth of $10,000: Yield Gap UK vs {benchmark_label(data, 'LSE')} (2000-2025)",
                  "London Stock Exchange (LSE)")
 chart_annual_bars("LSE", "2_uk_annual_returns.png",
-                  "Yield Gap UK: Year-by-Year Returns vs S&P 500 (2000-2024)",
+                  f"Yield Gap UK: Year-by-Year Returns vs {benchmark_label(data, 'LSE')} (2000-2024)",
                   "London Stock Exchange (LSE)")
 
 print("\nCanada charts...")
 chart_cumulative(["TSX"], "1_canada_cumulative_growth.png",
-                 "Growth of $10,000: Yield Gap Canada vs S&P 500 (2000-2025)",
+                 f"Growth of $10,000: Yield Gap Canada vs {benchmark_label(data, 'TSX')} (2000-2025)",
                  "Toronto Stock Exchange (TSX)")
 chart_annual_bars("TSX", "2_canada_annual_returns.png",
-                  "Yield Gap Canada: Year-by-Year Returns vs S&P 500 (2000-2024)",
+                  f"Yield Gap Canada: Year-by-Year Returns vs {benchmark_label(data, 'TSX')} (2000-2024)",
                   "Toronto Stock Exchange (TSX)")
 
 print("\nSweden charts...")
 chart_cumulative(["STO"], "1_sweden_cumulative_growth.png",
-                 "Growth of $10,000: Yield Gap Sweden vs S&P 500 (2000-2025)",
+                 f"Growth of $10,000: Yield Gap Sweden vs {benchmark_label(data, 'STO')} (2000-2025)",
                  "Stockholm Stock Exchange (STO)")
 chart_annual_bars("STO", "2_sweden_annual_returns.png",
-                  "Yield Gap Sweden: Year-by-Year Returns vs S&P 500 (2000-2024)",
+                  f"Yield Gap Sweden: Year-by-Year Returns vs {benchmark_label(data, 'STO')} (2000-2024)",
                   "Stockholm Stock Exchange (STO)")
 
 print("\nIndia charts...")
 chart_cumulative(["NSE"], "1_india_cumulative_growth.png",
-                 "Growth of $10,000: Yield Gap India vs S&P 500 (2000-2025)",
+                 f"Growth of $10,000: Yield Gap India vs {benchmark_label(data, 'NSE')} (2000-2025)",
                  "NSE (returns in INR)")
 chart_annual_bars("NSE", "2_india_annual_returns.png",
-                  "Yield Gap India: Year-by-Year Returns vs S&P 500 (2000-2024)",
+                  f"Yield Gap India: Year-by-Year Returns vs {benchmark_label(data, 'NSE')} (2000-2024)",
                   "NSE (returns in INR)")
 
 print("\nComparison charts...")

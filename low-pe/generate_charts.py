@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -61,33 +64,24 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from any exchange (all have same SPY data)."""
-    # Find an exchange with data
-    for k in ["US_MAJOR", "NYSE", "NASDAQ"]:
-        if k in data and data[k].get("annual_returns"):
-            ex = data[k]
-            break
-    else:
-        return [], []
+def get_spy_cumulative(ref_key, initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark series.
 
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
+    The "spy" field holds whichever index the exchange was measured against,
+    which for non-US markets is the local index.
+    """
+    return benchmark_cumulative(data, ref_key, initial)
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
     """Generate cumulative growth chart for given exchanges vs SPY."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    spy_years, spy_vals = get_spy_cumulative(exchanges[0])
     if spy_years:
         spy_cagr = data.get("US_MAJOR", {}).get("spy", {}).get("cagr", "?")
         ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-                label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+                label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data or data[ex_key]["invested_periods"] == 0:
@@ -147,7 +141,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(active):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -365,36 +359,36 @@ chart_annual_bars(
 print("Generating charts for India...")
 chart_cumulative(
     ["NSE"], "india_cumulative_growth.png",
-    "Growth of $10,000: Low P/E India vs S&P 500 (2000-2025)",
-    "NSE (returns in INR, benchmark in USD)"
+    f"Growth of $10,000: Low P/E India vs {benchmark_label(data, 'NSE')} (2000-2025)",
+    "NSE (returns and benchmark in INR)"
 )
 chart_annual_bars(
     ["NSE"], "india_annual_returns.png",
-    "Low P/E India vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Low P/E India vs {benchmark_label(data, 'NSE')}: Year-by-Year Returns (2000-2024)",
     "NSE (returns in INR)"
 )
 
 print("Generating charts for Germany...")
 chart_cumulative(
     ["XETRA"], "germany_cumulative_growth.png",
-    "Growth of $10,000: Low P/E Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
+    f"Growth of $10,000: Low P/E Germany vs {benchmark_label(data, 'XETRA')} (2000-2025)",
+    "XETRA (returns and benchmark in EUR)"
 )
 chart_annual_bars(
     ["XETRA"], "germany_annual_returns.png",
-    "Low P/E Germany vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Low P/E Germany vs {benchmark_label(data, 'XETRA')}: Year-by-Year Returns (2000-2024)",
     "XETRA (returns in EUR)"
 )
 
 print("Generating charts for Hong Kong...")
 chart_cumulative(
     ["HKSE"], "hongkong_cumulative_growth.png",
-    "Growth of $10,000: Low P/E Hong Kong vs S&P 500 (2000-2025)",
+    f"Growth of $10,000: Low P/E Hong Kong vs {benchmark_label(data, 'HKSE')} (2000-2025)",
     "HKSE (HKD pegged to USD)"
 )
 chart_annual_bars(
     ["HKSE"], "hongkong_annual_returns.png",
-    "Low P/E Hong Kong vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Low P/E Hong Kong vs {benchmark_label(data, 'HKSE')}: Year-by-Year Returns (2000-2024)",
     "HKSE (HKD pegged to USD)"
 )
 

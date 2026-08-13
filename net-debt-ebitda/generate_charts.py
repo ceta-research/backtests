@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -73,14 +76,13 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    ex = data["NYSE_NASDAQ_AMEX"]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
+def get_spy_cumulative(ref_key, initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark series.
+
+    The "spy" field holds whichever index the exchange was measured against,
+    which for non-US markets is the local index.
+    """
+    return benchmark_cumulative(data, ref_key, initial)
 
 
 def format_k(val, pos):
@@ -93,10 +95,10 @@ def chart_cumulative_single(exchange_key, filename, title_suffix=""):
     fig.patch.set_facecolor("#f8f9fa")
     ax.set_facecolor("#f8f9fa")
 
-    spy_years, spy_vals = get_spy_cumulative()
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
+    spy_years, spy_vals = get_spy_cumulative(exchange_key)
+    spy_cagr = data[exchange_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--", zorder=2)
+            label=f"{benchmark_label(data, exchange_key)} ({spy_cagr}% CAGR)", linestyle="--", zorder=2)
 
     years, vals = get_cumulative_growth(exchange_key)
     ex = data[exchange_key]
@@ -137,7 +139,7 @@ def chart_annual_returns(exchange_key, filename, title_suffix=""):
 
     ax.bar([i - width/2 for i in x], portfolio, width, label="Net Debt/EBITDA Strategy",
            color=color, alpha=0.85)
-    ax.bar([i + width/2 for i in x], spy, width, label="S&P 500",
+    ax.bar([i + width/2 for i in x], spy, width, label=benchmark_label(data, exchange_key),
            color=COLORS["SPY"], alpha=0.85)
     ax.axhline(0, color="#333333", linewidth=0.8)
     ax.set_xticks(list(x))

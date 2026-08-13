@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -67,27 +70,24 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from US_MAJOR (reference exchange)."""
-    ref = "US_MAJOR" if "US_MAJOR" in data else CLEAN_EXCHANGES[0]
-    ex = data[ref]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
+def get_spy_cumulative(ref_key, initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark series.
+
+    The "spy" field holds whichever index the exchange was measured against,
+    which for non-US markets is the local index.
+    """
+    return benchmark_cumulative(data, ref_key, initial)
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
     """Generate cumulative growth chart for given exchanges vs SPY."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    spy_years, spy_vals = get_spy_cumulative(exchanges[0])
     if spy_years:
         spy_cagr = data.get("US_MAJOR", {}).get("spy", {}).get("cagr", "?")
         ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-                label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+                label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data or data[ex_key]["invested_periods"] == 0:
@@ -147,7 +147,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     x = list(range(len(years)))
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(active):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -275,96 +275,96 @@ chart_annual_bars(
 print("Generating charts for Japan...")
 chart_cumulative(
     ["Japan"], "1_japan_cumulative_growth.png",
-    "Growth of $10,000: Graham Number Japan vs S&P 500 (2000-2025)",
-    "JPX (returns in JPY, benchmark in USD)"
+    f"Growth of $10,000: Graham Number Japan vs {benchmark_label(data, 'Japan')} (2000-2025)",
+    "JPX (returns and benchmark in JPY)"
 )
 chart_annual_bars(
     ["Japan"], "2_japan_annual_returns.png",
-    "Graham Number Japan vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Graham Number Japan vs {benchmark_label(data, 'Japan')}: Year-by-Year Returns (2000-2024)",
     "JPX (returns in JPY)"
 )
 
 print("Generating charts for Sweden...")
 chart_cumulative(
     ["Sweden"], "1_sweden_cumulative_growth.png",
-    "Growth of $10,000: Graham Number Sweden vs S&P 500 (2000-2025)",
-    "STO (returns in SEK, benchmark in USD)"
+    f"Growth of $10,000: Graham Number Sweden vs {benchmark_label(data, 'Sweden')} (2000-2025)",
+    "STO (returns and benchmark in SEK)"
 )
 chart_annual_bars(
     ["Sweden"], "2_sweden_annual_returns.png",
-    "Graham Number Sweden vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Graham Number Sweden vs {benchmark_label(data, 'Sweden')}: Year-by-Year Returns (2000-2024)",
     "STO (returns in SEK)"
 )
 
 print("Generating charts for Canada...")
 chart_cumulative(
     ["Canada"], "1_canada_cumulative_growth.png",
-    "Growth of $10,000: Graham Number Canada vs S&P 500 (2000-2025)",
-    "TSX + TSXV (returns in CAD, benchmark in USD)"
+    f"Growth of $10,000: Graham Number Canada vs {benchmark_label(data, 'Canada')} (2000-2025)",
+    "TSX + TSXV (returns and benchmark in CAD)"
 )
 chart_annual_bars(
     ["Canada"], "2_canada_annual_returns.png",
-    "Graham Number Canada vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Graham Number Canada vs {benchmark_label(data, 'Canada')}: Year-by-Year Returns (2000-2024)",
     "TSX + TSXV (returns in CAD)"
 )
 
 print("Generating charts for Brazil...")
 chart_cumulative(
     ["Brazil"], "1_brazil_cumulative_growth.png",
-    "Growth of $10,000: Graham Number Brazil vs S&P 500 (2000-2025)",
-    "SAO (returns in BRL, benchmark in USD)"
+    f"Growth of $10,000: Graham Number Brazil vs {benchmark_label(data, 'Brazil')} (2000-2025)",
+    "SAO (returns and benchmark in BRL)"
 )
 chart_annual_bars(
     ["Brazil"], "2_brazil_annual_returns.png",
-    "Graham Number Brazil vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Graham Number Brazil vs {benchmark_label(data, 'Brazil')}: Year-by-Year Returns (2000-2024)",
     "SAO (returns in BRL)"
 )
 
 print("Generating charts for Germany...")
 chart_cumulative(
     ["Germany"], "1_germany_cumulative_growth.png",
-    "Growth of $10,000: Graham Number Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
+    f"Growth of $10,000: Graham Number Germany vs {benchmark_label(data, 'Germany')} (2000-2025)",
+    "XETRA (returns and benchmark in EUR)"
 )
 chart_annual_bars(
     ["Germany"], "2_germany_annual_returns.png",
-    "Graham Number Germany vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Graham Number Germany vs {benchmark_label(data, 'Germany')}: Year-by-Year Returns (2000-2024)",
     "XETRA (returns in EUR)"
 )
 
 print("Generating charts for India...")
 chart_cumulative(
     ["India"], "1_india_cumulative_growth.png",
-    "Growth of $10,000: Graham Number India vs S&P 500 (2000-2025)",
-    "NSE (returns in INR, benchmark in USD)"
+    f"Growth of $10,000: Graham Number India vs {benchmark_label(data, 'India')} (2000-2025)",
+    "NSE (returns and benchmark in INR)"
 )
 chart_annual_bars(
     ["India"], "2_india_annual_returns.png",
-    "Graham Number India vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Graham Number India vs {benchmark_label(data, 'India')}: Year-by-Year Returns (2000-2024)",
     "NSE (returns in INR)"
 )
 
 print("Generating charts for Taiwan...")
 chart_cumulative(
     ["Taiwan"], "1_taiwan_cumulative_growth.png",
-    "Growth of $10,000: Graham Number Taiwan vs S&P 500 (2000-2025)",
-    "TAI + TWO (returns in TWD, benchmark in USD)"
+    f"Growth of $10,000: Graham Number Taiwan vs {benchmark_label(data, 'Taiwan')} (2000-2025)",
+    "TAI + TWO (returns and benchmark in TWD)"
 )
 chart_annual_bars(
     ["Taiwan"], "2_taiwan_annual_returns.png",
-    "Graham Number Taiwan vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Graham Number Taiwan vs {benchmark_label(data, 'Taiwan')}: Year-by-Year Returns (2000-2024)",
     "TAI + TWO (returns in TWD)"
 )
 
 print("Generating charts for Switzerland...")
 chart_cumulative(
     ["Switzerland"], "1_switzerland_cumulative_growth.png",
-    "Growth of $10,000: Graham Number Switzerland vs S&P 500 (2000-2025)",
-    "SIX (returns in CHF, benchmark in USD)"
+    f"Growth of $10,000: Graham Number Switzerland vs {benchmark_label(data, 'Switzerland')} (2000-2025)",
+    "SIX (returns and benchmark in CHF)"
 )
 chart_annual_bars(
     ["Switzerland"], "2_switzerland_annual_returns.png",
-    "Graham Number Switzerland vs S&P 500: Year-by-Year Returns (2000-2024)",
+    f"Graham Number Switzerland vs {benchmark_label(data, 'Switzerland')}: Year-by-Year Returns (2000-2024)",
     "SIX (returns in CHF)"
 )
 

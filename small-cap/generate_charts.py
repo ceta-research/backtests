@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -76,30 +79,23 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from US exchange data."""
-    # Use US data for SPY baseline (consistent across charts)
-    us_key = "NYSE_NASDAQ_AMEX"
-    if us_key not in data:
-        # Fall back to first available key
-        us_key = list(data.keys())[0]
-    ex = data[us_key]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
+def get_spy_cumulative(ref_key, initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark series.
+
+    The "spy" field holds whichever index the exchange was measured against,
+    which for non-US markets is the local index.
+    """
+    return benchmark_cumulative(data, ref_key, initial)
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
     """Generate cumulative growth chart for given exchanges vs SPY."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    spy_years, spy_vals = get_spy_cumulative(exchanges[0])
     spy_cagr = data.get("NYSE_NASDAQ_AMEX", data[list(data.keys())[0]])["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data:
@@ -160,7 +156,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ek in enumerate(exchanges):
         if ek not in data:
@@ -294,7 +290,7 @@ if "NSE" in data:
     print("India charts...")
     chart_cumulative(
         ["NSE"], "1_india_cumulative_growth.png",
-        "Growth of $10,000: Small-Cap Growth India vs S&P 500 (2000-2025)",
+        f"Growth of $10,000: Small-Cap Growth India vs {benchmark_label(data, 'NSE')} (2000-2025)",
         "NSE (returns in INR)"
     )
     chart_annual_bars(
@@ -308,7 +304,7 @@ if "JPX" in data:
     print("Japan charts...")
     chart_cumulative(
         ["JPX"], "1_japan_cumulative_growth.png",
-        "Growth of $10,000: Small-Cap Growth Japan vs S&P 500 (2000-2025)",
+        f"Growth of $10,000: Small-Cap Growth Japan vs {benchmark_label(data, 'JPX')} (2000-2025)",
         "Japan (JPX, returns in JPY)"
     )
     chart_annual_bars(
@@ -322,7 +318,7 @@ if "LSE" in data:
     print("UK charts...")
     chart_cumulative(
         ["LSE"], "1_uk_cumulative_growth.png",
-        "Growth of $10,000: Small-Cap Growth UK vs S&P 500 (2000-2025)",
+        f"Growth of $10,000: Small-Cap Growth UK vs {benchmark_label(data, 'LSE')} (2000-2025)",
         "UK (LSE, returns in GBP)"
     )
     chart_annual_bars(
@@ -336,7 +332,7 @@ if "SHZ_SHH" in data:
     print("China charts...")
     chart_cumulative(
         ["SHZ_SHH"], "1_china_cumulative_growth.png",
-        "Growth of $10,000: Small-Cap Growth China vs S&P 500 (2000-2025)",
+        f"Growth of $10,000: Small-Cap Growth China vs {benchmark_label(data, 'SHZ_SHH')} (2000-2025)",
         "China (SHZ+SHH, returns in CNY)"
     )
     chart_annual_bars(
@@ -350,7 +346,7 @@ if "KSC" in data:
     print("Korea charts...")
     chart_cumulative(
         ["KSC"], "1_korea_cumulative_growth.png",
-        "Growth of $10,000: Small-Cap Growth Korea vs S&P 500 (2000-2025)",
+        f"Growth of $10,000: Small-Cap Growth Korea vs {benchmark_label(data, 'KSC')} (2000-2025)",
         "Korea (KSC, returns in KRW)"
     )
     chart_annual_bars(

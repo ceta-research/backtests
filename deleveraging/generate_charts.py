@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -73,30 +76,25 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative growth from US data."""
-    us_key = next((k for k in data if "NYSE" in k or "MAJOR" in k), None)
-    if not us_key:
-        return [], []
-    ex = data[us_key]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
+def get_spy_cumulative(ref_key, initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark series.
+
+    The "spy" field holds whichever index the exchange was measured against,
+    which for non-US markets is the local index.
+    """
+    return benchmark_cumulative(data, ref_key, initial)
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
     """Generate cumulative growth chart for given exchanges vs SPY."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    spy_years, spy_vals = get_spy_cumulative(exchanges[0])
     if spy_years:
         us_key = next((k for k in data if "NYSE" in k or "MAJOR" in k), None)
         spy_cagr = data[us_key]["spy"]["cagr"] if us_key else ""
         ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-                label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+                label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data or not is_clean(ex_key, data[ex_key]):
@@ -155,7 +153,7 @@ def chart_annual_bars(exchange_key, filename, title, footer_universe):
     x = list(range(len(years)))
 
     ax.bar([xi - width / 2 for xi in x], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchange_key), color=COLORS["SPY"], alpha=0.7)
     ax.bar([xi + width / 2 for xi in x], port_returns, width,
            label=EXCHANGE_LABELS.get(exchange_key, exchange_key),
            color=COLORS.get(exchange_key, "#1a5276"), alpha=0.85)
@@ -283,7 +281,7 @@ if india_key:
     chart_cumulative(
         [india_key], "1_india_cumulative_growth.png",
         "Growth of $10,000: Deleveraging India vs S&P 500 (2001-2025)",
-        "NSE, quarterly rebalance, equal weight (returns in INR, benchmark in USD)"
+        "NSE, quarterly rebalance, equal weight (returns and benchmark in INR)"
     )
     chart_annual_bars(
         india_key, "2_india_annual_returns.png",
@@ -298,7 +296,7 @@ if jpx_key:
     chart_cumulative(
         [jpx_key], "1_japan_cumulative_growth.png",
         "Growth of $10,000: Deleveraging Japan vs S&P 500 (2001-2025)",
-        "JPX, quarterly rebalance, equal weight (returns in JPY, benchmark in USD)"
+        "JPX, quarterly rebalance, equal weight (returns and benchmark in JPY)"
     )
     chart_annual_bars(
         jpx_key, "2_japan_annual_returns.png",
@@ -313,7 +311,7 @@ if lse_key:
     chart_cumulative(
         [lse_key], "1_uk_cumulative_growth.png",
         "Growth of $10,000: Deleveraging UK vs S&P 500 (2001-2025)",
-        "LSE, quarterly rebalance, equal weight (returns in GBP, benchmark in USD)"
+        "LSE, quarterly rebalance, equal weight (returns and benchmark in GBP)"
     )
     chart_annual_bars(
         lse_key, "2_uk_annual_returns.png",
@@ -328,7 +326,7 @@ if xetra_key:
     chart_cumulative(
         [xetra_key], "1_germany_cumulative_growth.png",
         "Growth of $10,000: Deleveraging Germany vs S&P 500 (2001-2025)",
-        "XETRA, quarterly rebalance, equal weight (returns in EUR, benchmark in USD)"
+        "XETRA, quarterly rebalance, equal weight (returns and benchmark in EUR)"
     )
     chart_annual_bars(
         xetra_key, "2_germany_annual_returns.png",
@@ -343,7 +341,7 @@ if tsx_key:
     chart_cumulative(
         [tsx_key], "1_canada_cumulative_growth.png",
         "Growth of $10,000: Deleveraging Canada vs S&P 500 (2001-2025)",
-        "TSX, quarterly rebalance, equal weight (returns in CAD, benchmark in USD)"
+        "TSX, quarterly rebalance, equal weight (returns and benchmark in CAD)"
     )
     chart_annual_bars(
         tsx_key, "2_canada_annual_returns.png",
