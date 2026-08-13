@@ -311,7 +311,6 @@ def chart_comparison_sharpe(filename):
 REGIONAL_CHARTS = [
     ("US_MAJOR", "us", "US", "NYSE + NASDAQ + AMEX, annual rebalance, equal weight"),
     ("LSE", "uk", "UK", "LSE, returns and benchmark in GBP"),
-    ("XETRA", "germany", "Germany", "XETRA, returns and benchmark in EUR"),
     ("JPX", "japan", "Japan", "JPX, returns and benchmark in JPY"),
     ("HKSE", "hongkong", "Hong Kong", "HKSE, returns and benchmark in HKD"),
 ]
