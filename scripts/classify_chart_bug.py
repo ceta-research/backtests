@@ -20,7 +20,7 @@ import sys
 
 ROOT = "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests"
 US_KEYS = {"US_MAJOR", "NYSE_NASDAQ_AMEX", "US", "NYSE", "NASDAQ", "NYSE_NASDAQ"}
-AWARE = re.compile(r"benchmark_name|BENCH_NAMES|bench_name|BENCHMARK_NAMES|local_bench")
+AWARE = re.compile(r"benchmark_name|benchmark_label|BENCH_NAMES|bench_name|BENCHMARK_NAMES|local_bench")
 HARDCODED_LABEL = re.compile(r'["\']S&P 500|["\']SPY["\']|label\s*=\s*["\']SPY')
 
 
