@@ -662,8 +662,12 @@ def main():
             ("china", ["SHZ", "SHH"]),
             ("southafrica", ["JNB"]),
             ("thailand", ["SET"]),
-            # Excluded: ASX (adjClose split issues), SAO/Brazil (adjClose split issues),
-            #           JPX/Japan (no FY data), LSE/UK (no FY data)
+            ("japan", ["JPX"]),
+            ("uk", ["LSE"]),
+            # Excluded: ASX (adjClose split issues), SAO/Brazil (adjClose split issues)
+            # JPX and LSE were once excluded for FY data sparsity; both have had
+            # usable FY data since the May 2026 run and the published comparison
+            # covers them, so --global must too.
         ]
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
