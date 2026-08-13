@@ -2,7 +2,11 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from chart_utils import benchmark_label
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -71,7 +75,11 @@ def get_cumulative_growth(exchange_key, initial=10000):
 
 
 def get_spy_cumulative(exchange_key="NYSE_NASDAQ_AMEX", initial=10000):
-    """Get SPY cumulative from any exchange (all have same SPY series)."""
+    """Cumulative growth of THAT exchange's own benchmark series.
+
+    The `spy` field holds whichever index the exchange was measured against
+    (Sensex, DAX, ...); only the US entry is actually the S&P 500.
+    """
     ex = data[exchange_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
@@ -87,8 +95,9 @@ def chart_cumulative(exchange_key, filename, title, footer_universe):
 
     spy_years, spy_vals = get_spy_cumulative(exchange_key)
     spy_cagr = data[exchange_key]["spy"]["cagr"]
+    bench = benchmark_label(data, exchange_key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{bench} ({spy_cagr}% CAGR)", linestyle="--")
 
     ex = data[exchange_key]
     years, vals = get_cumulative_growth(exchange_key)
@@ -140,7 +149,7 @@ def chart_annual_bars(exchange_key, filename, title, footer_universe):
     x = list(range(len(years)))
 
     ax.bar([i - width / 2 for i in x], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchange_key), color=COLORS["SPY"], alpha=0.7)
     ax.bar([i + width / 2 for i in x], port_returns, width,
            label=EXCHANGE_LABELS[exchange_key], color=COLORS[exchange_key], alpha=0.85)
 
@@ -271,7 +280,7 @@ chart_annual_bars(
 print("\nGermany (XETRA) charts...")
 chart_cumulative(
     "XETRA", "germany_cumulative_growth.png",
-    "Growth of $10,000: 52-Week Low Quality Germany vs S&P 500 (2002-2025)",
+    f"Growth of $10,000: 52-Week Low Quality Germany vs {benchmark_label(data, 'XETRA')} (2002-2025)",
     "XETRA"
 )
 chart_annual_bars(
@@ -283,7 +292,7 @@ chart_annual_bars(
 print("\nIndia charts...")
 chart_cumulative(
     "NSE", "india_cumulative_growth.png",
-    "Growth of $10,000: 52-Week Low Quality India vs S&P 500 (2002-2025)",
+    f"Growth of $10,000: 52-Week Low Quality India vs {benchmark_label(data, 'NSE')} (2002-2025)",
     "NSE (returns in INR)"
 )
 chart_annual_bars(
@@ -295,7 +304,7 @@ chart_annual_bars(
 print("\nCanada charts...")
 chart_cumulative(
     "TSX", "canada_cumulative_growth.png",
-    "Growth of $10,000: 52-Week Low Quality Canada vs S&P 500 (2002-2025)",
+    f"Growth of $10,000: 52-Week Low Quality Canada vs {benchmark_label(data, 'TSX')} (2002-2025)",
     "TSX (returns in CAD)"
 )
 chart_annual_bars(
@@ -307,7 +316,7 @@ chart_annual_bars(
 print("\nChina charts...")
 chart_cumulative(
     "SHZ_SHH", "china_cumulative_growth.png",
-    "Growth of $10,000: 52-Week Low Quality China vs S&P 500 (2002-2025)",
+    f"Growth of $10,000: 52-Week Low Quality China vs {benchmark_label(data, 'SHZ_SHH')} (2002-2025)",
     "Shenzhen + Shanghai (returns in CNY)"
 )
 chart_annual_bars(
@@ -319,7 +328,7 @@ chart_annual_bars(
 print("\nSwitzerland charts...")
 chart_cumulative(
     "SIX", "switzerland_cumulative_growth.png",
-    "Growth of $10,000: 52-Week Low Quality Switzerland vs S&P 500 (2002-2025)",
+    f"Growth of $10,000: 52-Week Low Quality Switzerland vs {benchmark_label(data, 'SIX')} (2002-2025)",
     "SIX Swiss Exchange (returns in CHF)"
 )
 chart_annual_bars(
@@ -331,7 +340,7 @@ chart_annual_bars(
 print("\nHong Kong charts...")
 chart_cumulative(
     "HKSE", "hongkong_cumulative_growth.png",
-    "Growth of $10,000: 52-Week Low Quality Hong Kong vs S&P 500 (2002-2025)",
+    f"Growth of $10,000: 52-Week Low Quality Hong Kong vs {benchmark_label(data, 'HKSE')} (2002-2025)",
     "HKSE (returns in HKD)"
 )
 chart_annual_bars(

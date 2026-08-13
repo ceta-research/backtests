@@ -4,15 +4,21 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from chart_utils import benchmark_label
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
 charts_dir.mkdir(exist_ok=True)
 
+US_KEY = "US_MAJOR"   # the one entry actually measured against SPY
+
 REGION_MAP = {
     "US_MAJOR": "us",
-    "India": "india",
+    "NSE": "india",
     "Canada": "canada",
     "XETRA": "germany",
     "China": "china",
@@ -23,14 +29,14 @@ REGION_MAP = {
     "KSC": "korea",
     "SAO": "brazil",
     "Taiwan": "taiwan",
-    "SGX": "singapore",
+    "SES": "singapore",
     "JSE": "southafrica",
     "PAR": "france",
 }
 
 REGION_LABELS = {
     "US_MAJOR": "US (NYSE + NASDAQ + AMEX)",
-    "India": "India (NSE)",
+    "NSE": "India (NSE)",
     "Canada": "Canada (TSX + TSXV)",
     "XETRA": "Germany (XETRA)",
     "China": "China (SHZ + SHH)",
@@ -41,7 +47,7 @@ REGION_LABELS = {
     "KSC": "Korea (KSC)",
     "SAO": "Brazil (SAO)",
     "Taiwan": "Taiwan (TAI + TWO)",
-    "SGX": "Singapore (SGX)",
+    "SES": "Singapore (SGX)",
     "JSE": "South Africa (JSE)",
     "PAR": "France (PAR)",
 }
@@ -118,6 +124,7 @@ def chart_cumulative_growth(data, universe, region):
     stb_cagr = d["portfolios"]["stable"]["cagr"]
     con_cagr = d["portfolios"]["contracting"]["cagr"]
     spy_cagr = d["portfolios"]["sp500"]["cagr"]
+    bench = benchmark_label(data, universe)
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
@@ -128,7 +135,7 @@ def chart_cumulative_growth(data, universe, region):
     ax.plot(years, con_cum, color=C_CON, linewidth=1.6, alpha=0.7,
             label=f"Contracting <-1pp ({con_cagr}% CAGR)")
     ax.plot(years, spy_cum, color=C_SPY, linewidth=1.8, linestyle="--",
-            label=f"S&P 500 ({spy_cagr}% CAGR)")
+            label=f"{bench} ({spy_cagr}% CAGR)")
 
     for vals, color, offset_y in [
         (exp_cum, C_EXP, 0),
@@ -144,7 +151,7 @@ def chart_cumulative_growth(data, universe, region):
 
     label = REGION_LABELS.get(universe, universe)
     ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
-    ax.set_title(f"Growth of $10,000: Margin Expansion Portfolios vs S&P 500 - {label}",
+    ax.set_title(f"Growth of $10,000: Margin Expansion Portfolios vs {bench} - {label}",
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
@@ -170,6 +177,7 @@ def chart_annual_returns(data, universe, region):
     years = [row["year"] for row in ar]
     exp_returns = [row["expanding"] for row in ar]
     spy_returns = [row["spy"] for row in ar]
+    bench = benchmark_label(data, universe)
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
@@ -180,11 +188,11 @@ def chart_annual_returns(data, universe, region):
     ax.bar([o for o in offsets], exp_returns, width,
            label="Expanding (>+1pp)", color=C_EXP, alpha=0.85)
     ax.bar([o + width for o in offsets], spy_returns, width,
-           label="S&P 500", color=C_SPY, alpha=0.4)
+           label=bench, color=C_SPY, alpha=0.4)
 
     label = REGION_LABELS.get(universe, universe)
     ax.set_ylabel("Annual Return (%)", fontsize=12, fontweight="bold")
-    ax.set_title(f"Margin Expanders vs S&P 500: Year-by-Year Returns - {label}",
+    ax.set_title(f"Margin Expanders vs {bench}: Year-by-Year Returns - {label}",
                  fontsize=13, fontweight="bold", pad=15)
     ax.set_xticks(x)
     ax.set_xticklabels(years, rotation=45, ha="right", fontsize=9)
@@ -209,21 +217,27 @@ def chart_comparison_cagr(data):
     items = []
     for universe, d in data.items():
         cagr = d["portfolios"]["expanding"]["cagr"]
-        items.append((universe, cagr))
+        # Green when the portfolio beats the benchmark IT was measured
+        # against (local index outside the US), not the S&P 500 line.
+        bench_cagr = d["portfolios"]["sp500"]["cagr"]
+        items.append((universe, cagr, cagr > bench_cagr))
     items.sort(key=lambda x: x[1], reverse=True)
 
-    names = [REGION_LABELS.get(u, u) for u, _ in items]
-    cagrs = [c for _, c in items]
+    names = [REGION_LABELS.get(u, u) for u, _, _ in items]
+    cagrs = [c for _, c, _ in items]
 
-    spy_cagr = list(data.values())[0]["portfolios"]["sp500"]["cagr"]
+    # Cross-market reference line. This is legitimately the S&P 500, so read
+    # it from the US entry explicitly: taking whichever exchange happened to
+    # sort first would draw that market's LOCAL benchmark under this label.
+    spy_cagr = data[US_KEY]["portfolios"]["sp500"]["cagr"]
 
     fig, ax = plt.subplots(figsize=(12, max(7, len(items) * 0.6)))
 
-    colors = [C_EXP if c > spy_cagr else "#94a3b8" for c in cagrs]
+    colors = [C_EXP if beats else "#94a3b8" for _, _, beats in items]
     bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
 
     ax.axvline(x=spy_cagr, color="#dc2626", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr}% CAGR)")
+               label=f"S&P 500 ({spy_cagr}% CAGR) — green beats its local benchmark")
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=10)
@@ -255,21 +269,24 @@ def chart_comparison_drawdown(data):
     items = []
     for universe, d in data.items():
         dd = d["portfolios"]["expanding"]["max_drawdown"]
-        items.append((universe, dd))
+        # Shallower drawdown than the benchmark IT was measured against.
+        bench_dd = d["portfolios"]["sp500"]["max_drawdown"]
+        items.append((universe, dd, abs(dd) < abs(bench_dd)))
     items.sort(key=lambda x: x[1], reverse=True)
 
-    names = [REGION_LABELS.get(u, u) for u, _ in items]
-    drawdowns = [dd for _, dd in items]
+    names = [REGION_LABELS.get(u, u) for u, _, _ in items]
+    drawdowns = [dd for _, dd, _ in items]
 
-    spy_dd = list(data.values())[0]["portfolios"]["sp500"]["max_drawdown"]
+    # Cross-market reference: the US entry's S&P 500 drawdown, explicitly.
+    spy_dd = data[US_KEY]["portfolios"]["sp500"]["max_drawdown"]
 
     fig, ax = plt.subplots(figsize=(12, max(7, len(items) * 0.6)))
 
-    colors = [C_EXP if abs(dd) < abs(spy_dd) else "#94a3b8" for dd in drawdowns]
+    colors = [C_EXP if shallower else "#94a3b8" for _, _, shallower in items]
     bars = ax.barh(range(len(names)), drawdowns, color=colors, alpha=0.85, height=0.6)
 
     ax.axvline(x=spy_dd, color="#dc2626", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_dd:.1f}%)")
+               label=f"S&P 500 ({spy_dd:.1f}%) — green is shallower than its local benchmark")
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=10)

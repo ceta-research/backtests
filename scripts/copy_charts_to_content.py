@@ -46,6 +46,8 @@ TOPIC_DIRS = {
     # regions match this backtest; sector-06-pe-compression has only a `us`
     # blog and belongs to a different study.
     "pe-compression": "reversion-05-pe-compression",
+    "margin-expansion": "quality-08-margin-expansion",
+    "52-week-low": "reversion-01-52-week-low",
 }
 
 # Regions whose blog is not live; copying into them is harmless but noisy.
