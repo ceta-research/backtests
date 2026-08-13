@@ -20,6 +20,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -151,7 +154,7 @@ def chart_annual_returns(exchange_key, filename):
     x = list(range(len(years)))
 
     ax.bar([i - width for i in x], spy_rets, width,
-           label="S&P 500", color=COLORS["spy"], alpha=0.7)
+           label=benchmark_label(data, exchange_key), color=COLORS["spy"], alpha=0.7)
     ax.bar(x, safe_rets, width,
            label="Safe (Z>2.99)", color=COLORS["safe"], alpha=0.85)
     ax.bar([i + width for i in x], distress_rets, width,

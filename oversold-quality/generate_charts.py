@@ -355,7 +355,7 @@ if "NSE" in available_exchanges:
     chart_cumulative(
         ["NSE"], "india_cumulative_growth.png",
         "Growth of $10,000: Oversold Quality India vs S&P 500 (2000-2025)",
-        "NSE (returns in INR, benchmark in USD)"
+        "NSE (returns in INR)"
     )
     chart_annual_bars(
         ["NSE"], "india_annual_returns.png",
@@ -381,7 +381,7 @@ if "TSX" in available_exchanges:
     chart_cumulative(
         ["TSX"], "canada_cumulative_growth.png",
         "Growth of $10,000: Oversold Quality Canada vs S&P 500 (2000-2025)",
-        "TSX (returns in CAD, benchmark in USD)"
+        "TSX (returns in CAD)"
     )
     chart_annual_bars(
         ["TSX"], "canada_annual_returns.png",
@@ -394,7 +394,7 @@ if "STO" in available_exchanges:
     chart_cumulative(
         ["STO"], "sweden_cumulative_growth.png",
         "Growth of $10,000: Oversold Quality Sweden vs S&P 500 (2000-2025)",
-        "STO (returns in SEK, benchmark in USD)"
+        "STO (returns in SEK)"
     )
     chart_annual_bars(
         ["STO"], "sweden_annual_returns.png",
@@ -407,7 +407,7 @@ if "KSC" in available_exchanges:
     chart_cumulative(
         ["KSC"], "korea_cumulative_growth.png",
         "Growth of $10,000: Oversold Quality Korea vs S&P 500 (2000-2025)",
-        "KSC (returns in KRW, benchmark in USD)"
+        "KSC (returns in KRW)"
     )
     chart_annual_bars(
         ["KSC"], "korea_annual_returns.png",

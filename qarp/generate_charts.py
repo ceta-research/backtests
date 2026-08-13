@@ -373,7 +373,7 @@ print("Generating charts for blog_india.md...")
 chart_cumulative(
     ["NSE"], "india_cumulative_growth.png",
     "Growth of $10,000: QARP India vs S&P 500 (2000-2025)",
-    "NSE (returns in INR, benchmark in USD)"
+    "NSE (returns in INR)"
 )
 chart_annual_bars(
     ["NSE"], "india_annual_returns.png",
@@ -385,7 +385,7 @@ print("Generating charts for blog_germany.md...")
 chart_cumulative(
     ["XETRA"], "germany_cumulative_growth.png",
     "Growth of $10,000: QARP Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR, benchmark in USD)"
+    "XETRA (returns in EUR)"
 )
 chart_annual_bars(
     ["XETRA"], "germany_annual_returns.png",
@@ -397,7 +397,7 @@ print("Generating charts for blog_china.md...")
 chart_cumulative(
     ["SHZ", "SHH"], "china_cumulative_growth.png",
     "Growth of $10,000: QARP China vs S&P 500 (2000-2025)",
-    "SHZ + SHH (returns in CNY, benchmark in USD)"
+    "SHZ + SHH (returns in CNY)"
 )
 chart_annual_bars(
     ["SHZ", "SHH"], "china_annual_returns.png",

@@ -46,6 +46,32 @@ def patch_function(fsrc, key):
     return out
 
 
+def _rewrite_in_function(src, fname, us_keys):
+    """Replace data["<US_KEY>"] with data[ref_key], scoped to one function.
+
+    Uses the AST to find the function's exact source span so the edit cannot
+    leak into a neighbouring function, which is what a regex over the whole
+    file does.
+    """
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return src
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.FunctionDef) and node.name == fname):
+            continue
+        seg = ast.get_source_segment(src, node)
+        if not seg:
+            continue
+        new = seg
+        for uk in us_keys:
+            new = new.replace(f'data["{uk}"]', "data[ref_key]")
+            new = new.replace(f"data['{uk}']", "data[ref_key]")
+        if new != seg:
+            src = src.replace(seg, new, 1)
+    return src
+
+
 def patch_topic(topic, apply=False):
     path = f"{ROOT}/{topic}/generate_charts.py"
     src = open(path).read()
@@ -77,9 +103,14 @@ def patch_topic(topic, apply=False):
     src = re.sub(r"def get_spy_cumulative\(\s*\)", "def get_spy_cumulative(ref_key)", src)
     src = re.sub(r"def get_spy_cumulative\(\s*ref_key\s*=\s*[\"'][A-Z_]+[\"']\s*,",
                  "def get_spy_cumulative(ref_key,", src)
-    for uk in US_KEYS:
-        src = re.sub(r'(def get_spy_cumulative\(ref_key[^)]*\):.*?)data\[[\"\']' + uk + r'[\"\']\]',
-                     r"\1data[ref_key]", src, flags=re.S)
+    # Rewrite the US lookup ONLY inside get_spy_cumulative's own body.
+    #
+    # This used to be a re.S regex spanning from the def to the first US-key
+    # lookup anywhere after it. Because `.*?` crosses function boundaries, it
+    # reached into chart_comparison_cagr and rewrote a legitimate cross-market
+    # data["NYSE_NASDAQ_AMEX"] into data[ref_key], where ref_key is not in
+    # scope. Three topics died with NameError. Bound the edit to the function.
+    src = _rewrite_in_function(src, "get_spy_cumulative", US_KEYS)
 
     if changed and "from chart_utils import" not in src:
         lines = src.split("\n")
@@ -101,10 +132,25 @@ def patch_topic(topic, apply=False):
     return topic, "patched", changed
 
 
-TOPICS = ["asset-growth", "deleveraging", "dividend-sustainability", "fcf-growth",
-          "graham-number", "industry-leader", "interest-coverage", "low-pe",
-          "market-share", "net-debt-ebitda", "owner-earnings", "rising-yield",
-          "sector-rotation", "small-cap", "yield-gap"]
+# Catch-up batch 2026-08-13: MISLABEL topics BEHIND the bias-fix sweep cursor
+# (index <= 51), which the sweep will never revisit. Topics ahead of the cursor
+# are handled by the runbook itself and are deliberately absent.
+#
+# These four are the subset this tool can actually rewrite. The other behind-
+# cursor topics (low-debt, value-momentum, high-yield, price-momentum) use
+# plot_* function names or pass no exchange key, so the AST filter skips them
+# and they need hand edits. A "no change" here is not a clean bill of health.
+#
+# NEVER add a STALE_RESULTS topic to this list. 52-week-low, income-quality,
+# margin-expansion and sustained-roic read a pre-local-benchmark file where
+# "S&P 500" is the TRUE label; relabelling them creates a falsehood.
+TOPICS = ["small-value", "price-to-sales", "ev-ebitda", "equity-growth",
+          "working-capital", "price-to-book", "altman-z"]
+
+PREVIOUS_BATCH = ["asset-growth", "deleveraging", "dividend-sustainability", "fcf-growth",
+                  "graham-number", "industry-leader", "interest-coverage", "low-pe",
+                  "market-share", "net-debt-ebitda", "owner-earnings", "rising-yield",
+                  "sector-rotation", "small-cap", "yield-gap"]  # done 2026-08-13
 
 if __name__ == "__main__":
     apply = "--apply" in sys.argv

@@ -72,10 +72,15 @@ def patch(topic, apply=False):
     return topic, "patched", len(repls)
 
 
-TOPICS = ["asset-growth", "deleveraging", "dividend-sustainability", "fcf-growth",
-          "graham-number", "industry-leader", "interest-coverage", "low-pe",
-          "market-share", "net-debt-ebitda", "owner-earnings", "rising-yield",
-          "small-cap", "yield-gap"]
+# Catch-up batch 2026-08-13. See the note in patch_chart_benchmarks.py:
+# behind-cursor MISLABEL topics only, never a STALE_RESULTS topic.
+TOPICS = ["small-value", "price-to-sales", "ev-ebitda", "equity-growth",
+          "working-capital", "price-to-book", "altman-z"]
+
+PREVIOUS_BATCH = ["asset-growth", "deleveraging", "dividend-sustainability", "fcf-growth",
+                  "graham-number", "industry-leader", "interest-coverage", "low-pe",
+                  "market-share", "net-debt-ebitda", "owner-earnings", "rising-yield",
+                  "small-cap", "yield-gap"]  # done 2026-08-13
 
 if __name__ == "__main__":
     apply = "--apply" in sys.argv

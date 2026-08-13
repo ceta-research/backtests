@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -78,7 +81,7 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(ref_key="US_MAJOR", initial=10000):
+def get_spy_cumulative(ref_key, initial=10000):
     """Get SPY cumulative from the US exchange (all have same SPY benchmark)."""
     ref = ref_key if ref_key in data else list(data.keys())[0]
     ex = data[ref]
@@ -100,7 +103,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
 
     spy_years, spy_vals = get_spy_cumulative(ref_key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr_ref}% CAGR)", linestyle="--")
+            label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr_ref}% CAGR)", linestyle="--")
 
     spy_final_k = spy_vals[-1] / 1000
     ax.annotate(f"${spy_final_k:,.0f}K",
@@ -165,7 +168,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     offsets = [i - (n_series - 1) * width / 2 for i in x]
 
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(valid_exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -364,7 +367,7 @@ if india_keys:
     chart_cumulative(
         india_keys, "india_cumulative_growth.png",
         "Growth of $10,000: Working Capital Efficiency India vs S&P 500 (2000-2025)",
-        "NSE (returns in INR, benchmark in USD)"
+        "NSE (returns in INR)"
     )
     chart_annual_bars(
         india_keys, "india_annual_returns.png",
@@ -377,12 +380,12 @@ if "XETRA" in data:
     print("\nGenerating Germany charts...")
     chart_cumulative(
         ["XETRA"], "germany_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Germany vs S&P 500 (2000-2025)",
-        "XETRA (returns in EUR, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency Germany vs {benchmark_label(data, 'XETRA')} (2000-2025)",
+        "XETRA (returns in EUR)"
     )
     chart_annual_bars(
         ["XETRA"], "germany_annual_returns.png",
-        "Working Capital Efficiency Germany vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Germany vs {benchmark_label(data, 'XETRA')}: Year-by-Year Returns (2000-2024)",
         "XETRA (returns in EUR)"
     )
 
@@ -393,7 +396,7 @@ if china_keys:
     chart_cumulative(
         china_keys, "china_cumulative_growth.png",
         "Growth of $10,000: Working Capital Efficiency China vs S&P 500 (2000-2025)",
-        "SHZ + SHH (returns in CNY, benchmark in USD)"
+        "SHZ + SHH (returns in CNY)"
     )
     chart_annual_bars(
         china_keys, "china_annual_returns.png",
@@ -406,12 +409,12 @@ if "HKSE" in data:
     print("\nGenerating Hong Kong charts...")
     chart_cumulative(
         ["HKSE"], "hongkong_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Hong Kong vs S&P 500 (2000-2025)",
+        f"Growth of $10,000: Working Capital Efficiency Hong Kong vs {benchmark_label(data, 'HKSE')} (2000-2025)",
         "HKSE (HKD pegged to USD)"
     )
     chart_annual_bars(
         ["HKSE"], "hongkong_annual_returns.png",
-        "Working Capital Efficiency Hong Kong vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Hong Kong vs {benchmark_label(data, 'HKSE')}: Year-by-Year Returns (2000-2024)",
         "HKSE (HKD pegged to USD)"
     )
 
@@ -420,12 +423,12 @@ if "KSC" in data:
     print("\nGenerating Korea charts...")
     chart_cumulative(
         ["KSC"], "korea_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Korea vs S&P 500 (2000-2025)",
-        "KSC (returns in KRW, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency Korea vs {benchmark_label(data, 'KSC')} (2000-2025)",
+        "KSC (returns in KRW)"
     )
     chart_annual_bars(
         ["KSC"], "korea_annual_returns.png",
-        "Working Capital Efficiency Korea vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Korea vs {benchmark_label(data, 'KSC')}: Year-by-Year Returns (2000-2024)",
         "KSC (returns in KRW)"
     )
 
@@ -434,12 +437,12 @@ if "ASX" in data:
     print("\nGenerating Australia charts...")
     chart_cumulative(
         ["ASX"], "australia_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Australia vs S&P 500 (2000-2025)",
-        "ASX (returns in AUD, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency Australia vs {benchmark_label(data, 'ASX')} (2000-2025)",
+        "ASX (returns in AUD)"
     )
     chart_annual_bars(
         ["ASX"], "australia_annual_returns.png",
-        "Working Capital Efficiency Australia vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Australia vs {benchmark_label(data, 'ASX')}: Year-by-Year Returns (2000-2024)",
         "ASX (returns in AUD)"
     )
 
@@ -448,12 +451,12 @@ if "STO" in data:
     print("\nGenerating Sweden charts...")
     chart_cumulative(
         ["STO"], "sweden_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Sweden vs S&P 500 (2000-2025)",
-        "STO (returns in SEK, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency Sweden vs {benchmark_label(data, 'STO')} (2000-2025)",
+        "STO (returns in SEK)"
     )
     chart_annual_bars(
         ["STO"], "sweden_annual_returns.png",
-        "Working Capital Efficiency Sweden vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Sweden vs {benchmark_label(data, 'STO')}: Year-by-Year Returns (2000-2024)",
         "STO (returns in SEK)"
     )
 
@@ -462,12 +465,12 @@ if "TSX" in data:
     print("\nGenerating Canada charts...")
     chart_cumulative(
         ["TSX"], "canada_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Canada vs S&P 500 (2000-2025)",
-        "TSX (returns in CAD, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency Canada vs {benchmark_label(data, 'TSX')} (2000-2025)",
+        "TSX (returns in CAD)"
     )
     chart_annual_bars(
         ["TSX"], "canada_annual_returns.png",
-        "Working Capital Efficiency Canada vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Canada vs {benchmark_label(data, 'TSX')}: Year-by-Year Returns (2000-2024)",
         "TSX (returns in CAD)"
     )
 
@@ -476,12 +479,12 @@ if "SIX" in data:
     print("\nGenerating Switzerland charts...")
     chart_cumulative(
         ["SIX"], "switzerland_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Switzerland vs S&P 500 (2000-2025)",
-        "SIX (returns in CHF, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency Switzerland vs {benchmark_label(data, 'SIX')} (2000-2025)",
+        "SIX (returns in CHF)"
     )
     chart_annual_bars(
         ["SIX"], "switzerland_annual_returns.png",
-        "Working Capital Efficiency Switzerland vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Switzerland vs {benchmark_label(data, 'SIX')}: Year-by-Year Returns (2000-2024)",
         "SIX (returns in CHF)"
     )
 
@@ -490,12 +493,12 @@ if "TAI" in data:
     print("\nGenerating Taiwan charts...")
     chart_cumulative(
         ["TAI"], "taiwan_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Taiwan vs S&P 500 (2000-2025)",
-        "TAI (returns in TWD, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency Taiwan vs {benchmark_label(data, 'TAI')} (2000-2025)",
+        "TAI (returns in TWD)"
     )
     chart_annual_bars(
         ["TAI"], "taiwan_annual_returns.png",
-        "Working Capital Efficiency Taiwan vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Taiwan vs {benchmark_label(data, 'TAI')}: Year-by-Year Returns (2000-2024)",
         "TAI (returns in TWD)"
     )
 
@@ -504,12 +507,12 @@ if "SET" in data:
     print("\nGenerating Thailand charts...")
     chart_cumulative(
         ["SET"], "thailand_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Thailand vs S&P 500 (2000-2025)",
-        "SET (returns in THB, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency Thailand vs {benchmark_label(data, 'SET')} (2000-2025)",
+        "SET (returns in THB)"
     )
     chart_annual_bars(
         ["SET"], "thailand_annual_returns.png",
-        "Working Capital Efficiency Thailand vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Thailand vs {benchmark_label(data, 'SET')}: Year-by-Year Returns (2000-2024)",
         "SET (returns in THB)"
     )
 
@@ -518,12 +521,12 @@ if "LSE" in data:
     print("\nGenerating UK charts...")
     chart_cumulative(
         ["LSE"], "uk_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency UK vs S&P 500 (2000-2025)",
-        "LSE (returns in GBP, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency UK vs {benchmark_label(data, 'LSE')} (2000-2025)",
+        "LSE (returns in GBP)"
     )
     chart_annual_bars(
         ["LSE"], "uk_annual_returns.png",
-        "Working Capital Efficiency UK vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency UK vs {benchmark_label(data, 'LSE')}: Year-by-Year Returns (2000-2024)",
         "LSE (returns in GBP)"
     )
 
@@ -532,12 +535,12 @@ if "JPX" in data:
     print("\nGenerating Japan charts...")
     chart_cumulative(
         ["JPX"], "japan_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency Japan vs S&P 500 (2000-2025)",
-        "JPX (returns in JPY, benchmark in USD)"
+        f"Growth of $10,000: Working Capital Efficiency Japan vs {benchmark_label(data, 'JPX')} (2000-2025)",
+        "JPX (returns in JPY)"
     )
     chart_annual_bars(
         ["JPX"], "japan_annual_returns.png",
-        "Working Capital Efficiency Japan vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency Japan vs {benchmark_label(data, 'JPX')}: Year-by-Year Returns (2000-2024)",
         "JPX (returns in JPY)"
     )
 

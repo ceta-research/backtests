@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -59,7 +62,7 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
+def get_spy_cumulative(ref_key, initial=10000):
     """Get SPY cumulative from any exchange (all have same SPY data)."""
     ex = data[ref_key]
     values = [initial]
@@ -79,7 +82,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
     spy_years, spy_vals = get_spy_cumulative(ref_key)
     spy_cagr = data[ref_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -133,7 +136,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     offsets = [i - (n_series - 1) * width / 2 for i in x]
 
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -264,120 +267,120 @@ chart_annual_bars(
 print("Generating charts for blogs/india/...")
 chart_cumulative(
     ["NSE"], "india_cumulative_growth.png",
-    "Growth of ₹10,000: Small-Cap Value India vs S&P 500 (2000-2025)",
+    f"Growth of ₹10,000: Small-Cap Value India vs {benchmark_label(data, 'NSE')} (2000-2025)",
     "NSE, P/B < 1.5, small-cap (₹1B-₹40B)"
 )
 chart_annual_bars(
     ["NSE"], "india_annual_returns.png",
-    "Small-Cap Value India vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value India vs {benchmark_label(data, 'NSE')}: Year-by-Year Returns (2000-2025)",
     "NSE (returns in INR)"
 )
 
 print("Generating charts for blogs/uk/...")
 chart_cumulative(
     ["LSE"], "uk_cumulative_growth.png",
-    "Growth of £10,000: Small-Cap Value UK vs S&P 500 (2000-2025)",
+    f"Growth of £10,000: Small-Cap Value UK vs {benchmark_label(data, 'LSE')} (2000-2025)",
     "LSE, P/B < 1.5, small-cap (£25M-£1B)"
 )
 chart_annual_bars(
     ["LSE"], "uk_annual_returns.png",
-    "Small-Cap Value UK vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value UK vs {benchmark_label(data, 'LSE')}: Year-by-Year Returns (2000-2025)",
     "LSE (returns in GBP)"
 )
 
 print("Generating charts for blogs/taiwan/...")
 chart_cumulative(
     ["TAI"], "taiwan_cumulative_growth.png",
-    "Growth of NT$10,000: Small-Cap Value Taiwan vs S&P 500 (2000-2025)",
+    f"Growth of NT$10,000: Small-Cap Value Taiwan vs {benchmark_label(data, 'TAI')} (2000-2025)",
     "TWSE, P/B < 1.5, small-cap (NT$500M-NT$20B)"
 )
 chart_annual_bars(
     ["TAI"], "taiwan_annual_returns.png",
-    "Small-Cap Value Taiwan vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value Taiwan vs {benchmark_label(data, 'TAI')}: Year-by-Year Returns (2000-2025)",
     "TWSE (returns in TWD)"
 )
 
 print("Generating charts for blogs/germany/...")
 chart_cumulative(
     ["XETRA"], "germany_cumulative_growth.png",
-    "Growth of €10,000: Small-Cap Value Germany vs S&P 500 (2000-2025)",
+    f"Growth of €10,000: Small-Cap Value Germany vs {benchmark_label(data, 'XETRA')} (2000-2025)",
     "XETRA, P/B < 1.5, small-cap (€25M-€1B)"
 )
 chart_annual_bars(
     ["XETRA"], "germany_annual_returns.png",
-    "Small-Cap Value Germany vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value Germany vs {benchmark_label(data, 'XETRA')}: Year-by-Year Returns (2000-2025)",
     "XETRA (returns in EUR)"
 )
 
 print("Generating charts for blogs/canada/...")
 chart_cumulative(
     ["TSX"], "canada_cumulative_growth.png",
-    "Growth of C$10,000: Small-Cap Value Canada vs S&P 500 (2000-2025)",
+    f"Growth of C$10,000: Small-Cap Value Canada vs {benchmark_label(data, 'TSX')} (2000-2025)",
     "TSX, P/B < 1.5, small-cap (C$25M-C$1B)"
 )
 chart_annual_bars(
     ["TSX"], "canada_annual_returns.png",
-    "Small-Cap Value Canada vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value Canada vs {benchmark_label(data, 'TSX')}: Year-by-Year Returns (2000-2025)",
     "TSX (returns in CAD)"
 )
 
 print("Generating charts for blogs/sweden/...")
 chart_cumulative(
     ["STO"], "sweden_cumulative_growth.png",
-    "Growth of SEK10,000: Small-Cap Value Sweden vs S&P 500 (2000-2025)",
+    f"Growth of SEK10,000: Small-Cap Value Sweden vs {benchmark_label(data, 'STO')} (2000-2025)",
     "Nasdaq Stockholm, P/B < 1.5, small-cap (SEK250M-SEK10B)"
 )
 chart_annual_bars(
     ["STO"], "sweden_annual_returns.png",
-    "Small-Cap Value Sweden vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value Sweden vs {benchmark_label(data, 'STO')}: Year-by-Year Returns (2000-2025)",
     "Nasdaq Stockholm (returns in SEK)"
 )
 
 print("Generating charts for blogs/thailand/...")
 chart_cumulative(
     ["SET"], "thailand_cumulative_growth.png",
-    "Growth of ฿10,000: Small-Cap Value Thailand vs S&P 500 (2000-2025)",
+    f"Growth of ฿10,000: Small-Cap Value Thailand vs {benchmark_label(data, 'SET')} (2000-2025)",
     "SET, P/B < 1.5, small-cap (฿500M-฿20B)"
 )
 chart_annual_bars(
     ["SET"], "thailand_annual_returns.png",
-    "Small-Cap Value Thailand vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value Thailand vs {benchmark_label(data, 'SET')}: Year-by-Year Returns (2000-2025)",
     "SET (returns in THB)"
 )
 
 print("Generating charts for blogs/japan/...")
 chart_cumulative(
     ["JPX"], "japan_cumulative_growth.png",
-    "Growth of ¥10,000: Small-Cap Value Japan vs S&P 500 (2000-2025)",
+    f"Growth of ¥10,000: Small-Cap Value Japan vs {benchmark_label(data, 'JPX')} (2000-2025)",
     "JPX, P/B < 1.5, small-cap (¥5B-¥200B)"
 )
 chart_annual_bars(
     ["JPX"], "japan_annual_returns.png",
-    "Small-Cap Value Japan vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value Japan vs {benchmark_label(data, 'JPX')}: Year-by-Year Returns (2000-2025)",
     "JPX (returns in JPY)"
 )
 
 print("Generating charts for blogs/southafrica/...")
 chart_cumulative(
     ["JNB"], "southafrica_cumulative_growth.png",
-    "Growth of R10,000: Small-Cap Value South Africa vs S&P 500 (2000-2025)",
+    f"Growth of R10,000: Small-Cap Value South Africa vs {benchmark_label(data, 'JNB')} (2000-2025)",
     "JSE, P/B < 1.5, small-cap (R500M-R20B)"
 )
 chart_annual_bars(
     ["JNB"], "southafrica_annual_returns.png",
-    "Small-Cap Value South Africa vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value South Africa vs {benchmark_label(data, 'JNB')}: Year-by-Year Returns (2000-2025)",
     "JSE (returns in ZAR)"
 )
 
 print("Generating charts for blogs/china/...")
 chart_cumulative(
     ["SHZ_SHH"], "china_cumulative_growth.png",
-    "Growth of ¥10,000: Small-Cap Value China vs S&P 500 (2000-2025)",
+    f"Growth of ¥10,000: Small-Cap Value China vs {benchmark_label(data, 'SHZ_SHH')} (2000-2025)",
     "SHZ + SHH, P/B < 1.5, small-cap (¥100M-¥4B)"
 )
 chart_annual_bars(
     ["SHZ_SHH"], "china_annual_returns.png",
-    "Small-Cap Value China vs S&P 500: Year-by-Year Returns (2000-2025)",
+    f"Small-Cap Value China vs {benchmark_label(data, 'SHZ_SHH')}: Year-by-Year Returns (2000-2025)",
     "SHZ + SHH (returns in CNY)"
 )
 

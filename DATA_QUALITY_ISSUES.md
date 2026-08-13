@@ -236,3 +236,67 @@ genuinely regional exchanges (Hong Kong) are unaffected.
 **Practical rule:** treat any thin-universe European result as suspect until
 re-run with `--domicile-filter`. A high cash-period count under the filter is
 the tell.
+
+### Sweden is NOT affected (measured 2026-08-13)
+
+Sweden was the largest open exposure in the sweep (27 topics carry a Sweden
+blog) and had never been tested. It is now measured on two independent
+instruments and is **clean on both**:
+
+| Instrument | As listed | Domicile-only | Delta | Invested periods |
+|------------|-----------|---------------|-------|------------------|
+| price-to-sales STO (90 invested periods) | 10.65 / 10.69% | 10.36% | **-0.31pp** | 90 -> 90, unchanged |
+| fcf-yield STO (thinly invested) | 0.92% | 0.23% | -0.69pp | 5 -> 3 of 25 |
+
+Two as-listed figures are shown because **these backtests are not deterministic**: see
+the note below. The delta is roughly 8x the run-to-run noise, so it is real but small.
+
+Neither flips sign. The price-to-sales run is the reliable one: 90 invested
+periods before and after, so the screen still fills entirely from domestic
+names. The fcf-yield run agrees in direction but is low-powered, invested in
+only 5 of 25 periods even before the filter, and should not be leaned on.
+
+**Sweden behaves like Japan, Canada and India, not like Germany and
+Switzerland.** This matters for the mechanism: the domicile effect bites when
+the domestic universe cannot fill the screen, not because a market is European
+or small. Stockholm has enough domestic listings to fill a 30-stock screen;
+Frankfurt and Zurich do not.
+
+**The diagnostic is the invested-period count, not the country.** If it is
+unchanged under `--domicile-filter`, the screen was already domestic and the
+result stands. If cash periods jump, the apparent alpha belonged to foreign
+secondary listings. Check that number before assuming any market is safe or
+suspect.
+
+### Backtests are not bit-reproducible (found 2026-08-13)
+
+Running the same backtest twice with identical arguments does not give the same number.
+Measured on `price-to-sales --preset sweden`, three runs minutes apart:
+
+| Run | CAGR |
+|-----|------|
+| pre-edit code | 10.68% |
+| post-edit code, domicile OFF | 10.65% |
+| post-edit code, domicile OFF, repeat | 10.69% |
+
+**Spread 0.04pp across identical configurations.** The stored
+`exchange_comparison.json` for the same screen says 10.96%, a further -0.29pp away, so
+published figures do not reproduce exactly either. Invested periods and the benchmark
+series were identical in every run, so this is not a universe or benchmark difference.
+
+Two consequences:
+
+1. **A difference under ~0.05pp is noise, not a finding.** Do not attribute it to a code
+   change without re-running both arms more than once. This is how the domicile port to
+   `price-to-sales` was cleared: the 0.03pp gap against pre-edit code looked like a
+   regression until a repeat run landed on the other side of it.
+2. **Published numbers drift.** The -0.29pp gap between the stored result and a fresh
+   rerun is larger than the noise floor and is a separate, unexplained issue. Do not
+   silently "correct" a blog to a fresh rerun without establishing which is right.
+
+Shared helpers now live in `data_utils.py`: `EXCHANGE_COUNTRY` (36 exchanges),
+`domicile_countries()` and `domicile_sql_condition()`. `--domicile-filter` is
+implemented on `fcf-yield` and `price-to-sales`; 84 of 93 topics share the
+identical `exchange IN ({ex_filter})` universe filter, so porting it further is
+a mechanical edit rather than per-backtest work. It stays opt-in and default
+OFF; **no published result uses it.**

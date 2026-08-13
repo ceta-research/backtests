@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -76,7 +79,7 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
+def get_spy_cumulative(ref_key, initial=10000):
     """Get SPY cumulative from the US exchange data."""
     ex = data[ref_key]
     values = [initial]
@@ -96,7 +99,7 @@ def chart_cumulative(exchange_key, filename, title):
     spy_years, spy_vals = get_spy_cumulative(ref_key)
     spy_cagr = data[ref_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_label(data, exchange_key)} ({spy_cagr}% CAGR)", linestyle="--")
 
     years, vals = get_cumulative_growth(exchange_key)
     ex = data[exchange_key]
@@ -148,7 +151,7 @@ def chart_annual_bars(exchange_key, filename, title):
     x = list(range(len(years)))
 
     ax.bar([xi - width / 2 for xi in x], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchange_key), color=COLORS["SPY"], alpha=0.7)
     ax.bar([xi + width / 2 for xi in x], port_returns, width,
            label=EXCHANGE_LABELS[exchange_key], color=COLORS[exchange_key], alpha=0.85)
 
@@ -282,7 +285,7 @@ if "NSE" in data:
     chart_cumulative(
         "NSE",
         "1_india_cumulative_growth.png",
-        "Growth of $10,000: Compounding Equity Screen India vs S&P 500 (2000-2025)"
+        f"Growth of $10,000: Compounding Equity Screen India vs {benchmark_label(data, 'NSE')} (2000-2025)"
     )
     chart_annual_bars(
         "NSE",
@@ -295,7 +298,7 @@ if "JPX" in data:
     chart_cumulative(
         "JPX",
         "1_japan_cumulative_growth.png",
-        "Growth of $10,000: Compounding Equity Screen Japan vs S&P 500 (2000-2025)"
+        f"Growth of $10,000: Compounding Equity Screen Japan vs {benchmark_label(data, 'JPX')} (2000-2025)"
     )
     chart_annual_bars(
         "JPX",
@@ -308,7 +311,7 @@ if "LSE" in data:
     chart_cumulative(
         "LSE",
         "1_uk_cumulative_growth.png",
-        "Growth of $10,000: Compounding Equity Screen UK vs S&P 500 (2000-2025)"
+        f"Growth of $10,000: Compounding Equity Screen UK vs {benchmark_label(data, 'LSE')} (2000-2025)"
     )
     chart_annual_bars(
         "LSE",
@@ -321,7 +324,7 @@ if "XETRA" in data:
     chart_cumulative(
         "XETRA",
         "1_germany_cumulative_growth.png",
-        "Growth of $10,000: Compounding Equity Screen Germany vs S&P 500 (2000-2025)"
+        f"Growth of $10,000: Compounding Equity Screen Germany vs {benchmark_label(data, 'XETRA')} (2000-2025)"
     )
     chart_annual_bars(
         "XETRA",
@@ -334,7 +337,7 @@ if "SHZ_SHH" in data:
     chart_cumulative(
         "SHZ_SHH",
         "1_china_cumulative_growth.png",
-        "Growth of $10,000: Compounding Equity Screen China vs S&P 500 (2000-2025)"
+        f"Growth of $10,000: Compounding Equity Screen China vs {benchmark_label(data, 'SHZ_SHH')} (2000-2025)"
     )
     chart_annual_bars(
         "SHZ_SHH",
@@ -347,7 +350,7 @@ if "TSX" in data:
     chart_cumulative(
         "TSX",
         "1_canada_cumulative_growth.png",
-        "Growth of $10,000: Compounding Equity Screen Canada vs S&P 500 (2000-2025)"
+        f"Growth of $10,000: Compounding Equity Screen Canada vs {benchmark_label(data, 'TSX')} (2000-2025)"
     )
     chart_annual_bars(
         "TSX",
@@ -360,7 +363,7 @@ if "HKSE" in data:
     chart_cumulative(
         "HKSE",
         "1_hongkong_cumulative_growth.png",
-        "Growth of $10,000: Compounding Equity Screen Hong Kong vs S&P 500 (2000-2025)"
+        f"Growth of $10,000: Compounding Equity Screen Hong Kong vs {benchmark_label(data, 'HKSE')} (2000-2025)"
     )
     chart_annual_bars(
         "HKSE",

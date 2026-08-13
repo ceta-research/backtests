@@ -117,6 +117,70 @@ LOCAL_CURRENCY = {
     "JNB": "ZAR",
 }
 
+# Home country per exchange, for the opt-in domicile filter.
+#
+# WHY THIS EXISTS. The default universe is every company LISTED on an exchange,
+# which outside the US and Hong Kong is mostly foreign companies' secondary
+# lines. Measured on the 2015 XETRA screen: 32 of 36 names were US-domiciled,
+# 3 German. The 2020 LSE screen was 46 US / 20 UK. Those listings are also
+# barely tradeable: 18.6% of XETRA and 20.8% of LSE daily rows have zero volume
+# versus 1.1% on NYSE, with prices frozen for days and then jumping.
+#
+# Restricting to domicile can invert a published conclusion, so it is OPT-IN
+# and every result must say which universe it used. Measured on fcf-yield:
+# XETRA +4.01% -> -3.60% and SIX +2.56% -> -1.00%, both flipping sign, while
+# JPX, NSE and Canada were unchanged. The effect concentrates in thin European
+# markets that cannot fill a 30-stock screen domestically.
+EXCHANGE_COUNTRY = {
+    "NYSE": ("US",), "NASDAQ": ("US",), "AMEX": ("US",),
+    "XETRA": ("DE",), "FSX": ("DE",),
+    "LSE": ("GB",),
+    "NSE": ("IN",), "BSE": ("IN",),
+    "JPX": ("JP",),
+    "HKSE": ("HK", "CN"),          # mainland issuers are local to the HK market
+    "TSX": ("CA",), "TSXV": ("CA",),
+    "SIX": ("CH",),
+    "STO": ("SE",),
+    "OSL": ("NO",),
+    "SET": ("TH",),
+    "ASX": ("AU",),
+    "SAO": ("BR",),
+    "SGX": ("SG",), "SES": ("SG",),
+    "JNB": ("ZA",),
+    "KSC": ("KR",), "KOE": ("KR",),
+    "TAI": ("TW",), "TWO": ("TW",),
+    "SHH": ("CN",), "SHZ": ("CN",),
+    "MIL": ("IT",),
+    "PAR": ("FR",),
+    "AMS": ("NL",),
+    "BME": ("ES",),
+    "WSE": ("PL",),
+    "TLV": ("IL",),
+    "SAU": ("SA",),
+    "KLS": ("MY",),
+    "JKT": ("ID",),
+}
+
+
+def domicile_countries(exchanges):
+    """ISO country codes for a set of exchanges, or () if any is unknown.
+
+    Returns a tuple suitable for a `country IN (...)` SQL filter. Returns an
+    empty tuple when no exchange maps, so callers can skip the filter rather
+    than silently screening everything out.
+    """
+    if not exchanges:
+        return ()
+    return tuple(sorted({c for e in exchanges for c in EXCHANGE_COUNTRY.get(e, ())}))
+
+
+def domicile_sql_condition(exchanges):
+    """`country IN ('DE')`-style condition, or "" when the filter cannot apply."""
+    countries = domicile_countries(exchanges)
+    if not countries:
+        return ""
+    return "country IN (" + ", ".join(f"'{c}'" for c in countries) + ")"
+
 
 def get_local_currency(exchanges):
     """Get the reportedCurrency for a set of exchanges.

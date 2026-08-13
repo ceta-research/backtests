@@ -3,7 +3,7 @@
 Low Debt Quality - Chart Generator
 
 Generates standard charts from backtest results:
-  - Cumulative growth (strategy vs SPY) per exchange
+  - Cumulative growth (strategy vs that exchange's benchmark) per exchange
   - Annual returns bar chart per exchange
   - CAGR comparison across exchanges
   - Max drawdown comparison
@@ -18,6 +18,9 @@ Charts saved to low-debt/charts/. Move to ts-content-creator after generation.
 import json
 import os
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from chart_utils import benchmark_label
 
 try:
     import matplotlib
@@ -78,8 +81,13 @@ def get_cumulative_returns(annual_returns, key="portfolio"):
     return values
 
 
-def plot_cumulative_growth(exchange_key, data, label, filename):
-    """Plot cumulative growth of strategy vs SPY."""
+def plot_cumulative_growth(exchange_key, data, label, bench, filename):
+    """Plot cumulative growth of strategy vs that exchange's own benchmark.
+
+    `bench` is the benchmark display name, resolved in main() where the full
+    keyed results dict is in scope. Do not resolve it here: `data` is the
+    per-exchange entry, so a lookup would silently fall back to "S&P 500".
+    """
     annual = data.get("annual_returns", [])
     if not annual:
         return
@@ -97,9 +105,9 @@ def plot_cumulative_growth(exchange_key, data, label, filename):
     ax.plot(x_labels, port_cum, color=COLORS["strategy"], linewidth=2.5,
             label=f"Low Debt Quality ({data['portfolio']['cagr']}% CAGR)")
     ax.plot(x_labels, spy_cum, color=COLORS["spy"], linewidth=2, linestyle="--",
-            label=f"S&P 500 ({data['spy']['cagr']}% CAGR)")
+            label=f"{bench} ({data['spy']['cagr']}% CAGR)")
 
-    ax.set_title(f"Low Debt Quality vs S&P 500 — {label}", fontsize=14, fontweight="bold", pad=15)
+    ax.set_title(f"Low Debt Quality vs {bench} — {label}", fontsize=14, fontweight="bold", pad=15)
     ax.set_xlabel("Year", fontsize=11)
     ax.set_ylabel("Portfolio Value ($1 invested)", fontsize=11)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:.1f}"))
@@ -130,8 +138,8 @@ def plot_cumulative_growth(exchange_key, data, label, filename):
     print(f"  Saved: {filename}")
 
 
-def plot_annual_returns(exchange_key, data, label, filename):
-    """Plot annual returns bar chart."""
+def plot_annual_returns(exchange_key, data, label, bench, filename):
+    """Plot annual returns bar chart. `bench` is resolved in main() (see above)."""
     annual = data.get("annual_returns", [])
     if not annual:
         return
@@ -148,10 +156,10 @@ def plot_annual_returns(exchange_key, data, label, filename):
                        color=[COLORS["positive"] if r >= 0 else COLORS["negative"] for r in port_rets],
                        alpha=0.85, label="Low Debt Quality")
     bars_spy = ax.bar([i + width/2 for i in x], spy_rets, width,
-                      color=COLORS["spy"], alpha=0.5, label="S&P 500")
+                      color=COLORS["spy"], alpha=0.5, label=bench)
 
     ax.axhline(y=0, color="black", linewidth=0.8, alpha=0.5)
-    ax.set_title(f"Annual Returns — Low Debt Quality vs S&P 500 ({label})",
+    ax.set_title(f"Annual Returns — Low Debt Quality vs {bench} ({label})",
                  fontsize=13, fontweight="bold", pad=12)
     ax.set_ylabel("Annual Return (%)", fontsize=11)
     ax.set_xticks(list(x))
@@ -198,7 +206,7 @@ def plot_comparison_cagr(all_data, filename="1_comparison_cagr.png"):
                   for c, s in zip(port_cagrs, spy_cagrs)],
            alpha=0.85, label="Low Debt Quality")
     ax.bar([i + width/2 for i in x], spy_cagrs, width,
-           color=COLORS["spy"], alpha=0.5, label="Local Benchmark (SPY)")
+           color=COLORS["spy"], alpha=0.5, label="Local Benchmark")
 
     ax.set_title("Low Debt Quality CAGR — All Exchanges (2000-2025)",
                  fontsize=13, fontweight="bold", pad=12)
@@ -244,9 +252,9 @@ def plot_comparison_drawdown(all_data, filename="2_comparison_drawdown.png"):
     ax.bar([i - width/2 for i in x], port_mdd, width, color=COLORS["negative"],
            alpha=0.8, label="Low Debt Quality")
     ax.bar([i + width/2 for i in x], spy_mdd, width, color=COLORS["spy"],
-           alpha=0.5, label="SPY")
+           alpha=0.5, label="Local Benchmark")
 
-    ax.set_title("Max Drawdown — Low Debt Quality vs SPY (2000-2025)",
+    ax.set_title("Max Drawdown — Low Debt Quality vs Local Benchmark (2000-2025)",
                  fontsize=13, fontweight="bold", pad=12)
     ax.set_ylabel("Max Drawdown (%, lower = better)", fontsize=11)
     ax.set_xticks(list(x))
@@ -294,11 +302,13 @@ def main():
 
         slug = REGION_SLUGS.get(exchange_key, exchange_key.lower())
         label = EXCHANGE_LABELS.get(exchange_key, exchange_key)
+        # Resolved here, where the full keyed results dict is in scope.
+        bench = benchmark_label(all_data, exchange_key)
 
-        print(f"  Generating charts for {label}...")
-        plot_cumulative_growth(exchange_key, data, label,
+        print(f"  Generating charts for {label} (benchmark: {bench})...")
+        plot_cumulative_growth(exchange_key, data, label, bench,
                                f"1_{slug}_cumulative_growth.png")
-        plot_annual_returns(exchange_key, data, label,
+        plot_annual_returns(exchange_key, data, label, bench,
                             f"2_{slug}_annual_returns.png")
 
     # Comparison charts

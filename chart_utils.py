@@ -38,7 +38,38 @@ RESULT_KEY_TO_EXCHANGE = {
     "Australia": "ASX", "ASX": "ASX",
     "Brazil": "SAO", "SAO": "SAO",
     "JSE": "JNB", "JNB": "JNB",
+    # Multi-exchange keys. Without these the lookup misses and the label
+    # silently falls back to "S&P 500" with no error, so the chart stays
+    # wrong while looking fixed. TAI_TWO alone appears in 24 topics.
+    "Singapore": "SES", "SES": "SES", "SGX": "SES",
+    "TAI_TWO": "TAI", "TAI+TWO": "TAI",
+    "SHH_SHZ": "SHH", "SHH+SHZ": "SHH",
+    "TSX+TSXV": "TSX",
+    "AMEX+NASDAQ+NYSE": "NYSE",
+    # Deliberately NOT mapped, because these markets have no local index in
+    # LOCAL_INDEX_BENCHMARKS and their backtests genuinely ran against SPY
+    # (verified: MIL and KLS record benchmark_name "S&P 500"). Falling through
+    # to the default is the correct answer for them, not an oversight:
+    #   KLS MIL SAU JKT TLV WSE PAR AMS BME
 }
+
+
+def _clean_benchmark_name(name):
+    """Turn whatever the backtest recorded into something fit for a legend.
+
+    Topics record this field three different ways: a friendly name
+    ("FTSE 100"), a raw symbol ("^TWII"), or both ("FTSE 100 (^FTSE)").
+    Printed verbatim the last two give legends like "^TWII (4.1% CAGR)" and
+    "FTSE 100 (^FTSE) (7.8% CAGR)".
+    """
+    name = name.strip()
+    if name in LOCAL_INDEX_NAMES:              # a raw symbol like ^TWII
+        return LOCAL_INDEX_NAMES[name]
+    if name.endswith(")") and " (" in name:    # "FTSE 100 (^FTSE)"
+        head, _, tail = name.rpartition(" (")
+        if tail[:-1].startswith("^") or tail[:-1] in LOCAL_INDEX_NAMES:
+            return head
+    return name
 
 
 def benchmark_label(data, exchange_key, default="S&P 500"):
@@ -51,7 +82,7 @@ def benchmark_label(data, exchange_key, default="S&P 500"):
     entry = (data or {}).get(exchange_key) or {}
     name = entry.get("benchmark_name") or entry.get("benchmark")
     if isinstance(name, str) and name:
-        return name
+        return _clean_benchmark_name(name)
     ex = RESULT_KEY_TO_EXCHANGE.get(exchange_key, exchange_key)
     symbol = LOCAL_INDEX_BENCHMARKS.get(ex)
     if symbol:

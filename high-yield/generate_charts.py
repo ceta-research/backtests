@@ -24,6 +24,11 @@ import numpy as np
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Run as `python3 high-yield/generate_charts.py` from the backtests root, so
+# sys.path[0] is THIS directory; the shared helper lives one level up.
+sys.path.insert(0, os.path.dirname(SCRIPT_DIR))
+from chart_utils import benchmark_label
+
 RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
 CHARTS_DIR = os.path.join(SCRIPT_DIR, "charts")
 
@@ -47,7 +52,7 @@ def load_results():
         return json.load(f)
 
 
-def plot_cumulative(data, exchange_key, label):
+def plot_cumulative(data, exchange_key, label, bench_label="S&P 500"):
     annual = data.get("annual_returns", [])
     if not annual:
         return
@@ -61,7 +66,7 @@ def plot_cumulative(data, exchange_key, label):
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(years + [years[-1] + 1], port_vals, "b-", linewidth=2, label="High Yield Quality")
-    ax.plot(years + [years[-1] + 1], spy_vals, "r--", linewidth=1.5, label="S&P 500")
+    ax.plot(years + [years[-1] + 1], spy_vals, "r--", linewidth=1.5, label=bench_label)
     ax.set_title(f"High Dividend Yield Quality: Cumulative Growth ({label})", fontsize=14)
     ax.set_xlabel("Year")
     ax.set_ylabel("Growth of $1")
@@ -77,7 +82,7 @@ def plot_cumulative(data, exchange_key, label):
     print(f"  Saved {path}")
 
 
-def plot_annual(data, exchange_key, label):
+def plot_annual(data, exchange_key, label, bench_label="S&P 500"):
     annual = data.get("annual_returns", [])
     if not annual:
         return
@@ -91,7 +96,7 @@ def plot_annual(data, exchange_key, label):
 
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.bar(x - width/2, port_ret, width, label="High Yield Quality", color="#2196F3")
-    ax.bar(x + width/2, spy_ret, width, label="S&P 500", color="#FF5722", alpha=0.7)
+    ax.bar(x + width/2, spy_ret, width, label=bench_label, color="#FF5722", alpha=0.7)
     ax.set_title(f"High Dividend Yield Quality: Annual Returns ({label})", fontsize=14)
     ax.set_xlabel("Year")
     ax.set_ylabel("Return (%)")
@@ -148,17 +153,40 @@ def plot_cagr_comparison(all_results):
     print(f"  Saved {path}")
 
 
+US_KEYS = ("US_MAJOR", "NYSE_NASDAQ_AMEX")
+
+
+def _bench_series(entry):
+    """The benchmark series an entry actually stores, as a comparable tuple."""
+    return tuple((a["year"], a.get("spy")) for a in (entry or {}).get("annual_returns") or [])
+
+
 def main():
     print("Generating High Yield Quality charts...")
     all_results = load_results()
+
+    # Not every entry in this file came from the local-benchmark rerun: SAO and
+    # ASX still hold the older run whose "spy" series IS the S&P 500 (identical
+    # to US_MAJOR's, to the cent). For those the hardcoded "S&P 500" is the
+    # TRUE label, and printing "Bovespa"/"ASX 200" over an S&P 500 line would
+    # be worse than leaving it alone (see scripts/classify_chart_bug.py).
+    # The series decides, never the stamp, and never a hardcoded exchange list:
+    # rerun those exchanges and the series diverges, so the local label starts
+    # flowing through here on its own.
+    us_series = {_bench_series(all_results[k]) for k in US_KEYS
+                 if isinstance(all_results.get(k), dict)}
+    us_series.discard(())
 
     for key, data in all_results.items():
         if "error" in data or not data.get("portfolio"):
             continue
         label = EXCHANGE_LABELS.get(key, key)
-        print(f"\n  {label} ({key}):")
-        plot_cumulative(data, key, label)
-        plot_annual(data, key, label)
+        bench = benchmark_label(all_results, key)
+        if _bench_series(data) in us_series:
+            bench = "S&P 500"
+        print(f"\n  {label} ({key}) vs {bench}:")
+        plot_cumulative(data, key, label, bench)
+        plot_annual(data, key, label, bench)
 
     print("\n  Comparison:")
     plot_cagr_comparison(all_results)

@@ -27,8 +27,13 @@ except ImportError:
     print("Error: matplotlib not installed. Run: pip install matplotlib")
     sys.exit(1)
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from chart_utils import benchmark_label
+
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 CHARTS_DIR = os.path.join(os.path.dirname(__file__), "charts")
+
+US_KEY = "NYSE_NASDAQ_AMEX"   # the one entry actually measured against SPY
 
 STRATEGY_COLOR = "#E65100"    # Deep orange (value investing classic)
 BENCHMARK_COLOR = "#9E9E9E"   # Gray
@@ -44,8 +49,12 @@ def cumulative_growth(returns):
     return curve
 
 
-def plot_cumulative(data, label, output_path):
-    """Cumulative growth chart: Value-Momentum vs SPY."""
+def plot_cumulative(data, label, bench_label, output_path):
+    """Cumulative growth chart: Value-Momentum vs its exchange's benchmark.
+
+    `bench_label` must be resolved by the caller with the FULL results dict
+    (benchmark_label(all_data, exch_key)); `data` here is one exchange entry.
+    """
     annual = data["annual_returns"]
     years = [ar["year"] for ar in annual]
     port_rets = [ar["portfolio"] for ar in annual]
@@ -60,9 +69,9 @@ def plot_cumulative(data, label, output_path):
     ax.plot(x, port_curve, color=STRATEGY_COLOR, linewidth=2.5,
             label=f"Value-Momentum  (CAGR: {data['portfolio']['cagr']:.1f}%)")
     ax.plot(x, spy_curve, color=BENCHMARK_COLOR, linewidth=1.8, linestyle="--",
-            label=f"S&P 500 (SPY)  (CAGR: {data['spy']['cagr']:.1f}%)")
+            label=f"{bench_label}  (CAGR: {data['spy']['cagr']:.1f}%)")
 
-    ax.set_title(f"Value-Momentum vs S&P 500\n{label}",
+    ax.set_title(f"Value-Momentum vs {bench_label}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Portfolio Value ($1 Start)", fontsize=12)
@@ -95,8 +104,11 @@ def plot_cumulative(data, label, output_path):
     print(f"  Saved: {output_path}")
 
 
-def plot_annual_returns(data, label, output_path):
-    """Annual returns bar chart: Value-Momentum vs SPY."""
+def plot_annual_returns(data, label, bench_label, output_path):
+    """Annual returns bar chart: Value-Momentum vs its exchange's benchmark.
+
+    `bench_label` is resolved by the caller (see plot_cumulative).
+    """
     annual = data["annual_returns"]
     years = [ar["year"] for ar in annual]
     port_rets = [ar["portfolio"] for ar in annual]
@@ -110,9 +122,9 @@ def plot_annual_returns(data, label, output_path):
            color=[POSITIVE_COLOR if r >= 0 else NEGATIVE_COLOR for r in port_rets],
            alpha=0.85, label="Value-Momentum")
     ax.bar(x + width / 2, spy_rets, width,
-           color=BENCHMARK_COLOR, alpha=0.6, label="S&P 500")
+           color=BENCHMARK_COLOR, alpha=0.6, label=bench_label)
 
-    ax.set_title(f"Annual Returns: Value-Momentum vs S&P 500\n{label}",
+    ax.set_title(f"Annual Returns: Value-Momentum vs {bench_label}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Annual Return (%)", fontsize=12)
@@ -133,7 +145,10 @@ def plot_comparison_cagr(all_data, output_path):
     """CAGR comparison bar chart across all exchanges."""
     exchanges = []
     cagrs = []
-    spy_cagr = None
+    # Cross-market reference line. This is legitimately the S&P 500, so read it
+    # from the US entry explicitly: taking whichever exchange happened to sort
+    # first drew that market's LOCAL benchmark under an "S&P 500" label.
+    spy_cagr = ((all_data.get(US_KEY) or {}).get("spy") or {}).get("cagr")
 
     for exch, data in sorted(all_data.items(),
                               key=lambda x: (x[1].get("portfolio") or {}).get("cagr") or -999,
@@ -144,8 +159,6 @@ def plot_comparison_cagr(all_data, output_path):
         if cagr is not None:
             exchanges.append(exch.replace("_", "+"))
             cagrs.append(cagr)
-            if spy_cagr is None:
-                spy_cagr = data["spy"].get("cagr")
 
     if not exchanges:
         return
@@ -255,13 +268,18 @@ def main():
             print(f"  Skipping {exch_key} (no results)")
             continue
 
-        print(f"\n  {label}")
+        # Resolved here, where the FULL keyed dict is in scope. Inside the plot
+        # helpers `data` is a single entry, so the lookup would silently fall
+        # back to "S&P 500" and every regional chart would stay mislabelled.
+        bench_label = benchmark_label(all_data, exch_key)
+
+        print(f"\n  {label}  [benchmark: {bench_label}]")
         plot_cumulative(
-            data, label,
+            data, label, bench_label,
             os.path.join(CHARTS_DIR, f"1_{region_slug}_cumulative_growth.png")
         )
         plot_annual_returns(
-            data, label,
+            data, label, bench_label,
             os.path.join(CHARTS_DIR, f"2_{region_slug}_annual_returns.png")
         )
 
