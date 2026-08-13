@@ -58,6 +58,26 @@ MAX_STOCKS = 30
 MIN_STOCKS = 10
 MIN_ENTRY_PRICE = 1.0      # skip stocks with entry price < $1 (bad adjClose, penny stocks)
 MAX_SINGLE_RETURN = 2.0    # skip stocks with single-period return > 200% (price artifacts)
+
+# EXPERIMENTAL, opt-in via --domicile-filter. Home country per exchange, used to
+# strip foreign secondary listings from the universe. The default universe is
+# every company LISTED on the exchange, which outside the US is mostly foreign
+# companies' secondary lines (the 2015 XETRA screen was 32 of 36 US-domiciled).
+EXCHANGE_COUNTRY = {
+    "NYSE": ("US",), "NASDAQ": ("US",), "AMEX": ("US",),
+    "XETRA": ("DE",), "FSX": ("DE",),
+    "LSE": ("GB",),
+    "NSE": ("IN",), "BSE": ("IN",),
+    "JPX": ("JP",),
+    "HKSE": ("HK", "CN"),          # mainland issuers are local to the HK market
+    "TSX": ("CA",), "TSXV": ("CA",),
+    "SIX": ("CH",),
+    "STO": ("SE",),
+    "KSC": ("KR",), "KOE": ("KR",),
+    "TAI": ("TW",), "TWO": ("TW",),
+    "SHH": ("CN",), "SHZ": ("CN",),
+    "SET": ("TH",),
+}
 DEFAULT_FREQUENCY = "annual"
 DEFAULT_REBALANCE_MONTHS = [7]  # July (annual FY filings available, 45-day lag)
 
@@ -75,7 +95,7 @@ EXCLUDED_PRESETS = {
 }
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domicile=False):
     """Fetch financial data and load into DuckDB.
 
     Populates tables:
@@ -84,20 +104,31 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         ratios_cache(symbol, interestCoverageRatio, operatingProfitMargin, filing_epoch, period)
         prices_cache(symbol, trade_epoch, adjClose)
 
+    Args:
+        domicile: bool - EXPERIMENTAL. Restrict the universe to companies whose
+            profile.country matches the exchange's home country, removing
+            foreign secondary listings. Off by default; no published result
+            uses it. See --domicile-filter.
+
     Returns DuckDB connection or None.
     """
+    conds = []
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
-    else:
-        exchange_where = ""
+        conds.append(f"exchange IN ({ex_filter})")
+        if domicile:
+            countries = sorted({c for e in exchanges
+                                for c in EXCHANGE_COUNTRY.get(e, ())})
+            if countries:
+                conds.append("country IN (" + ", ".join(f"'{c}'" for c in countries) + ")")
+    profile_where = ("WHERE " + " AND ".join(conds)) if conds else ""
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
 
     # 1. Universe
     print("  Fetching exchange membership...")
-    profile_sql = f"SELECT DISTINCT symbol, exchange FROM profile {exchange_where}"
+    profile_sql = f"SELECT DISTINCT symbol, exchange FROM profile {profile_where}"
     profiles = client.query(profile_sql, verbose=verbose)
     if not profiles:
         print("  No symbols found for these exchanges.")
@@ -108,7 +139,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
 
     if exchanges:
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile {profile_where})"
     else:
         sym_filter_sql = "1=1"
 
@@ -286,6 +317,10 @@ def main():
     add_common_args(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--domicile-filter", action="store_true",
+                        help="EXPERIMENTAL: restrict the universe to companies domiciled "
+                             "in the exchange's home country, removing foreign secondary "
+                             "listings. Off by default; published results do not use it.")
     args = parser.parse_args()
 
     if args.cloud:
@@ -366,7 +401,8 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = generate_rebalance_dates(2000, 2025, frequency,
                                                months=DEFAULT_REBALANCE_MONTHS)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
+                             domicile=getattr(args, "domicile_filter", False))
     if con is None:
         print("  No data available. Skipping.")
         return None

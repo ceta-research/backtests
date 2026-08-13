@@ -189,3 +189,50 @@ Before adding an exchange to a backtest, run these checks:
 2. **Price data clean:** Check for extreme ratios: `SELECT symbol, MIN(adjClose), MAX(adjClose), MAX(adjClose)/NULLIF(MIN(adjClose),0) as ratio FROM stock_eod WHERE symbol IN (...) GROUP BY symbol HAVING ratio > 100`
 3. **No single-quarter return > 100%** after running the backtest
 4. **CAGR is plausible** for the exchange and time period
+
+---
+
+## Exchange-listed universes are not domicile universes (measured 2026-08-13)
+
+Screens select every company **listed** on an exchange. Outside the US, most
+qualifying names are foreign companies' secondary listings, not local
+businesses. Measured on the fcf-yield screen:
+
+| Screen | Locally domiciled | US-domiciled |
+|--------|-------------------|--------------|
+| XETRA 2015 | 3 of 36 | 32 |
+| XETRA 2010 | 7 | 19 |
+| LSE 2020 | 20 of 93 | 46 |
+| LSE 2010 | 23 | 31 |
+
+Those secondary lines are also largely untradeable: **18.6% of XETRA and 20.8%
+of LSE daily rows carry zero volume** (NYSE: 1.1%), with quoted prices frozen
+for days and then jumping. That is the same defect behind the phantom
++205-464% single-period returns that produced XETRA's old "+219% in 2019".
+
+### How much it changes results
+
+`fcf-yield/backtest.py --domicile-filter` restricts the universe to companies
+whose `profile.country` matches the exchange's home country. Excess CAGR vs the
+local benchmark, as-listed vs domicile-restricted:
+
+| Market | As listed | Domicile-only | Delta | Cash periods |
+|--------|-----------|---------------|-------|--------------|
+| XETRA  | +4.01% | **-3.60%** | -7.61pp | 5 -> 20 of 25 |
+| SIX    | +2.56% | **-1.00%** | -3.56pp | 9 -> 24 of 25 |
+| LSE    | +8.75% | +7.70% | -1.05pp | 3 -> 6 |
+| HKSE   | +3.67% | +3.43% | -0.24pp | unchanged |
+| JPX    | +4.52% | +4.52% | 0.00pp | unchanged |
+| Canada | +2.08% | +2.07% | -0.01pp | unchanged |
+| NSE    | +0.33% | +0.33% | 0.00pp | unchanged |
+
+**The effect is concentrated in small and mid-sized European markets.** Germany
+and Switzerland both flip from positive to negative excess: their domestic
+universes are too thin to fill a 30-stock screen, so the screen fills with
+foreign lines and the apparent alpha belongs to the listing venue rather than to
+German or Swiss companies. Deep domestic markets (Japan, Canada, India) and
+genuinely regional exchanges (Hong Kong) are unaffected.
+
+**Practical rule:** treat any thin-universe European result as suspect until
+re-run with `--domicile-filter`. A high cash-period count under the filter is
+the tell.
