@@ -10,6 +10,9 @@ import json
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from pathlib import Path
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -85,28 +88,24 @@ def get_cumulative(key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(anchor_key="NYSE_NASDAQ_AMEX", initial=10000):
-    ex = data[anchor_key]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
+def get_spy_cumulative(anchor_key, initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark series."""
+    return benchmark_cumulative(data, anchor_key, initial)
 
 
 def chart_cumulative(key, filename, footer_universe):
     ex = data[key]
     cagr = ex["portfolio"]["cagr"]
     spy_cagr = ex["spy"]["cagr"]
+    bench = benchmark_label(data, key)
     title = (f"Growth of $10,000: Sector Rotation {EXCHANGE_LABELS[key].replace('Sector Rotation ', '')} "
-             f"vs S&P 500 (2000-2025)")
+             f"vs {bench} (2000-2025)")
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    spy_years, spy_vals = get_spy_cumulative(key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8, linestyle="--",
-            label=f"S&P 500 ({spy_cagr}% CAGR)")
+            label=f"{bench} ({spy_cagr}% CAGR)")
 
     years, vals = get_cumulative(key)
     ax.plot(years, vals, color=COLORS[key], linewidth=2.2,
@@ -145,15 +144,16 @@ def chart_annual_bars(key, filename, footer_universe):
     years = [ar["year"] for ar in ex["annual_returns"]]
     port_rets = [ar["portfolio"] for ar in ex["annual_returns"]]
     spy_rets = [ar["spy"] for ar in ex["annual_returns"]]
+    bench = benchmark_label(data, key)
     title = (f"Sector Rotation {EXCHANGE_LABELS[key].replace('Sector Rotation ', '')}: "
-             f"Annual Returns vs S&P 500 (2000-2024)")
+             f"Annual Returns vs {bench} (2000-2024)")
 
     fig, ax = plt.subplots(figsize=(14, 5))
     x = list(range(len(years)))
     width = 0.35
 
     ax.bar([xi - width / 2 for xi in x], spy_rets, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench, color=COLORS["SPY"], alpha=0.7)
     ax.bar([xi + width / 2 for xi in x], port_rets, width,
            label=EXCHANGE_LABELS[key], color=COLORS[key], alpha=0.85)
 
