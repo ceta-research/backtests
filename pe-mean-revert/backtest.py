@@ -50,7 +50,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, domicile_sql_condition)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -71,7 +71,7 @@ MAX_SINGLE_RETURN = 2.0    # Cap individual stock returns at 200% (data quality 
 MIN_ENTRY_PRICE = 1.0      # Skip stocks with entry price < $1 (price data artifact)
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domicile=False):
     """Fetch financial data and load into DuckDB.
 
     Populates tables:
@@ -82,13 +82,18 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Returns DuckDB connection or None.
     """
+    # Opt-in domicile filter: restrict to companies HEADQUARTERED in the
+    # exchange's country, not merely listed on it. Off by default.
+    dom_cond = domicile_sql_condition(exchanges) if domicile else ""
+    dom_and = f" AND {dom_cond}" if dom_cond else ""
+
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
-        exchange_and = f"AND exchange IN ({ex_filter})"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){dom_and}"
+        exchange_and = f"AND exchange IN ({ex_filter}){dom_and}"
     else:
-        exchange_where = ""
-        exchange_and = ""
+        exchange_where = f"WHERE {dom_cond}" if dom_cond else ""
+        exchange_and = dom_and
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -111,7 +116,10 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     con.execute(f"INSERT INTO profile_cache VALUES {sym_values}")
 
     if exchanges:
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        sym_filter_sql = (f"symbol IN (SELECT DISTINCT symbol FROM profile "
+                          f"WHERE exchange IN ({ex_filter}){dom_and})")
+    elif dom_cond:
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE {dom_cond})"
     else:
         sym_filter_sql = "1=1"
 
@@ -396,7 +404,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, mktcap_threshold, verbose, output_path=None,
-               offset_days=1):
+               offset_days=1, domicile=False):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
@@ -410,6 +418,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
     print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+    print(f"  Universe basis: {'domicile (HQ country)' if domicile else 'exchange listing'}")
     print("=" * 65)
 
     # Phase 1: Fetch data
@@ -417,7 +426,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = generate_rebalance_dates(2000, 2025, frequency,
                                                months=DEFAULT_REBALANCE_MONTHS)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose, domicile=domicile)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -483,6 +492,9 @@ def main():
     add_common_args(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--domicile-filter", action="store_true",
+                        help="Restrict the universe to companies domiciled in the exchange's "
+                             "country, excluding foreign secondary listings (default: off)")
     args = parser.parse_args()
 
     if args.cloud:
@@ -542,7 +554,7 @@ def main():
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, mktcap_threshold, args.verbose, output_path,
-                                    offset_days=offset_days)
+                                    offset_days=offset_days, domicile=args.domicile_filter)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -592,7 +604,7 @@ def main():
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, mktcap_threshold, args.verbose, args.output,
-               offset_days=offset_days)
+               offset_days=offset_days, domicile=args.domicile_filter)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,20 @@
-"""Generate all P/E Mean Reversion charts for blog posts from exchange_comparison.json."""
+"""Generate all P/E Mean Reversion charts for blog posts from exchange_comparison.json.
+
+Each entry's "spy" field holds whichever index that exchange was measured
+against, which for every non-US market here is the local index (Sensex, FTSE
+100, DAX, ...). Legends and titles therefore resolve the benchmark name per
+exchange via chart_utils rather than hardcoding "S&P 500". The two comparison
+charts are the exception: their single reference line is a genuine
+cross-market S&P 500 read off the US entry.
+"""
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
+
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -56,25 +68,16 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(ref_key, initial=10000):
-    ex = data[ref_key]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
-
-
-def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
+def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None, currency="$"):
     fig, ax = plt.subplots(figsize=(12, 6))
 
     if ref_key is None:
         ref_key = exchanges[0]
-    spy_years, spy_vals = get_spy_cumulative(ref_key)
+    spy_years, spy_vals = benchmark_cumulative(data, ref_key)
     spy_cagr = data[ref_key]["spy"]["cagr"]
+    bench = benchmark_label(data, ref_key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{bench} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -84,21 +87,21 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
         ax.plot(years, vals, color=COLORS.get(ex_key, "#95a5a6"), linewidth=2.2, label=label)
 
         final_k = vals[-1] / 1000
-        ax.annotate(f"${final_k:,.0f}K",
+        ax.annotate(f"{currency}{final_k:,.0f}K",
                     xy=(years[-1], vals[-1]),
                     xytext=(8, 0), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS.get(ex_key, "#95a5a6"))
 
     spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(f"${spy_final_k:,.0f}K",
+    ax.annotate(f"{currency}{spy_final_k:,.0f}K",
                 xy=(spy_years[-1], spy_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
+    ax.set_ylabel(f"Portfolio Value ({currency.strip()})", fontsize=12, fontweight="bold")
     ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"{currency}{x:,.0f}"))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_axisbelow(True)
@@ -127,7 +130,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     offsets = [i - (n_series - 1) * width / 2 for i in x]
 
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -252,37 +255,39 @@ valid_exchanges = [
 
 print(f"Valid exchanges with data: {valid_exchanges}")
 
+# (result key, blog dir, footer universe, currency symbol, display name)
 EXCHANGE_CHART_CONFIGS = [
-    ("NYSE_NASDAQ_AMEX", "us", "NYSE + NASDAQ + AMEX"),
-    ("NSE", "india", "NSE (returns in INR)"),
-    ("JPX", "japan", "JPX (returns in JPY)"),
-    ("LSE", "uk", "LSE (returns in GBP)"),
-    ("SHZ_SHH", "china", "SHZ + SHH (returns in CNY)"),
-    ("HKSE", "hongkong", "HKSE (returns in HKD)"),
-    ("TAI_TWO", "taiwan", "TAI + TWO (returns in TWD)"),
-    ("SET", "thailand", "SET (returns in THB)"),
-    ("XETRA", "germany", "XETRA (returns in EUR)"),
-    ("KSC", "korea", "KSC (returns in KRW)"),
-    ("TSX", "canada", "TSX (returns in CAD)"),
-    ("STO", "sweden", "STO (returns in SEK)"),
-    ("SIX", "switzerland", "SIX (returns in CHF)"),
+    ("NYSE_NASDAQ_AMEX", "us", "NYSE + NASDAQ + AMEX", "$", "US"),
+    ("NSE", "india", "NSE (returns in INR)", "Rs", "India"),
+    ("JPX", "japan", "JPX (returns in JPY)", "¥", "Japan"),
+    ("LSE", "uk", "LSE (returns in GBP)", "£", "UK"),
+    ("SHZ_SHH", "china", "SHZ + SHH (returns in CNY)", "CN¥", "China"),
+    ("HKSE", "hongkong", "HKSE (returns in HKD)", "HK$", "Hong Kong"),
+    ("TAI_TWO", "taiwan", "TAI + TWO (returns in TWD)", "NT$", "Taiwan"),
+    ("SET", "thailand", "SET (returns in THB)", "THB ", "Thailand"),
+    ("XETRA", "germany", "XETRA (returns in EUR)", "€", "Germany"),
+    ("KSC", "korea", "KSC (returns in KRW)", "KRW ", "Korea"),
+    ("TSX", "canada", "TSX (returns in CAD)", "C$", "Canada"),
+    ("STO", "sweden", "STO (returns in SEK)", "SEK ", "Sweden"),
+    ("SIX", "switzerland", "SIX (returns in CHF)", "CHF ", "Switzerland"),
 ]
 
-for ex_key, region_slug, footer in EXCHANGE_CHART_CONFIGS:
+for ex_key, region_slug, footer, currency, display in EXCHANGE_CHART_CONFIGS:
     if ex_key not in valid_exchanges:
         continue
     print(f"\nGenerating charts for blogs/{region_slug}/...")
     ex = data[ex_key]
     start_year = ex["annual_returns"][0]["year"] if ex["annual_returns"] else 2000
     end_year = ex["annual_returns"][-1]["year"] if ex["annual_returns"] else 2025
+    bench = benchmark_label(data, ex_key)
     chart_cumulative(
         [ex_key], f"{region_slug}_cumulative_growth.png",
-        f"Growth of $10,000: P/E Mean Reversion {region_slug.title()} vs S&P 500 ({start_year}-{end_year})",
-        footer
+        f"Growth of {currency}10,000: P/E Mean Reversion {display} vs {bench} ({start_year}-{end_year})",
+        footer, currency=currency
     )
     chart_annual_bars(
         [ex_key], f"{region_slug}_annual_returns.png",
-        f"P/E Mean Reversion {region_slug.title()} vs S&P 500: Year-by-Year Returns ({start_year}-{end_year})",
+        f"P/E Mean Reversion {display} vs {bench}: Year-by-Year Returns ({start_year}-{end_year})",
         footer
     )
 
