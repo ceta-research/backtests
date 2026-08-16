@@ -300,3 +300,85 @@ implemented on `fcf-yield` and `price-to-sales`; 84 of 93 topics share the
 identical `exchange IN ({ex_filter})` universe filter, so porting it further is
 a mechanical edit rather than per-backtest work. It stays opt-in and default
 OFF; **no published result uses it.**
+
+---
+
+## Closed-end funds contaminate revenue-ranked screens (measured 2026-08-16)
+
+Closed-end funds, ETFs, BDCs and SPACs book investment income as `revenue`, so any
+screen that ranks or filters on revenue growth buys them. `profile.isFund` and
+`profile.isEtf` are set correctly but no backtest filters on them by default.
+
+Measured on `small-cap` (top 30 by FY revenue growth), share of US portfolio slots
+held by funds and ETFs:
+
+| Period | Fund share of holdings |
+|--------|------------------------|
+| 2000-2004 | 0% |
+| 2013 | 33% |
+| 2020 | **84%** |
+| full 25 years | 32% of all slots |
+
+`small-cap/backtest.py --exclude-funds` (opt-in, default off) measures the sensitivity:
+
+| Market | As screened | Funds excluded | Delta |
+|--------|-------------|----------------|-------|
+| US     | 7.82% CAGR, Sharpe 0.303 | **4.22%, Sharpe 0.087** | -3.60pp |
+| Canada | +4.29% excess | +2.95% | -1.33pp |
+| UK     | +2.41% excess | +3.64% | +1.23pp |
+| all others | | | under 0.5pp |
+
+**The sign is not stable across strategies.** On `revenue-accel` removing funds
+*helped* by +0.70pp; here it *hurts* by 3.60pp, because the funds damp the bad years
+(2015: funds +16.1% against operating companies -18.1%) and so raise the geometric
+mean while lowering the arithmetic one. Do not assume the direction, measure it.
+
+`isFund` / `isEtf` have **zero NULLs** on US profile rows, so a `= false` filter is
+safe there. Check before using it on another exchange: `NULL = false` is NULL in SQL
+and would silently drop every row with an unset flag.
+
+Screening logic was left unchanged on both topics and the sensitivity was disclosed
+in the content instead. Live screens are a different matter: published share links
+should carry `isFund = false AND isEtf = false AND isActivelyTrading = true` plus an
+Asset Management / Shell Companies industry exclusion for BDCs and SPACs, which the
+plain flags do not catch.
+
+**A ROE gate makes it worse, not better** (measured 2026-08-11 on the US universe):
+adding `returnOnEquity > 0.10` to a plain revenue-growth rank took funds from 8/30 to
+16/30, because a fund whose holdings marked up posts a high ROE. Revenue rank paired
+with a quality gate is the high-risk shape.
+
+**Still unchecked.** Only `revenue-accel` and `small-cap` carry an `isFund` diagnostic.
+These rank on a revenue-derived metric with no guard at all: `market-share`,
+`ocf-growth`, `revenue-surprise`, `fcf-conversion`, `owner-earnings`, and
+`price-to-sales` (ranks ascending, so funds with tiny "sales" look ultra-cheap, opposite
+direction and same cause). Measure `--exclude-funds` on each when its topic next comes
+up for a rerun.
+
+---
+
+## remove_price_oscillations is a no-op for window-fetch backtests (measured 2026-08-16)
+
+`data_utils.remove_price_oscillations()` deletes rows where adjClose spikes 3-5x for
+a day or two and reverts. It does real work on the raw table and still changes
+nothing, for any backtest that fetches prices only in windows around rebalance dates.
+
+Measured on `small-cap` XETRA by fetching once, running with the filter monkeypatched
+to a no-op, then applying it and running again:
+
+| Arm | CAGR | Avg holdings |
+|-----|------|--------------|
+| filter off | 6.68% | 18.8 |
+| filter on (3,966 rows deleted across 459 symbols) | 6.68% | 18.8 |
+
+LSE, the exchange the filter commit flagged as worst-affected, moved excess +0.21pp.
+
+The mechanism: prices are fetched in 10-day windows around each rebalance date, so
+`LAG`/`LEAD` inside the filter crosses a year-long gap at every window boundary and
+flags the **first row of each window** for any name that moved 30%+ over the year.
+With `offset_days=1` those rows are never read by `get_prices()`.
+
+**Do not attribute a rerun delta to this filter without measuring it.** On `small-cap`
+the entire delta from the March run was FMP coverage drift, not the filter. Diagnostic
+pattern: monkeypatch the filter to a no-op, fetch, run, apply the filter, run again on
+the same cached table.
