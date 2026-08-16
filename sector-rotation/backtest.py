@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, filter_returns,
                         get_local_benchmark, get_benchmark_return,
-                        LOCAL_INDEX_BENCHMARKS,
+                        LOCAL_INDEX_BENCHMARKS, domicile_sql_condition,
                          remove_price_oscillations)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
@@ -66,13 +66,17 @@ def generate_rebalance_dates(start_year, end_year, months):
     return sorted(dates)
 
 
-def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=False):
+def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=False,
+               domicile=False, exclude_funds=False):
     """Fetch sector mappings and prices for sector rotation backtest.
 
     Prices are fetched ONLY at quarter-start dates (Jan/Apr/Jul/Oct, days 1-15)
     from 1999 onwards. This captures both:
       - Entry/exit prices at each quarterly rebalance date
       - Year-ago prices for 12-month return computation (same month, prior year)
+
+    domicile=True restricts the universe to companies headquartered in the
+    exchange's home country (opt-in, default OFF). See DATA_QUALITY_ISSUES.md.
 
     Returns DuckDB connection with tables:
       sector_map(symbol VARCHAR, sector VARCHAR, market_cap DOUBLE)
@@ -82,12 +86,25 @@ def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=Fa
     bench_syms = {"'SPY'", f"'{benchmark_symbol}'"}
     bench_in = ", ".join(bench_syms)
 
+    dom_cond = domicile_sql_condition(exchanges) if domicile else ""
+    extra = f" AND {dom_cond}" if dom_cond else ""
+    if domicile and not dom_cond:
+        print("  Domicile filter requested but no country mapping for these "
+              "exchanges. Running unfiltered.")
+
+    # Diagnostic only, default OFF. FMP files closed-end funds and ETFs under
+    # sector 'Financial Services': 3,378 of 4,248 US large caps in that sector
+    # (79.5%) are funds. When Financial Services lands in the bottom 2 the
+    # portfolio is mostly funds rather than operating companies.
+    if exclude_funds:
+        extra += " AND isFund = false AND isEtf = false"
+
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        mktcap_filter = f"exchange IN ({ex_filter}) AND marketCap > {mktcap_min}"
+        mktcap_filter = f"exchange IN ({ex_filter}) AND marketCap > {mktcap_min}{extra}"
         price_sym_filter = (
             f"(symbol IN (SELECT DISTINCT symbol FROM profile "
-            f"WHERE exchange IN ({ex_filter}) AND marketCap > {mktcap_min}) "
+            f"WHERE exchange IN ({ex_filter}) AND marketCap > {mktcap_min}{extra}) "
             f"OR symbol IN ({bench_in}))"
         )
     else:
@@ -346,7 +363,8 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_worst=N_
 
 
 def build_output(metrics, annual, valid, results, universe_name, frequency,
-                 periods_per_year, cash_periods, avg_stocks, n_worst=N_WORST_SECTORS):
+                 periods_per_year, cash_periods, avg_stocks, n_worst=N_WORST_SECTORS,
+                 benchmark_symbol="SPY", benchmark_name="S&P 500", domicile=False):
     """Build JSON output in standard format."""
     p = metrics["portfolio"]
     b = metrics["benchmark"]
@@ -378,6 +396,11 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
         "n_worst_sectors": n_worst,
+        # The "spy" block below holds whichever index this exchange was measured
+        # against. Record which one so charts and content can name it correctly.
+        "benchmark": benchmark_symbol,
+        "benchmark_name": benchmark_name,
+        "domicile_filtered": domicile,
         "cash_periods": cash_periods,
         "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
@@ -409,7 +432,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, verbose, output_path=None, n_worst=N_WORST_SECTORS,
-               offset_days=1):
+               offset_days=1, domicile=False, exclude_funds=False):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
     mktcap_min = get_mktcap_threshold(exchanges)
@@ -424,6 +447,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate * 100:.1f}%")
     print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+    print(f"  Universe: {'domiciled' if domicile else 'listed'}"
+          f"{', funds/ETFs excluded' if exclude_funds else ''}")
     print("=" * 65)
 
     # Generate rebalance dates
@@ -434,7 +459,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print("\nPhase 1: Fetching data...")
     t0 = time.time()
     con = fetch_data(cr, exchanges, mktcap_min, benchmark_symbol=benchmark_symbol,
-                     verbose=verbose)
+                     verbose=verbose, domicile=domicile,
+                     exclude_funds=exclude_funds)
     if con is None:
         print("  No data. Skipping.")
         return None
@@ -465,15 +491,19 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Sector Rotation", benchmark_name))
 
-    cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
-    invested = [r["stocks_held"] for r in results if r["stocks_held"] > 0]
+    # Count over `valid`, not `results`. The price fetch stops at 2026-03-01
+    # while rebalance dates run to 2026-10, so the trailing periods are stubs
+    # with no exit price and no benchmark return. They are already excluded
+    # from `valid`; counting them as cash overstated every cash figure by 3.
+    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
+    invested = [r["stocks_held"] for r in valid if r["stocks_held"] > 0]
     avg_stocks = sum(invested) / len(invested) if invested else 0
-    print(f"\n  Cash periods: {cash_periods} / {len(results)}")
+    print(f"\n  Cash periods: {cash_periods} / {len(valid)}")
     print(f"  Avg stocks (invested): {avg_stocks:.1f}")
 
     # Sector frequency (how often each sector was in the bottom 2)
     sector_freq = {}
-    for r in results:
+    for r in valid:
         if r["sectors_selected"]:
             for s in r["sectors_selected"].split(", "):
                 sector_freq[s] = sector_freq.get(s, 0) + 1
@@ -496,7 +526,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks,
-                          n_worst=n_worst)
+                          n_worst=n_worst, benchmark_symbol=benchmark_symbol,
+                          benchmark_name=benchmark_name, domicile=domicile)
     output["sector_frequency"] = sector_freq
 
     if output_path:
@@ -516,6 +547,12 @@ def main():
                         help=f"Number of worst sectors to buy (default {N_WORST_SECTORS})")
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--exclude-funds", action="store_true",
+                        help="Diagnostic: drop closed-end funds and ETFs from the "
+                             "universe (opt-in, default OFF)")
+    parser.add_argument("--domicile-filter", action="store_true",
+                        help="Restrict the universe to companies headquartered in the "
+                             "exchange's home country (opt-in, default OFF)")
     args = parser.parse_args()
 
     if args.cloud:
@@ -531,6 +568,8 @@ def main():
 
     n_worst = args.n_worst
     offset_days = 0 if args.no_next_day else 1
+    domicile = args.domicile_filter
+    exclude_funds = args.exclude_funds
 
     exchanges, universe_name = resolve_exchanges(args)
     frequency = args.frequency or DEFAULT_FREQUENCY
@@ -556,7 +595,11 @@ def main():
             ("switzerland", ["SIX"]),
             ("sweden", ["STO"]),
             ("thailand", ["SET"]),
-            ("southafrica", ["JNB"]),
+            # JNB excluded 2026-08-17: the JNB large-cap universe never has the
+            # 5 sectors of >=5 stocks the signal needs before 2017, so 81 of 104
+            # quarters are forced to cash and only 2018-2023 is investable. Same
+            # reason as SES. The pre-2026 JNB entry reported returns for 2004-05
+            # that the universe could not have produced.
             ("japan", ["JPX"]),
             ("china", ["SHH", "SHZ"]),
             # SES excluded: 61% cash periods (not enough sector diversity for strategy to run)
@@ -580,7 +623,8 @@ def main():
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, args.verbose, output_path,
-                                    n_worst=n_worst, offset_days=offset_days)
+                                    n_worst=n_worst, offset_days=offset_days,
+                                    domicile=domicile, exclude_funds=exclude_funds)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -629,7 +673,8 @@ def main():
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, args.verbose, args.output, n_worst=n_worst,
-               offset_days=offset_days)
+               offset_days=offset_days, domicile=domicile,
+               exclude_funds=exclude_funds)
 
 
 if __name__ == "__main__":

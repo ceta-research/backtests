@@ -172,6 +172,26 @@ GROUP BY symbol HAVING ratio > 100 ORDER BY ratio DESC LIMIT 20
 
 **defensive-quality strategy (sector-04):** JNB excluded entirely. Not a data quality issue — the defensive sector universe (Consumer Defensive, Utilities, Healthcare) historically never produced 10+ qualifying stocks per July rebalance period. Max: ~8 qualifying stocks (2018-2019 peak). Strategy correctly stayed 100% cash all 25 periods. JNB removed from `presets_to_run` in `defensive-quality/backtest.py`. Excluded from all content (blog, LinkedIn, Reddit).
 
+**sector-rotation strategy (reversion-04):** JNB excluded 2026-08-17, same shape as
+above and as the existing SES exclusion. The signal needs 5 sectors each holding
+5+ stocks with a valid 12-month return before it will run. The JNB large-cap
+universe (marketCap > ZAR 10B) never reaches that bar before 2017:
+
+```sql
+-- sectors with >=5 large-cap symbols carrying quarter-start prices, per year
+-- 2000-2002: 2 qualifying sectors.  2003-2016: 4.  2017-2023: 6.  2024-25: 4.
+```
+
+Result: 81 of 104 quarters forced to cash, leaving 23 investable quarters clustered
+in 2018-2023. A "2000-2025" claim on that base is not defensible, so JNB is dropped
+from `presets_to_run`, from `generate_charts.py`, and from all content.
+
+Note on the superseded numbers: the pre-2026-08 JNB entry reported +11.50% for 2004
+and +114.81% for 2005. The universe cannot produce those years, so the old South
+Africa row (11.72% CAGR, +3.69% excess) should be treated as an artifact rather than
+a result that drifted. `results/returns_JNB.json` is kept on disk as evidence.
+**Checked:** 2026-08-17
+
 ### KSC (Korea) transient error
 KSC had a transient parquet download error ("No magic bytes found at end of file") during initial testing. Re-run succeeded. Full data exists (1,022 symbols, 152,626 FY rows). No data quality issue.
 
@@ -348,7 +368,39 @@ adding `returnOnEquity > 0.10` to a plain revenue-growth rank took funds from 8/
 16/30, because a fund whose holdings marked up posts a high ROE. Revenue rank paired
 with a quality gate is the high-risk shape.
 
-**Still unchecked.** Only `revenue-accel` and `small-cap` carry an `isFund` diagnostic.
+### Sector-ranked screens have the same problem, via one sector (measured 2026-08-17)
+
+`sector-rotation` does not rank on revenue, so it looked exempt. It is not. FMP files
+closed-end funds and ETFs under sector **Financial Services**, and on US large caps
+that sector is **79.5% funds**: 3,378 of 4,248 symbols (2,449 `isFund`, 929 `isEtf`).
+It is also 59% of the whole US large-cap universe by count, so it dominates any
+per-sector average.
+
+| Sector | US large caps | funds | ETFs |
+|--------|--------------:|------:|-----:|
+| Financial Services | 4,248 | 2,449 | 929 |
+| Technology | 525 | 0 | 0 |
+| Healthcare | 490 | 0 | 0 |
+| every other sector | 139-465 | 0-3 | 0-1 |
+
+Consequences: the "Financial Services" row of the 12-month sector ranking is mostly a
+fund average, and in the 19 of 104 quarters where that sector lands in the bottom two,
+the portfolio is mostly funds. `sector-rotation/backtest.py --exclude-funds` (opt-in,
+default off) measures it on US:
+
+| | As screened | Funds excluded | Delta |
+|---|---|---|---|
+| Universe | 7,199 symbols | 3,815 | -47% |
+| Avg holdings | 569 | 305 | -46% |
+| CAGR | 10.60% | **11.72%** | +1.12pp |
+| Sharpe | 0.324 | **0.365** | +0.041 |
+
+Sign is positive here (removing funds *helps*), opposite to `small-cap`. Third topic,
+third direction: measure, never assume. Screening logic left unchanged, disclosed in
+the content.
+
+**Still unchecked.** Only `revenue-accel`, `small-cap` and `sector-rotation` carry an
+`isFund` diagnostic.
 These rank on a revenue-derived metric with no guard at all: `market-share`,
 `ocf-growth`, `revenue-surprise`, `fcf-conversion`, `owner-earnings`, and
 `price-to-sales` (ranks ascending, so funds with tiny "sales" look ultra-cheap, opposite

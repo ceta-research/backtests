@@ -49,6 +49,7 @@ TOPIC_DIRS = {
     "pe-compression": "reversion-05-pe-compression",
     "margin-expansion": "quality-08-margin-expansion",
     "52-week-low": "reversion-01-52-week-low",
+    "sector-rotation": "reversion-04-sector-rotation",
 }
 
 # Regions whose blog is not live; copying into them is harmless but noisy.

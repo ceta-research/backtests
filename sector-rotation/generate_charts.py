@@ -36,7 +36,7 @@ COLORS = {
     "SIX": "#d68910",
     "STO": "#2e86c1",
     "SET": "#5b2c6f",
-    "JNB": "#6e2f1a",
+    # JNB excluded: 81 of 104 quarters forced to cash (see backtest.py)
     "JPX": "#1f618d",
     "SHH_SHZ": "#c0392b",
     # SES excluded: 61% cash (not enough sector diversity for strategy to run)
@@ -55,7 +55,6 @@ EXCHANGE_LABELS = {
     "SIX": "Sector Rotation Switzerland",
     "STO": "Sector Rotation Sweden",
     "SET": "Sector Rotation Thailand",
-    "JNB": "Sector Rotation S.Africa",
     "JPX": "Sector Rotation Japan",
     "SHH_SHZ": "Sector Rotation China",
 }
@@ -72,7 +71,6 @@ EXCHANGE_UNIVERSE_LABELS = {
     "SIX": "SIX (returns in CHF)",
     "STO": "STO (returns in SEK)",
     "SET": "SET (returns in THB)",
-    "JNB": "JNB (returns in ZAR)",
     "JPX": "JPX (returns in JPY)",
     "SHH_SHZ": "SHH + SHZ (returns in CNY)",
 }
