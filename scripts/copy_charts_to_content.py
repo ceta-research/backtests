@@ -27,6 +27,7 @@ CONTENT = "/Users/swas/Desktop/Swas/Kite/ATO_SUITE/ts-content-creator/content/_r
 # backtest dir -> content dir. The word order often reverses between the two,
 # and a naive suffix match silently reports "no content dir" and skips.
 TOPIC_DIRS = {
+    "small-cap": "growth-04-small-cap",
     "low-debt": "risk-01-low-debt",
     "value-momentum": "factor-03-value-momentum",
     "high-yield": "dividend-01-high-yield",
@@ -98,10 +99,21 @@ def resolve(charts_dir, blog_png, region):
     return None, stripped
 
 
-def run(apply=False):
+def run(apply=False, only=None):
+    """Copy charts into the content repo.
+
+    only: optional list of backtest-dir names. Restricts the run to those
+    topics, so a single-topic rerun doesn't sweep every other topic's charts
+    into the content repo as a side effect.
+    """
     copied = skipped = missing = 0
     misses = []
-    for topic, cdir in sorted(TOPIC_DIRS.items()):
+    items = {k: v for k, v in TOPIC_DIRS.items() if not only or k in only}
+    if only:
+        unknown = sorted(set(only) - set(TOPIC_DIRS))
+        if unknown:
+            print(f"  WARNING: not in TOPIC_DIRS, ignored: {unknown}")
+    for topic, cdir in sorted(items.items()):
         charts = f"{ROOT}/{topic}/charts"
         blogs = f"{CONTENT}/{cdir}/blogs"
         if not os.path.isdir(charts):
@@ -141,4 +153,5 @@ def run(apply=False):
 
 
 if __name__ == "__main__":
-    sys.exit(1 if run(apply="--apply" in sys.argv) and "--apply" in sys.argv else 0)
+    only = [a for a in sys.argv[1:] if not a.startswith("-")] or None
+    sys.exit(1 if run(apply="--apply" in sys.argv, only=only) and "--apply" in sys.argv else 0)

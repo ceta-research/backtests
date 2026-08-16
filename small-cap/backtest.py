@@ -44,7 +44,9 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, get_local_benchmark, get_benchmark_return, remove_price_oscillations
+from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
+                        get_local_benchmark, get_benchmark_return, remove_price_oscillations,
+                        domicile_sql_condition)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -93,7 +95,8 @@ def get_small_cap_bounds(exchanges):
     return int(standard * SMALL_CAP_MIN_FACTOR), int(standard * SMALL_CAP_MAX_FACTOR)
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domicile=False,
+                       exclude_funds=False):
     """Fetch financial data and load into DuckDB.
 
     Populates tables:
@@ -103,12 +106,33 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         ratios_cache(symbol, debtToEquityRatio, filing_epoch, period)
         prices_cache(symbol, trade_epoch, adjClose)
 
+    Args:
+        domicile: bool - EXPERIMENTAL. Restrict the universe to companies whose
+            profile.country matches the exchange's home country, removing
+            foreign secondary listings. Off by default; no published result
+            uses it. See --domicile-filter.
+        exclude_funds: bool - DIAGNOSTIC. Drop closed-end funds and ETFs, which
+            report investment income in income_statement.revenue and therefore
+            rank highly on a revenue-growth screen. Off by default; published
+            results do not use it. Deliberately does NOT filter
+            isActivelyTrading, which would inject survivorship bias into a
+            historical run by retroactively dropping delisted names.
+            See --exclude-funds.
+
     Returns DuckDB connection or None.
     """
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        conds = [f"exchange IN ({ex_filter})"]
+        if domicile:
+            dom = domicile_sql_condition(exchanges)
+            if dom:
+                conds.append(dom)
+        if exclude_funds:
+            conds.append("isFund = false AND isEtf = false")
+        profile_where = " AND ".join(conds)
+        exchange_where = f"WHERE {profile_where}"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE {profile_where})"
     else:
         exchange_where = ""
         sym_filter_sql = "1=1"
@@ -398,7 +422,8 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, verbose, output_path=None,
-               offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500"):
+               offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500",
+               domicile=False, exclude_funds=False):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
@@ -411,6 +436,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print_header("SMALL-CAP GROWTH BACKTEST", universe_name, exchanges, signal_desc)
     exec_model = "next-day close (MOC)" if offset_days == 1 else "same-day close (legacy)"
     print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+    print(f"  Universe: {'domiciled locally' if domicile else 'all listings'}"
+          f"{', funds excluded' if exclude_funds else ''}")
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
     print("=" * 65)
@@ -420,7 +447,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = generate_rebalance_dates(2000, 2025, frequency,
                                                months=DEFAULT_REBALANCE_MONTHS)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
+                             domicile=domicile, exclude_funds=exclude_funds)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -487,6 +515,15 @@ def main():
     add_common_args(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--domicile-filter", action="store_true",
+                        help="EXPERIMENTAL: restrict the universe to companies domiciled "
+                             "in the exchange's home country, removing foreign secondary "
+                             "listings. Off by default; published results do not use it.")
+    parser.add_argument("--exclude-funds", action="store_true",
+                        help="DIAGNOSTIC: drop closed-end funds and ETFs, which report "
+                             "investment income as revenue and so rank highly on a "
+                             "revenue-growth screen. Off by default; published results "
+                             "do not use it.")
     args = parser.parse_args()
 
     if args.cloud:
@@ -549,7 +586,9 @@ def main():
                                     use_costs, rfr, args.verbose, output_path,
                                     offset_days=offset_days,
                                     benchmark_symbol=bench_sym,
-                                    benchmark_name=bench_name)
+                                    benchmark_name=bench_name,
+                                    domicile=getattr(args, "domicile_filter", False),
+                                    exclude_funds=getattr(args, "exclude_funds", False))
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -602,7 +641,9 @@ def main():
                         risk_free_rate, args.verbose, output_path,
                         offset_days=offset_days,
                         benchmark_symbol=benchmark_symbol,
-                        benchmark_name=benchmark_name)
+                        benchmark_name=benchmark_name,
+                        domicile=getattr(args, "domicile_filter", False),
+                        exclude_funds=getattr(args, "exclude_funds", False))
     if result is None:
         sys.exit(1)
 

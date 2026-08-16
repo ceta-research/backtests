@@ -93,7 +93,11 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     fig, ax = plt.subplots(figsize=(12, 6))
 
     spy_years, spy_vals = get_spy_cumulative(exchanges[0])
-    spy_cagr = data.get("NYSE_NASDAQ_AMEX", data[list(data.keys())[0]])["spy"]["cagr"]
+    # Take the CAGR from the SAME entry the series was built from. Reading it
+    # off the US entry printed the S&P 500's 7.85% next to a "DAX" or "SMI"
+    # label, which is a wrong number under a right name.
+    ref_key = exchanges[0] if exchanges[0] in data else list(data.keys())[0]
+    spy_cagr = data[ref_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
             label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
@@ -268,91 +272,48 @@ def chart_comparison_drawdown(filename):
     plt.close()
 
 
-# Generate charts
+# Per-market charts.
+#
+# (result key, blog slug, chart country name, footer universe). Every market with
+# a regional blog needs an entry: the earlier version of this script only covered
+# six of them, so the other seven blogs kept charts from an older run with stale
+# numbers while the script reported success.
+MARKETS = [
+    ("NYSE_NASDAQ_AMEX", "us",           "US",           "NYSE + NASDAQ + AMEX"),
+    ("NSE",              "india",        "India",        "NSE (returns in INR)"),
+    ("SHZ_SHH",          "china",        "China",        "China (SHZ+SHH, returns in CNY)"),
+    ("JNB",              "southafrica",  "South Africa", "South Africa (JNB, returns in ZAR)"),
+    ("TSX",              "canada",       "Canada",       "Canada (TSX, returns in CAD)"),
+    ("SIX",              "switzerland",  "Switzerland",  "Switzerland (SIX, returns in CHF)"),
+    ("STO",              "sweden",       "Sweden",       "Sweden (STO, returns in SEK)"),
+    ("XETRA",            "germany",      "Germany",      "Germany (XETRA, returns in EUR)"),
+    ("KSC",              "korea",        "Korea",        "Korea (KSC, returns in KRW)"),
+    ("LSE",              "uk",           "UK",           "UK (LSE, returns in GBP)"),
+    ("TAI",              "taiwan",       "Taiwan",       "Taiwan (TAI, returns in TWD)"),
+    ("SET",              "thailand",     "Thailand",     "Thailand (SET, returns in THB)"),
+    ("JPX",              "japan",        "Japan",        "Japan (JPX, returns in JPY)"),
+    ("HKSE",             "hongkong",     "Hong Kong",    "Hong Kong (HKSE, returns in HKD)"),
+]
+
 print("Generating charts for Small-Cap Growth blogs...")
 
-# US charts
-if "NYSE_NASDAQ_AMEX" in data:
-    print("US charts...")
-    chart_cumulative(
-        ["NYSE_NASDAQ_AMEX"], "1_us_cumulative_growth.png",
-        "Growth of $10,000: Small-Cap Growth US vs S&P 500 (2000-2025)",
-        "NYSE + NASDAQ + AMEX"
-    )
-    chart_annual_bars(
-        ["NYSE_NASDAQ_AMEX"], "2_us_annual_returns.png",
-        "Small-Cap Growth US: Year-by-Year Returns (2000-2024)",
-        "NYSE + NASDAQ + AMEX"
-    )
+missing = [k for k, _, _, _ in MARKETS if k not in data]
+if missing:
+    print(f"  WARNING: no results for {missing}; their charts will not be refreshed")
 
-# India charts
-if "NSE" in data:
-    print("India charts...")
+for key, slug, country, footer in MARKETS:
+    if key not in data:
+        continue
+    print(f"{country} charts...")
     chart_cumulative(
-        ["NSE"], "1_india_cumulative_growth.png",
-        f"Growth of $10,000: Small-Cap Growth India vs {benchmark_label(data, 'NSE')} (2000-2025)",
-        "NSE (returns in INR)"
+        [key], f"1_{slug}_cumulative_growth.png",
+        f"Growth of $10,000: Small-Cap Growth {country} vs {benchmark_label(data, key)} (2000-2025)",
+        footer
     )
     chart_annual_bars(
-        ["NSE"], "2_india_annual_returns.png",
-        "Small-Cap Growth India: Year-by-Year Returns (2000-2024)",
-        "NSE (returns in INR)"
-    )
-
-# Japan charts
-if "JPX" in data:
-    print("Japan charts...")
-    chart_cumulative(
-        ["JPX"], "1_japan_cumulative_growth.png",
-        f"Growth of $10,000: Small-Cap Growth Japan vs {benchmark_label(data, 'JPX')} (2000-2025)",
-        "Japan (JPX, returns in JPY)"
-    )
-    chart_annual_bars(
-        ["JPX"], "2_japan_annual_returns.png",
-        "Small-Cap Growth Japan: Year-by-Year Returns (2000-2024)",
-        "Japan (JPX, returns in JPY)"
-    )
-
-# UK charts
-if "LSE" in data:
-    print("UK charts...")
-    chart_cumulative(
-        ["LSE"], "1_uk_cumulative_growth.png",
-        f"Growth of $10,000: Small-Cap Growth UK vs {benchmark_label(data, 'LSE')} (2000-2025)",
-        "UK (LSE, returns in GBP)"
-    )
-    chart_annual_bars(
-        ["LSE"], "2_uk_annual_returns.png",
-        "Small-Cap Growth UK: Year-by-Year Returns (2000-2024)",
-        "UK (LSE, returns in GBP)"
-    )
-
-# China charts
-if "SHZ_SHH" in data:
-    print("China charts...")
-    chart_cumulative(
-        ["SHZ_SHH"], "1_china_cumulative_growth.png",
-        f"Growth of $10,000: Small-Cap Growth China vs {benchmark_label(data, 'SHZ_SHH')} (2000-2025)",
-        "China (SHZ+SHH, returns in CNY)"
-    )
-    chart_annual_bars(
-        ["SHZ_SHH"], "2_china_annual_returns.png",
-        "Small-Cap Growth China: Year-by-Year Returns (2000-2024)",
-        "China (SHZ+SHH, returns in CNY)"
-    )
-
-# Korea charts
-if "KSC" in data:
-    print("Korea charts...")
-    chart_cumulative(
-        ["KSC"], "1_korea_cumulative_growth.png",
-        f"Growth of $10,000: Small-Cap Growth Korea vs {benchmark_label(data, 'KSC')} (2000-2025)",
-        "Korea (KSC, returns in KRW)"
-    )
-    chart_annual_bars(
-        ["KSC"], "2_korea_annual_returns.png",
-        "Small-Cap Growth Korea: Year-by-Year Returns (2000-2024)",
-        "Korea (KSC, returns in KRW)"
+        [key], f"2_{slug}_annual_returns.png",
+        f"Small-Cap Growth {country}: Year-by-Year Returns (2000-2024)",
+        footer
     )
 
 # Comparison charts
