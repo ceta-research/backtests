@@ -434,3 +434,48 @@ With `offset_days=1` those rows are never read by `get_prices()`.
 the entire delta from the March run was FMP coverage drift, not the filter. Diagnostic
 pattern: monkeypatch the filter to a no-op, fetch, run, apply the filter, run again on
 the same cached table.
+
+---
+
+## Cost tiers are USD but market caps are local currency (found 2026-08-17)
+
+**Status:** Capability added to `costs.py`, callers NOT yet migrated
+**Affects:** every backtest that calls `tiered_cost()` (80 of them)
+**Severity:** Minor. Understates costs outside the US, concentrated in Asia.
+
+`DEFAULT_TIERS` in `costs.py` is calibrated in USD ($10B / $2B breakpoints), but
+FMP reports `profile.marketCap` in each company's **local** currency, and every
+caller passes it straight through as `tiered_cost(mcap)`. The universe filter
+already handles this correctly via `cli_utils.get_mktcap_threshold()`, which
+returns a local-currency floor (₹20B for NSE, not $1B). The cost model does not.
+
+So a ¥1tn Japanese company (about $6.7B) reads `1e12 >= 1e10` and is charged the
+top 0.1% tier instead of 0.3%.
+
+**The effect is concentrated, not uniform:**
+
+| Currency scale | Exchanges | Effect |
+|---|---|---|
+| Numerically large vs USD | JPX, KSC, NSE/BSE, TAI/TWO, SET, HKSE, STO, SHH/SHZ | Under-charged, most holdings fall to 0.1% |
+| Near parity | XETRA, SIX, PAR/AMS/MIL/BME, TSX | Tiered roughly as intended |
+| GBP | LSE | **Over**-charged; a £8B (~$10.1B) name gets 0.3% where USD calibration says 0.1% |
+
+**Published numbers are not wrong.** They are what the code produced, and every
+blog states costs as "size-tiered model" without quoting thresholds. The
+sector-rotation video scripts now carry the currency caveat explicitly.
+
+**Fix status.** `costs.py` gained `FX_PER_USD` and `get_fx_per_usd(exchanges)`,
+and `tiered_cost()` takes `fx_per_usd=1.0`. **The default preserves historical
+behaviour exactly** (verified against the old implementation across boundary
+cases), so nothing has changed yet. Migrating a caller is one line:
+
+```python
+fx = get_fx_per_usd(exchanges)          # resolve once, outside the loop
+cost = tiered_cost(mcap, fx_per_usd=fx)
+```
+
+**Do this per strategy at its next scheduled rerun, not as a bulk sweep.**
+Flipping all 80 at once desyncs every published result in the corpus from the
+code in one step. Expect non-US CAGR to move down slightly when a strategy is
+migrated (more holdings at 0.3-0.5% instead of 0.1%), and LSE to move up. That
+delta is the fix landing, not data drift.
