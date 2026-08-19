@@ -479,3 +479,43 @@ Flipping all 80 at once desyncs every published result in the corpus from the
 code in one step. Expect non-US CAGR to move down slightly when a strategy is
 migrated (more holdings at 0.3-0.5% instead of 0.1%), and LSE to move up. That
 delta is the fix landing, not data drift.
+
+---
+
+## An absent row in classify_chart_bug.py is not a pass (measured 2026-08-19)
+
+`scripts/classify_chart_bug.py` only classifies topics that `topic_is_affected()`
+returns true for. That gate needs one of two things: a result carrying a
+`benchmark_name`/`benchmark` that isn't SPY, or a non-US series inside
+`exchange_comparison.json` that differs from the US one.
+
+`revenue-surprise` had **neither**, so it printed no row at all, and a `grep` for
+it came back empty. It was not fine. Its `build_output()` never wrote a benchmark
+field, and its `exchange_comparison.json` was a stale pre-local-benchmark run
+still keyed `BSE_NSE`. Meanwhile the published comparison chart had been plotting
+excess-vs-SPY under the label "Excess vs SPY" for two months while every number in
+the blog was excess-vs-local-benchmark, so India rendered positive where the table
+said -1.87% and the UK rendered negative where the table said +2.24%.
+
+Three lessons, in order of how much they cost:
+
+1. **Empty grep output means "not evaluated", not "OK".** Confirm the topic
+   actually appears in the classifier's output with an explicit verdict. If it
+   doesn't appear, that is the finding.
+2. **Make results self-describing.** Add `benchmark` and `benchmark_name` to
+   `build_output()` when reworking any topic. Without them the results cannot be
+   audited later and the topic is invisible to the classifier. Stamping is safe
+   only when the name is recomputed from `get_local_benchmark(exchanges)` AND the
+   series is verified to differ from the US one; a hand-typed stamp on a stale run
+   is the income-quality/sustained-roic failure.
+3. **Regenerating charts is not enough. Open the PNG.** Both published charts here
+   were internally consistent with a *previous* run and looked entirely plausible.
+
+### Related: --frequency annual was silently generating quarterly dates
+
+`revenue-surprise/backtest.py` passed `months=DEFAULT_REBALANCE_MONTHS` for every
+frequency, so `--frequency annual` produced quarterly rebalance dates while
+`periods_per_year=1` annualized as though there were one period a year. Any
+frequency comparison run that way is meaningless. Check other topics that hardcode
+a `months=` argument alongside a `--frequency` flag. Fixed by pinning months only
+when `frequency == DEFAULT_FREQUENCY`.
