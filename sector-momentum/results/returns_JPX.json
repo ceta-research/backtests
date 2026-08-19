@@ -4,20 +4,24 @@
   "years": 26.0,
   "frequency": "quarterly",
   "n_best_sectors": 2,
-  "cash_periods": 7,
-  "invested_periods": 97,
-  "avg_stocks_when_invested": 128.6,
+  "benchmark": "^N225",
+  "benchmark_name": "Nikkei 225",
+  "domicile_filtered": false,
+  "funds_excluded": false,
+  "cash_periods": 4,
+  "invested_periods": 100,
+  "avg_stocks_when_invested": 122.9,
   "portfolio": {
-    "total_return": 1554.89,
-    "cagr": 11.4,
-    "max_drawdown": -44.22,
-    "annualized_volatility": 18.48,
-    "sharpe_ratio": 0.611,
-    "sortino_ratio": 1.094,
-    "calmar_ratio": 0.258,
-    "var_95": -13.84,
+    "total_return": 782.26,
+    "cagr": 8.73,
+    "max_drawdown": -47.48,
+    "annualized_volatility": 18.73,
+    "sharpe_ratio": 0.461,
+    "sortino_ratio": 0.778,
+    "calmar_ratio": 0.184,
+    "var_95": -13.74,
     "max_consecutive_losses": 6,
-    "pct_negative_periods": 33.65
+    "pct_negative_periods": 35.58
   },
   "spy": {
     "total_return": 172.77,
@@ -32,17 +36,17 @@
     "pct_negative_periods": 41.35
   },
   "comparison": {
-    "excess_cagr": 7.46,
-    "win_rate": 52.88,
-    "information_ratio": 0.492,
-    "tracking_error": 13.28,
-    "up_capture": 92.54,
-    "down_capture": 42.59,
-    "beta": 0.685,
-    "alpha": 8.67
+    "excess_cagr": 4.8,
+    "win_rate": 51.92,
+    "information_ratio": 0.294,
+    "tracking_error": 13.99,
+    "up_capture": 82.41,
+    "down_capture": 45.37,
+    "beta": 0.674,
+    "alpha": 6.05
   },
-  "excess_cagr": 7.46,
-  "win_rate_vs_spy": 52.88,
+  "excess_cagr": 4.8,
+  "win_rate_vs_spy": 51.92,
   "annual_returns": [
     {
       "year": 2000,
@@ -52,166 +56,166 @@
     },
     {
       "year": 2001,
-      "portfolio": -18.35,
+      "portfolio": -19.39,
       "spy": -20.59,
-      "excess": 2.24
+      "excess": 1.21
     },
     {
       "year": 2002,
-      "portfolio": -12.86,
+      "portfolio": -15.3,
       "spy": -19.85,
-      "excess": 6.99
+      "excess": 4.56
     },
     {
       "year": 2003,
-      "portfolio": 17.3,
+      "portfolio": 16.36,
       "spy": 24.24,
-      "excess": -6.94
+      "excess": -7.88
     },
     {
       "year": 2004,
-      "portfolio": 22.18,
+      "portfolio": 19.77,
       "spy": 6.4,
-      "excess": 15.78
+      "excess": 13.38
     },
     {
       "year": 2005,
-      "portfolio": 54.83,
+      "portfolio": 57.76,
       "spy": 42.06,
-      "excess": 12.78
-    },
-    {
-      "year": 2006,
-      "portfolio": 2.03,
-      "spy": 6.06,
-      "excess": -4.04
-    },
-    {
-      "year": 2007,
-      "portfolio": -22.89,
-      "spy": -15.34,
-      "excess": -7.55
-    },
-    {
-      "year": 2008,
-      "portfolio": -12.1,
-      "spy": -38.45,
-      "excess": 26.34
-    },
-    {
-      "year": 2009,
-      "portfolio": 3.43,
-      "spy": 17.82,
-      "excess": -14.39
-    },
-    {
-      "year": 2010,
-      "portfolio": 4.43,
-      "spy": -2.41,
-      "excess": 6.84
-    },
-    {
-      "year": 2011,
-      "portfolio": -11.9,
-      "spy": -17.68,
-      "excess": 5.78
-    },
-    {
-      "year": 2012,
-      "portfolio": 37.92,
-      "spy": 24.86,
-      "excess": 13.06
-    },
-    {
-      "year": 2013,
-      "portfolio": 56.64,
-      "spy": 48.85,
-      "excess": 7.79
-    },
-    {
-      "year": 2014,
-      "portfolio": 17.78,
-      "spy": 9.43,
-      "excess": 8.35
-    },
-    {
-      "year": 2015,
-      "portfolio": 27.33,
-      "spy": 5.99,
-      "excess": 21.34
-    },
-    {
-      "year": 2016,
-      "portfolio": 19.57,
-      "spy": 6.2,
-      "excess": 13.37
-    },
-    {
-      "year": 2017,
-      "portfolio": 49.61,
-      "spy": 19.97,
-      "excess": 29.64
-    },
-    {
-      "year": 2018,
-      "portfolio": -15.27,
-      "spy": -16.78,
-      "excess": 1.51
-    },
-    {
-      "year": 2019,
-      "portfolio": 21.33,
-      "spy": 18.62,
-      "excess": 2.71
-    },
-    {
-      "year": 2020,
-      "portfolio": 16.24,
-      "spy": 17.47,
-      "excess": -1.23
-    },
-    {
-      "year": 2021,
-      "portfolio": 23.2,
-      "spy": 7.5,
       "excess": 15.7
     },
     {
+      "year": 2006,
+      "portfolio": -0.15,
+      "spy": 6.06,
+      "excess": -6.22
+    },
+    {
+      "year": 2007,
+      "portfolio": -24.46,
+      "spy": -15.34,
+      "excess": -9.12
+    },
+    {
+      "year": 2008,
+      "portfolio": -12.31,
+      "spy": -38.45,
+      "excess": 26.14
+    },
+    {
+      "year": 2009,
+      "portfolio": 5.83,
+      "spy": 17.82,
+      "excess": -11.99
+    },
+    {
+      "year": 2010,
+      "portfolio": 3.95,
+      "spy": -2.41,
+      "excess": 6.36
+    },
+    {
+      "year": 2011,
+      "portfolio": -21.14,
+      "spy": -17.68,
+      "excess": -3.46
+    },
+    {
+      "year": 2012,
+      "portfolio": 35.0,
+      "spy": 24.86,
+      "excess": 10.14
+    },
+    {
+      "year": 2013,
+      "portfolio": 53.81,
+      "spy": 48.85,
+      "excess": 4.96
+    },
+    {
+      "year": 2014,
+      "portfolio": 15.36,
+      "spy": 9.43,
+      "excess": 5.93
+    },
+    {
+      "year": 2015,
+      "portfolio": 27.76,
+      "spy": 5.99,
+      "excess": 21.77
+    },
+    {
+      "year": 2016,
+      "portfolio": 9.28,
+      "spy": 6.2,
+      "excess": 3.09
+    },
+    {
+      "year": 2017,
+      "portfolio": 47.82,
+      "spy": 19.97,
+      "excess": 27.85
+    },
+    {
+      "year": 2018,
+      "portfolio": -20.6,
+      "spy": -16.78,
+      "excess": -3.82
+    },
+    {
+      "year": 2019,
+      "portfolio": 13.02,
+      "spy": 18.62,
+      "excess": -5.6
+    },
+    {
+      "year": 2020,
+      "portfolio": 9.29,
+      "spy": 17.47,
+      "excess": -8.18
+    },
+    {
+      "year": 2021,
+      "portfolio": 22.98,
+      "spy": 7.5,
+      "excess": 15.48
+    },
+    {
       "year": 2022,
-      "portfolio": -1.14,
+      "portfolio": -6.54,
       "spy": -12.24,
-      "excess": 11.09
+      "excess": 5.69
     },
     {
       "year": 2023,
-      "portfolio": 19.74,
+      "portfolio": 17.31,
       "spy": 29.44,
-      "excess": -9.7
+      "excess": -12.13
     },
     {
       "year": 2024,
-      "portfolio": 16.3,
+      "portfolio": 11.94,
       "spy": 18.08,
-      "excess": -1.78
+      "excess": -6.15
     },
     {
       "year": 2025,
-      "portfolio": 35.61,
+      "portfolio": 39.97,
       "spy": 31.87,
-      "excess": 3.75
+      "excess": 8.11
     }
   ],
   "sector_frequency": {
-    "Basic Materials": 12,
-    "Healthcare": 28,
-    "Real Estate": 32,
-    "Industrials": 10,
+    "Basic Materials": 15,
+    "Healthcare": 25,
+    "Real Estate": 33,
+    "Industrials": 9,
     "Energy": 24,
-    "Utilities": 16,
-    "Consumer Cyclical": 10,
+    "Utilities": 19,
+    "Consumer Cyclical": 8,
     "Consumer Defensive": 17,
-    "Communication Services": 12,
-    "Financial Services": 11,
-    "Technology": 28
+    "Communication Services": 19,
+    "Financial Services": 9,
+    "Technology": 22
   }
 }

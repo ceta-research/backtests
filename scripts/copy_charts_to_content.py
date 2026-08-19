@@ -51,6 +51,9 @@ TOPIC_DIRS = {
     "52-week-low": "reversion-01-52-week-low",
     "sector-rotation": "reversion-04-sector-rotation",
     "revenue-surprise": "momentum-04-revenue-surprise",
+    # Topic slug is sector-01-rotation (see sector-momentum/README.md); the
+    # content dir on disk is named sector-07-momentum.
+    "sector-momentum": "sector-07-momentum",
 }
 
 # Regions whose blog is not live; copying into them is harmless but noisy.

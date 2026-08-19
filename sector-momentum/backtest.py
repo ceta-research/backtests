@@ -36,9 +36,11 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, filter_returns, get_local_benchmark, get_benchmark_return, remove_price_oscillations
+from data_utils import (query_parquet, filter_returns, get_local_benchmark,
+                        get_benchmark_return, remove_price_oscillations,
+                        domicile_sql_condition)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
-from costs import tiered_cost, apply_costs
+from costs import tiered_cost, apply_costs, get_fx_per_usd
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_risk_free_rate, get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -65,13 +67,17 @@ def generate_rebalance_dates(start_year, end_year, months):
     return sorted(dates)
 
 
-def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=False):
+def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=False,
+               domicile=False, exclude_funds=False):
     """Fetch sector mappings and prices for sector momentum backtest.
 
     Prices are fetched ONLY at quarter-start dates (Jan/Apr/Jul/Oct, days 1-15)
     from 1999 onwards. This captures both:
       - Entry/exit prices at each quarterly rebalance date
       - Year-ago prices for 12-month return computation (same month, prior year)
+
+    domicile=True restricts the universe to companies headquartered in the
+    exchange's home country (opt-in, default OFF). See DATA_QUALITY_ISSUES.md.
 
     Returns DuckDB connection with tables:
       sector_map(symbol VARCHAR, sector VARCHAR, market_cap DOUBLE)
@@ -83,19 +89,32 @@ def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=Fa
         bench_set.add(f"'{benchmark_symbol}'")
     bench_list = ", ".join(bench_set)
 
+    dom_cond = domicile_sql_condition(exchanges) if domicile else ""
+    extra = f" AND {dom_cond}" if dom_cond else ""
+    if domicile and not dom_cond:
+        print("  Domicile filter requested but no country mapping for these "
+              "exchanges. Running unfiltered.")
+
+    # Diagnostic only, default OFF. FMP files closed-end funds and ETFs under
+    # sector 'Financial Services': 3,378 of 4,248 US large caps in that sector
+    # (79.5%) are funds. When Financial Services lands in the top 2 the
+    # portfolio is mostly funds rather than operating companies.
+    if exclude_funds:
+        extra += " AND isFund = false AND isEtf = false"
+
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        mktcap_filter = f"exchange IN ({ex_filter}) AND marketCap > {mktcap_min}"
+        mktcap_filter = f"exchange IN ({ex_filter}) AND marketCap > {mktcap_min}{extra}"
         price_sym_filter = (
             f"(symbol IN (SELECT DISTINCT symbol FROM profile "
-            f"WHERE exchange IN ({ex_filter}) AND marketCap > {mktcap_min}) "
+            f"WHERE exchange IN ({ex_filter}) AND marketCap > {mktcap_min}{extra}) "
             f"OR symbol IN ({bench_list}))"
         )
     else:
-        mktcap_filter = f"marketCap > {mktcap_min}"
+        mktcap_filter = f"marketCap > {mktcap_min}{extra}"
         price_sym_filter = (
             f"(symbol IN (SELECT DISTINCT symbol FROM profile "
-            f"WHERE marketCap > {mktcap_min}) OR symbol IN ({bench_list}))"
+            f"WHERE marketCap > {mktcap_min}{extra}) OR symbol IN ({bench_list}))"
         )
 
     con = duckdb.connect(":memory:")
@@ -255,8 +274,11 @@ def get_prices_at(con, symbols, year, month, offset_days=0):
 
 
 def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_BEST_SECTORS,
-                 offset_days=1, benchmark_symbol="SPY"):
-    """Run sector momentum backtest. Returns list of period result dicts."""
+                 offset_days=1, benchmark_symbol="SPY", fx_per_usd=1.0):
+    """Run sector momentum backtest. Returns list of period result dicts.
+
+    fx_per_usd converts the USD cost tiers in costs.py to the local currency that
+    FMP reports marketCap in, so a non-US name is charged its true size tier."""
     results = []
 
     for i in range(len(rebalance_dates) - 1):
@@ -327,7 +349,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
         returns = []
         for sym, raw_ret, mcap in clean:
             if use_costs:
-                cost = tiered_cost(mcap)
+                cost = tiered_cost(mcap, fx_per_usd=fx_per_usd)
                 net_ret = apply_costs(raw_ret, cost)
             else:
                 net_ret = raw_ret
@@ -359,7 +381,9 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
 
 
 def build_output(metrics, annual, valid, results, universe_name, frequency,
-                 periods_per_year, cash_periods, avg_stocks, n_best=N_BEST_SECTORS):
+                 periods_per_year, cash_periods, avg_stocks, n_best=N_BEST_SECTORS,
+                 benchmark_symbol="SPY", benchmark_name="S&P 500", domicile=False,
+                 exclude_funds=False):
     """Build JSON output in standard format."""
     p = metrics["portfolio"]
     b = metrics["benchmark"]
@@ -391,6 +415,10 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
         "n_best_sectors": n_best,
+        "benchmark": benchmark_symbol,
+        "benchmark_name": benchmark_name,
+        "domicile_filtered": domicile,
+        "funds_excluded": exclude_funds,
         "cash_periods": cash_periods,
         "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
@@ -422,7 +450,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, verbose, output_path=None, n_best=N_BEST_SECTORS,
-               offset_days=1):
+               offset_days=1, domicile=False, exclude_funds=False):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
     mktcap_min = get_mktcap_threshold(exchanges)
@@ -431,13 +459,17 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
     exec_model = "next-day close (MOC)" if offset_days == 1 else "same-day close (biased)"
+    fx_per_usd = get_fx_per_usd(exchanges)
 
     signal_desc = (f"Top {n_best} sectors by 12M trailing return, "
                    f"MCap > {mktcap_label} local, equal weight")
     print_header("SECTOR MOMENTUM ROTATION BACKTEST", universe_name, exchanges, signal_desc)
-    print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
+    print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}"
+          f"{f' (tiers x{fx_per_usd:g} local/USD)' if use_costs else ''}")
     print(f"  Risk-free rate: {risk_free_rate * 100:.1f}%")
     print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+    print(f"  Universe: {'domiciled' if domicile else 'listed'}"
+          f"{', funds/ETFs excluded' if exclude_funds else ''}")
     print("=" * 65)
 
     # Generate rebalance dates
@@ -447,7 +479,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 1: Fetch data
     print("\nPhase 1: Fetching data...")
     t0 = time.time()
-    con = fetch_data(cr, exchanges, mktcap_min, benchmark_symbol=benchmark_symbol, verbose=verbose)
+    con = fetch_data(cr, exchanges, mktcap_min, benchmark_symbol=benchmark_symbol,
+                     verbose=verbose, domicile=domicile, exclude_funds=exclude_funds)
     if con is None:
         print("  No data. Skipping.")
         return None
@@ -458,7 +491,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"\nPhase 2: Running {frequency} backtest ({BACKTEST_START}-{BACKTEST_END})...")
     t1 = time.time()
     results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=verbose,
-                           n_best=n_best, offset_days=offset_days, benchmark_symbol=benchmark_symbol)
+                           n_best=n_best, offset_days=offset_days,
+                           benchmark_symbol=benchmark_symbol, fx_per_usd=fx_per_usd)
     bt_time = time.time() - t1
     print(f"  Backtest complete in {bt_time:.0f}s")
 
@@ -477,15 +511,19 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Sector Momentum", benchmark_name))
 
-    cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
-    invested = [r["stocks_held"] for r in results if r["stocks_held"] > 0]
+    # Count over `valid`, not `results`. The rebalance grid runs to 2026-10 while
+    # the price fetch caps at 2026-03-01, so the trailing periods are stubs with no
+    # exit price and no benchmark return. They were already excluded from metrics;
+    # counting them here inflated cash_periods by exactly the number of stubs.
+    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
+    invested = [r["stocks_held"] for r in valid if r["stocks_held"] > 0]
     avg_stocks = sum(invested) / len(invested) if invested else 0
-    print(f"\n  Cash periods: {cash_periods} / {len(results)}")
+    print(f"\n  Cash periods: {cash_periods} / {len(valid)}")
     print(f"  Avg stocks (invested): {avg_stocks:.1f}")
 
     # Sector frequency (how often each sector was in the top 2)
     sector_freq = {}
-    for r in results:
+    for r in valid:
         if r["sectors_selected"]:
             for s in r["sectors_selected"].split(", "):
                 sector_freq[s] = sector_freq.get(s, 0) + 1
@@ -509,7 +547,9 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks,
-                          n_best=n_best)
+                          n_best=n_best, benchmark_symbol=benchmark_symbol,
+                          benchmark_name=benchmark_name, domicile=domicile,
+                          exclude_funds=exclude_funds)
     output["sector_frequency"] = sector_freq
 
     if output_path:
@@ -529,6 +569,13 @@ def main():
                         help=f"Number of best sectors to buy (default {N_BEST_SECTORS})")
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--exclude-funds", action="store_true",
+                        help="Exclude closed-end funds and ETFs (isFund/isEtf). "
+                             "Diagnostic, default OFF: published numbers use the "
+                             "full listed universe.")
+    parser.add_argument("--domicile-filter", action="store_true",
+                        help="Restrict the universe to companies headquartered in "
+                             "the exchange's home country. Default OFF.")
     args = parser.parse_args()
 
     if args.cloud:
@@ -544,6 +591,8 @@ def main():
 
     n_best = args.n_best
     offset_days = 0 if args.no_next_day else 1
+    domicile = args.domicile_filter
+    exclude_funds = args.exclude_funds
 
     exchanges, universe_name = resolve_exchanges(args)
     frequency = args.frequency or DEFAULT_FREQUENCY
@@ -569,7 +618,9 @@ def main():
             ("switzerland", ["SIX"]),
             ("sweden", ["STO"]),
             ("thailand", ["SET"]),
-            ("southafrica", ["JNB"]),
+            # JNB excluded: 85 of 104 quarters force to cash. The JNB large-cap
+            # universe never reaches 5 sectors of 5+ stocks before 2017, so only
+            # 2018-2025 is investable and the full-period CAGR is not a real result.
             ("japan", ["JPX"]),
             ("china", ["SHH", "SHZ"]),
             # SES excluded: 61% cash periods (not enough sector diversity for strategy to run)
@@ -593,7 +644,8 @@ def main():
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, args.verbose, output_path,
-                                    n_best=n_best, offset_days=offset_days)
+                                    n_best=n_best, offset_days=offset_days,
+                                    domicile=domicile, exclude_funds=exclude_funds)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -642,7 +694,8 @@ def main():
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, args.verbose, args.output, n_best=n_best,
-               offset_days=offset_days)
+               offset_days=offset_days, domicile=domicile,
+               exclude_funds=exclude_funds)
 
 
 if __name__ == "__main__":

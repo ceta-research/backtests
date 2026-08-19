@@ -1,23 +1,27 @@
 {
-  "universe": "Canada",
+  "universe": "TSX",
   "n_periods": 104,
   "years": 26.0,
   "frequency": "quarterly",
   "n_best_sectors": 2,
-  "cash_periods": 3,
-  "invested_periods": 101,
-  "avg_stocks_when_invested": 70.3,
+  "benchmark": "^GSPTSE",
+  "benchmark_name": "TSX Composite",
+  "domicile_filtered": false,
+  "funds_excluded": false,
+  "cash_periods": 0,
+  "invested_periods": 104,
+  "avg_stocks_when_invested": 64.3,
   "portfolio": {
-    "total_return": 7160.38,
-    "cagr": 17.92,
-    "max_drawdown": -45.45,
-    "annualized_volatility": 24.58,
-    "sharpe_ratio": 0.627,
-    "sortino_ratio": 1.202,
-    "calmar_ratio": 0.394,
-    "var_95": -15.77,
+    "total_return": 5524.67,
+    "cagr": 16.76,
+    "max_drawdown": -49.01,
+    "annualized_volatility": 24.14,
+    "sharpe_ratio": 0.591,
+    "sortino_ratio": 1.081,
+    "calmar_ratio": 0.342,
+    "var_95": -16.18,
     "max_consecutive_losses": 3,
-    "pct_negative_periods": 26.92
+    "pct_negative_periods": 27.88
   },
   "spy": {
     "total_return": 278.94,
@@ -32,186 +36,186 @@
     "pct_negative_periods": 33.65
   },
   "comparison": {
-    "excess_cagr": 12.66,
+    "excess_cagr": 11.51,
     "win_rate": 61.54,
-    "information_ratio": 0.781,
-    "tracking_error": 17.03,
-    "up_capture": 169.56,
-    "down_capture": 75.59,
-    "beta": 1.153,
-    "alpha": 12.24
+    "information_ratio": 0.751,
+    "tracking_error": 16.27,
+    "up_capture": 166.37,
+    "down_capture": 81.73,
+    "beta": 1.162,
+    "alpha": 11.06
   },
-  "excess_cagr": 12.66,
+  "excess_cagr": 11.51,
   "win_rate_vs_spy": 61.54,
   "annual_returns": [
     {
       "year": 2000,
-      "portfolio": 20.17,
+      "portfolio": 18.86,
       "spy": 2.35,
-      "excess": 17.82
+      "excess": 16.51
     },
     {
       "year": 2001,
-      "portfolio": 19.3,
+      "portfolio": 1.57,
       "spy": -11.2,
-      "excess": 30.5
+      "excess": 12.77
     },
     {
       "year": 2002,
-      "portfolio": 12.89,
+      "portfolio": 23.85,
       "spy": -11.86,
-      "excess": 24.75
+      "excess": 35.71
     },
     {
       "year": 2003,
-      "portfolio": 45.95,
+      "portfolio": 46.06,
       "spy": 23.05,
-      "excess": 22.9
+      "excess": 23.01
     },
     {
       "year": 2004,
-      "portfolio": 25.19,
+      "portfolio": 25.22,
       "spy": 10.24,
-      "excess": 14.95
+      "excess": 14.98
     },
     {
       "year": 2005,
-      "portfolio": 60.67,
+      "portfolio": 62.52,
       "spy": 25.14,
-      "excess": 35.53
+      "excess": 37.38
     },
     {
       "year": 2006,
-      "portfolio": 55.33,
+      "portfolio": 50.43,
       "spy": 12.95,
-      "excess": 42.38
+      "excess": 37.48
     },
     {
       "year": 2007,
-      "portfolio": 20.34,
+      "portfolio": 17.5,
       "spy": 7.76,
-      "excess": 12.58
+      "excess": 9.74
     },
     {
       "year": 2008,
-      "portfolio": -39.56,
+      "portfolio": -42.17,
       "spy": -33.7,
-      "excess": -5.87
+      "excess": -8.48
     },
     {
       "year": 2009,
-      "portfolio": 31.74,
+      "portfolio": 35.43,
       "spy": 28.51,
-      "excess": 3.23
+      "excess": 6.92
     },
     {
       "year": 2010,
-      "portfolio": 59.54,
+      "portfolio": 43.77,
       "spy": 12.94,
-      "excess": 46.6
+      "excess": 30.84
     },
     {
       "year": 2011,
-      "portfolio": -20.09,
+      "portfolio": -20.14,
       "spy": -8.91,
-      "excess": -11.19
+      "excess": -11.23
     },
     {
       "year": 2012,
-      "portfolio": 21.07,
+      "portfolio": 19.78,
       "spy": 2.72,
-      "excess": 18.35
+      "excess": 17.06
     },
     {
       "year": 2013,
-      "portfolio": 34.81,
+      "portfolio": 38.29,
       "spy": 8.4,
-      "excess": 26.41
+      "excess": 29.89
     },
     {
       "year": 2014,
-      "portfolio": -8.27,
+      "portfolio": -9.43,
       "spy": 8.53,
-      "excess": -16.8
+      "excess": -17.95
     },
     {
       "year": 2015,
-      "portfolio": 18.24,
+      "portfolio": 18.16,
       "spy": -12.38,
-      "excess": 30.62
+      "excess": 30.54
     },
     {
       "year": 2016,
-      "portfolio": 1.27,
+      "portfolio": 0.23,
       "spy": 19.15,
-      "excess": -17.88
+      "excess": -18.92
     },
     {
       "year": 2017,
-      "portfolio": -3.17,
+      "portfolio": 1.02,
       "spy": 5.89,
-      "excess": -9.05
+      "excess": -4.87
     },
     {
       "year": 2018,
-      "portfolio": -11.26,
+      "portfolio": -5.56,
       "spy": -12.03,
-      "excess": 0.77
+      "excess": 6.47
     },
     {
       "year": 2019,
-      "portfolio": 25.31,
+      "portfolio": 23.63,
       "spy": 19.19,
-      "excess": 6.13
+      "excess": 4.44
     },
     {
       "year": 2020,
-      "portfolio": 39.58,
+      "portfolio": 38.82,
       "spy": 2.5,
-      "excess": 37.08
+      "excess": 36.32
     },
     {
       "year": 2021,
-      "portfolio": 28.4,
+      "portfolio": 28.74,
       "spy": 21.16,
-      "excess": 7.24
+      "excess": 7.59
     },
     {
       "year": 2022,
-      "portfolio": -7.71,
+      "portfolio": -7.63,
       "spy": -8.44,
-      "excess": 0.74
+      "excess": 0.81
     },
     {
       "year": 2023,
-      "portfolio": 2.22,
+      "portfolio": 1.21,
       "spy": 7.35,
-      "excess": -5.12
+      "excess": -6.13
     },
     {
       "year": 2024,
-      "portfolio": 17.98,
+      "portfolio": 11.93,
       "spy": 19.29,
-      "excess": -1.31
+      "excess": -7.35
     },
     {
       "year": 2025,
-      "portfolio": 109.16,
+      "portfolio": 103.14,
       "spy": 28.06,
-      "excess": 81.11
+      "excess": 75.08
     }
   ],
   "sector_frequency": {
-    "Basic Materials": 38,
-    "Communication Services": 11,
+    "Communication Services": 12,
     "Energy": 37,
     "Financial Services": 2,
     "Utilities": 11,
+    "Consumer Defensive": 13,
     "Real Estate": 15,
-    "Consumer Defensive": 14,
-    "Consumer Cyclical": 23,
-    "Technology": 33,
-    "Industrials": 15,
-    "Healthcare": 9
+    "Consumer Cyclical": 22,
+    "Basic Materials": 38,
+    "Technology": 32,
+    "Industrials": 13,
+    "Healthcare": 13
   }
 }

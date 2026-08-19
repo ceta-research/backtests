@@ -192,6 +192,25 @@ Africa row (11.72% CAGR, +3.69% excess) should be treated as an artifact rather 
 a result that drifted. `results/returns_JNB.json` is kept on disk as evidence.
 **Checked:** 2026-08-17
 
+**sector-momentum strategy (sector-01):** JNB excluded 2026-08-19, same root cause.
+This is the top-2 mirror of the strategy above and it shares the same minimums
+(5 qualifying sectors, 5+ stocks each, 10+ stocks in the portfolio), so the same
+thin JNB universe forces the same outcome: **82 of 104 quarters in cash**, leaving
+22 investable quarters clustered in 2018-2025, with a 1.76% CAGR that is a cash
+drag figure rather than a strategy result. The universe is only 96 symbols with
+sector data. Evidence kept at `sector-momentum/results/returns_JNB.json`.
+
+Note the count: the pre-fix run reported 85 cash quarters, but 3 of those were
+trailing stubs counted by the `cash_periods` bug described below, not real cash
+decisions. 82 is the corrected figure. Dropped from `presets_to_run` in
+`sector-momentum/backtest.py`, from the content blog set, and from every
+"14 exchanges" string. The study is now 13 exchanges.
+
+**Generalisation:** any sector-ranked strategy carrying the 5-sectors x 5-stocks
+minimum will collapse on JNB. Check the invested-quarter count before reporting a
+JNB row, in either direction (top-N or bottom-N).
+**Checked:** 2026-08-19
+
 ### KSC (Korea) transient error
 KSC had a transient parquet download error ("No magic bytes found at end of file") during initial testing. Re-run succeeded. Full data exists (1,022 symbols, 152,626 FY rows). No data quality issue.
 
@@ -281,6 +300,30 @@ Switzerland.** This matters for the mechanism: the domicile effect bites when
 the domestic universe cannot fill the screen, not because a market is European
 or small. Stockholm has enough domestic listings to fill a 30-stock screen;
 Frankfurt and Zurich do not.
+
+### sector-momentum: Germany clean, Switzerland weakens but holds (measured 2026-08-19)
+
+A sector-ranked screen buys every qualifying stock in the top 2 sectors rather
+than a fixed top-N list, so it has far more room to fill from domestic names than
+the 30-stock value screens above. Both European markets stay invested and neither
+flips sign:
+
+| Market | As listed | Domicile-only | Delta | Invested quarters |
+|--------|-----------|---------------|-------|-------------------|
+| XETRA  | +4.22% | **+6.66%** | +2.44pp | 104 -> 104, unchanged |
+| SIX    | +5.40% | +3.53% | -1.87pp | 99 -> 94 |
+
+**Germany moves the opposite way from the fcf-yield result**: restricting to
+domestic names roughly halves the universe (59.4 -> 30.5 avg holdings) and the
+result *improves*, so the published listed-universe figure is the conservative
+one. Switzerland gives back about a third of its edge and loses 5 quarters to
+cash, which is a real dependence on foreign lines but not a sign flip.
+
+**This does not contradict the fcf-yield finding, it bounds it.** The domicile
+effect bites when the domestic universe cannot fill the screen. A fixed-size
+top-30 screen on XETRA cannot fill domestically; a sector screen with a 10-stock
+floor can. So the exposure is a property of the screen's size demand, not of the
+exchange alone. Check the invested-period count per strategy, not per market.
 
 **The diagnostic is the invested-period count, not the country.** If it is
 unchanged under `--domicile-filter`, the screen was already domestic and the
@@ -479,6 +522,14 @@ Flipping all 80 at once desyncs every published result in the corpus from the
 code in one step. Expect non-US CAGR to move down slightly when a strategy is
 migrated (more holdings at 0.3-0.5% instead of 0.1%), and LSE to move up. That
 delta is the fix landing, not data drift.
+
+**Migrated so far:** `sector-momentum` (2026-08-19), the first caller. Note the
+direction is set by the currency, not by "non-US": `FX_PER_USD` is above 1 for
+INR (83), JPY (150) and KRW (1350), which scales the USD thresholds up and pushes
+holdings into more expensive tiers, but it's **below 1** for GBP (0.79) and EUR
+(0.92), which scales them down and makes LSE and XETRA holdings cheaper. So the
+migration alone moves those two markets *up*. Don't read a European CAGR rising
+after migration as a bug.
 
 ---
 

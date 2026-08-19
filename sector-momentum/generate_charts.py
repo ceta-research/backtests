@@ -11,6 +11,10 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from pathlib import Path
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label, benchmark_cumulative
+
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
 charts_dir.mkdir(exist_ok=True)
@@ -85,47 +89,42 @@ def get_cumulative(key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(anchor_key="NYSE_NASDAQ_AMEX", initial=10000):
-    ex = data[anchor_key]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
-
-
 def chart_cumulative(key, filename, footer_universe):
     ex = data[key]
     cagr = ex["portfolio"]["cagr"]
-    spy_cagr = ex["spy"]["cagr"]
-    title = (f"Growth of $10,000: Sector Momentum {EXCHANGE_LABELS[key].replace('Sector Momentum ', '')} "
-             f"vs S&P 500 (2000-2025)")
+    bench_cagr = ex["spy"]["cagr"]
+    # The `spy` field holds whichever index THIS exchange was measured against.
+    bench = benchmark_label(data, key)
+    title = (f"Growth of 10,000: Sector Momentum {EXCHANGE_LABELS[key].replace('Sector Momentum ', '')} "
+             f"vs {bench} (2000-2025)")
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    # Series must come from the charted exchange, not from the US anchor.
+    spy_years, spy_vals = benchmark_cumulative(data, key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8, linestyle="--",
-            label=f"S&P 500 ({spy_cagr}% CAGR)")
+            label=f"{bench} ({bench_cagr}% CAGR)")
 
     years, vals = get_cumulative(key)
     ax.plot(years, vals, color=COLORS[key], linewidth=2.2,
             label=f"{EXCHANGE_LABELS[key]} ({cagr}% CAGR)")
 
     # Annotate endpoints
-    ax.annotate(f"${vals[-1] / 1000:,.0f}K",
+    ax.annotate(f"{vals[-1] / 1000:,.0f}K",
                 xy=(years[-1], vals[-1]), xytext=(8, 0),
                 textcoords="offset points", fontsize=9, fontweight="bold",
                 color=COLORS[key])
-    ax.annotate(f"${spy_vals[-1] / 1000:,.0f}K",
-                xy=(spy_years[-1], spy_vals[-1]), xytext=(8, -12),
-                textcoords="offset points", fontsize=9, fontweight="bold",
-                color=COLORS["SPY"])
+    if spy_vals:
+        ax.annotate(f"{spy_vals[-1] / 1000:,.0f}K",
+                    xy=(spy_years[-1], spy_vals[-1]), xytext=(8, -12),
+                    textcoords="offset points", fontsize=9, fontweight="bold",
+                    color=COLORS["SPY"])
 
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
+    # Returns are in local currency, so the axis carries no currency symbol.
+    ax.set_ylabel("Portfolio Value (local currency)", fontsize=12, fontweight="bold")
     ax.set_title(title, fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"{x:,.0f}"))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_axisbelow(True)
@@ -145,15 +144,16 @@ def chart_annual_bars(key, filename, footer_universe):
     years = [ar["year"] for ar in ex["annual_returns"]]
     port_rets = [ar["portfolio"] for ar in ex["annual_returns"]]
     spy_rets = [ar["spy"] for ar in ex["annual_returns"]]
+    bench = benchmark_label(data, key)
     title = (f"Sector Momentum {EXCHANGE_LABELS[key].replace('Sector Momentum ', '')}: "
-             f"Annual Returns vs S&P 500 (2000-2024)")
+             f"Annual Returns vs {bench} ({years[0]}-{years[-1]})")
 
     fig, ax = plt.subplots(figsize=(14, 5))
     x = list(range(len(years)))
     width = 0.35
 
     ax.bar([xi - width / 2 for xi in x], spy_rets, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench, color=COLORS["SPY"], alpha=0.7)
     ax.bar([xi + width / 2 for xi in x], port_rets, width,
            label=EXCHANGE_LABELS[key], color=COLORS[key], alpha=0.85)
 
@@ -274,4 +274,5 @@ chart_comparison_cagr("1_comparison_cagr.png")
 chart_comparison_drawdown("2_comparison_drawdown.png")
 
 print(f"\nDone. Charts saved to {charts_dir}/")
-print("\nNext step: Move charts to ts-content-creator/content/_current/sector-01-rotation/blogs/{region}/")
+print("\nNext step: python3 scripts/copy_charts_to_content.py --apply")
+print("(content dir: ts-content-creator/content/_ready/sector-07-momentum/blogs/{region}/)")
