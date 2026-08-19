@@ -78,7 +78,7 @@ Excess and alpha are measured against each exchange's LOCAL index, not SPY.
 ## Data Notes
 
 - **Excluded:** ASX (adjClose split artifacts), SAO/Brazil (same), SES/Singapore (61% cash, insufficient sector diversity)
-- **JNB/South Africa dropped 2026-08-19.** The signal needs 5 sectors each holding 5+ stocks with a valid 12-month return. The JNB large-cap universe never reaches that before 2017, so 85 of 104 quarters force to cash and only 2018-2025 is investable. Same shape as the SES exclusion. See DATA_QUALITY_ISSUES.md.
+- **JNB/South Africa dropped 2026-08-19.** The signal needs 5 sectors each holding 5+ stocks with a valid 12-month return. The JNB large-cap universe never reaches that before 2017, so 82 of 104 quarters force to cash, leaving 22 invested quarters and a 1.76% CAGR. Same shape as the SES exclusion. `results/returns_JNB.json` is kept as evidence. See DATA_QUALITY_ISSUES.md.
 - **Data quality guards:** `remove_price_oscillations()` strips phantom holiday rows and broken split adjustments before any price lookup. `filter_returns()` removes entry prices below 0.50 and caps individual single-period returns at 200%.
 - **Execution:** entry at the next-day close after each rebalance date (`offset_days=1`). Pass `--no-next-day` for the old same-day behaviour.
 - **Costs:** size-tiered one-way (0.1% >$10B, 0.3% $2-10B, 0.5% <$2B) with thresholds converted to local currency via `costs.get_fx_per_usd`, so non-US names are charged their true size tier.

@@ -618,7 +618,7 @@ def main():
             ("switzerland", ["SIX"]),
             ("sweden", ["STO"]),
             ("thailand", ["SET"]),
-            # JNB excluded: 85 of 104 quarters force to cash. The JNB large-cap
+            # JNB excluded: 82 of 104 quarters force to cash. The JNB large-cap
             # universe never reaches 5 sectors of 5+ stocks before 2017, so only
             # 2018-2025 is investable and the full-period CAGR is not a real result.
             ("japan", ["JPX"]),
