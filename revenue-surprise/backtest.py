@@ -45,7 +45,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                        domicile_sql_condition, remove_price_oscillations)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -65,7 +65,8 @@ MIN_ENTRY_PRICE = 1.0      # Skip stocks with entry price < $1 (price data artif
 DATE_MATCH_WINDOW = 7776000  # 90 days in seconds - tolerance for matching quarter date to estimate date
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False,
+                       domicile=False, exclude_funds=False):
     """Fetch financial data and load into DuckDB.
 
     Populates tables:
@@ -74,13 +75,39 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         ratios_cache(symbol, debtToEquityRatio, filing_epoch)
         prices_cache(symbol, trade_epoch, adjClose)
 
+    domicile=True restricts the universe to companies headquartered in the
+    exchange's home country (opt-in, default OFF). Screens select every company
+    LISTED on an exchange, which outside the US is largely foreign secondary
+    listings. See DATA_QUALITY_ISSUES.md.
+
+    exclude_funds=True drops closed-end funds and ETFs (opt-in, default OFF).
+    FMP reports a `revenue` figure for funds (their investment income), so a
+    revenue-ranked screen can pick them up as though they were operating
+    companies. See DATA_QUALITY_ISSUES.md.
+
     Returns DuckDB connection or None.
     """
+    conds = []
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
-        sym_in_filter = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
-        sym_in_filter_i = f"i.symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        conds.append(f"exchange IN ({ex_filter})")
+
+    dom_cond = domicile_sql_condition(exchanges) if domicile else ""
+    if domicile and not dom_cond:
+        print("  Domicile filter requested but no country mapping for these "
+              "exchanges. Running unfiltered.")
+    if dom_cond:
+        conds.append(dom_cond)
+
+    if exclude_funds:
+        conds.append("isFund = false AND isEtf = false")
+
+    where_body = " AND ".join(conds)
+    if where_body:
+        exchange_where = f"WHERE {where_body}"
+        universe_sub = f"SELECT DISTINCT symbol FROM profile WHERE {where_body}"
+        sym_in_filter = f"symbol IN ({universe_sub})"
+        sym_in_filter_i = f"i.symbol IN ({universe_sub})"
     else:
         exchange_where = ""
         sym_in_filter = "1=1"
@@ -317,8 +344,15 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
 
 def build_output(metrics, annual, valid, results, universe_name, frequency,
-                 periods_per_year, cash_periods, avg_stocks):
-    """Build JSON output in standard format."""
+                 periods_per_year, cash_periods, avg_stocks,
+                 benchmark_symbol="SPY", benchmark_name="S&P 500"):
+    """Build JSON output in standard format.
+
+    The `spy` block and the `annual_returns[].spy` series hold whichever index
+    this exchange was measured against, which outside the US is the local index,
+    not the S&P 500. `benchmark`/`benchmark_name` record which, so charts and
+    downstream tooling can label the series instead of assuming SPY.
+    """
     p = metrics["portfolio"]
     b = metrics["benchmark"]
     c = metrics["comparison"]
@@ -345,6 +379,8 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
     return {
         "universe": universe_name,
+        "benchmark": benchmark_symbol,
+        "benchmark_name": benchmark_name,
         "n_periods": len(valid),
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
@@ -377,7 +413,8 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, verbose, output_path=None,
-               offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500"):
+               offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500",
+               domicile=False, exclude_funds=False):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
@@ -391,14 +428,26 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
     print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+    if domicile or exclude_funds:
+        diags = []
+        if domicile:
+            diags.append("domicile-filtered universe")
+        if exclude_funds:
+            diags.append("funds/ETFs excluded")
+        print(f"  Diagnostics: {', '.join(diags)}")
     print("=" * 65)
 
     # Phase 1: Fetch data
     print("\nPhase 1: Fetching data via API...")
-    rebalance_dates = generate_rebalance_dates(2000, 2025, frequency,
-                                               months=DEFAULT_REBALANCE_MONTHS)
+    # Only the quarterly default pins its own months. Passing them for every
+    # frequency made --frequency annual generate QUARTERLY dates while
+    # annualizing as if there were one period a year, so the comparison the
+    # content draws against annual rebalancing was not testable.
+    months = DEFAULT_REBALANCE_MONTHS if frequency == DEFAULT_FREQUENCY else None
+    rebalance_dates = generate_rebalance_dates(2000, 2025, frequency, months=months)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
+                             domicile=domicile, exclude_funds=exclude_funds)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -446,7 +495,9 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"\n  Total time: {total_time:.0f}s (fetch: {fetch_time:.0f}s, backtest: {bt_time:.0f}s)")
 
     output = build_output(metrics, annual, valid, results, universe_name,
-                          frequency, periods_per_year, cash_periods, avg_stocks)
+                          frequency, periods_per_year, cash_periods, avg_stocks,
+                          benchmark_symbol=benchmark_symbol,
+                          benchmark_name=benchmark_name)
 
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
@@ -463,6 +514,12 @@ def main():
     add_common_args(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--exclude-funds", action="store_true",
+                        help="Diagnostic: drop closed-end funds and ETFs from the "
+                             "universe (opt-in, default OFF)")
+    parser.add_argument("--domicile-filter", action="store_true",
+                        help="Restrict the universe to companies headquartered in the "
+                             "exchange's home country (opt-in, default OFF)")
     args = parser.parse_args()
 
     if args.cloud:
@@ -479,6 +536,8 @@ def main():
     exchanges, universe_name = resolve_exchanges(args)
     frequency = args.frequency or DEFAULT_FREQUENCY
     use_costs = not args.no_costs
+    domicile = args.domicile_filter
+    exclude_funds = args.exclude_funds
 
     # --global mode: loop all eligible exchange presets
     if exchanges is None and universe_name in ("Global", "GLOBAL"):
@@ -521,7 +580,8 @@ def main():
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, args.verbose, output_path,
                                     offset_days=b_offset, benchmark_symbol=b_sym,
-                                    benchmark_name=b_name)
+                                    benchmark_name=b_name, domicile=domicile,
+                                    exclude_funds=exclude_funds)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -574,7 +634,8 @@ def main():
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, args.verbose, args.output,
                offset_days=offset_days, benchmark_symbol=benchmark_symbol,
-               benchmark_name=benchmark_name)
+               benchmark_name=benchmark_name, domicile=domicile,
+               exclude_funds=exclude_funds)
 
 
 if __name__ == "__main__":

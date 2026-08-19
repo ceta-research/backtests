@@ -38,6 +38,25 @@ EXCHANGE_LABELS = {
 }
 
 
+US_KEY = "NYSE_NASDAQ_AMEX"
+
+
+def bench_label(exchange_key):
+    """Name of the index this exchange was actually measured against.
+
+    After the local-benchmark change, each entry's `spy` field holds its own
+    local index (Sensex, DAX, Hang Seng...), not the S&P 500. The run records
+    which in `benchmark_name`, so never hardcode "S&P 500" on a regional chart.
+    """
+    return (data.get(exchange_key) or {}).get("benchmark_name") or "S&P 500"
+
+
+def year_range():
+    """Charted period, read from the data rather than hardcoded in titles."""
+    ar = data[US_KEY]["annual_returns"]
+    return ar[0]["year"], ar[-1]["year"]
+
+
 def get_cumulative_growth(exchange_key, initial=10000):
     """Compute cumulative growth from annual returns."""
     ex = data[exchange_key]
@@ -49,9 +68,14 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from any exchange."""
-    ex = data["NYSE_NASDAQ_AMEX"]
+def get_benchmark_cumulative(exchange_key, initial=10000):
+    """Cumulative growth of the benchmark THIS exchange was measured against.
+
+    Never hardcode the US entry here. Each result's `spy` field holds its own
+    local index, so reading US data onto a regional chart plots the wrong line
+    entirely, not merely the wrong label.
+    """
+    ex = data[exchange_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
     for ar in ex["annual_returns"]:
@@ -61,12 +85,17 @@ def get_spy_cumulative(initial=10000):
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Cumulative growth for the given exchanges against their own benchmark.
+
+    The reference line is the first exchange's benchmark, so call this with one
+    market at a time unless they genuinely share an index.
+    """
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_values = get_spy_cumulative()
+    ref_key = exchanges[0]
+    spy_years, spy_values = get_benchmark_cumulative(ref_key)
     ax.plot(spy_years, spy_values, color=COLORS["SPY"], linewidth=2.5,
-            label="S&P 500", alpha=0.6)
+            label=bench_label(ref_key), alpha=0.6)
 
     for ex_key in exchanges:
         ex_years, ex_values = get_cumulative_growth(ex_key)
@@ -107,7 +136,7 @@ def chart_annual_returns(exchange_key, filename, title):
            label=EXCHANGE_LABELS.get(exchange_key, exchange_key),
            color=COLORS[exchange_key], alpha=0.8)
     ax.bar([i + width/2 for i in x], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.6)
+           label=bench_label(exchange_key), color=COLORS["SPY"], alpha=0.6)
 
     ax.set_title(title, fontsize=16, fontweight="bold", pad=20)
     ax.set_xlabel("Year", fontsize=12)
@@ -141,18 +170,21 @@ def chart_comparison_cagr():
     ax1.barh(range(len(exchanges)), cagr_values, color=colors, alpha=0.8)
     ax1.set_yticks(range(len(exchanges)))
     ax1.set_yticklabels(labels)
+    y0, y1 = year_range()
     ax1.set_xlabel("CAGR (%)", fontsize=12)
-    ax1.set_title("Revenue Surprise CAGR by Exchange (2000-2024)", fontsize=14, fontweight="bold")
+    ax1.set_title(f"Revenue Surprise CAGR by Exchange ({y0}-{y1})", fontsize=14, fontweight="bold")
     ax1.axvline(x=0, color='black', linewidth=0.8)
     ax1.grid(True, alpha=0.3, axis='x')
 
-    # Excess CAGR chart
+    # Excess CAGR chart. Each bar is excess over that exchange's OWN local
+    # index (Sensex, DAX, Hang Seng...), not over the S&P 500.
     ax2.barh(range(len(exchanges)), excess_values,
              color=['#27ae60' if v > 0 else '#e74c3c' for v in excess_values], alpha=0.8)
     ax2.set_yticks(range(len(exchanges)))
     ax2.set_yticklabels(labels)
-    ax2.set_xlabel("Excess vs SPY (%)", fontsize=12)
-    ax2.set_title("Revenue Surprise Excess Return vs S&P 500", fontsize=14, fontweight="bold")
+    ax2.set_xlabel("Excess vs local benchmark (%)", fontsize=12)
+    ax2.set_title("Revenue Surprise Excess Return vs Local Benchmark",
+                  fontsize=14, fontweight="bold")
     ax2.axvline(x=0, color='black', linewidth=0.8)
     ax2.grid(True, alpha=0.3, axis='x')
 
@@ -190,11 +222,12 @@ def chart_comparison_drawdown():
 print("Generating Revenue Surprise charts...")
 
 # 1. US charts
+Y0, Y1 = year_range()
 print("\n US (NYSE+NASDAQ+AMEX):")
-chart_cumulative(["NYSE_NASDAQ_AMEX"], "1_us_cumulative_growth.png",
-                 "Revenue Surprise Momentum: US Growth (2000-2024)",
-                 "NYSE+NASDAQ+AMEX, quarterly rebalancing")
-chart_annual_returns("NYSE_NASDAQ_AMEX", "2_us_annual_returns.png",
+chart_cumulative([US_KEY], "1_us_cumulative_growth.png",
+                 f"Revenue Surprise Momentum: US Growth ({Y0}-{Y1})",
+                 "NYSE+NASDAQ+AMEX")
+chart_annual_returns(US_KEY, "2_us_annual_returns.png",
                      "Revenue Surprise Momentum: US Annual Returns")
 
 # 2. Comparison charts
