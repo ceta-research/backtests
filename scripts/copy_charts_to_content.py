@@ -54,6 +54,7 @@ TOPIC_DIRS = {
     # Topic slug is sector-01-rotation (see sector-momentum/README.md); the
     # content dir on disk is named sector-07-momentum.
     "sector-momentum": "sector-07-momentum",
+    "fcf-growth": "growth-03-fcf-growth",
 }
 
 # Regions whose blog is not live; copying into them is harmless but noisy.
@@ -67,7 +68,13 @@ REGION_ALIASES = {"us": ["us", "usmajor", "us_major", "nyse_nasdaq_amex"],
                   "uk": ["uk", "lse"],
                   "switzerland": ["switzerland", "six"],
                   "sweden": ["sweden", "sto"],
-                  "taiwan": ["taiwan", "tai"]}
+                  "taiwan": ["taiwan", "tai"],
+                  # fcf-growth names its charts by exchange code, not country.
+                  "india": ["india", "nse", "bse-nse"],
+                  "germany": ["germany", "xetra"],
+                  "canada": ["canada", "tsx"],
+                  "japan": ["japan", "jpx"],
+                  "china": ["china", "shz-shh", "shh-shz"]}
 
 
 def resolve(charts_dir, blog_png, region):

@@ -29,8 +29,23 @@ COLORS = {
     "SIX": "#d68910",
     "TAI_TWO": "#1a252f",
     "JNB": "#6e7f80",
+    "SET": "#b03a2e",
     "SPY": "#aab7b8",
 }
+
+# Returns are in each exchange's local currency, so the axis and the annotations
+# must not all say "$". A EUR chart labelled "$10,000" contradicts the blog beside it.
+CURRENCY = {
+    "NYSE_NASDAQ_AMEX": "$", "NSE": "\u20b9", "XETRA": "\u20ac", "LSE": "\u00a3",
+    "TSX": "C$", "JPX": "\u00a5", "KSC": "\u20a9", "TAI_TWO": "NT$",
+    "SHZ_SHH": "\u00a5", "HKSE": "HK$", "STO": "kr", "SIX": "CHF ",
+    "SET": "\u0e3f", "JNB": "R",
+}
+
+
+def cur(exchange_key):
+    return CURRENCY.get(exchange_key, "$")
+
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "FCF Growth US",
@@ -46,6 +61,7 @@ EXCHANGE_LABELS = {
     "SIX": "FCF Growth Switzerland",
     "TAI_TWO": "FCF Growth Taiwan",
     "JNB": "FCF Growth SA",
+    "SET": "FCF Growth Thailand",
 }
 
 
@@ -70,8 +86,9 @@ def get_spy_cumulative(ref_key, initial=10000):
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Generate cumulative growth chart for given exchanges vs their benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
+    sym = cur(exchanges[0])
 
     spy_years, spy_vals = get_spy_cumulative(exchanges[0])
     spy_cagr = data[exchanges[0]]["spy"]["cagr"]
@@ -86,21 +103,21 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
         ax.plot(years, vals, color=COLORS[ex_key], linewidth=2.2, label=label)
 
         final_k = vals[-1] / 1000
-        ax.annotate(f"${final_k:,.0f}K",
+        ax.annotate(f"{sym}{final_k:,.0f}K",
                     xy=(years[-1], vals[-1]),
                     xytext=(8, 0), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS[ex_key])
 
     spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(f"${spy_final_k:,.0f}K",
+    ax.annotate(f"{sym}{spy_final_k:,.0f}K",
                 xy=(spy_years[-1], spy_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
+    ax.set_ylabel(f"Portfolio Value ({sym.strip()})", fontsize=12, fontweight="bold")
     ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"{sym}{x:,.0f}"))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_axisbelow(True)
@@ -200,9 +217,24 @@ def chart_comparison_cagr(filename, eligible_exchanges):
 # ============================================================
 print("Generating charts for FCF Growth blogs...")
 
-# Eligible exchanges (update after reviewing exchange_comparison.json)
-# Exclude SET (strategy fails: 0.44% CAGR) and SES (thin portfolio: avg 8.4 stocks)
-ELIGIBLE = [k for k in data.keys() if not data[k].get("error") and data[k].get("invested_periods", 0) > 0 and k not in ["SET", "SES"]]
+# Eligible exchanges. Exclusions are about DATA COVERAGE, not about whether the
+# strategy worked: dropping losers would cherry-pick the chart. SET stays in at
+# 0.36% CAGR precisely because it's the clearest failure in the study.
+#   JNB: only 8 of 25 periods investable, too sparse to plot as a 25-year record
+#   SES: thin portfolio, avg 8.4 stocks, below the 10-stock minimum
+# 10/25 keeps the UK (13/25) on the chart, because the blog discusses it at
+# length as the cautionary tale, and drops JNB (8/25). Chart membership and the
+# blog's 13-exchange table must match or the two contradict each other.
+MIN_INVESTED_PERIODS = 10
+ELIGIBLE = [k for k in data.keys()
+            if not data[k].get("error")
+            and data[k].get("invested_periods", 0) >= MIN_INVESTED_PERIODS
+            and k not in ["SES"]]
+_dropped = [(k, data[k].get("invested_periods", 0)) for k in data
+            if not data[k].get("error") and k not in ELIGIBLE and k != "SES"]
+if _dropped:
+    print(f"  Excluded for coverage (<{MIN_INVESTED_PERIODS}/25 invested): "
+          + ", ".join(f"{k} ({n}/25)" for k, n in _dropped))
 
 print("US charts...")
 chart_cumulative(
@@ -222,7 +254,7 @@ for ex_key in [k for k in ELIGIBLE if k != "NYSE_NASDAQ_AMEX"]:
     print(f"{label} charts...")
     chart_cumulative(
         [ex_key], f"{region}_cumulative_growth.png",
-        f"Growth of $10,000: {label} vs {benchmark_label(data, ex_key)} (2000-2025)",
+        f"Growth of {cur(ex_key)}10,000: {label} vs {benchmark_label(data, ex_key)} (2000-2025)",
         ex_key
     )
     chart_annual_bars(

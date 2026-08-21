@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                        domicile_sql_condition, remove_price_oscillations)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -62,7 +62,7 @@ MAX_SINGLE_RETURN = 2.0    # Cap individual stock returns at 200% (data quality 
 MIN_ENTRY_PRICE = 1.0      # Skip stocks with entry price < $1 (price data artifact)
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domicile=False):
     """Fetch financial data and load into DuckDB.
 
     Populates tables:
@@ -71,13 +71,21 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         ratios_cache(symbol, debtToEquityRatio, filing_epoch, period)
         prices_cache(symbol, trade_epoch, adjClose)
 
+    Args:
+        domicile: when True, also require the company to be domiciled in the
+            exchange's own country. Outside the US most listings are foreign
+            secondary lines, which can carry the whole result.
+
     Returns DuckDB connection or None.
     """
+    dom_cond = domicile_sql_condition(exchanges) if domicile else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
         exchange_where = f"WHERE exchange IN ({ex_filter})"
+        if dom_cond:
+            exchange_where += f" AND {dom_cond}"
     else:
-        exchange_where = ""
+        exchange_where = f"WHERE {dom_cond}" if dom_cond else ""
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -95,7 +103,12 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
 
     if exchanges:
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        sym_where = f"exchange IN ({ex_filter})"
+        if dom_cond:
+            sym_where += f" AND {dom_cond}"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE {sym_where})"
+    elif dom_cond:
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE {dom_cond})"
     else:
         sym_filter_sql = "1=1"
 
@@ -276,6 +289,27 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                         max_single_return=MAX_SINGLE_RETURN,
                                         verbose=verbose)
 
+        # The cash rule has to be re-checked HERE, not just on the screen count.
+        # Screening can pass 30 names while only a handful of them have usable
+        # prices at this rebalance, and averaging 1-4 survivors reports a single
+        # stock's year as a diversified portfolio return. XETRA 2001 did exactly
+        # that: 1 stock, -49.4%, which alone set the reported max drawdown.
+        if len(clean) < MIN_STOCKS:
+            bench_return = get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
+                                                offset_days=offset_days)
+            results.append({
+                "rebalance_date": entry_date.isoformat(),
+                "exit_date": exit_date.isoformat(),
+                "portfolio_return": 0.0,
+                "spy_return": bench_return,
+                "stocks_held": 0,
+                "holdings": f"CASH ({len(clean)} priced of {len(portfolio)} screened)",
+            })
+            if verbose:
+                print(f"    {entry_date}: only {len(clean)} of {len(portfolio)} screened "
+                      f"names had usable prices (< {MIN_STOCKS}), CASH")
+            continue
+
         returns = []
         for sym, raw_ret, mcap in clean:
             if use_costs:
@@ -369,7 +403,8 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, verbose, output_path=None, offset_days=1):
+               risk_free_rate, verbose, output_path=None, offset_days=1,
+               domicile=False):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
@@ -384,6 +419,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
     exec_model = "MOC (next-day close)" if offset_days == 1 else "same-bar (current close)"
     print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+    if domicile:
+        print(f"  Universe: domicile-filtered ({domicile_sql_condition(exchanges) or 'n/a'})")
     print("=" * 65)
 
     # Phase 1: Fetch data
@@ -391,7 +428,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = generate_rebalance_dates(2000, 2025, frequency,
                                                months=DEFAULT_REBALANCE_MONTHS)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
+                             domicile=domicile)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -457,6 +495,9 @@ def main():
     add_common_args(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--domicile-filter", dest="domicile_filter", action="store_true",
+                        help="Restrict the universe to companies domiciled in the "
+                             "exchange's own country (diagnostic; default off)")
     args = parser.parse_args()
 
     if args.cloud:
@@ -520,7 +561,8 @@ def main():
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, args.verbose, output_path,
-                                    offset_days=offset_days)
+                                    offset_days=offset_days,
+                                    domicile=args.domicile_filter)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -567,7 +609,8 @@ def main():
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, args.verbose, args.output, offset_days=offset_days)
+               risk_free_rate, args.verbose, args.output, offset_days=offset_days,
+               domicile=args.domicile_filter)
 
 
 if __name__ == "__main__":
