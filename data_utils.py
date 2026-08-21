@@ -570,7 +570,7 @@ def get_benchmark_tickers(exchanges, factor_type=None):
 
 def remove_price_oscillations(con, table_name="prices_cache", verbose=True,
                               spike_threshold=2.0, mild_threshold=1.3,
-                              min_mild_count=5):
+                              min_mild_count=5, max_neighbor_gap_days=10):
     """Remove rows with oscillating adjClose from a DuckDB price table.
 
     FMP's EOD data contains bad rows where adjClose spikes for 1-2 days then
@@ -589,6 +589,17 @@ def remove_price_oscillations(con, table_name="prices_cache", verbose=True,
       ±1: adjClose[N]/adjClose[N-1] spikes AND adjClose[N-1] ≈ adjClose[N+1]
       ±2: adjClose[N] far from both adjClose[N-2] and adjClose[N+2], which agree
 
+    Neighbours must be TEMPORALLY adjacent (max_neighbor_gap_days), because a
+    spike+revert is by definition a 1-2 day event. Many backtests fetch prices
+    only in short windows around each rebalance date, so LAG/LEAD rows straddle
+    year-long gaps. Without this guard, tier 2 fires at every window boundary
+    where a stock moved 30-100% over the intervening year, and any symbol with
+    >= min_mild_count such years has its window-boundary rows deleted. That
+    silently removed legitimate rows for steady compounders (verified on
+    BMW.DE, MUV2.DE and RWE.DE, none of which oscillate) and could empty a
+    symbol's entire window, dropping it from that rebalance. On continuously
+    fetched series every neighbour is already adjacent, so the guard is a no-op.
+
     Args:
         con: duckdb.Connection with price table loaded
         table_name: str - DuckDB table name (default "prices_cache")
@@ -596,6 +607,9 @@ def remove_price_oscillations(con, table_name="prices_cache", verbose=True,
         spike_threshold: float - tier 1 threshold (default 2.0 = 100% move)
         mild_threshold: float - tier 2 threshold (default 1.3 = 30% move)
         min_mild_count: int - minimum mild oscillations per symbol (default 5)
+        max_neighbor_gap_days: int - maximum calendar-day span between the two
+            outer neighbours for a comparison to count (default 10, which
+            absorbs weekends and holiday closures)
 
     Returns:
         dict with keys: rows_removed, symbols_affected, rows_before, rows_after
@@ -623,14 +637,34 @@ def remove_price_oscillations(con, table_name="prices_cache", verbose=True,
     mt = mild_threshold
     inv_mt = 1.0 / mt
 
-    # Build neighbor table once
+    # Seconds-since-epoch form of the date column, so neighbour gaps are
+    # measurable whether the caller stored an epoch int or a real DATE.
+    try:
+        col_type = (con.execute(
+            f"SELECT typeof({date_col}) FROM {table_name} LIMIT 1"
+        ).fetchone() or [""])[0].upper()
+    except Exception:
+        col_type = ""
+    if col_type.startswith("DATE") or col_type.startswith("TIMESTAMP"):
+        dt_secs = f"epoch(CAST({date_col} AS TIMESTAMP))"
+    else:
+        dt_secs = f"CAST({date_col} AS BIGINT)"
+
+    gap1 = int(max_neighbor_gap_days) * 86400          # span across p1..n1
+    gap2 = int(max_neighbor_gap_days) * 2 * 86400      # span across p2..n2
+
+    # Build neighbor table once (prices AND their timestamps)
     con.execute(f"""
         CREATE TEMPORARY TABLE _nb AS
         SELECT symbol, {date_col} AS dt, adjClose,
             LAG(adjClose, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS p1,
             LEAD(adjClose, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS n1,
             LAG(adjClose, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS p2,
-            LEAD(adjClose, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS n2
+            LEAD(adjClose, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS n2,
+            LAG({dt_secs}, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS pt1,
+            LEAD({dt_secs}, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS nt1,
+            LAG({dt_secs}, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS pt2,
+            LEAD({dt_secs}, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS nt2
         FROM {table_name}
         WHERE adjClose > 0
     """)
@@ -641,10 +675,12 @@ def remove_price_oscillations(con, table_name="prices_cache", verbose=True,
         SELECT symbol, dt FROM _nb
         WHERE
             (p1 > 0 AND n1 > 0
+             AND nt1 - pt1 <= {gap1}
              AND (adjClose / p1 > {st} OR adjClose / p1 < {inv_st})
              AND n1 / p1 BETWEEN 0.5 AND 2.0)
             OR
             (p2 > 0 AND n2 > 0
+             AND nt2 - pt2 <= {gap2}
              AND (adjClose / p2 > {st} OR adjClose / p2 < {inv_st})
              AND (adjClose / n2 > {st} OR adjClose / n2 < {inv_st})
              AND n2 / p2 BETWEEN 0.5 AND 2.0)
@@ -656,10 +692,12 @@ def remove_price_oscillations(con, table_name="prices_cache", verbose=True,
         SELECT symbol, dt FROM _nb
         WHERE (
             (p1 > 0 AND n1 > 0
+             AND nt1 - pt1 <= {gap1}
              AND (adjClose / p1 > {mt} OR adjClose / p1 < {inv_mt})
              AND n1 / p1 BETWEEN 0.5 AND 2.0)
             OR
             (p2 > 0 AND n2 > 0
+             AND nt2 - pt2 <= {gap2}
              AND (adjClose / p2 > {mt} OR adjClose / p2 < {inv_mt})
              AND (adjClose / n2 > {mt} OR adjClose / n2 < {inv_mt})
              AND n2 / p2 BETWEEN 0.5 AND 2.0)
