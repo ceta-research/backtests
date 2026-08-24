@@ -3,20 +3,27 @@
   "n_periods": 25,
   "years": 25.0,
   "frequency": "annual",
-  "cash_periods": 12,
-  "invested_periods": 13,
-  "avg_stocks_when_invested": 12.5,
+  "benchmark": "SPY",
+  "benchmark_name": "S&P 500",
+  "period_start": 2000,
+  "period_end": 2024,
+  "periods_dropped_no_benchmark": 0,
+  "domicile_filtered": false,
+  "cash_periods": 15,
+  "invested_periods": 10,
+  "avg_stocks_when_invested": 14.1,
+  "min_stocks_when_invested": 10,
   "portfolio": {
-    "total_return": 243.61,
-    "cagr": 5.06,
-    "max_drawdown": -16.15,
-    "annualized_volatility": 13.61,
-    "sharpe_ratio": 0.225,
-    "sortino_ratio": 0.755,
-    "calmar_ratio": 0.313,
-    "var_95": -2.95,
-    "max_consecutive_losses": 1,
-    "pct_negative_periods": 12.0
+    "total_return": 63.2,
+    "cagr": 1.98,
+    "max_drawdown": -17.25,
+    "annualized_volatility": 8.65,
+    "sharpe_ratio": -0.002,
+    "sortino_ratio": -0.005,
+    "calmar_ratio": 0.115,
+    "var_95": -6.88,
+    "max_consecutive_losses": 3,
+    "pct_negative_periods": 20.0
   },
   "spy": {
     "total_return": 530.71,
@@ -31,17 +38,17 @@
     "pct_negative_periods": 28.0
   },
   "comparison": {
-    "excess_cagr": -2.58,
-    "win_rate": 40.0,
-    "information_ratio": -0.208,
-    "tracking_error": 16.1,
-    "up_capture": 49.18,
-    "down_capture": 16.03,
-    "beta": 0.38,
-    "alpha": 0.92
+    "excess_cagr": -5.67,
+    "win_rate": 24.0,
+    "information_ratio": -0.453,
+    "tracking_error": 15.1,
+    "up_capture": 23.63,
+    "down_capture": 19.91,
+    "beta": 0.25,
+    "alpha": -1.43
   },
-  "excess_cagr": -2.58,
-  "win_rate_vs_spy": 40.0,
+  "excess_cagr": -5.67,
+  "win_rate_vs_spy": 24.0,
   "annual_returns": [
     {
       "year": 2000,
@@ -99,15 +106,15 @@
     },
     {
       "year": 2009,
-      "portfolio": 51.68,
+      "portfolio": 0.0,
       "spy": 24.73,
-      "excess": 26.95
+      "excess": -24.73
     },
     {
       "year": 2010,
-      "portfolio": 29.64,
+      "portfolio": 0.0,
       "spy": 14.31,
-      "excess": 15.34
+      "excess": -14.31
     },
     {
       "year": 2011,
@@ -117,39 +124,39 @@
     },
     {
       "year": 2012,
-      "portfolio": 2.35,
+      "portfolio": 0.0,
       "spy": 17.09,
-      "excess": -14.74
+      "excess": -17.09
     },
     {
       "year": 2013,
-      "portfolio": 25.42,
+      "portfolio": 23.56,
       "spy": 27.77,
-      "excess": -2.35
+      "excess": -4.21
     },
     {
       "year": 2014,
-      "portfolio": 2.36,
+      "portfolio": -1.93,
       "spy": 14.5,
-      "excess": -12.13
+      "excess": -16.43
     },
     {
       "year": 2015,
-      "portfolio": 0.0,
+      "portfolio": -6.88,
       "spy": -0.12,
-      "excess": 0.12
+      "excess": -6.76
     },
     {
       "year": 2016,
-      "portfolio": -2.91,
+      "portfolio": -3.06,
       "spy": 14.45,
-      "excess": -17.37
+      "excess": -17.51
     },
     {
       "year": 2017,
-      "portfolio": 21.78,
+      "portfolio": 18.34,
       "spy": 21.64,
-      "excess": 0.14
+      "excess": -3.3
     },
     {
       "year": 2018,
@@ -159,39 +166,39 @@
     },
     {
       "year": 2019,
-      "portfolio": 12.88,
+      "portfolio": 9.72,
       "spy": 32.31,
-      "excess": -19.43
+      "excess": -22.59
     },
     {
       "year": 2020,
-      "portfolio": -2.95,
+      "portfolio": -5.25,
       "spy": 15.64,
-      "excess": -18.59
+      "excess": -20.88
     },
     {
       "year": 2021,
-      "portfolio": 2.54,
+      "portfolio": 0.0,
       "spy": 31.26,
-      "excess": -28.72
+      "excess": -31.26
     },
     {
       "year": 2022,
-      "portfolio": -15.73,
+      "portfolio": -12.67,
       "spy": -18.99,
-      "excess": 3.26
+      "excess": 6.32
     },
     {
       "year": 2023,
-      "portfolio": 7.01,
+      "portfolio": 12.85,
       "spy": 26.0,
-      "excess": -18.99
+      "excess": -13.15
     },
     {
       "year": 2024,
-      "portfolio": 11.04,
+      "portfolio": 23.03,
       "spy": 25.28,
-      "excess": -14.24
+      "excess": -2.25
     }
   ]
 }

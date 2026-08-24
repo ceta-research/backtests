@@ -2,7 +2,14 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
+import os as _os
+import sys as _sys
 from pathlib import Path
+
+# This script runs as `python3 pe-compression/generate_charts.py` from the
+# backtests root, so sys.path[0] is the topic dir, not the repo root.
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -36,6 +43,21 @@ COLORS = {
     "SAU": "#16a085",
     "SPY": "#aab7b8",
 }
+
+# Returns are in each exchange's local currency, so the axis and the annotations
+# must not all say "$". A EUR chart labelled "$10,000" contradicts the blog beside it.
+CURRENCY = {
+    "NYSE_NASDAQ_AMEX": "$", "NSE": "₹", "JPX": "¥", "LSE": "£",
+    "SHZ_SHH": "¥", "HKSE": "HK$", "TAI": "NT$", "SET": "฿",
+    "XETRA": "€", "KSC": "₩", "TSX": "C$", "STO": "kr ",
+    "SIX": "CHF ", "JKT": "Rp", "JNB": "R", "OSL": "kr ", "SES": "S$",
+    "MIL": "€", "KLS": "RM", "WSE": "zł ", "SAU": "SAR ",
+}
+
+
+def cur(exchange_key):
+    return CURRENCY.get(exchange_key, "$")
+
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "P/E Compression US (NYSE+NASDAQ+AMEX)",
@@ -73,8 +95,14 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
-    """Get SPY cumulative from any exchange (all have same SPY data)."""
+def get_benchmark_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
+    """Cumulative growth of THAT exchange's own benchmark.
+
+    The `spy` key is a legacy field name. Since the local-benchmark migration
+    it holds whichever index the exchange was measured against (Sensex, DAX,
+    FTSE 100...), so this series is exchange-specific and must never be read
+    from a different exchange's entry.
+    """
     ex = data[ref_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
@@ -85,15 +113,17 @@ def get_spy_cumulative(ref_key="NYSE_NASDAQ_AMEX", initial=10000):
 
 
 def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+    """Generate cumulative growth chart for given exchanges vs their benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
     if ref_key is None:
         ref_key = exchanges[0]
-    spy_years, spy_vals = get_spy_cumulative(ref_key)
+    spy_years, spy_vals = get_benchmark_cumulative(ref_key)
     spy_cagr = data[ref_key]["spy"]["cagr"]
+    bench = benchmark_label(data, ref_key)
+    sym = cur(ref_key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{bench} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -103,21 +133,21 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
         ax.plot(years, vals, color=COLORS.get(ex_key, "#95a5a6"), linewidth=2.2, label=label)
 
         final_k = vals[-1] / 1000
-        ax.annotate(f"${final_k:,.0f}K",
+        ax.annotate(f"{sym}{final_k:,.0f}K",
                     xy=(years[-1], vals[-1]),
                     xytext=(8, 0), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS.get(ex_key, "#95a5a6"))
 
     spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(f"${spy_final_k:,.0f}K",
+    ax.annotate(f"{sym}{spy_final_k:,.0f}K",
                 xy=(spy_years[-1], spy_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
+    ax.set_ylabel(f"Portfolio Value ({sym.strip()})", fontsize=12, fontweight="bold")
     ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"{sym}{x:,.0f}"))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_axisbelow(True)
@@ -134,8 +164,9 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
 
 
 def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart for given exchanges vs SPY."""
+    """Generate annual returns bar chart for given exchanges vs their benchmark."""
     ex = data[exchanges[0]]
+    bench = benchmark_label(data, exchanges[0])
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
 
@@ -147,7 +178,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     offsets = [i - (n_series - 1) * width / 2 for i in x]
 
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -179,7 +210,7 @@ def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange (all exchanges with data)."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if isinstance(v, dict) and v.get("invested_periods", 0) > 0
+        if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_PERIODS
            and v.get("portfolio", {}).get("cagr") is not None
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
@@ -224,7 +255,7 @@ def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if isinstance(v, dict) and v.get("invested_periods", 0) > 0
+        if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_PERIODS
            and v.get("portfolio", {}).get("max_drawdown") is not None
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
@@ -266,12 +297,23 @@ def chart_comparison_drawdown(filename):
 
 
 # ---- Generate charts for each available exchange ----
-# Determine which exchanges have valid data
+# Eligibility is about DATA COVERAGE, not about whether the strategy worked.
+# Dropping losers would cherry-pick: Thailand stays in at -0.80% excess
+# precisely because it is now one of the clearest failures in the study.
+# `invested_periods > 0` was too weak. Norway has 2 investable periods (its
+# benchmark, ^OSEAX, has no price data before 2013) and Singapore has 3, and
+# both were being plotted as though they were 25-year records.
+MIN_INVESTED_PERIODS = 10
 valid_exchanges = [
     k for k, v in data.items()
-    if isinstance(v, dict) and v.get("invested_periods", 0) > 0
+    if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_PERIODS
        and v.get("portfolio", {}).get("cagr") is not None
 ]
+_dropped = [(k, v.get("invested_periods", 0)) for k, v in data.items()
+            if isinstance(v, dict) and k not in valid_exchanges]
+if _dropped:
+    print(f"Excluded for coverage (<{MIN_INVESTED_PERIODS}/25 invested): "
+          + ", ".join(f"{k} ({n}/25)" for k, n in _dropped))
 
 print(f"Valid exchanges with data: {valid_exchanges}")
 
@@ -307,14 +349,19 @@ for ex_key, region_slug, footer in EXCHANGE_CHART_CONFIGS:
     ex = data[ex_key]
     start_year = ex["annual_returns"][0]["year"] if ex["annual_returns"] else 2000
     end_year = ex["annual_returns"][-1]["year"] if ex["annual_returns"] else 2025
+    # Each exchange is measured against its own local index. Hardcoding
+    # "S&P 500" here would print the wrong index name over a real Sensex,
+    # DAX or FTSE line and overstate the result.
+    bench = benchmark_label(data, ex_key)
     chart_cumulative(
         [ex_key], f"{region_slug}_cumulative_growth.png",
-        f"Growth of $10,000: P/E Compression {region_slug.title()} vs S&P 500 ({start_year}-{end_year})",
+        f"Growth of {cur(ex_key)}10,000: P/E Compression {region_slug.title()} "
+        f"vs {bench} ({start_year}-{end_year})",
         footer
     )
     chart_annual_bars(
         [ex_key], f"{region_slug}_annual_returns.png",
-        f"P/E Compression {region_slug.title()} vs S&P 500: Year-by-Year Returns ({start_year}-{end_year})",
+        f"P/E Compression {region_slug.title()} vs {bench}: Year-by-Year Returns ({start_year}-{end_year})",
         footer
     )
 

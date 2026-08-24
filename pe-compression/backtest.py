@@ -44,7 +44,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                        domicile_sql_condition, remove_price_oscillations)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -66,7 +66,7 @@ MAX_SINGLE_RETURN = 2.0    # Cap individual stock returns at 200% (data quality 
 MIN_ENTRY_PRICE = 1.0      # Skip stocks with entry price < $1 (price data artifact)
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domicile=False):
     """Fetch financial data and load into DuckDB.
 
     Populates tables:
@@ -75,13 +75,21 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         metrics_cache(symbol, returnOnEquity, marketCap, filing_epoch, period)
         prices_cache(symbol, trade_epoch, adjClose)
 
+    Args:
+        domicile: when True, also require the company to be domiciled in the
+            exchange's own country. Outside the US most listings are foreign
+            secondary lines, which can carry the whole result.
+
     Returns DuckDB connection or None.
     """
+    dom_cond = domicile_sql_condition(exchanges) if domicile else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
         exchange_where = f"WHERE exchange IN ({ex_filter})"
+        if dom_cond:
+            exchange_where += f" AND {dom_cond}"
     else:
-        exchange_where = ""
+        exchange_where = f"WHERE {dom_cond}" if dom_cond else ""
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -99,7 +107,12 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
 
     if exchanges:
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        sym_where = f"exchange IN ({ex_filter})"
+        if dom_cond:
+            sym_where += f" AND {dom_cond}"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE {sym_where})"
+    elif dom_cond:
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE {dom_cond})"
     else:
         sym_filter_sql = "1=1"
 
@@ -286,6 +299,26 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                         max_single_return=MAX_SINGLE_RETURN,
                                         verbose=verbose)
 
+        # The cash rule has to be re-checked HERE, not just on the screen count.
+        # Screening can pass 30 names while only a handful of them have usable
+        # prices at this rebalance, and averaging 1-4 survivors reports a single
+        # stock's year as a diversified portfolio return. FMP's fundamentals
+        # history reaches much further back than its EOD prices outside the US,
+        # and the names it can price skew to large survivors.
+        if len(clean) < MIN_STOCKS:
+            results.append({
+                "rebalance_date": entry_date.isoformat(),
+                "exit_date": exit_date.isoformat(),
+                "portfolio_return": 0.0,
+                "spy_return": bench_return,
+                "stocks_held": 0,
+                "holdings": f"CASH ({len(clean)} priced of {len(portfolio)} screened)",
+            })
+            if verbose:
+                print(f"    {entry_date}: only {len(clean)} of {len(portfolio)} screened "
+                      f"names had usable prices (< {MIN_STOCKS}), CASH")
+            continue
+
         returns = []
         for sym, raw_ret, mcap in clean:
             if use_costs:
@@ -317,7 +350,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
 
 def build_output(metrics, annual, valid, results, universe_name, frequency, periods_per_year,
-                 cash_periods, avg_stocks):
+                 cash_periods, avg_stocks, min_stocks=0, benchmark_symbol="SPY",
+                 benchmark_name="S&P 500", domicile=False):
     """Build JSON output in standard format."""
     p = metrics["portfolio"]
     b = metrics["benchmark"]
@@ -343,14 +377,26 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
             "pct_negative_periods": pct(s.get("pct_negative_periods")),
         }
 
+    years_covered = sorted({ar["year"] for ar in annual})
+
     return {
         "universe": universe_name,
         "n_periods": len(valid),
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
+        # The benchmark a result was measured against. `spy` below is a legacy
+        # key name that holds whichever index this exchange used, so anything
+        # reading these files (charts, audits) has to be told which one.
+        "benchmark": benchmark_symbol,
+        "benchmark_name": benchmark_name,
+        "period_start": years_covered[0] if years_covered else None,
+        "period_end": years_covered[-1] if years_covered else None,
+        "periods_dropped_no_benchmark": len(results) - len(valid),
+        "domicile_filtered": domicile,
         "cash_periods": cash_periods,
         "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
+        "min_stocks_when_invested": min_stocks,
         "portfolio": fmt(p),
         "spy": fmt(b),
         "comparison": {
@@ -377,7 +423,8 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, mktcap_threshold, verbose, output_path=None,
-               offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500"):
+               offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500",
+               domicile=False):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
@@ -389,6 +436,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
     print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+    if domicile:
+        print(f"  Universe: domicile-filtered ({domicile_sql_condition(exchanges) or 'n/a'})")
     print("=" * 65)
 
     # Phase 1: Fetch data
@@ -396,7 +445,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = generate_rebalance_dates(2000, 2025, frequency,
                                                months=DEFAULT_REBALANCE_MONTHS)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
+                             domicile=domicile)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -425,11 +475,22 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "P/E Compression", benchmark_name))
 
-    cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
-    invested = [r["stocks_held"] for r in results if r["stocks_held"] > 0]
+    # Count over `valid`, not `results`. A period whose benchmark has no price
+    # (^OSEAX starts 2013, so a 2000-2025 run has no benchmark for half of it)
+    # drops out of `valid` but was still counted as cash, which drove
+    # invested_periods negative and made the whole record incoherent.
+    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
+    invested = [r["stocks_held"] for r in valid if r["stocks_held"] > 0]
     avg_stocks = sum(invested) / len(invested) if invested else 0
-    print(f"\n  Cash periods: {cash_periods} / {len(results)}")
-    print(f"  Avg stocks (invested): {avg_stocks:.1f}")
+    min_stocks = min(invested) if invested else 0
+    dropped = len(results) - len(valid)
+    assert 0 <= len(valid) - cash_periods <= len(valid), "invested_periods out of range"
+    print(f"\n  Cash periods: {cash_periods} / {len(valid)}")
+    print(f"  Avg stocks (invested): {avg_stocks:.1f}  (min {min_stocks})")
+    if dropped:
+        print(f"  ⚠ {dropped} of {len(results)} periods dropped: no benchmark price "
+              f"for {benchmark_name} ({benchmark_symbol}). Reported window is shorter "
+              f"than 2000-2025.")
 
     period_dates = [r["rebalance_date"] for r in valid]
     annual = compute_annual_returns(port_returns, spy_returns, period_dates, periods_per_year)
@@ -445,7 +506,9 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"\n  Total time: {total_time:.0f}s (fetch: {fetch_time:.0f}s, backtest: {bt_time:.0f}s)")
 
     output = build_output(metrics, annual, valid, results, universe_name,
-                          frequency, periods_per_year, cash_periods, avg_stocks)
+                          frequency, periods_per_year, cash_periods, avg_stocks,
+                          min_stocks=min_stocks, benchmark_symbol=benchmark_symbol,
+                          benchmark_name=benchmark_name, domicile=domicile)
 
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
@@ -462,6 +525,9 @@ def main():
     add_common_args(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--domicile-filter", dest="domicile_filter", action="store_true",
+                        help="Restrict the universe to companies domiciled in the "
+                             "exchange's own country (diagnostic; default off)")
     args = parser.parse_args()
 
     if args.cloud:
@@ -531,7 +597,8 @@ def main():
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, mktcap_threshold, args.verbose, output_path,
                                     offset_days=offset_days,
-                                    benchmark_symbol=bench_sym, benchmark_name=bench_name)
+                                    benchmark_symbol=bench_sym, benchmark_name=bench_name,
+                                    domicile=args.domicile_filter)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -584,7 +651,8 @@ def main():
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, mktcap_threshold, args.verbose, args.output,
                offset_days=offset_days,
-               benchmark_symbol=benchmark_symbol, benchmark_name=benchmark_name)
+               benchmark_symbol=benchmark_symbol, benchmark_name=benchmark_name,
+               domicile=args.domicile_filter)
 
 
 if __name__ == "__main__":
