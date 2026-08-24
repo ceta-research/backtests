@@ -370,5 +370,6 @@ chart_comparison_cagr("comparison_cagr.png")
 chart_comparison_drawdown("comparison_drawdown.png")
 
 print(f"\nDone. Charts saved to {charts_dir}/")
-print("Move charts to ts-content-creator/content/_current/reversion-05-pe-compression/blogs/{region}/")
-print("  Prefix with 1_ (cumulative) and 2_ (annual bars) per the runbook convention.")
+print("Copy into the content repo with:")
+print("  python3 scripts/copy_charts_to_content.py pe-compression --apply")
+print("  (content lives under content/_ready/, and the helper resolves the 1_/2_ prefixes)")
