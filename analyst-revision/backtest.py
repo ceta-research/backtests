@@ -247,6 +247,36 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False, domicile=False):
         return None
 
     # 4. Market cap filter (FY key_metrics, most recent before event)
+    #
+    # key_metrics.marketCap is deliberate here, NOT the profile.marketCap that
+    # screen.py uses. This needs the value as of a date before each event; the
+    # profile column is a current snapshot and would leak look-ahead.
+    #
+    # Two known caveats, both measured 2026-08-28 on the US universe:
+    #
+    #   * key_metrics.marketCap is in the REPORTING currency, so for the 6.0% of
+    #     US events whose issuer reports in a foreign currency (NOK, CNI, BIDU,
+    #     E, DB ...) the threshold below is applied to the wrong number. The
+    #     column to guard on is key_metrics.reportedCurrency vs profile.currency.
+    #     On the non-US universes this is the dominant case, not the exception:
+    #     XETRA ran 94.4% in USD, SIX 66.7%, TSX 57.2%, because those universes
+    #     are mostly US issuers' secondary listings. That is the same root cause
+    #     as the retraction, showing up in the size filter instead of the
+    #     benchmark.
+    #
+    #   * `marketCap IS NULL` passes through, so 5.9% of US events are admitted
+    #     with no size test at all. Do NOT "fix" this by dropping them without
+    #     thinking: those 471 symbols have a median current cap of $3.2B and 137
+    #     of them no longer trade, so excluding them removes surviving large caps
+    #     and censors delisted names. Their T+63 upgrade CAR is -3.03%, and
+    #     dropping them moves every reported number up.
+    #
+    # Robustness of the published US results to the currency guard alone
+    # (see REVIEW.md in the content package for the full table): the cluster
+    # finding holds and strengthens, T+63 upgrades and downgrades hold, and the
+    # only claim that does not survive is the T+21 downgrade significance call.
+    # Changing the filter changes the published universe, so it is a methodology
+    # decision and a full re-run, not a maintenance edit.
     print("  Fetching market cap data for filter...")
     mcap_sql = f"""
         SELECT symbol, dateEpoch AS filing_epoch, marketCap

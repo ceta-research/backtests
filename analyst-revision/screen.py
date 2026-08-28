@@ -47,25 +47,46 @@ GRADE_MAP_SQL = """
         )"""
 
 
-def screen_recent_upgrades(cr, exchanges, mktcap_min, days=30, verbose=False):
-    """Show individual analyst upgrades in the last N days."""
+def universe_cte(exchanges, mktcap_min):
+    """Build the screening universe from `profile`, as a CTE body.
+
+    Market cap comes from profile, not key_metrics. profile.marketCap is in the
+    listing currency; key_metrics.marketCap is in the reporting currency, so an
+    ADR that files in a foreign currency clears a USD threshold on a number that
+    is not dollars. profile.currency does not catch it either (IRSA reads "USD"
+    while its key_metrics.marketCap is in pesos). This is a live screen, so the
+    current profile snapshot is the right source; the backtest deliberately uses
+    a point-in-time key_metrics join instead to avoid look-ahead.
+
+    QUALIFY collapses share classes and preferred lines to one listing per
+    company, ordered by liquidity rather than alphabetically: BAC sorts before
+    BAC-PB, but INVE-A sorts before the far more liquid INVE-B.
+    """
+    where = ["p.isFund = false", "p.isEtf = false", "p.isActivelyTrading = true"]
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        sym_filter = f"AND sg.symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
-        mcap_join = f"""
-            LEFT JOIN (
-                SELECT symbol, marketCap, ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY dateEpoch DESC) AS rn
-                FROM key_metrics WHERE period = 'FY' AND marketCap IS NOT NULL
-                  AND symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))
-            ) mc ON sg.symbol = mc.symbol AND mc.rn = 1"""
-        mcap_filter = f"AND (mc.marketCap IS NULL OR mc.marketCap > {mktcap_min})"
-    else:
-        sym_filter = ""
-        mcap_join = ""
-        mcap_filter = ""
+        where.insert(0, f"p.exchange IN ({ex_filter})")
+        # Thresholds are per-exchange and in that exchange's own currency, so
+        # they only apply once the universe is pinned to a venue. In --global
+        # mode there is no single currency to size in, so no threshold is
+        # applied, which is what this screen has always done.
+        if mktcap_min:
+            where.append(f"p.marketCap > {mktcap_min}")
+    conditions = "\n              AND ".join(where)
+    return f"""universe AS (
+            SELECT p.symbol, p.companyName, p.marketCap
+            FROM profile p
+            WHERE {conditions}
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY p.companyName
+                                       ORDER BY p.averageVolume DESC) = 1
+        )"""
 
+
+def screen_recent_upgrades(cr, exchanges, mktcap_min, days=30, verbose=False):
+    """Show individual analyst upgrades in the last N days."""
     sql = f"""
         {GRADE_MAP_SQL},
+        {universe_cte(exchanges, mktcap_min)},
         recent AS (
             SELECT
                 sg.symbol,
@@ -84,14 +105,14 @@ def screen_recent_upgrades(cr, exchanges, mktcap_min, days=30, verbose=False):
             WHERE CAST(sg.date AS DATE) >= CURRENT_DATE - INTERVAL '{days}' DAY
               AND sg.action = 'upgrade'
               AND gn.score IS NOT NULL AND gp.score IS NOT NULL
-              {sym_filter}
+              AND sg.symbol IN (SELECT symbol FROM universe)
         )
-        SELECT r.symbol, r.revision_date, r.gradingCompany,
-               r.previousGrade, r.newGrade, r.grade_change
+        SELECT r.symbol, u.companyName, r.revision_date, r.gradingCompany,
+               r.previousGrade, r.newGrade, r.grade_change,
+               ROUND(u.marketCap / 1e9, 1) AS mktcap_bn
         FROM recent r
-        {mcap_join}
+        JOIN universe u ON r.symbol = u.symbol
         WHERE r.rn = 1
-          {mcap_filter}
         ORDER BY r.revision_date DESC, r.grade_change DESC
         LIMIT 100
     """
@@ -105,23 +126,9 @@ def screen_recent_upgrades(cr, exchanges, mktcap_min, days=30, verbose=False):
 
 def screen_upgrade_clusters(cr, exchanges, mktcap_min, days=30, min_analysts=2, verbose=False):
     """Show stocks with 2+ independent analyst upgrades within the last N days."""
-    if exchanges:
-        ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        sym_filter = f"AND sg.symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
-        mcap_join = f"""
-            LEFT JOIN (
-                SELECT symbol, marketCap, ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY dateEpoch DESC) AS rn
-                FROM key_metrics WHERE period = 'FY' AND marketCap IS NOT NULL
-                  AND symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))
-            ) mc ON clusters.symbol = mc.symbol AND mc.rn = 1"""
-        mcap_filter = f"AND (mc.marketCap IS NULL OR mc.marketCap > {mktcap_min})"
-    else:
-        sym_filter = ""
-        mcap_join = ""
-        mcap_filter = ""
-
     sql = f"""
-        WITH deduped AS (
+        WITH {universe_cte(exchanges, mktcap_min)},
+        deduped AS (
             SELECT
                 symbol, CAST(date AS DATE) AS revision_date, gradingCompany,
                 previousGrade, newGrade,
@@ -132,7 +139,7 @@ def screen_upgrade_clusters(cr, exchanges, mktcap_min, days=30, min_analysts=2, 
             FROM stock_grade
             WHERE CAST(date AS DATE) >= CURRENT_DATE - INTERVAL '{days}' DAY
               AND action = 'upgrade'
-              {sym_filter}
+              AND symbol IN (SELECT symbol FROM universe)
         ),
         upgrades AS (
             SELECT symbol, revision_date, gradingCompany, previousGrade, newGrade
@@ -151,14 +158,14 @@ def screen_upgrade_clusters(cr, exchanges, mktcap_min, days=30, min_analysts=2, 
             GROUP BY symbol
             HAVING COUNT(DISTINCT gradingCompany) >= {min_analysts}
         )
-        SELECT clusters.symbol, clusters.distinct_analysts, clusters.upgrade_count,
-               clusters.first_upgrade, clusters.last_upgrade,
-               clusters.analyst_firms, clusters.new_grades
+        SELECT clusters.symbol, u.companyName, clusters.distinct_analysts,
+               clusters.upgrade_count, clusters.first_upgrade, clusters.last_upgrade,
+               clusters.analyst_firms, clusters.new_grades,
+               ROUND(u.marketCap / 1e9, 1) AS mktcap_bn
         FROM clusters
-        {mcap_join}
-        WHERE 1=1 {mcap_filter}
+        JOIN universe u ON clusters.symbol = u.symbol
         ORDER BY clusters.distinct_analysts DESC, clusters.upgrade_count DESC
-        LIMIT 50
+        LIMIT 30
     """
 
     if verbose:
