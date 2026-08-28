@@ -7,6 +7,14 @@ upgrade clusters (2+ independent analysts within 30 days).
 
 Data source: stock_grade (FMP individual analyst grade changes)
 
+⚠️ Non-US presets return a contaminated universe. `--preset germany` filters on
+   exchange, which selects everything LISTED on the venue: XETRA is 88.1%
+   US-domiciled companies by analyst event count and 1.5% German, and the LSE is
+   85.7% US-domiciled. The screen is still correct about what it reports (these are
+   real listings with real grade changes), but the results are mostly American
+   companies' local lines, not local businesses. See README.md and
+   domicile_analysis.py.
+
 Usage:
     python3 analyst-revision/screen.py                      # US recent upgrades
     python3 analyst-revision/screen.py --preset uk
