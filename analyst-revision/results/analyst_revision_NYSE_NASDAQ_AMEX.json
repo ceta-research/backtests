@@ -1,6 +1,6 @@
 {
   "strategy": "Analyst Rating Revision Momentum",
-  "universe": "US_MAJOR",
+  "universe": "NYSE_NASDAQ_AMEX",
   "benchmark": "SPY",
   "benchmark_name": "S&P 500",
   "study_type": "event_study",
@@ -10,7 +10,8 @@
     "min_cluster_analysts": 2,
     "min_market_cap": 1000000000,
     "start_year": 2012,
-    "end_year": 2025
+    "end_year": 2025,
+    "domicile_filter": false
   },
   "windows": [
     1,
@@ -18,237 +19,260 @@
     21,
     63
   ],
+  "data_quality": {
+    "min_entry_price": 1.0,
+    "max_single_return": 2.0,
+    "oscillation_filter": true,
+    "per_window": {
+      "T+1": {
+        "before": 133995,
+        "removed": 0
+      },
+      "T+5": {
+        "before": 134001,
+        "removed": 0
+      },
+      "T+21": {
+        "before": 133958,
+        "removed": 0
+      },
+      "T+63": {
+        "before": 133604,
+        "removed": 57
+      }
+    }
+  },
   "car_metrics": {
     "upgrade_all": {
-      "n": 66741,
+      "n": 65725,
       "T+1": {
-        "mean_car": 0.0196,
-        "median_car": -0.0173,
-        "t_stat": 2.429,
-        "n": 66741,
-        "hit_rate": 49.5,
+        "mean_car": 0.0182,
+        "median_car": -0.018,
+        "t_stat": 2.261,
+        "n": 65725,
+        "hit_rate": 49.47,
         "significant_5pct": true,
         "significant_1pct": false
       },
       "T+5": {
-        "mean_car": -0.0008,
-        "median_car": -0.0626,
-        "t_stat": -0.044,
-        "n": 66738,
+        "mean_car": -0.0015,
+        "median_car": -0.0628,
+        "t_stat": -0.085,
+        "n": 65713,
         "hit_rate": 49.13,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+21": {
-        "mean_car": -0.1751,
-        "median_car": -0.3207,
-        "t_stat": -5.027,
-        "n": 66720,
-        "hit_rate": 48.0,
+        "mean_car": -0.1713,
+        "median_car": -0.3179,
+        "t_stat": -4.902,
+        "n": 65698,
+        "hit_rate": 48.02,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+63": {
-        "mean_car": -0.5084,
-        "median_car": -1.2332,
-        "t_stat": -8.058,
-        "n": 66668,
-        "hit_rate": 46.13,
+        "mean_car": -0.4958,
+        "median_car": -1.2188,
+        "t_stat": -7.858,
+        "n": 65630,
+        "hit_rate": 46.18,
         "significant_5pct": true,
         "significant_1pct": true
       }
     },
     "upgrade_single": {
-      "n": 38254,
+      "n": 37517,
       "T+1": {
-        "mean_car": -0.0067,
-        "median_car": -0.0222,
-        "t_stat": -0.631,
-        "n": 38254,
-        "hit_rate": 49.35,
+        "mean_car": -0.0104,
+        "median_car": -0.0242,
+        "t_stat": -0.989,
+        "n": 37517,
+        "hit_rate": 49.26,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+5": {
-        "mean_car": -0.0586,
-        "median_car": -0.111,
-        "t_stat": -2.599,
-        "n": 38252,
-        "hit_rate": 48.48,
+        "mean_car": -0.0672,
+        "median_car": -0.1141,
+        "t_stat": -2.982,
+        "n": 37509,
+        "hit_rate": 48.43,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+21": {
-        "mean_car": -0.5099,
-        "median_car": -0.5165,
-        "t_stat": -11.25,
-        "n": 38237,
+        "mean_car": -0.5184,
+        "median_car": -0.5192,
+        "t_stat": -11.411,
+        "n": 37499,
         "hit_rate": 46.8,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+63": {
-        "mean_car": -0.9487,
-        "median_car": -1.4153,
-        "t_stat": -11.394,
-        "n": 38203,
-        "hit_rate": 45.64,
+        "mean_car": -0.9457,
+        "median_car": -1.41,
+        "t_stat": -11.35,
+        "n": 37460,
+        "hit_rate": 45.65,
         "significant_5pct": true,
         "significant_1pct": true
       }
     },
     "upgrade_clustered": {
-      "n": 28487,
+      "n": 28208,
       "T+1": {
-        "mean_car": 0.0557,
-        "median_car": -0.0107,
-        "t_stat": 4.459,
-        "n": 28487,
-        "hit_rate": 49.7,
+        "mean_car": 0.0571,
+        "median_car": -0.0089,
+        "t_stat": 4.559,
+        "n": 28208,
+        "hit_rate": 49.75,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+5": {
-        "mean_car": 0.0757,
-        "median_car": -0.0013,
-        "t_stat": 2.781,
-        "n": 28486,
-        "hit_rate": 49.99,
+        "mean_car": 0.0856,
+        "median_car": 0.0059,
+        "t_stat": 3.139,
+        "n": 28204,
+        "hit_rate": 50.06,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+21": {
-        "mean_car": 0.2729,
-        "median_car": -0.061,
-        "t_stat": 5.033,
-        "n": 28483,
-        "hit_rate": 49.6,
+        "mean_car": 0.2846,
+        "median_car": -0.0546,
+        "t_stat": 5.229,
+        "n": 28199,
+        "hit_rate": 49.64,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+63": {
-        "mean_car": 0.0757,
-        "median_car": -1.0123,
-        "t_stat": 0.784,
-        "n": 28465,
-        "hit_rate": 46.79,
+        "mean_car": 0.1064,
+        "median_car": -0.9677,
+        "t_stat": 1.103,
+        "n": 28170,
+        "hit_rate": 46.88,
         "significant_5pct": false,
         "significant_1pct": false
       }
     },
     "upgrade_small": {
-      "n": 65361,
+      "n": 64362,
       "T+1": {
-        "mean_car": 0.0186,
-        "median_car": -0.0193,
-        "t_stat": 2.279,
-        "n": 65361,
-        "hit_rate": 49.43,
+        "mean_car": 0.0168,
+        "median_car": -0.0209,
+        "t_stat": 2.062,
+        "n": 64362,
+        "hit_rate": 49.38,
         "significant_5pct": true,
         "significant_1pct": false
       },
       "T+5": {
         "mean_car": -0.0012,
-        "median_car": -0.0645,
-        "t_stat": -0.066,
-        "n": 65358,
-        "hit_rate": 49.1,
+        "median_car": -0.0642,
+        "t_stat": -0.071,
+        "n": 64351,
+        "hit_rate": 49.11,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+21": {
-        "mean_car": -0.19,
-        "median_car": -0.335,
-        "t_stat": -5.408,
-        "n": 65340,
-        "hit_rate": 47.91,
+        "mean_car": -0.1882,
+        "median_car": -0.3329,
+        "t_stat": -5.338,
+        "n": 64335,
+        "hit_rate": 47.92,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+63": {
-        "mean_car": -0.5061,
-        "median_car": -1.2289,
-        "t_stat": -7.951,
-        "n": 65291,
-        "hit_rate": 46.15,
+        "mean_car": -0.4914,
+        "median_car": -1.2098,
+        "t_stat": -7.719,
+        "n": 64268,
+        "hit_rate": 46.21,
         "significant_5pct": true,
         "significant_1pct": true
       }
     },
     "upgrade_large": {
-      "n": 1380,
+      "n": 1363,
       "T+1": {
-        "mean_car": 0.063,
-        "median_car": 0.1038,
-        "t_stat": 1.125,
-        "n": 1380,
-        "hit_rate": 53.04,
+        "mean_car": 0.0883,
+        "median_car": 0.1122,
+        "t_stat": 1.557,
+        "n": 1363,
+        "hit_rate": 53.48,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+5": {
-        "mean_car": -0.0397,
-        "median_car": 0.0519,
-        "t_stat": -0.307,
-        "n": 1380,
-        "hit_rate": 50.51,
+        "mean_car": -0.041,
+        "median_car": 0.0088,
+        "t_stat": -0.315,
+        "n": 1362,
+        "hit_rate": 50.15,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+21": {
-        "mean_car": 0.5739,
-        "median_car": 0.4136,
-        "t_stat": 2.181,
-        "n": 1380,
-        "hit_rate": 52.1,
+        "mean_car": 0.6499,
+        "median_car": 0.5068,
+        "t_stat": 2.447,
+        "n": 1363,
+        "hit_rate": 52.6,
         "significant_5pct": true,
         "significant_1pct": false
       },
       "T+63": {
-        "mean_car": -0.6247,
-        "median_car": -1.5107,
-        "t_stat": -1.331,
-        "n": 1377,
-        "hit_rate": 44.95,
+        "mean_car": -0.6885,
+        "median_car": -1.556,
+        "t_stat": -1.464,
+        "n": 1362,
+        "hit_rate": 44.71,
         "significant_5pct": false,
         "significant_1pct": false
       }
     },
     "downgrade_all": {
-      "n": 69872,
+      "n": 68270,
       "T+1": {
-        "mean_car": -0.0249,
-        "median_car": -0.0474,
-        "t_stat": -2.831,
-        "n": 69872,
-        "hit_rate": 51.37,
+        "mean_car": -0.0268,
+        "median_car": -0.0462,
+        "t_stat": -3.105,
+        "n": 68270,
+        "hit_rate": 51.33,
         "significant_5pct": true,
         "significant_1pct": true
       },
       "T+5": {
-        "mean_car": -0.0313,
-        "median_car": -0.1429,
-        "t_stat": -1.647,
-        "n": 69854,
-        "hit_rate": 51.89,
+        "mean_car": -0.031,
+        "median_car": -0.1413,
+        "t_stat": -1.666,
+        "n": 68238,
+        "hit_rate": 51.87,
         "significant_5pct": false,
         "significant_1pct": false
       },
       "T+21": {
-        "mean_car": -0.1176,
-        "median_car": -0.3812,
-        "t_stat": -3.111,
-        "n": 69812,
-        "hit_rate": 52.16,
+        "mean_car": -0.0937,
+        "median_car": -0.3651,
+        "t_stat": -2.495,
+        "n": 68210,
+        "hit_rate": 52.06,
         "significant_5pct": true,
-        "significant_1pct": true
+        "significant_1pct": false
       },
       "T+63": {
-        "mean_car": -0.6056,
-        "median_car": -1.2635,
-        "t_stat": -9.03,
-        "n": 69463,
-        "hit_rate": 54.13,
+        "mean_car": -0.6596,
+        "median_car": -1.241,
+        "t_stat": -9.989,
+        "n": 67866,
+        "hit_rate": 54.06,
         "significant_5pct": true,
         "significant_1pct": true
       }
@@ -257,104 +281,104 @@
   "yearly_stats": [
     {
       "year": 2012,
-      "upgrades": 2221,
-      "downgrades": 2584,
-      "upgrade_clustered": 789,
-      "upgrade_single": 1432
+      "upgrades": 2197,
+      "downgrades": 2520,
+      "upgrade_clustered": 782,
+      "upgrade_single": 1415
     },
     {
       "year": 2013,
-      "upgrades": 4651,
-      "downgrades": 5427,
-      "upgrade_clustered": 2342,
-      "upgrade_single": 2309
+      "upgrades": 4576,
+      "downgrades": 5333,
+      "upgrade_clustered": 2315,
+      "upgrade_single": 2261
     },
     {
       "year": 2014,
-      "upgrades": 4599,
-      "downgrades": 4057,
-      "upgrade_clustered": 2200,
-      "upgrade_single": 2399
+      "upgrades": 4523,
+      "downgrades": 3943,
+      "upgrade_clustered": 2173,
+      "upgrade_single": 2350
     },
     {
       "year": 2015,
-      "upgrades": 4702,
-      "downgrades": 4924,
-      "upgrade_clustered": 2228,
-      "upgrade_single": 2474
+      "upgrades": 4601,
+      "downgrades": 4803,
+      "upgrade_clustered": 2197,
+      "upgrade_single": 2404
     },
     {
       "year": 2016,
-      "upgrades": 5011,
-      "downgrades": 6707,
-      "upgrade_clustered": 2535,
-      "upgrade_single": 2476
+      "upgrades": 4923,
+      "downgrades": 6569,
+      "upgrade_clustered": 2504,
+      "upgrade_single": 2419
     },
     {
       "year": 2017,
-      "upgrades": 4770,
-      "downgrades": 4510,
-      "upgrade_clustered": 2284,
-      "upgrade_single": 2486
+      "upgrades": 4709,
+      "downgrades": 4415,
+      "upgrade_clustered": 2260,
+      "upgrade_single": 2449
     },
     {
       "year": 2018,
-      "upgrades": 5752,
-      "downgrades": 4697,
-      "upgrade_clustered": 2772,
-      "upgrade_single": 2980
+      "upgrades": 5674,
+      "downgrades": 4615,
+      "upgrade_clustered": 2747,
+      "upgrade_single": 2927
     },
     {
       "year": 2019,
-      "upgrades": 4970,
-      "downgrades": 5913,
-      "upgrade_clustered": 2205,
-      "upgrade_single": 2765
+      "upgrades": 4885,
+      "downgrades": 5795,
+      "upgrade_clustered": 2177,
+      "upgrade_single": 2708
     },
     {
       "year": 2020,
-      "upgrades": 7637,
-      "downgrades": 6539,
-      "upgrade_clustered": 3552,
-      "upgrade_single": 4085
+      "upgrades": 7519,
+      "downgrades": 6337,
+      "upgrade_clustered": 3532,
+      "upgrade_single": 3987
     },
     {
       "year": 2021,
-      "upgrades": 6563,
-      "downgrades": 5487,
-      "upgrade_clustered": 2470,
-      "upgrade_single": 4093
+      "upgrades": 6444,
+      "downgrades": 5317,
+      "upgrade_clustered": 2430,
+      "upgrade_single": 4014
     },
     {
       "year": 2022,
-      "upgrades": 5327,
-      "downgrades": 7655,
-      "upgrade_clustered": 1659,
-      "upgrade_single": 3668
+      "upgrades": 5229,
+      "downgrades": 7461,
+      "upgrade_clustered": 1631,
+      "upgrade_single": 3598
     },
     {
       "year": 2023,
-      "upgrades": 5210,
-      "downgrades": 5970,
-      "upgrade_clustered": 1660,
-      "upgrade_single": 3550
+      "upgrades": 5122,
+      "downgrades": 5820,
+      "upgrade_clustered": 1649,
+      "upgrade_single": 3473
     },
     {
       "year": 2024,
-      "upgrades": 2643,
-      "downgrades": 2982,
-      "upgrade_clustered": 870,
-      "upgrade_single": 1773
+      "upgrades": 2604,
+      "downgrades": 2930,
+      "upgrade_clustered": 862,
+      "upgrade_single": 1742
     },
     {
       "year": 2025,
-      "upgrades": 2685,
-      "downgrades": 2420,
-      "upgrade_clustered": 921,
-      "upgrade_single": 1764
+      "upgrades": 2719,
+      "downgrades": 2412,
+      "upgrade_clustered": 949,
+      "upgrade_single": 1770
     }
   ],
-  "n_total_upgrades": 66741,
-  "n_total_downgrades": 69872,
-  "n_clustered_upgrades": 28487
+  "n_total_upgrades": 65725,
+  "n_total_downgrades": 68270,
+  "n_clustered_upgrades": 28208
 }

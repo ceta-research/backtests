@@ -96,6 +96,24 @@ def get_n(metrics, category):
     return metrics.get(category, {}).get("n", 0)
 
 
+def benchmark_label(data):
+    """Name the index this exchange's CARs were actually measured against.
+
+    Each result file carries its own benchmark, so a chart must read it rather
+    than assume the S&P 500. Labelling a DAX line "S&P 500" would overstate the
+    result to anyone reading the chart alone.
+    """
+    return data.get("benchmark_name") or data.get("benchmark") or "benchmark"
+
+
+def load_domicile():
+    path = os.path.join(RESULTS_DIR, "domicile_decomposition.json")
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
 # ---------------------------------------------------------------------------
 # Chart 1: CAR Progression — upgrade categories line chart
 # ---------------------------------------------------------------------------
@@ -106,6 +124,7 @@ def chart_car_progression(data, output_dir, exchange_label="US",
     n_up = get_n(metrics, "upgrade_all")
     n_dn = get_n(metrics, "downgrade_all")
     coverage = EXCHANGE_COVERAGE.get(exchange_key, exchange_key)
+    bench = benchmark_label(data)
 
     fig, ax = plt.subplots(figsize=(9, 5))
 
@@ -130,10 +149,10 @@ def chart_car_progression(data, output_dir, exchange_label="US",
     ax.axhline(0, color="black", linewidth=0.8, linestyle=":", alpha=0.5)
     ax.set_xticks(range(len(WINDOWS)))
     ax.set_xticklabels(W_LABELS, fontsize=10)
-    ax.set_ylabel("Mean CAR vs benchmark (%)", fontsize=9)
+    ax.set_ylabel(f"Mean CAR vs {bench} (%)", fontsize=9)
     ax.set_title(
         f"Analyst Rating Revisions: Post-Event Drift — {exchange_label}\n"
-        f"({coverage}, MCap threshold applied, winsorized mean)",
+        f"({coverage}, vs {bench}, MCap threshold applied, winsorized mean)",
         fontsize=11, fontweight="bold"
     )
     ax.legend(fontsize=8, loc="upper right" if exchange_label != "Germany" else "upper left")
@@ -158,6 +177,7 @@ def chart_upgrade_vs_downgrade(data, output_dir, exchange_label="US",
     n_up = get_n(metrics, "upgrade_all")
     n_dn = get_n(metrics, "downgrade_all")
     coverage = EXCHANGE_COVERAGE.get(exchange_key, exchange_key)
+    bench = benchmark_label(data)
 
     up_cars = [get_car(metrics, "upgrade_all", w) or 0 for w in WINDOWS]
     dn_cars = [get_car(metrics, "downgrade_all", w) or 0 for w in WINDOWS]
@@ -184,10 +204,10 @@ def chart_upgrade_vs_downgrade(data, output_dir, exchange_label="US",
     ax.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
     ax.set_xticks(x)
     ax.set_xticklabels(W_LABELS, fontsize=10)
-    ax.set_ylabel("Mean CAR vs benchmark (%)", fontsize=9)
+    ax.set_ylabel(f"Mean CAR vs {bench} (%)", fontsize=9)
     ax.set_title(
         f"Analyst Revisions: Upgrade vs Downgrade Drift — {exchange_label}\n"
-        f"({coverage}, MCap threshold applied)",
+        f"({coverage}, vs {bench}, MCap threshold applied)",
         fontsize=11, fontweight="bold"
     )
     ax.legend(fontsize=9, loc="lower left")
@@ -247,10 +267,10 @@ def chart_exchange_comparison(comparison_data, output_dir):
 
     ax.set_yticks(y)
     ax.set_yticklabels(labels, fontsize=10)
-    ax.set_xlabel("Mean Upgrade CAR at T+21 (%)", fontsize=9)
+    ax.set_xlabel("Mean Upgrade CAR at T+21, vs each market's own local index (%)", fontsize=9)
     ax.set_title(
         "Analyst Upgrade Drift at T+21: Exchange Comparison\n"
-        "(2012–2025, individual grade changes, MCap threshold per exchange. ** = p<0.05)",
+        "(2012–2025, each market vs its own local index, MCap threshold per exchange. ** = p<0.05)",
         fontsize=11, fontweight="bold"
     )
     ax.grid(axis="x", alpha=0.3)
@@ -266,6 +286,170 @@ def chart_exchange_comparison(comparison_data, output_dir):
 
     fig.tight_layout()
     return save(fig, output_dir, "3_exchange_comparison_t21.png")
+
+
+# ---------------------------------------------------------------------------
+# Chart 4: Domicile split — who actually generated the "local" drift
+# ---------------------------------------------------------------------------
+GROUP_ORDER = ["domestic", "us_domiciled", "other_foreign"]
+GROUP_LABELS = {"domestic": "Domiciled locally", "us_domiciled": "US-domiciled",
+                "other_foreign": "Other foreign"}
+
+
+def chart_domicile_split(domicile, output_dir, exchange_key, exchange_label, window=63):
+    """Upgrade vs downgrade CAR by where the company is domiciled.
+
+    The point of this chart is direction, not size. A real revision signal
+    cannot push upgrades and downgrades the same way. Where both bars sit
+    above zero, the abnormal return is measuring the gap between that
+    company's home market and the local index it is being scored against.
+    """
+    ex = (domicile or {}).get(exchange_key)
+    if not ex:
+        print(f"  Skipping domicile split for {exchange_key} — no decomposition data")
+        return
+    bench = ex.get("benchmark_name", "local index")
+
+    labels, ups, dns, notes = [], [], [], []
+    for g in GROUP_ORDER:
+        gd = ex["groups"].get(g) or {}
+        u = gd.get(f"upgrade_T+{window}")
+        d = gd.get(f"downgrade_T+{window}")
+        if not u and not d:
+            continue
+        labels.append(f"{GROUP_LABELS[g]}\n{gd.get('share_pct', 0):.1f}% of events")
+        ups.append(u["mean_car"] if u else 0)
+        dns.append(d["mean_car"] if d else 0)
+        notes.append((u, d))
+
+    if not labels:
+        print(f"  Skipping domicile split for {exchange_key} — no group met the size floor")
+        return
+
+    x = np.arange(len(labels))
+    width = 0.38
+    fig, ax = plt.subplots(figsize=(9.5, 5.5))
+    b_up = ax.bar(x - width / 2, ups, width, color=COL_UP_ALL, alpha=0.85, label="After upgrades")
+    b_dn = ax.bar(x + width / 2, dns, width, color=COL_DOWN, alpha=0.85, label="After downgrades")
+
+    span = max(abs(v) for v in ups + dns) or 1
+    for bars, vals, idx in ((b_up, ups, 0), (b_dn, dns, 1)):
+        for bar, v, note in zip(bars, vals, notes):
+            stat = note[idx]
+            txt = f"{v:+.2f}%" + ("*" if stat and stat.get("significant_5pct") else "")
+            off = span * 0.03 if v >= 0 else -span * 0.03
+            ax.text(bar.get_x() + bar.get_width() / 2, v + off, txt, ha="center",
+                    va="bottom" if v >= 0 else "top", fontsize=8, fontweight="bold",
+                    color=COL_UP_ALL if idx == 0 else COL_DOWN)
+
+    ax.axhline(0, color="black", linewidth=0.9, linestyle="-", alpha=0.6)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_ylabel(f"Mean CAR at T+{window} vs {bench} (%)", fontsize=9)
+    ax.set_title(
+        f"Who Produced the {exchange_label} Drift? CAR at T+{window} by Company Domicile\n"
+        f"(2012–2025, vs {bench}. Both bars above zero means the benchmark is mismatched, "
+        f"not that analysts are right. * = p<0.05)",
+        fontsize=10.5, fontweight="bold"
+    )
+    ax.legend(fontsize=9)
+    ax.grid(axis="y", alpha=0.3)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    fig.text(0.99, 0.01, "Data: Ceta Research (FMP warehouse) · cetaresearch.com",
+             ha="right", va="bottom", fontsize=7, color="gray")
+    fig.tight_layout()
+    prefix = exchange_label.lower().replace(" ", "_")
+    return save(fig, output_dir, f"4_{prefix}_domicile_split.png")
+
+
+# ---------------------------------------------------------------------------
+# Chart 5: cross-market view of the same artifact
+# ---------------------------------------------------------------------------
+def chart_domicile_comparison(domicile, output_dir, window=63):
+    """Foreign-listing share per market, next to the upgrade/downgrade tell."""
+    if not domicile:
+        print("  Skipping domicile comparison — no decomposition data")
+        return
+
+    order = [k for k in ["XETRA", "LSE", "SIX", "TSX"] if k in domicile]
+    if not order:
+        return
+    names = {"XETRA": "Germany\n(XETRA)", "LSE": "UK\n(LSE)",
+             "SIX": "Switzerland\n(SIX)", "TSX": "Canada\n(TSX)"}
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5.4))
+
+    # Panel A: share of events by domicile
+    dom = [domicile[k]["groups"]["domestic"]["share_pct"] for k in order]
+    usd = [domicile[k]["groups"]["us_domiciled"]["share_pct"] for k in order]
+    oth = [domicile[k]["groups"]["other_foreign"]["share_pct"] for k in order]
+    y = np.arange(len(order))
+    ax1.barh(y, dom, color=COL_UP_ALL, alpha=0.85, label="Domiciled locally")
+    ax1.barh(y, usd, left=dom, color=COL_DOWN, alpha=0.85, label="US-domiciled")
+    ax1.barh(y, oth, left=[a + b for a, b in zip(dom, usd)], color=COL_NEUTRAL,
+             alpha=0.7, label="Other foreign")
+    # Inline labels only where the segment is wide enough to hold one. The
+    # local share is the number that matters and is often tiny, so it is
+    # always written in the clear margin to the right of the bar.
+    for i, (d, u) in enumerate(zip(dom, usd)):
+        if d >= 8:
+            ax1.text(d / 2, i, f"{d:.0f}%", ha="center", va="center", fontsize=8.5,
+                     fontweight="bold", color="white")
+        if u >= 8:
+            ax1.text(d + u / 2, i, f"{u:.0f}%", ha="center", va="center", fontsize=8.5,
+                     fontweight="bold", color="white")
+        ax1.text(103, i, f"local {d:.1f}%", va="center", ha="left", fontsize=8.5,
+                 fontweight="bold", color=COL_UP_ALL)
+    ax1.set_yticks(y)
+    ax1.set_yticklabels([names.get(k, k) for k in order], fontsize=9)
+    ax1.set_xlabel("Share of analyst revision events (%)", fontsize=9)
+    ax1.set_xlim(0, 124)
+    ax1.set_xticks([0, 20, 40, 60, 80, 100])
+    ax1.set_title("Who is listed on each exchange\n(share of graded events, 2012–2025)",
+                  fontsize=10.5, fontweight="bold")
+    ax1.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.13), ncol=3,
+               frameon=False)
+    ax1.grid(axis="x", alpha=0.3)
+    for sp in ("top", "right"):
+        ax1.spines[sp].set_visible(False)
+
+    # Panel B: the tell, for the US-domiciled slice of each market
+    ups, dns, keep = [], [], []
+    for k in order:
+        g = domicile[k]["groups"]["us_domiciled"]
+        u, d = g.get(f"upgrade_T+{window}"), g.get(f"downgrade_T+{window}")
+        if not u or not d:
+            continue
+        keep.append(k)
+        ups.append(u["mean_car"])
+        dns.append(d["mean_car"])
+    x = np.arange(len(keep))
+    width = 0.38
+    ax2.bar(x - width / 2, ups, width, color=COL_UP_ALL, alpha=0.85, label="After upgrades")
+    ax2.bar(x + width / 2, dns, width, color=COL_DOWN, alpha=0.85, label="After downgrades")
+    span = max([abs(v) for v in ups + dns] or [1])
+    for xi, v in list(zip(x - width / 2, ups)) + list(zip(x + width / 2, dns)):
+        ax2.text(xi, v + (span * 0.03 if v >= 0 else -span * 0.03), f"{v:+.2f}%",
+                 ha="center", va="bottom" if v >= 0 else "top", fontsize=8, fontweight="bold")
+    ax2.axhline(0, color="black", linewidth=0.9, alpha=0.6)
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([names.get(k, k) for k in keep], fontsize=9)
+    ax2.set_ylabel(f"Mean CAR at T+{window} vs local index (%)", fontsize=9)
+    ax2.set_title("US-domiciled listings, scored against the local index\n"
+                  "Upgrades beat the index in every market, downgrades in three of four. "
+                  "That is the benchmark, not the analyst.",
+                  fontsize=10, fontweight="bold")
+    ax2.legend(fontsize=8)
+    ax2.grid(axis="y", alpha=0.3)
+    for sp in ("top", "right"):
+        ax2.spines[sp].set_visible(False)
+
+    fig.text(0.99, 0.01, "Data: Ceta Research (FMP warehouse) · cetaresearch.com",
+             ha="right", va="bottom", fontsize=7, color="gray")
+    fig.tight_layout()
+    return save(fig, output_dir, "5_domicile_contamination.png")
 
 
 # Exchanges with blog posts
@@ -295,6 +479,11 @@ def main():
         (args.exchange, args.label or EXCHANGE_LABELS.get(args.exchange, args.exchange))
     ]
 
+    domicile = load_domicile()
+    if domicile is None:
+        print("  No domicile_decomposition.json found. "
+              "Run domicile_analysis.py for the domicile charts.")
+
     for ex_key, ex_label in exchanges_to_run:
         print(f"\nGenerating charts for {ex_label} ({ex_key})...")
         try:
@@ -304,6 +493,8 @@ def main():
             continue
         chart_car_progression(ex_data, args.output, ex_label, ex_key)
         chart_upgrade_vs_downgrade(ex_data, args.output, ex_label, ex_key)
+        if domicile and ex_key in domicile:
+            chart_domicile_split(domicile, args.output, ex_key, ex_label)
 
     if not args.no_comparison:
         comparison_path = os.path.join(RESULTS_DIR, "exchange_comparison.json")
@@ -311,6 +502,7 @@ def main():
             print("\nGenerating exchange comparison chart...")
             comparison = load_comparison()
             chart_exchange_comparison(comparison, args.output)
+            chart_domicile_comparison(domicile, args.output)
         else:
             print("  No exchange_comparison.json found. Run --global first.")
 

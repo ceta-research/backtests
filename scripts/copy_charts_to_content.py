@@ -43,6 +43,7 @@ TOPIC_DIRS = {
     "ev-ebitda-relative": "timing-02-ev-ebitda-relative",
     "pe-mean-revert": "timing-01-pe-mean-revert",
     "qarp": "factor-02-qarp",
+    "analyst-revision": "momentum-05-analyst-revision",
     # NOTE: two content dirs carry this name. reversion-05 is the one whose
     # regions match this backtest; sector-06-pe-compression has only a `us`
     # blog and belongs to a different study.

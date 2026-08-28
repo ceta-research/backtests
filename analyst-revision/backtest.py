@@ -47,7 +47,9 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, REGIONAL_BENCHMARKS, get_local_benchmark, LOCAL_INDEX_NAMES
+from data_utils import (query_parquet, REGIONAL_BENCHMARKS, get_local_benchmark,
+                        LOCAL_INDEX_NAMES, domicile_sql_condition,
+                        remove_price_oscillations, filter_returns)
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_mktcap_threshold, EXCHANGE_PRESETS)
 
@@ -60,6 +62,7 @@ MIN_CLUSTER_ANALYSTS = 2        # Minimum distinct analysts to qualify as cluste
 MIN_EVENTS = 50                 # Minimum events to report results
 WINSORIZE_PCT = 1.0             # Winsorize at 1st/99th percentile
 MIN_ENTRY_PRICE = 1.0           # Skip sub-$1 entry prices
+MAX_SINGLE_RETURN = 2.0         # Skip single-window returns above +200% (price artifacts)
 
 # Grade score mapping for magnitude calculation
 GRADE_SCORES = {
@@ -83,8 +86,14 @@ def grade_to_score(grade_str):
     return GRADE_SCORES.get(grade_str.lower().strip())
 
 
-def fetch_data(client, exchanges, mktcap_min, verbose=False):
-    """Fetch analyst revision events, market caps, and prices via API."""
+def fetch_data(client, exchanges, mktcap_min, verbose=False, domicile=False):
+    """Fetch analyst revision events, market caps, and prices via API.
+
+    domicile=True restricts the universe to companies headquartered in the
+    exchange's home country. Off by default: a screen selects everything
+    LISTED on an exchange, which outside the US is largely foreign secondary
+    listings. Opt-in so the published universe stays comparable.
+    """
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
     con.execute("SET threads TO 2")
@@ -92,7 +101,14 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
 
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        sym_filter = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        profile_where = f"exchange IN ({ex_filter})"
+        dom_cond = domicile_sql_condition(exchanges) if domicile else ""
+        if domicile and not dom_cond:
+            print("  WARNING: no domicile mapping for these exchanges. Filter skipped.")
+        if dom_cond:
+            profile_where += f" AND {dom_cond}"
+            print(f"  Universe: domicile-filtered ({dom_cond})")
+        sym_filter = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE {profile_where})"
     else:
         sym_filter = "1=1"
 
@@ -285,19 +301,32 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     sym_in = ", ".join(f"'{s}'" for s in sym_list)
 
     print(f"  Fetching prices for {len(event_symbols)} symbols + {benchmark}...")
+    # adjClose > 0 only. MIN_ENTRY_PRICE is an ENTRY-side test, applied in
+    # event_base below. Filtering the whole price table at $1 also deletes
+    # EXIT rows for stocks that fell under a dollar, which censors the worst
+    # outcomes and inflates downgrade CARs.
     price_sql = f"""
         SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose
         FROM stock_eod
         WHERE symbol IN ({sym_in})
           AND CAST(date AS DATE) >= '{START_YEAR - 1}-01-01'
           AND CAST(date AS DATE) <= '{END_YEAR + 1}-12-31'
-          AND adjClose > {MIN_ENTRY_PRICE}
+          AND adjClose > 0
     """
     price_count = query_parquet(client, price_sql, con, "prices",
                                 verbose=verbose, limit=10000000, timeout=600,
                                 memory_mb=4096, threads=2)
     con.execute("CREATE INDEX idx_prices ON prices(symbol, trade_date)")
     print(f"    -> {price_count} price rows")
+
+    # Data quality: strip phantom holiday rows and broken split adjustments
+    # (adjClose spikes 3-5x for a day or two, then reverts). Must run before
+    # the trading-day calendar is built off the benchmark series, so a bad
+    # benchmark row cannot shift every event's day numbering.
+    osc = remove_price_oscillations(con, table_name="prices", verbose=verbose)
+    if osc.get("rows_removed"):
+        print(f"    -> removed {osc['rows_removed']:,} oscillating price rows "
+              f"across {osc['symbols_affected']:,} symbols")
 
     # 7. Trading day calendar from benchmark
     con.execute(f"""
@@ -357,11 +386,13 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
     con.execute("DROP TABLE event_t0")
 
     # Compute returns at each window
+    quality = {}
     for w in windows:
         print(f"    Computing T+{w} returns...")
         con.execute(f"""
             CREATE OR REPLACE TABLE window_{w}_returns AS
             SELECT eb.symbol, eb.event_date,
+                eb.stock_t0 AS entry_px, sp.adjClose AS exit_px,
                 ROUND((sp.adjClose - eb.stock_t0) / eb.stock_t0, 8) AS stock_ret,
                 ROUND((bp.adjClose - eb.bench_t0) / eb.bench_t0, 8) AS bench_ret,
                 ROUND((sp.adjClose - eb.stock_t0) / eb.stock_t0
@@ -372,7 +403,31 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
             JOIN prices bp ON bp.symbol = '{benchmark}' AND td.trade_date = bp.trade_date
         """)
         n_w = con.execute(f"SELECT COUNT(*) FROM window_{w}_returns").fetchone()[0]
-        print(f"      -> {n_w} events with T+{w} returns")
+
+        # Data quality: drop sub-$1 entries and single-window returns above
+        # +200%. Filtering is per window, so a junk T+63 print does not
+        # discard that event's clean T+1 observation.
+        rows = con.execute(
+            f"SELECT symbol, event_date, entry_px, exit_px FROM window_{w}_returns"
+        ).fetchall()
+        keyed = [(f"{r[0]}|{r[1].isoformat()}", r[2], r[3], None) for r in rows]
+        clean, skipped = filter_returns(keyed, min_entry_price=MIN_ENTRY_PRICE,
+                                        max_single_return=MAX_SINGLE_RETURN,
+                                        verbose=False)
+        quality[f"T+{w}"] = {"before": n_w, "removed": n_w - len(clean)}
+        if len(clean) < n_w:
+            con.execute("CREATE OR REPLACE TEMPORARY TABLE _keep(k VARCHAR)")
+            con.executemany("INSERT INTO _keep VALUES (?)", [(c[0],) for c in clean])
+            con.execute(f"""
+                DELETE FROM window_{w}_returns
+                WHERE (symbol || '|' || CAST(event_date AS VARCHAR))
+                      NOT IN (SELECT k FROM _keep)
+            """)
+            con.execute("DROP TABLE _keep")
+            print(f"      -> {len(clean)} events with T+{w} returns "
+                  f"({n_w - len(clean)} removed by data-quality filter)")
+        else:
+            print(f"      -> {n_w} events with T+{w} returns")
 
     # Join all windows
     print("    Joining window results...")
@@ -421,7 +476,7 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
         con.execute(f"DROP TABLE IF EXISTS window_{w}_returns")
 
     print(f"    -> {len(results)} events with full returns")
-    return results
+    return results, quality
 
 
 def winsorize(values, pct=WINSORIZE_PCT):
@@ -607,7 +662,8 @@ def print_results(metrics, universe_name):
     print(f"\n{'=' * 72}")
 
 
-def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_path=None):
+def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_path=None,
+               domicile=False):
     """Run analyst revision event study for one exchange set."""
     mktcap_label = (f"{mktcap_min/1e9:.0f}B" if mktcap_min >= 1e9
                     else f"{mktcap_min/1e6:.0f}M")
@@ -615,6 +671,8 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
         f"Individual analyst upgrades/downgrades (stock_grade), MCap > {mktcap_label} local, "
         f"cluster = 2+ analysts / {CLUSTER_WINDOW_DAYS}d"
     )
+    if domicile:
+        signal_desc += ", domicile-filtered universe"
     print_header("ANALYST REVISION EVENT STUDY", universe_name, exchanges, signal_desc)
     print(f"  Windows: {', '.join(f'T+{w}' for w in WINDOWS)}")
     print(f"  Period: {START_YEAR}-{END_YEAR}")
@@ -622,7 +680,7 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
 
     print("\nPhase 1: Fetching data via API...")
     t0 = time.time()
-    con = fetch_data(cr, exchanges, mktcap_min, verbose=verbose)
+    con = fetch_data(cr, exchanges, mktcap_min, verbose=verbose, domicile=domicile)
     if con is None:
         return None
     fetch_time = time.time() - t0
@@ -633,7 +691,7 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
 
     print(f"\nPhase 2: Computing event-window returns...")
     t1 = time.time()
-    results = compute_event_returns(con, windows=WINDOWS, verbose=verbose)
+    results, quality = compute_event_returns(con, windows=WINDOWS, verbose=verbose)
     compute_time = time.time() - t1
     print(f"Returns computed in {compute_time:.0f}s")
 
@@ -674,8 +732,15 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
             "min_market_cap": mktcap_min,
             "start_year": START_YEAR,
             "end_year": END_YEAR,
+            "domicile_filter": domicile,
         },
         "windows": WINDOWS,
+        "data_quality": {
+            "min_entry_price": MIN_ENTRY_PRICE,
+            "max_single_return": MAX_SINGLE_RETURN,
+            "oscillation_filter": True,
+            "per_window": quality,
+        },
         "car_metrics": metrics,
         "yearly_stats": yearly,
         "n_total_upgrades": len([r for r in results if r["action"] == "upgrade"]),
@@ -707,6 +772,9 @@ def main():
     add_common_args(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--domicile-filter", action="store_true",
+                        help="Restrict the universe to companies headquartered in the "
+                             "exchange's home country (opt-in, default OFF)")
     args = parser.parse_args()
 
     if args.cloud:
@@ -757,7 +825,8 @@ def main():
 
             try:
                 result = run_single(cr, preset_exchanges, uni_name, mktcap_threshold,
-                                    verbose=args.verbose, output_path=output_path)
+                                    verbose=args.verbose, output_path=output_path,
+                                    domicile=args.domicile_filter)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -805,7 +874,8 @@ def main():
     mktcap_threshold = get_mktcap_threshold(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, mktcap_threshold,
-               verbose=args.verbose, output_path=args.output)
+               verbose=args.verbose, output_path=args.output,
+               domicile=args.domicile_filter)
 
 
 if __name__ == "__main__":
