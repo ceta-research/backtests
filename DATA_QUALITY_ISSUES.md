@@ -331,6 +331,72 @@ result stands. If cash periods jump, the apparent alpha belonged to foreign
 secondary listings. Check that number before assuming any market is safe or
 suspect.
 
+### Event studies are far worse, and it forced a live retraction (measured 2026-08-28)
+
+`analyst-revision` is an event study on FMP `stock_grade`, and the contamination is
+much heavier than on any fundamental screen measured so far. A screen at least
+ranks whatever is domestically available; an event study inherits whatever the
+data vendor covers, and analyst grade coverage concentrates hard on US names.
+
+| Exchange | Domiciled locally | US-domiciled | Other foreign |
+|----------|-------------------|--------------|---------------|
+| XETRA | **1.5%** | **88.1%** | 10.4% |
+| LSE | 6.2% | 85.7% | 8.1% |
+| SIX | 8.2% | 74.2% | 17.6% |
+| TSX | 90.5% | 7.4% | 2.0% |
+
+The most-graded XETRA tickers are the Frankfurt lines of US mega-caps: `NFC.DE`
+(Netflix, 647 events), `INL.DE` (Intel, 609), `TL0.DE` (Tesla, 557), `APC.DE`
+(Apple, 526). The published "+1.63% German upgrade drift vs the DAX" was those.
+
+**The invested-period diagnostic above does not work here.** An event study has no
+rebalance calendar and never holds cash, so nothing degrades visibly. Use the
+direction test instead.
+
+#### The direction test: run the signal AND its inverse
+
+**If both come out the same sign against the benchmark, you are measuring the
+benchmark.** A real signal cannot pay off in both directions.
+
+| Exchange | US-domiciled, after UPGRADES | after DOWNGRADES |
+|----------|------------------------------|------------------|
+| XETRA | +1.485% (sig) | +0.649% (sig) |
+| LSE | +1.038% (sig) | +0.250% (ns) |
+| TSX | +6.705% (sig) | +5.342% (sig) |
+
+Canada is the clearest case precisely because it is otherwise the cleanest market:
+7.4% of TSX events are US-domiciled and that sliver returns +6.71% after upgrades
+and +5.34% after downgrades against the TSX Composite. Nobody reads +5.34% after a
+downgrade as an analyst effect.
+
+This tell was present in the published Germany and UK tables from March (Germany's
+downgrade CAR was +0.562% at T+63, t=3.65) and was reviewed past, because the review
+verified arithmetic against the results JSON and never asked whether the universe
+matched the headline. **Add the direction test before publication.** It costs one
+extra aggregation.
+
+#### Domicile-only cannot always replace the result
+
+Restricting `analyst-revision` to German companies leaves 155 upgrades across 31
+names, with Deutsche Bank at 54 of them and 116 of 326 total events in 2021. That
+supports no conclusion in either direction. Cause: FMP records German companies'
+grades against the PRIMARY ticker, not the local line. `SAP` has 536 grade records
+vs 240 for `SAP.DE`; `SIEGY` 21 vs `SIE.DE` 17; `BMW.DE` has 6 across 14 years.
+Exchange-screening therefore selects exactly the tickers where domestic analyst
+coverage is absent. Report that honestly rather than publishing the thin sample.
+
+#### Reusable check
+
+`analyst-revision/domicile_analysis.py` joins each event to `profile.country` and
+recomputes CAR per domicile group using the study's own winsorization. It
+generalises to any topic that writes per-event CSVs. SQL-only version is Q9 in
+`ts-content-creator/content/_ready/momentum-05-analyst-revision/backtest.sql`.
+
+**Unchecked and likely affected**, same `stock_grade` + exchange-filter pattern:
+`upgrade-cluster` (same table, start here), `pead`, `revenue-surprise`,
+`pre-earnings`, `beat-streaks`, `stock-split`, `index-recon`, `ma-arbitrage`,
+`spinoff`.
+
 ### Backtests are not bit-reproducible (found 2026-08-13)
 
 Running the same backtest twice with identical arguments does not give the same number.
