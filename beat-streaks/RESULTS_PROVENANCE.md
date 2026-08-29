@@ -30,7 +30,7 @@ vintage, local price indices, T+0 = last pre-announcement close) on 10 markets, 
 Direction-test verdicts at T+21 (overall streak>=2 rows; `results/mirror-2026-08/_verdicts_t21.json`):
 9 of 10 markets PASS (miss streaks drift significantly negative while beat streaks drift positive):
 US, Canada, Japan, Taiwan, India, Thailand, Brazil, Hong Kong, Korea. **China FAILS** — both legs
-positive and significant (beats +1.28 t=7.3, misses +0.39 t=3.5) against a Shanghai-Composite-only
+positive and significant (beats +1.27 t=7.3, misses +0.39 t=3.5) against a Shanghai-Composite-only
 benchmark for a SHZ+SHH universe; treat China's absolute levels as universe drift (the beat-minus-miss
 spread stays positive). A US streak-break leg also exists (`us_break.json`): -1.20% at T+1 (t=-36.9),
 -3.09% at T+63.
