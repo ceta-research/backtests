@@ -12,6 +12,7 @@ Usage:
     python3 pead/generate_charts.py --output pead/results/charts/
 """
 
+import glob
 import json
 import os
 import argparse
@@ -195,10 +196,26 @@ def chart_quintile_heatmap(us_data, output_dir):
 # ---------------------------------------------------------------------------
 def chart_exchange_comparison(comparison_data, output_dir):
     """Horizontal bar chart of beats CAR at T+63, sorted by magnitude."""
+    # ⚠️ Do NOT source this chart from exchange_comparison.json. That file is the
+    # superseded March run AND it benchmarks SIX/OSL/SET/STO against SPY, which flips
+    # the sign on Thailand (-2.85 vs +1.05 under ^SET.BK) and Switzerland (-1.30 vs
+    # +0.82 under ^SSMI). It also carries no US row and includes ASX/SAO. Read the
+    # canonical per-exchange files instead.
+    #
+    # Withdrawn 2026-08-29: LSE and XETRA universes are majority non-domestic
+    # (binding check: LSE 31.7% home / 36.8% US, XETRA 39.3% / 36.4%), so a per-leg
+    # CAR against a GBP/EUR national index measures domicile mix, not drift.
+    # ASX and SAO are excluded from the study for adjClose data quality.
+    # See docs/sessions/completed/2026-08-29/EVENT_STUDY_DIRECTION_SWEEP.md
+    EXCLUDED = {"LSE", "XETRA", "ASX", "SAO"}
+
     rows = []
-    for ex_key, d in comparison_data.items():
-        if ex_key == "US_MAJOR":
-            continue  # de-dup with NYSE_NASDAQ_AMEX
+    for path in sorted(glob.glob(os.path.join(RESULTS_DIR, "pead_*.json"))):
+        ex_key = os.path.basename(path)[len("pead_"):-len(".json")]
+        if ex_key in EXCLUDED:
+            continue
+        with open(path) as fh:
+            d = json.load(fh)
         label = EXCHANGE_LABELS.get(ex_key, ex_key)
         val   = d["car_metrics"]["positive"]["car_63d"]["mean"]
         rows.append((label, val))
@@ -216,8 +233,14 @@ def chart_exchange_comparison(comparison_data, output_dir):
 
     ax.axvline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
 
+    # Scale the label gap and the axis padding to the data range. A fixed 0.05
+    # gap runs labels into the y-tick labels once the bars get long.
+    span = (max(vals) - min(vals)) or 1.0
+    gap  = span * 0.02
+    ax.set_xlim(min(min(vals), 0) - span * 0.18, max(max(vals), 0) + span * 0.18)
+
     for bar, v in zip(bars, vals):
-        x_pos = v + 0.05 if v >= 0 else v - 0.05
+        x_pos = v + gap if v >= 0 else v - gap
         ha    = "left" if v >= 0 else "right"
         ax.text(x_pos, bar.get_y() + bar.get_height() / 2,
                 f"{v:+.2f}%", va="center", ha=ha, fontsize=8, fontweight="bold",
@@ -226,8 +249,9 @@ def chart_exchange_comparison(comparison_data, output_dir):
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.set_xlabel("Beats Mean CAR at T+63 (%)")
-    ax.set_title("Post-Earnings Drift — Beats at T+63: 16 Global Exchanges\n"
-                 "(MOC entry, local index benchmarks, 2000–2025)",
+    ax.set_title(f"Post-Earnings Drift, Beats at T+63: {len(rows)} Global Exchanges\n"
+                 "(MOC entry, local index benchmarks, 2000-2025. UK and Germany "
+                 "withdrawn: majority non-domestic universes)",
                  fontsize=11, fontweight="bold")
     ax.grid(axis="x", alpha=0.3)
     ax.spines["top"].set_visible(False)
@@ -235,7 +259,12 @@ def chart_exchange_comparison(comparison_data, output_dir):
 
     pos_patch = mpatches.Patch(color=COL_POS, label="Positive drift")
     neg_patch = mpatches.Patch(color=COL_NEG, label="Negative drift / reversal")
-    ax.legend(handles=[pos_patch, neg_patch], loc="lower right", fontsize=8)
+    # Rows sort descending, so the most-negative row sits at the TOP (bar runs left)
+    # and the most-positive at the BOTTOM (bar runs right). That always leaves the
+    # upper-right and lower-left quadrants free; pick whichever is wider.
+    legend_loc = "upper right" if max(vals) > abs(min(vals)) else "lower left"
+    ax.legend(handles=[pos_patch, neg_patch], loc=legend_loc, fontsize=8,
+              framealpha=0.95)
 
     fig.text(0.99, 0.01, "Data: Ceta Research (FMP warehouse) · cetaresearch.com",
              ha="right", va="bottom", fontsize=7, color="gray")

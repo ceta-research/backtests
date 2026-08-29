@@ -642,6 +642,13 @@ def run_single(cr, exchanges, universe_name, mktcap_min, offset_days=1,
                     f.write(",".join(str(row.get(h, "")) for h in headers) + "\n")
             print(f"  Events saved to {csv_path}")
 
+    else:
+        print(
+            "\n  WARNING: no --output path was given, so these results were NOT saved.\n"
+            "  The run completed and computed results, then discarded them.\n"
+            "  Re-run with --output to persist them."
+        )
+
     con.close()
     return output
 

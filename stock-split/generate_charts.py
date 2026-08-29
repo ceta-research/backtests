@@ -73,23 +73,37 @@ def chart_car_by_window(metrics, output_path):
     ax.set_ylabel("Mean CAR vs SPY (%)")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:+.1f}%"))
 
+    # Scale every offset to the data range so labels stay clear at any magnitude.
+    # Fixed offsets silently collide once the data rescales.
+    top, bottom = max(means + [0.0]), min(means + [0.0])
+    span = (top - bottom) or 1.0
+    pad = span * 0.10
+    # Headroom above for value labels, and a reserved band below for the N row.
+    ax.set_ylim(bottom - span * 0.30, top + span * 0.18)
+    n_row_y = bottom - span * 0.20
+
     # Annotate bars with mean and significance
     for bar, mean, t, n in zip(bars, means, t_stats, ns):
-        sig = "**" if abs(t) > 2.576 else ("*" if abs(t) > 1.96 else "")
+        # t_stat is null for the T+1 base window (CAR is 0 by construction).
+        if t is None:
+            sig = ""
+        else:
+            sig = "**" if abs(t) > 2.576 else ("*" if abs(t) > 1.96 else "")
         label = f"{mean:+.2f}%{sig}"
-        ypos = bar.get_height() + 0.05 if mean >= 0 else bar.get_height() - 0.15
+        ypos = bar.get_height() + pad * 0.25 if mean >= 0 else bar.get_height() - pad * 0.25
         ax.text(bar.get_x() + bar.get_width() / 2, ypos, label,
                 ha="center", va="bottom" if mean >= 0 else "top",
                 fontsize=9, fontweight="bold",
                 color=POSITIVE_COLOR if mean > 0 else NEGATIVE_COLOR)
 
-    # Add N below axis
+    # N row sits in the reserved band, clear of both the bars and the legend
     for bar, n in zip(bars, ns):
-        ax.text(bar.get_x() + bar.get_width() / 2, ax.get_ylim()[0] * 0.95,
-                f"N={n:,}", ha="center", va="top", fontsize=7.5, color="#6b7280")
+        ax.text(bar.get_x() + bar.get_width() / 2, n_row_y,
+                f"N={n:,}", ha="center", va="center", fontsize=7.5, color="#6b7280")
 
-    ax.text(0.99, 0.01, "* p<0.05  ** p<0.01", transform=ax.transAxes,
-            ha="right", va="bottom", fontsize=8, color="#6b7280")
+    ax.text(0.99, 0.02, "* p<0.05  ** p<0.01", transform=ax.transAxes,
+            ha="right", va="bottom", fontsize=8, color="#6b7280",
+            bbox=dict(boxstyle="round,pad=0.25", fc="#ffffff", ec="none", alpha=0.85))
 
     plt.tight_layout()
     plt.savefig(output_path, bbox_inches="tight")
@@ -128,7 +142,15 @@ def chart_car_by_category(metrics, output_path):
     ax.set_xticklabels(categories)
     ax.set_ylabel("Mean CAR vs SPY (%)")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:+.1f}%"))
-    ax.legend(loc="lower left", framealpha=0.9)
+    # Scale offsets to the data range; fixed offsets collide when the data rescales.
+    all_vals = data["T+63"] + data["T+252"]
+    top, bottom = max(all_vals + [0.0]), min(all_vals + [0.0])
+    span = (top - bottom) or 1.0
+    pad = span * 0.10
+    # Reserve a band below the lowest bar for the N row, plus room for the legend.
+    ax.set_ylim(bottom - span * 0.22, top + span * 0.14)
+    n_row_y = bottom - span * 0.15
+    ax.legend(loc="upper left", framealpha=0.9)
 
     # Annotate bars
     for bars in [bars1, bars2]:
@@ -136,14 +158,14 @@ def chart_car_by_category(metrics, output_path):
             h = bar.get_height()
             if abs(h) > 0.01:
                 ax.text(bar.get_x() + bar.get_width() / 2,
-                        h - 0.1 if h < 0 else h + 0.05,
+                        h - pad * 0.18 if h < 0 else h + pad * 0.18,
                         f"{h:+.1f}%", ha="center",
                         va="top" if h < 0 else "bottom", fontsize=8)
 
-    # Add N counts
+    # Add N counts in the reserved band, clear of the bars and the legend
     for i, cat in enumerate(categories):
         n = by_cat.get(cat, {}).get("n", 0)
-        ax.text(x[i], ax.get_ylim()[0] * 0.97, f"N={n:,}",
+        ax.text(x[i], n_row_y, f"N={n:,}",
                 ha="center", va="top", fontsize=7.5, color="#6b7280")
 
     plt.tight_layout()

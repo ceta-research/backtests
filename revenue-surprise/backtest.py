@@ -505,6 +505,13 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
             json.dump(output, f, indent=2)
         print(f"\n  Results saved to {output_path}")
 
+    else:
+        print(
+            "\n  WARNING: no --output path was given, so these results were NOT saved.\n"
+            "  The run completed and computed results, then discarded them.\n"
+            "  Re-run with --output to persist them."
+        )
+
     con.close()
     return output
 
