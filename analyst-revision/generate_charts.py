@@ -155,7 +155,10 @@ def chart_car_progression(data, output_dir, exchange_label="US",
         f"({coverage}, vs {bench}, MCap threshold applied, winsorized mean)",
         fontsize=11, fontweight="bold"
     )
-    ax.legend(fontsize=8, loc="upper right" if exchange_label != "Germany" else "upper left")
+    # Per-exchange placement: the US clustered line peaks at T+21 top-right and
+    # Germany's runs up to the right, so a fixed corner hides the headline point.
+    _legend_loc = {"US": "lower left", "Germany": "upper left"}.get(exchange_label, "upper right")
+    ax.legend(fontsize=8, loc=_legend_loc, framealpha=0.9)
     ax.grid(alpha=0.3)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -192,9 +195,17 @@ def chart_upgrade_vs_downgrade(data, output_dir, exchange_label="US",
     bars_dn = ax.bar(x + width / 2, dn_cars, width, color=COL_DOWN,
                      label=f"Downgrades (n={n_dn:,})", alpha=0.85)
 
+    # Scale offsets and headroom to the data range. Fixed offsets pushed the
+    # largest negative bar's label off the axis and into the x tick labels, and
+    # CAR scales differ by 3x across exchanges.
+    lo = min(min(up_cars), min(dn_cars), 0.0)
+    hi = max(max(up_cars), max(dn_cars), 0.0)
+    span = (hi - lo) or 1.0
+    ax.set_ylim(lo - span * 0.18, hi + span * 0.14)
+
     for bar, v in zip(list(bars_up) + list(bars_dn), up_cars + dn_cars):
-        if abs(v) > 0.03:
-            offset = 0.03 if v >= 0 else -0.05
+        if abs(v) > span * 0.02:
+            offset = span * 0.025 if v >= 0 else -span * 0.025
             ax.text(bar.get_x() + bar.get_width() / 2, v + offset,
                     f"{v:+.3f}%", ha="center",
                     va="bottom" if v >= 0 else "top",
