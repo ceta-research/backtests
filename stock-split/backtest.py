@@ -6,7 +6,10 @@ Measures cumulative abnormal returns (CAR) around forward stock splits, 2000-202
 Tests the "post-split drift" hypothesis from Fama et al. (1969) and Ikenberry et al. (1996).
 
 Key finding: Positive pre-split CAR (+1.31% at T-5, t=3.81). No significant post-split drift (+0.58% at T+252, ns).
-  2-for-1 splits: +2.58% at T+252 (t=2.45, significant). 5-for-1+ splits: -11.67% at T+252 (t=-4.00, highly significant).
+  2-for-1 splits: +2.58% at T+252 (t=2.45, significant). The published 5-for-1+ -11.67% (t=-4.00)
+  decomposes into fund/ETF share splits and mis-encoded >25:1 records; the genuine common-stock leg
+  is -7.14% (t=-1.47, ns). Both artifact groups are now excluded by default (see --include-funds,
+  --max-ratio), so a fresh run yields a smaller, cleaner sample than the committed results/.
 The traditional long-side signal does NOT hold in 2000-2025 US data.
 
 Usage:
@@ -39,6 +42,7 @@ from cli_utils import get_mktcap_threshold, EXCHANGE_PRESETS
 STRATEGY_NAME = "Post-Stock Split Performance"
 # DEFAULT_MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold(use_low_threshold=True)
 DEFAULT_MIN_RATIO = 1.5             # Minimum forward split ratio
+DEFAULT_MAX_RATIO = 25.0            # Above this: mis-encoded reverse splits / IPO conversions
 DEFAULT_START_YEAR = 2000
 DEFAULT_END_YEAR = 2025
 WINDOWS = [1, 5, 21, 63, 126, 252]  # Post-event windows (trading days)
@@ -69,21 +73,32 @@ def fetch_splits_and_prices(client, con, args, verbose, benchmark_symbol="SPY"):
         ex_list = ", ".join(f"'{e}'" for e in args.exchanges)
         exchange_filter = f"AND p.exchange IN ({ex_list})"
 
+    # Fund/ETF share splits are not the retail "stock split" event this study is
+    # about, and they carried the retired -11.7% 5-for-1+ headline (fund splits
+    # -12.4 n=98 plus mis-encoded reverse splits at ratios > 25, -40.9 n=11).
+    # Guard both by default; --include-funds / --max-ratio restore the old universe.
+    fund_filter = ""
+    if not args.include_funds:
+        fund_filter = ("AND (p.symbol IS NULL OR "
+                       "(COALESCE(p.isFund, FALSE) = FALSE AND COALESCE(p.isEtf, FALSE) = FALSE))")
+
     print("  Loading split events...")
     splits_sql = f"""
         SELECT s.symbol,
                CAST(s.date AS DATE) AS event_date,
                CAST(s.numerator AS FLOAT) / NULLIF(s.denominator, 0) AS split_ratio
         FROM splits_calendar s
-        {f"JOIN profile p ON s.symbol = p.symbol" if args.exchanges else ""}
+        LEFT JOIN profile p ON s.symbol = p.symbol
         WHERE s.numerator IS NOT NULL
           AND s.denominator IS NOT NULL
           AND s.denominator > 0
           AND s.numerator > s.denominator
           AND CAST(s.numerator AS FLOAT) / s.denominator >= {args.min_ratio}
+          AND CAST(s.numerator AS FLOAT) / s.denominator <= {args.max_ratio}
           AND CAST(s.date AS DATE) >= '{args.start_year}-01-01'
           AND CAST(s.date AS DATE) <= '{args.end_year}-12-31'
           {exchange_filter}
+          {fund_filter}
     """
     n_splits = query_parquet(client, splits_sql, con, "raw_splits",
                              verbose=verbose, memory_mb=4096, threads=2)
@@ -388,6 +403,8 @@ def save_results(con, overall, by_cat, all_windows, output_dir, args,
         "parameters": {
             "min_mktcap": args.min_mktcap,
             "min_ratio": args.min_ratio,
+            "max_ratio": args.max_ratio,
+            "include_funds": args.include_funds,
             "start_year": args.start_year,
             "end_year": args.end_year,
             "exchanges": args.exchanges,
@@ -482,6 +499,13 @@ def main():
                         help="Minimum market cap in local currency (default: auto per exchange)")
     parser.add_argument("--min-ratio", type=float, default=DEFAULT_MIN_RATIO,
                         help=f"Minimum split ratio (default: {DEFAULT_MIN_RATIO})")
+    parser.add_argument("--max-ratio", type=float, default=DEFAULT_MAX_RATIO,
+                        help=f"Maximum split ratio (default: {DEFAULT_MAX_RATIO}). Ratios above "
+                             "this are almost always mis-encoded reverse splits or IPO share "
+                             "conversions, not genuine forward splits")
+    parser.add_argument("--include-funds", action="store_true",
+                        help="Include fund/ETF share splits (excluded by default; they are "
+                             "distributions mechanics, not the stock-split event)")
     parser.add_argument("--start-year", type=int, default=DEFAULT_START_YEAR)
     parser.add_argument("--end-year", type=int, default=DEFAULT_END_YEAR)
     parser.add_argument("--no-next-day", action="store_true",

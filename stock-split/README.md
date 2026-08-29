@@ -2,7 +2,7 @@
 
 Event study measuring cumulative abnormal returns (CAR) around forward stock splits, 2000-2025.
 
-**Key finding:** Stocks gain +3.2% vs SPY in the 5 days *before* a split. After the split, they underperform by -3.1% over 126 trading days. The traditional "buy on split" signal does not hold in 2000-2025 US data.
+**Key finding:** Stocks gain +1.3% vs SPY in the 5 days *before* a split (t=3.8). After the split, with next-day MOC entry, there is no significant drift in either direction (+0.58% at T+252, t=0.72). Standard 2-for-1 splits outperform mildly at one year (+2.58%, t=2.45); the apparent -11.7% underperformance of 5-for-1+ splits decomposes into fund share splits and mis-encoded records, not a tradable effect. The traditional "buy on split" signal does not hold in 2000-2025 US data, and neither does "avoid extreme splits."
 
 ---
 
@@ -10,31 +10,42 @@ Event study measuring cumulative abnormal returns (CAR) around forward stock spl
 
 **Type:** Event study (not a portfolio backtest)
 **Data:** FMP splits_calendar + stock_eod + key_metrics via Ceta Research API
-**Universe:** US stocks with market cap > $500M, forward splits only (numerator > denominator)
-**Period:** 2000-2025 (20,119 events)
+**Universe:** US listings (NYSE/NASDAQ/AMEX) with market cap > $500M, forward splits only
+**Period:** 2000-2025 (1,968 events with complete price data)
 **Benchmark:** SPY
+**Execution:** MOC — the base price is the close of the trading day *after* the effective split date, so T+1 through T+252 measure only what you could capture after realistic entry
 
 ### Academic Basis
 
 - Fama, Fisher, Jensen & Roll (1969) documented positive post-split abnormal returns in *International Economic Review*
 - Ikenberry, Rankine & Stice (1996) confirmed 7.9% abnormal first-year returns for 2:1 splits in *JFQA*
-- Our 2000-2025 data finds the opposite: negative post-split drift, significant at p<0.01
+- Our 2000-2025 data, with next-day entry, finds no significant post-split drift in either direction
 
 ---
 
 ## Results Summary
 
+Numbers below are the published run (the one the [blog post](https://blog.tradingstudio.finance/stock-split-performance-us-backtest/) quotes), from `results/summary_metrics.json`:
+
 | Window | Mean CAR | t-stat | N |
 |--------|----------|--------|----|
-| T-5 (pre-split) | +3.22% | 14.22 | 18,938 |
-| T+1 | +0.42% | 3.78 | 19,521 |
-| T+5 | -0.32% | -2.12 | 19,282 |
-| T+21 | -1.49% | -7.28 | 19,221 |
-| T+63 | -2.52% | -9.58 | 19,177 |
-| T+126 | -3.06% | -9.45 | 19,018 |
-| T+252 | -2.98% | -6.64 | 18,853 |
+| T-5 (pre-split) | +1.31% | 3.81 | 1,953 |
+| T+5 | -0.25% | -1.76 | 1,965 |
+| T+21 | -0.42% | -1.47 | 1,965 |
+| T+63 | -0.64% | -1.54 | 1,958 |
+| T+126 | +0.38% | 0.66 | 1,932 |
+| T+252 | +0.58% | 0.72 | 1,918 |
 
-Higher split ratios (5-for-1+) underperform more: -7.37% at T+252 vs -0.42% for 2-for-1.
+By ratio at one year: 2-for-1 +2.58% (t=2.45, n=1,046); 5-for-1+ -11.67% (t=-4.00, n=207).
+
+**The 5-for-1+ number is composition, not signal.** A 2026-08 audit decomposed it: 102 of the 207
+events are fund/ETF share splits and 11 more sit above a 25:1 ratio, a stratum dominated by
+mis-encoded reverse splits and IPO share conversions. The 86 genuine common-stock splits in the
+bucket return -7.14% (t=-1.47), not significant; US-domiciled names alone, -2.16% (t=-0.37).
+`backtest.py` now guards both groups by default (`--include-funds` and `--max-ratio` restore the
+old universe), so a fresh run produces a smaller, cleaner sample than the committed artifacts —
+on the guarded universe the 5-for-1+ bucket is -0.92% (t=-0.21, n=84). See
+`RESULTS_PROVENANCE.md` before quoting anything from `results/`.
 
 ---
 

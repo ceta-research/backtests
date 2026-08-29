@@ -32,6 +32,11 @@ highly significant, is carried by two artifact groups:
 The genuine non-fund 5:1 to 25:1 leg is **-7.1, t=-1.5, not significant**. US-domiciled common stock
 is **-2.2, t=-0.4**.
 
-There is no fund or ETF guard in `backtest.py`, which is why fund splits enter the sample at all.
+As of 2026-08-29, `backtest.py` guards both artifact groups by default: fund/ETF share splits are
+excluded (restore with `--include-funds`) and ratios above 25:1 are excluded (`--max-ratio`). The
+committed `results/` artifacts PREDATE the guard — they are the published run and are kept as-is so
+the live post's numbers stay reproducible from committed data. A guarded validation run (not
+committed) gives 1,414 events and a 5-for-1+ bucket of -0.92% at T+252 (t=-0.21, n=84): the
+artifact evaporates once the contaminated groups are out.
 
 See `docs/sessions/completed/2026-08-29/EVENT_STUDY_DIRECTION_SWEEP.md` in the ATO_SUITE docs tree.

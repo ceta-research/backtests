@@ -10,6 +10,18 @@ Categories: streak_2 (2nd beat), streak_3 (3rd), streak_4 (4th), streak_5plus (5
 Event windows: T+1, T+5, T+21, T+63 trading days
 Benchmark: SPY (US) or regional ETF
 
+Legs (--leg):
+    beat  (default) consecutive EPS beats, the published study
+    miss  mirror leg: consecutive EPS misses (epsActual < epsEstimated), for the
+          direction test. Categories are the same names (streak_2 = 2nd
+          consecutive miss, etc.)
+    break streak-break leg: the first non-beat after >= 2 consecutive beats.
+          Categories bucket by the length of the streak that broke.
+
+Tie semantics: a beat is epsActual > epsEstimated and a miss is
+epsActual < epsEstimated, both strict. An exact meet extends neither kind of
+streak; it breaks both. The mirror is therefore symmetric up to ties.
+
 Academic reference: Loh & Warachka (2012) "Streaks in Earnings Surprises
 and the Cross-Section of Stock Returns", Management Science, 58(7), 1305-1321.
 Myers, Myers & Skinner (2007) "Earnings Momentum and Earnings Management",
@@ -53,7 +65,82 @@ START_YEAR = 2000
 END_YEAR = 2025
 
 
-def fetch_data(client, exchanges, mktcap_min, verbose=False):
+def build_streak_sql(leg):
+    """Return the leg-specific SQL selecting (symbol, event_date, streak_length)
+    from surprises_dedup. Hoisted to module level so the leg logic is unit-testable."""
+    if leg == "beat":
+        # For each beat, how many consecutive beats it extends
+        streak_sql = """
+            WITH miss_groups AS (
+                SELECT symbol, event_date, is_beat,
+                    SUM(CASE WHEN is_beat = 0 THEN 1 ELSE 0 END)
+                        OVER (PARTITION BY symbol ORDER BY event_date
+                              ROWS UNBOUNDED PRECEDING) AS miss_count
+                FROM surprises_dedup
+            ),
+            with_streak AS (
+                SELECT symbol, event_date,
+                    ROW_NUMBER() OVER (PARTITION BY symbol, miss_count ORDER BY event_date) AS streak_length
+                FROM miss_groups
+                WHERE is_beat = 1
+            )
+            SELECT symbol, event_date, streak_length FROM with_streak
+            WHERE streak_length >= 2
+        """
+    elif leg == "miss":
+        # Mirror: for each miss, how many consecutive misses it extends
+        streak_sql = """
+            WITH nonmiss_groups AS (
+                SELECT symbol, event_date, is_miss,
+                    SUM(CASE WHEN is_miss = 0 THEN 1 ELSE 0 END)
+                        OVER (PARTITION BY symbol ORDER BY event_date
+                              ROWS UNBOUNDED PRECEDING) AS nonmiss_count
+                FROM surprises_dedup
+            ),
+            with_streak AS (
+                SELECT symbol, event_date,
+                    ROW_NUMBER() OVER (PARTITION BY symbol, nonmiss_count ORDER BY event_date) AS streak_length
+                FROM nonmiss_groups
+                WHERE is_miss = 1
+            )
+            SELECT symbol, event_date, streak_length FROM with_streak
+            WHERE streak_length >= 2
+        """
+    elif leg == "break":
+        # The first non-beat after >= 2 consecutive beats; streak_length is the
+        # length of the streak that broke
+        streak_sql = """
+            WITH miss_groups AS (
+                SELECT symbol, event_date, is_beat,
+                    SUM(CASE WHEN is_beat = 0 THEN 1 ELSE 0 END)
+                        OVER (PARTITION BY symbol ORDER BY event_date
+                              ROWS UNBOUNDED PRECEDING) AS miss_count
+                FROM surprises_dedup
+            ),
+            running AS (
+                SELECT symbol, event_date, is_beat,
+                    CASE WHEN is_beat = 1
+                         THEN SUM(is_beat) OVER (PARTITION BY symbol, miss_count
+                                                 ORDER BY event_date
+                                                 ROWS UNBOUNDED PRECEDING)
+                         ELSE 0 END AS streak_after
+                FROM miss_groups
+            ),
+            with_prev AS (
+                SELECT symbol, event_date, is_beat,
+                    LAG(streak_after) OVER (PARTITION BY symbol ORDER BY event_date) AS prior_streak
+                FROM running
+            )
+            SELECT symbol, event_date, prior_streak AS streak_length
+            FROM with_prev
+            WHERE is_beat = 0 AND prior_streak >= 2
+        """
+    else:
+        raise ValueError(f"unknown leg: {leg}")
+    return streak_sql
+
+
+def fetch_data(client, exchanges, mktcap_min, leg="beat", verbose=False):
     """Fetch earnings surprises with streak computation, prices, and market cap."""
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -94,13 +181,14 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
             CAST(date AS DATE) AS event_date,
             epsActual,
             epsEstimated,
-            CASE WHEN epsActual > epsEstimated THEN 1 ELSE 0 END AS is_beat
+            CASE WHEN epsActual > epsEstimated THEN 1 ELSE 0 END AS is_beat,
+            CASE WHEN epsActual < epsEstimated THEN 1 ELSE 0 END AS is_miss
         FROM raw_surprises
     """)
     # Deduplicate: keep one record per symbol/date (some FMP data has duplicates)
     con.execute("""
         CREATE TABLE surprises_dedup AS
-        SELECT symbol, event_date, epsActual, epsEstimated, is_beat
+        SELECT symbol, event_date, epsActual, epsEstimated, is_beat, is_miss
         FROM (
             SELECT *,
                 ROW_NUMBER() OVER (PARTITION BY symbol, event_date ORDER BY epsActual DESC) AS rn
@@ -108,22 +196,10 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
         ) WHERE rn = 1
     """)
 
-    # Compute streak_length: for each beat, how many consecutive beats preceded it
-    con.execute("""
+    streak_sql = build_streak_sql(leg)
+
+    con.execute(f"""
         CREATE TABLE streak_events AS
-        WITH miss_groups AS (
-            SELECT symbol, event_date, epsActual, epsEstimated, is_beat,
-                SUM(CASE WHEN is_beat = 0 THEN 1 ELSE 0 END)
-                    OVER (PARTITION BY symbol ORDER BY event_date
-                          ROWS UNBOUNDED PRECEDING) AS miss_count
-            FROM surprises_dedup
-        ),
-        with_streak AS (
-            SELECT symbol, event_date, epsActual, epsEstimated, is_beat, miss_count,
-                ROW_NUMBER() OVER (PARTITION BY symbol, miss_count ORDER BY event_date) AS streak_length
-            FROM miss_groups
-            WHERE is_beat = 1
-        )
         SELECT symbol, event_date, streak_length,
             CASE
                 WHEN streak_length = 2 THEN 'streak_2'
@@ -131,8 +207,7 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
                 WHEN streak_length = 4 THEN 'streak_4'
                 ELSE 'streak_5plus'
             END AS category
-        FROM with_streak
-        WHERE streak_length >= 2
+        FROM ({streak_sql})
     """)
 
     n_streak = con.execute("SELECT COUNT(*) FROM streak_events").fetchone()[0]
@@ -478,20 +553,28 @@ def print_results(metrics, universe_name):
     print(f"{'=' * 70}")
 
 
-def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_path=None):
+LEG_SIGNALS = {
+    "beat": f"Consecutive EPS beats (streak >= {MIN_STREAK})",
+    "miss": f"Consecutive EPS misses (streak >= {MIN_STREAK}) [mirror leg]",
+    "break": f"First non-beat after a streak of >= {MIN_STREAK} beats [break leg]",
+}
+
+
+def run_single(cr, exchanges, universe_name, mktcap_min, leg="beat",
+               verbose=False, output_path=None):
     """Run beat streaks event study for a single exchange set."""
     mktcap_label = (f"{mktcap_min/1e9:.0f}B" if mktcap_min >= 1e9
                     else f"{mktcap_min/1e6:.0f}M")
-    signal_desc = (f"Consecutive EPS beats (streak >= {MIN_STREAK}), "
+    signal_desc = (f"{LEG_SIGNALS[leg]}, "
                    f"MCap > {mktcap_label} local, |est| > ${MIN_ESTIMATE}")
     print_header("BEAT STREAKS EVENT STUDY", universe_name, exchanges, signal_desc)
     print(f"  Windows: {', '.join(f'T+{w}' for w in WINDOWS)}")
-    print(f"  Categories: streak_2 / streak_3 / streak_4 / streak_5plus")
+    print(f"  Leg: {leg}  Categories: streak_2 / streak_3 / streak_4 / streak_5plus")
     print("=" * 65)
 
     print("\nPhase 1: Fetching data via API...")
     t0 = time.time()
-    con = fetch_data(cr, exchanges, mktcap_min, verbose=verbose)
+    con = fetch_data(cr, exchanges, mktcap_min, leg=leg, verbose=verbose)
     if con is None:
         return None
     fetch_time = time.time() - t0
@@ -529,6 +612,8 @@ def run_single(cr, exchanges, universe_name, mktcap_min, verbose=False, output_p
 
     output = {
         "strategy": "Earnings Beat Streaks",
+        "leg": leg,
+        "signal": LEG_SIGNALS[leg],
         "universe": universe_name,
         "benchmark": benchmark,
         "study_type": "event_study",
@@ -576,6 +661,11 @@ def main():
     add_common_args(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
+    parser.add_argument("--leg", type=str, default="beat",
+                        choices=["beat", "miss", "break"],
+                        help="Event leg: beat (default, the published study), "
+                             "miss (consecutive-miss mirror for the direction test), "
+                             "or break (first non-beat after a streak)")
     args = parser.parse_args()
 
     if args.cloud:
@@ -624,7 +714,10 @@ def main():
             output_path = None
             if args.output:
                 out_dir = os.path.dirname(args.output) or "."
-                output_path = os.path.join(out_dir, f"beat_streaks_{uni_name}.json")
+                # Non-beat legs get a suffix so they can never clobber the
+                # canonical published beat_streaks_*.json artifacts
+                leg_suffix = "" if args.leg == "beat" else f"_{args.leg}"
+                output_path = os.path.join(out_dir, f"beat_streaks_{uni_name}{leg_suffix}.json")
 
             print(f"\n{'#' * 65}")
             print(f"# {preset_name.upper()} ({uni_name})")
@@ -634,7 +727,8 @@ def main():
 
             try:
                 result = run_single(cr, preset_exchanges, uni_name, mktcap_threshold,
-                                    verbose=args.verbose, output_path=output_path)
+                                    leg=args.leg, verbose=args.verbose,
+                                    output_path=output_path)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -686,7 +780,7 @@ def main():
     mktcap_threshold = get_mktcap_threshold(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, mktcap_threshold,
-               verbose=args.verbose, output_path=args.output)
+               leg=args.leg, verbose=args.verbose, output_path=args.output)
 
 
 if __name__ == "__main__":
