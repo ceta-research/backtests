@@ -26,7 +26,25 @@ Screen for stocks trading at a 30%+ discount to their sector's median EV/EBITDA,
 
 **Rebalancing:** Annual (January), 2000-2025.
 
-**Benchmark:** SPY (S&P 500 ETF)
+**Benchmark:** each market against its own local index, not a US one. S&P 500 (SPY) for the US,
+Sensex for India, Nikkei 225 for Japan, FTSE 100 for the UK, DAX for Germany, SMI for Switzerland,
+TSX Composite for Canada, SSE Composite for China, Hang Seng for Hong Kong, KOSPI for Korea,
+TAIEX for Taiwan, SET Index for Thailand, OMX Stockholm 30 for Sweden, Oslo All Share for Norway.
+South Africa is the one exception: no local index in the data, so it is scored against the S&P 500.
+
+**Execution:** next-day close after the January signal (market-on-close).
+
+**Transaction costs:** size-tiered one-way by market cap, applied round-trip: 0.1% above $10B,
+0.3% for $2-10B, 0.5% below $2B.
+
+**Known gaps (see the content REVIEW.md for the full audit):**
+- The universe does **not** exclude financials. EV/EBITDA does not describe a bank, whose
+  liabilities are part of the operating business, and EBITDA skips net interest income. The
+  live screens in `screen.py` and the published content drop the sector; the backtest never did.
+- `tiered_cost()` is called without `fx_per_usd`, so non-US holdings are tiered on
+  local-currency market caps against USD thresholds. Japan, India, Korea and Taiwan all land in
+  the cheapest tier when most of their holdings belong in the most expensive one, worth roughly
+  0.4-0.8pp of CAGR per year on those markets.
 
 ## Academic Reference
 
@@ -68,7 +86,7 @@ python3 ev-ebitda-relative/generate_charts.py
 | Exchange | Status | Notes |
 |----------|--------|-------|
 | NYSE+NASDAQ+AMEX | Included | US universe, primary backtest |
-| BSE+NSE | Included | India |
+| NSE | Included | India (NSE only: BSE dual-lists the same companies) |
 | JPX | Included | Japan (FY data available since ~2026-03 pipeline fix) |
 | LSE | Included | UK (FY data available since ~2026-03 pipeline fix) |
 | SHZ+SHH | Included | China A-shares |
