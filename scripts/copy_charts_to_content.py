@@ -56,6 +56,7 @@ TOPIC_DIRS = {
     # content dir on disk is named sector-07-momentum.
     "sector-momentum": "sector-07-momentum",
     "fcf-growth": "growth-03-fcf-growth",
+    "rd-efficiency": "growth-05-rd-efficiency",
 }
 
 # Regions whose blog is not live; copying into them is harmless but noisy.
