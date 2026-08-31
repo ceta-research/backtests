@@ -2,7 +2,11 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
+import os as _os, sys as _sys
 from pathlib import Path
+
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import benchmark_label
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -50,6 +54,14 @@ EXCHANGE_LABELS = {
 }
 
 
+REGION_NAMES = {
+    "us": "US", "india": "India", "japan": "Japan", "uk": "UK", "china": "China",
+    "hongkong": "Hong Kong", "taiwan": "Taiwan", "thailand": "Thailand",
+    "germany": "Germany", "korea": "Korea", "canada": "Canada", "sweden": "Sweden",
+    "switzerland": "Switzerland", "norway": "Norway", "southafrica": "South Africa",
+}
+
+
 def get_cumulative_growth(exchange_key, initial=10000):
     ex = data[exchange_key]
     values = [initial]
@@ -77,8 +89,9 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
         ref_key = exchanges[0]
     spy_years, spy_vals = get_spy_cumulative(ref_key)
     spy_cagr = data[ref_key]["spy"]["cagr"]
+    bench = benchmark_label(data, ref_key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{bench} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -131,7 +144,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     offsets = [i - (n_series - 1) * width / 2 for i in x]
 
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
         returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
@@ -281,14 +294,16 @@ for ex_key, region_slug, footer in EXCHANGE_CHART_CONFIGS:
     ex = data[ex_key]
     start_year = ex["annual_returns"][0]["year"] if ex["annual_returns"] else 2000
     end_year = ex["annual_returns"][-1]["year"] if ex["annual_returns"] else 2025
+    bench = benchmark_label(data, ex_key)
+    region = REGION_NAMES.get(region_slug, region_slug.title())
     chart_cumulative(
         [ex_key], f"{region_slug}_cumulative_growth.png",
-        f"Growth of $10,000: EV/EBITDA Sector-Relative {region_slug.title()} vs S&P 500 ({start_year}-{end_year})",
+        f"Growth of $10,000: EV/EBITDA Sector-Relative {region} vs {bench} ({start_year}-{end_year})",
         footer
     )
     chart_annual_bars(
         [ex_key], f"{region_slug}_annual_returns.png",
-        f"EV/EBITDA Sector-Relative {region_slug.title()} vs S&P 500: Year-by-Year Returns ({start_year}-{end_year})",
+        f"EV/EBITDA Sector-Relative {region} vs {bench}: Year-by-Year Returns ({start_year}-{end_year})",
         footer
     )
 

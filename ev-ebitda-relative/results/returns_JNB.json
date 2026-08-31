@@ -1,22 +1,22 @@
 {
-  "universe": "JSE",
+  "universe": "JNB",
   "n_periods": 25,
   "years": 25.0,
   "frequency": "annual",
   "cash_periods": 23,
   "invested_periods": 2,
-  "avg_stocks_when_invested": 10.0,
+  "avg_stocks_when_invested": 8.0,
   "portfolio": {
-    "total_return": -17.25,
-    "cagr": -0.75,
-    "max_drawdown": -17.35,
-    "annualized_volatility": 3.47,
-    "sharpe_ratio": -2.811,
-    "sortino_ratio": -0.95,
-    "calmar_ratio": -0.043,
-    "var_95": 0.0,
+    "total_return": -23.25,
+    "cagr": -1.05,
+    "max_drawdown": -23.25,
+    "annualized_volatility": 4.12,
+    "sharpe_ratio": -2.439,
+    "sortino_ratio": -0.935,
+    "calmar_ratio": -0.045,
+    "var_95": -3.51,
     "max_consecutive_losses": 1,
-    "pct_negative_periods": 4.0
+    "pct_negative_periods": 8.0
   },
   "spy": {
     "total_return": 530.71,
@@ -31,16 +31,16 @@
     "pct_negative_periods": 28.0
   },
   "comparison": {
-    "excess_cagr": -8.4,
+    "excess_cagr": -8.7,
     "win_rate": 28.0,
-    "information_ratio": -0.537,
-    "tracking_error": 18.34,
-    "up_capture": -5.27,
+    "information_ratio": -0.539,
+    "tracking_error": 18.75,
+    "up_capture": -7.33,
     "down_capture": -0.0,
-    "beta": -0.029,
-    "alpha": -9.79
+    "beta": -0.046,
+    "alpha": -10.12
   },
-  "excess_cagr": -8.4,
+  "excess_cagr": -8.7,
   "win_rate_vs_spy": 28.0,
   "annual_returns": [
     {
@@ -147,9 +147,9 @@
     },
     {
       "year": 2017,
-      "portfolio": -17.35,
+      "portfolio": -20.46,
       "spy": 21.64,
-      "excess": -38.99
+      "excess": -42.1
     },
     {
       "year": 2018,
@@ -159,9 +159,9 @@
     },
     {
       "year": 2019,
-      "portfolio": 0.12,
+      "portfolio": -3.51,
       "spy": 32.31,
-      "excess": -32.19
+      "excess": -35.83
     },
     {
       "year": 2020,
@@ -193,5 +193,7 @@
       "spy": 25.28,
       "excess": -25.28
     }
-  ]
+  ],
+  "benchmark": "SPY",
+  "benchmark_name": "S&P 500"
 }

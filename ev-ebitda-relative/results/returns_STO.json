@@ -3,20 +3,20 @@
   "n_periods": 25,
   "years": 25.0,
   "frequency": "annual",
-  "cash_periods": 13,
-  "invested_periods": 12,
-  "avg_stocks_when_invested": 20.4,
+  "cash_periods": 11,
+  "invested_periods": 14,
+  "avg_stocks_when_invested": 17.2,
   "portfolio": {
-    "total_return": 257.46,
-    "cagr": 5.23,
+    "total_return": 534.11,
+    "cagr": 7.67,
     "max_drawdown": -40.6,
-    "annualized_volatility": 22.31,
-    "sharpe_ratio": 0.145,
-    "sortino_ratio": 0.309,
-    "calmar_ratio": 0.129,
-    "var_95": -24.43,
+    "annualized_volatility": 25.71,
+    "sharpe_ratio": 0.22,
+    "sortino_ratio": 0.531,
+    "calmar_ratio": 0.189,
+    "var_95": -20.37,
     "max_consecutive_losses": 1,
-    "pct_negative_periods": 12.0
+    "pct_negative_periods": 16.0
   },
   "spy": {
     "total_return": 107.03,
@@ -31,16 +31,16 @@
     "pct_negative_periods": 36.0
   },
   "comparison": {
-    "excess_cagr": 2.27,
+    "excess_cagr": 4.71,
     "win_rate": 56.0,
-    "information_ratio": 0.119,
-    "tracking_error": 19.21,
-    "up_capture": 89.92,
-    "down_capture": 46.74,
-    "beta": 0.653,
-    "alpha": 2.6
+    "information_ratio": 0.257,
+    "tracking_error": 20.81,
+    "up_capture": 120.51,
+    "down_capture": 53.97,
+    "beta": 0.772,
+    "alpha": 4.93
   },
-  "excess_cagr": 2.27,
+  "excess_cagr": 4.71,
   "win_rate_vs_spy": 56.0,
   "annual_returns": [
     {
@@ -81,9 +81,9 @@
     },
     {
       "year": 2006,
-      "portfolio": 0.0,
+      "portfolio": 34.35,
       "spy": 20.84,
-      "excess": -20.84
+      "excess": 13.52
     },
     {
       "year": 2007,
@@ -99,9 +99,9 @@
     },
     {
       "year": 2009,
-      "portfolio": 79.36,
+      "portfolio": 85.6,
       "spy": 38.89,
-      "excess": 40.48
+      "excess": 46.71
     },
     {
       "year": 2010,
@@ -111,15 +111,15 @@
     },
     {
       "year": 2011,
-      "portfolio": 0.0,
+      "portfolio": -17.16,
       "spy": -15.08,
-      "excess": 15.08
+      "excess": -2.08
     },
     {
       "year": 2012,
-      "portfolio": 28.45,
+      "portfolio": 31.71,
       "spy": 13.06,
-      "excess": 15.39
+      "excess": 18.65
     },
     {
       "year": 2013,
@@ -141,57 +141,59 @@
     },
     {
       "year": 2016,
-      "portfolio": 22.72,
+      "portfolio": 29.44,
       "spy": 9.5,
-      "excess": 13.22
+      "excess": 19.95
     },
     {
       "year": 2017,
-      "portfolio": 28.35,
+      "portfolio": 45.8,
       "spy": 3.47,
-      "excess": 24.88
+      "excess": 42.33
     },
     {
       "year": 2018,
-      "portfolio": -10.56,
+      "portfolio": -9.15,
       "spy": -11.01,
-      "excess": 0.45
+      "excess": 1.86
     },
     {
       "year": 2019,
-      "portfolio": 38.92,
+      "portfolio": 45.75,
       "spy": 28.65,
-      "excess": 10.27
+      "excess": 17.1
     },
     {
       "year": 2020,
-      "portfolio": 17.46,
+      "portfolio": 28.87,
       "spy": 4.8,
-      "excess": 12.66
+      "excess": 24.07
     },
     {
       "year": 2021,
-      "portfolio": 13.63,
+      "portfolio": 12.24,
       "spy": 28.95,
-      "excess": -15.32
+      "excess": -16.71
     },
     {
       "year": 2022,
-      "portfolio": -24.43,
+      "portfolio": -20.37,
       "spy": -15.07,
-      "excess": -9.35
+      "excess": -5.29
     },
     {
       "year": 2023,
-      "portfolio": 10.4,
+      "portfolio": 14.7,
       "spy": 15.38,
-      "excess": -4.98
+      "excess": -0.67
     },
     {
       "year": 2024,
-      "portfolio": 19.85,
+      "portfolio": 18.84,
       "spy": 4.76,
-      "excess": 15.09
+      "excess": 14.08
     }
-  ]
+  ],
+  "benchmark": "^OMXS30",
+  "benchmark_name": "OMX Stockholm 30"
 }
