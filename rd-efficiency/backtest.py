@@ -106,7 +106,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
 
     # 1. Universe
     print("  Fetching exchange membership...")
-    profile_sql = f"SELECT DISTINCT symbol, exchange FROM profile {exchange_where}"
+    profile_sql = (f"SELECT DISTINCT symbol, exchange, companyName "
+                   f"FROM profile {exchange_where}")
     profiles = client.query(profile_sql, verbose=verbose)
     if not profiles:
         print("  No symbols found for these exchanges.")
@@ -115,6 +116,15 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
 
     sym_values = ",".join(f"('{r['symbol']}')" for r in profiles)
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
+
+    # symbol -> companyName, used by screen_stocks to collapse a company's multiple
+    # listings (share classes, preferred lines) to one portfolio slot. Without this a
+    # single company can occupy several of the MAX_STOCKS slots and get a multiple of
+    # its intended weight: Becton Dickinson held 3 of 30 US slots in 2000-2005 and
+    # Ziff Davis 2 slots in 13 of the last 15 years before this guard existed.
+    con.execute("CREATE TABLE company_names(symbol VARCHAR, companyName VARCHAR)")
+    con.executemany("INSERT INTO company_names VALUES (?, ?)",
+                    [(r["symbol"], r.get("companyName")) for r in profiles])
 
     if exchanges:
         # Must carry the same conditions as the profile query above: screen_stocks
@@ -211,12 +221,22 @@ def screen_stocks(con, target_date, mktcap_min):
                inc.grossProfit / inc.researchAndDevelopmentExpenses AS rd_efficiency
         FROM inc
         JOIN km ON inc.symbol = km.symbol AND km.rn = 1
+        LEFT JOIN company_names cn ON inc.symbol = cn.symbol
         WHERE inc.rn = 1
           AND inc.researchAndDevelopmentExpenses / inc.revenue > ?
           AND inc.researchAndDevelopmentExpenses / inc.revenue < ?
           AND inc.grossProfit / inc.revenue > ?
           AND km.returnOnEquity > ?
           AND km.marketCap > ?
+        -- One slot per company. COALESCE matters: a bare PARTITION BY on a NULL
+        -- companyName groups every unnamed symbol into a single slot. The tiebreak is
+        -- point-in-time marketCap, deliberately NOT profile.averageVolume (which the
+        -- live doc screens use): averageVolume is a current snapshot and would leak
+        -- look-ahead into a historical screen. symbol breaks exact ties deterministically.
+        QUALIFY ROW_NUMBER() OVER (
+            PARTITION BY COALESCE(cn.companyName, inc.symbol)
+            ORDER BY km.marketCap DESC, inc.symbol
+        ) = 1
         ORDER BY rd_efficiency DESC
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
@@ -332,6 +352,12 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
             "pct_negative_periods": pct(s.get("pct_negative_periods")),
         }
 
+    # year -> names actually held, taken from the per-period records. Annual frequency means
+    # one period per year; for finer frequencies this keeps the last period of the year.
+    held_by_year = {}
+    for r in (valid or []):
+        held_by_year[str(r["rebalance_date"])[:4]] = r.get("stocks_held")
+
     return {
         "universe": universe_name,
         "benchmark": benchmark,
@@ -362,7 +388,13 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
             {"year": ar["year"],
              "portfolio": round(ar["portfolio"] * 100, 2),
              "spy": round(ar["benchmark"] * 100, 2),
-             "excess": round(ar["excess"] * 100, 2)}
+             "excess": round(ar["excess"] * 100, 2),
+             # Names actually HELD, after the entry-price and single-period-return guards
+             # drop positions. This is NOT what MIN_STOCKS gates on: that test runs against
+             # screen output, before the drops, so the held book can and does fall below the
+             # floor. Published "average book of N names" claims hide that; without this
+             # field the only way to check one is a --verbose re-run.
+             "stocks_held": held_by_year.get(str(ar["year"]), None)}
             for ar in annual
         ],
     }

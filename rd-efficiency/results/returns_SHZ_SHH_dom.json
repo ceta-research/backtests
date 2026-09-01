@@ -3,21 +3,21 @@
   "benchmark": "000001.SS",
   "benchmark_name": "SSE Composite",
   "execution": "MOC (next-day close)",
-  "domicile_filter": false,
+  "domicile_filter": true,
   "n_periods": 25,
   "years": 25.0,
   "frequency": "annual",
   "cash_periods": 8,
   "invested_periods": 17,
-  "avg_stocks_when_invested": 20.1,
+  "avg_stocks_when_invested": 20.2,
   "portfolio": {
-    "total_return": 65.67,
-    "cagr": 2.04,
+    "total_return": 67.63,
+    "cagr": 2.09,
     "max_drawdown": -42.93,
-    "annualized_volatility": 15.72,
-    "sharpe_ratio": -0.029,
-    "sortino_ratio": -0.052,
-    "calmar_ratio": 0.048,
+    "annualized_volatility": 15.74,
+    "sharpe_ratio": -0.026,
+    "sortino_ratio": -0.047,
+    "calmar_ratio": 0.049,
     "var_95": -18.67,
     "max_consecutive_losses": 3,
     "pct_negative_periods": 28.0
@@ -35,16 +35,16 @@
     "pct_negative_periods": 52.0
   },
   "comparison": {
-    "excess_cagr": -0.39,
+    "excess_cagr": -0.34,
     "win_rate": 52.0,
-    "information_ratio": -0.114,
-    "tracking_error": 34.27,
-    "up_capture": 32.13,
+    "information_ratio": -0.113,
+    "tracking_error": 34.26,
+    "up_capture": 32.47,
     "down_capture": 21.59,
     "beta": 0.155,
-    "alpha": -0.45
+    "alpha": -0.4
   },
-  "excess_cagr": -0.39,
+  "excess_cagr": -0.34,
   "win_rate_vs_spy": 52.0,
   "annual_returns": [
     {
@@ -109,9 +109,9 @@
     },
     {
       "year": 2010,
-      "portfolio": 8.99,
+      "portfolio": 10.28,
       "spy": 18.04,
-      "excess": -9.05
+      "excess": -7.76
     },
     {
       "year": 2011,
