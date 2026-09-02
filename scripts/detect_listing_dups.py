@@ -15,7 +15,7 @@ DETECTION ONLY. It does not fix, rerun, or touch content.
 Usage:  python3 scripts/detect_listing_dups.py [--dates 2005-07-01,2015-07-01,2024-07-01]
 Output: scripts/listing_dup_report.jsonl  (one line per strategy, written incrementally)
 """
-import argparse, datetime, importlib.util, io, json, os, sys, traceback
+import argparse, datetime, importlib.util, inspect, io, json, os, sys, traceback
 import contextlib
 from collections import Counter
 
@@ -37,10 +37,39 @@ def load_module(strategy):
 
 def screen_fn(m):
     for name in ('screen_stocks', 'screen_quality', 'screen_value', 'screen_and_score',
-                 'screen_low_pe', 'screen_dogs'):
+                 'screen_low_pe', 'screen_dogs', 'screen_sectors'):
         if hasattr(m, name):
             return name, getattr(m, name)
     return None, None
+
+
+def screen_args(m, fn, mktcap):
+    """Build positional args for a strategy's screen from its signature.
+
+    Signatures vary: (con, date, mktcap_min), (con, date, small_cap_min, small_cap_max),
+    (con, date, mktcap_min, ey_threshold), (con, date, n_worst)... Passing a single mktcap
+    to a two-bound screen makes it return nothing, which reads as 'no duplicates' — a false
+    clean. Resolve each parameter by name against the module's own constants instead.
+    """
+    params = list(inspect.signature(fn).parameters.values())[2:]   # skip con, target_date
+    args = []
+    for p in params:
+        n = p.name.lower()
+        if 'small_cap_min' in n or n in ('cap_min',):
+            args.append(getattr(m, 'SMALL_CAP_MIN', getattr(m, 'CAP_MIN', 300_000_000)))
+        elif 'small_cap_max' in n or n in ('cap_max',):
+            args.append(getattr(m, 'SMALL_CAP_MAX', getattr(m, 'CAP_MAX', 2_000_000_000)))
+        elif 'mktcap' in n or 'marketcap' in n:
+            args.append(mktcap)
+        elif p.default is not inspect.Parameter.empty:
+            args.append(p.default)
+        else:
+            for const in (p.name.upper(), n.upper()):
+                if hasattr(m, const):
+                    args.append(getattr(m, const)); break
+            else:
+                raise TypeError(f'cannot resolve screen arg {p.name!r}')
+    return args
 
 
 def run_one(cr, strategy, dates, exchanges):
@@ -58,10 +87,17 @@ def run_one(cr, strategy, dates, exchanges):
     for attempt in range(3):
         try:
             with contextlib.redirect_stdout(io.StringIO()):
-                try:
-                    con = fetch(cr, exchanges, dates, verbose=False)
-                except TypeError:
-                    con = fetch(cr, exchanges, mktcap, verbose=False)
+                for call in (lambda: fetch(cr, exchanges, dates, verbose=False),
+                             lambda: fetch(cr, exchanges, mktcap, verbose=False),
+                             lambda: fetch(cr, exchanges, dates),
+                             lambda: fetch(cr, exchanges, verbose=False),
+                             lambda: fetch(cr, exchanges)):
+                    try:
+                        con = call(); break
+                    except TypeError:
+                        continue
+                else:
+                    raise TypeError('no fetch signature matched')
             break
         except Exception as e:
             if attempt == 2:
@@ -74,7 +110,7 @@ def run_one(cr, strategy, dates, exchanges):
     for d in dates:
         try:
             with contextlib.redirect_stdout(io.StringIO()):
-                rows = fn(con, d, mktcap)
+                rows = fn(con, d, *screen_args(m, fn, mktcap))
             syms = [r[0] if isinstance(r, (list, tuple)) else r for r in rows]
         except Exception as e:
             per_date[d.isoformat()] = {'error': f'{type(e).__name__}: {str(e)[:120]}'}
