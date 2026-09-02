@@ -212,7 +212,21 @@ def main():
         print(f"pricing {s} ...", flush=True)
         t0 = time.time()
         try:
-            b, f = price(cr, s, ex, args.universe)
+            # CR occasionally returns a truncated parquet ("invalid end magic bytes"). It is
+            # transient and costs a full run, so retry with backoff rather than recording a
+            # failure that looks like a result.
+            last = None
+            for attempt in range(4):
+                try:
+                    b, f = price(cr, s, ex, args.universe); last = None; break
+                except Exception as e:
+                    last = e
+                    if 'parquet' not in str(e).lower() and 'magic bytes' not in str(e).lower():
+                        raise
+                    print(f"    transient fetch failure, retry {attempt+1}/3 in 20s", flush=True)
+                    time.sleep(20)
+            if last is not None:
+                raise last
             rec = {'strategy': s, 'baseline': b, 'deduped': f,
                    'secs': round(time.time() - t0)}
             if b and f:
