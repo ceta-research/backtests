@@ -162,21 +162,33 @@ def price(cr, strategy, exchanges, uni, widen=4):
             for sym, v in rows.items():
                 n = nm.get(sym, sym)
                 mc = v[1] if isinstance(v, (list, tuple)) and len(v) > 1 else 0
-                if n not in best or mc > best[n][1]:
-                    best[n] = (sym, mc or 0)
-            keep_syms = {sym for sym, _ in best.values()}
+                mc = mc or 0
+                # ⚠️ marketCap TIES ARE THE COMMON CASE: FMP gives every line of a company
+                # the same cap, so RGA/RZA/RZB/RZC all tie. Without a deterministic
+                # tiebreak the winner depends on SQL row order, which DuckDB does not
+                # guarantee — two runs then price different books. The real guard in
+                # rd-efficiency/backtest.py breaks ties on `inc.symbol` for exactly this
+                # reason; mirror it.
+                cand = (-mc, sym)
+                if n not in best or cand < best[n][0]:
+                    best[n] = (cand, sym)
+            keep_syms = {sym for _, sym in best.values()}
             return {s_: v for s_, v in rows.items() if s_ in keep_syms}
 
         syms = [r[0] for r in rows]
         nm = names_for(syms)
-        seen, keep = set(), []
-        for r in rows:                     # rows are already ranked by the signal
+        # Keep the strategy's own ranking, but when one company appears more than once
+        # choose which line survives deterministically (largest marketCap, then symbol)
+        # rather than whichever the scan happened to emit first.
+        by_name = {}
+        for i, r in enumerate(rows):
             n = nm.get(r[0], r[0])
-            if n in seen:
-                continue
-            seen.add(n); keep.append(r)
-            if len(keep) >= MAX:
-                break
+            mc = r[1] if len(r) > 1 and isinstance(r[1], (int, float)) else 0
+            cand = (-(mc or 0), r[0])
+            if n not in by_name or cand < by_name[n][0]:
+                by_name[n] = (cand, i, r)
+        winners = {v[1] for v in by_name.values()}
+        keep = [r for i, r in enumerate(rows) if i in winners][:MAX]
         return keep
 
     setattr(m, sname, patched)
