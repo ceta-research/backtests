@@ -228,15 +228,21 @@ def main():
             # transient and costs a full run, so retry with backoff rather than recording a
             # failure that looks like a result.
             last = None
-            for attempt in range(4):
+            for attempt in range(5):
                 try:
                     b, f = price(cr, s, ex, args.universe); last = None; break
                 except Exception as e:
                     last = e
-                    if 'parquet' not in str(e).lower() and 'magic bytes' not in str(e).lower():
+                    msg = str(e).lower()
+                    transient = ('parquet' in msg or 'magic bytes' in msg
+                                 or 'rate limit' in msg or '429' in msg)
+                    if not transient:
                         raise
-                    print(f"    transient fetch failure, retry {attempt+1}/3 in 20s", flush=True)
-                    time.sleep(20)
+                    # The API asks for 60s on a rate limit; honour it rather than hammering.
+                    wait = 75 if 'rate limit' in msg else 20
+                    print(f"    transient ({type(e).__name__}), retry {attempt+1}/3 in {wait}s",
+                          flush=True)
+                    time.sleep(wait)
             if last is not None:
                 raise last
             rec = {'strategy': s, 'baseline': b, 'deduped': f,
