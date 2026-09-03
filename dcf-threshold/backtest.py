@@ -276,6 +276,30 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                         max_single_return=MAX_SINGLE_RETURN,
                                         verbose=verbose)
 
+        # The cash rule has to be re-checked HERE, not just on the screen count.
+        # Screening can pass 30 names while only a handful of them have usable
+        # prices at this rebalance, and averaging 1-4 survivors reports a single
+        # stock's year as a diversified portfolio return.
+        if len(clean) < MIN_STOCKS:
+            spy_entry = get_prices(con, ["SPY"], entry_date)
+            spy_exit = get_prices(con, ["SPY"], exit_date)
+            spy_return = None
+            if "SPY" in spy_entry and "SPY" in spy_exit and spy_entry["SPY"] > 0:
+                spy_return = (spy_exit["SPY"] - spy_entry["SPY"]) / spy_entry["SPY"]
+
+            results.append({
+                "rebalance_date": entry_date.isoformat(),
+                "exit_date": exit_date.isoformat(),
+                "portfolio_return": 0.0,
+                "spy_return": spy_return,
+                "stocks_held": 0,
+                "holdings": f"CASH ({len(clean)} priced of {len(portfolio)} screened)",
+            })
+            if verbose:
+                print(f"    {entry_date}: only {len(clean)} of {len(portfolio)} screened "
+                      f"names had usable prices (< {MIN_STOCKS}), CASH")
+            continue
+
         returns = []
         for sym, raw_ret, mcap in clean:
             if use_costs:
