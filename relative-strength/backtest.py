@@ -460,6 +460,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
         "cash_periods": cash_periods,
         "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
+        "period_data": results,
         "avg_sectors_when_invested": round(avg_sectors, 1),
         "benchmark_name": benchmark_name,
         "benchmark_symbol": benchmark_symbol,

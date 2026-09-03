@@ -383,6 +383,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
         "cash_periods": cash_periods,
         "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
+        "period_data": results,
         "portfolio": format_series(p),
         "spy": format_series(b),
         "comparison": {

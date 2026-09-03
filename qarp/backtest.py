@@ -410,6 +410,7 @@ def build_output(raw_metrics, results, universe_name, periods_per_year):
         "cash_periods": cash_periods,
         "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
+        "period_data": results,
         "portfolio": {
             "total_return": pct(p["total_return"]),
             "cagr": pct(p["cagr"]),

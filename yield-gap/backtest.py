@@ -370,6 +370,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
         "cash_periods": cash_periods,
         "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
+        "period_data": results,
         "ey_threshold_pct": round(ey_threshold * 100, 2),
         "portfolio": fmt(p),
         "spy": fmt(b),

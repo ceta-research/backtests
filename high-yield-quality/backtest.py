@@ -422,6 +422,7 @@ def main():
             "cash_periods": cash_periods,
             "invested_periods": len(valid) - cash_periods,
             "avg_stocks_when_invested": round(avg_stocks, 1),
+            "period_data": results,
             "execution_model": exec_model,
             "benchmark_symbol": benchmark_symbol,
             "benchmark_name": benchmark_name,
