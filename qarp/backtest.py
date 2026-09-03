@@ -39,7 +39,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, remove_price_oscillations, entry_buyable_prices
-from metrics import compute_metrics as _compute_metrics, compute_annual_returns, format_metrics
+from metrics import compute_metrics as _compute_metrics, compute_annual_returns, format_metrics, period_accounting
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
 
 # --- Signal parameters ---

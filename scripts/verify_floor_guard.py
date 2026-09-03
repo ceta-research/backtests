@@ -556,6 +556,118 @@ def main():
         print("    WRONG DENOMINATOR:", b)
     fails += [("cash denominator", b) for b in bad9]
 
+    # ---- gate 10: every call to the shared helper actually BINDS the callee
+    #
+    # This gate exists because the class it catches shipped. qarp/backtest.py
+    # called period_accounting() while importing only
+    # `compute_metrics as _compute_metrics, compute_annual_returns,
+    # format_metrics` -- qarp is the one topic that ALIASES the metrics import,
+    # so a mechanical edit keyed on the common `from metrics import
+    # compute_metrics, ...` shape skipped it. Every gate above passed with that
+    # defect live: the module IMPORTS clean (gate 2) because the call sits
+    # inside build_output, which main() reaches only under `if args.output:`.
+    # So the backtest ran to completion and then died with NameError while
+    # writing its record -- after the work, discarding the results.
+    #
+    # Why the existing dynamic harnesses could not have caught it:
+    # test_build_output_synthetic.py only drives the canonical 9-arg signature,
+    # and test_noncanonical_build_output.py's binding check collects names from
+    # a Call's `.args` and `.keywords` -- the ARGUMENTS -- and never inspects
+    # the callee itself. 13 topics are executed by neither. A static gate over
+    # every call site is the only check that reaches all of them.
+    HELPERS = {"period_accounting", "warn_if_truncated"}
+
+    def bound_names(tree):
+        """Names bound at any scope in the file: imports, defs, assignments.
+
+        Deliberately scope-blind. A name bound anywhere is good enough to prove
+        the callee is not simply absent, which is the defect class here; a
+        genuine scoping error would surface as a NameError under the dynamic
+        harnesses instead.
+        """
+        out = set()
+        for n in ast.walk(tree):
+            if isinstance(n, ast.ImportFrom):
+                out.update(a.asname or a.name for a in n.names)
+            elif isinstance(n, ast.Import):
+                out.update((a.asname or a.name).split(".")[0] for a in n.names)
+            elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                ast.ClassDef)):
+                out.add(n.name)
+            elif isinstance(n, ast.Assign):
+                out.update(t.id for t in n.targets if isinstance(t, ast.Name))
+            elif isinstance(n, (ast.AnnAssign, ast.NamedExpr)):
+                if isinstance(n.target, ast.Name):
+                    out.add(n.target.id)
+            elif isinstance(n, ast.arg):
+                out.add(n.arg)
+        return out
+
+    def unbound_helper_calls(tree):
+        """(callee, lineno) for bare-name helper calls whose name is unbound.
+
+        Attribute calls (`metrics.period_accounting(...)`) are not bare Names
+        and are correctly ignored: their binding is the module import, which
+        gate 2 already proves.
+        """
+        names = bound_names(tree)
+        return [(n.func.id, n.lineno) for n in ast.walk(tree)
+                if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                and n.func.id in HELPERS and n.func.id not in names]
+
+    # Root .py files host the helper itself, so scan them too. Pre-filter on
+    # text: four pre-existing screen.py files (deleveraging, high-yield-quality,
+    # low-debt, revenue-accel) do not parse under this Python's ast, are
+    # untouched by this branch, and contain no helper call -- verified. Without
+    # the pre-filter their SyntaxError would have to be swallowed, which is how
+    # a gate goes quietly blind.
+    bind_files = [f for f in sorted(ROOT.glob("*/*.py")) + sorted(ROOT.glob("*.py"))
+                  if any(h in f.read_text() for h in HELPERS)]
+    bad10, call_sites = [], 0
+    for f in bind_files:
+        try:
+            tree = ast.parse(f.read_text())
+        except SyntaxError as e:
+            bad10.append((str(f.relative_to(ROOT)), 0, f"does not parse: {e}"))
+            continue
+        call_sites += sum(1 for n in ast.walk(tree)
+                          if isinstance(n, ast.Call)
+                          and isinstance(n.func, ast.Name)
+                          and n.func.id in HELPERS)
+        for name, lineno in unbound_helper_calls(tree):
+            bad10.append((str(f.relative_to(ROOT)), lineno,
+                          f"calls {name}() but never binds the name -- "
+                          "NameError at write time"))
+    print(f"10 BINDING {call_sites - len(bad10)}/{call_sites} helper call sites "
+          f"bind their callee ({len(bind_files)} files scanned)")
+    for b in bad10:
+        print("    UNBOUND CALLEE:", b)
+    fails += [("unbound callee", b) for b in bad10]
+    # SELF-TEST, positive control. A binding check that collects the wrong node
+    # set passes vacuously on a clean tree and looks identical to a working one.
+    # That is exactly how test_noncanonical_build_output.py's version went
+    # blind. So feed the detector the qarp defect verbatim and require a flag.
+    probe10 = ast.parse(
+        "from metrics import compute_metrics as _compute_metrics, "
+        "format_metrics\ndef build_output(results, valid, c):\n"
+        "    return {**period_accounting(results, valid, c)}\n")
+    if not unbound_helper_calls(probe10):
+        print("    SELF-TEST FAIL: the detector no longer flags an unbound "
+              "period_accounting() call; gate 10 is passing vacuously")
+        fails.append(("gate 10 vacuous", "probe not flagged"))
+    # And the negative control: a correctly-imported call must NOT be flagged,
+    # or the gate is a tripwire that fires on everything and gets disabled.
+    probe10_ok = ast.parse(
+        "from metrics import period_accounting, warn_if_truncated\n"
+        "x = period_accounting(a, b, c)\nwarn_if_truncated(x)\n")
+    if unbound_helper_calls(probe10_ok):
+        print("    SELF-TEST FAIL: gate 10 flags a correctly-imported call")
+        fails.append(("gate 10 false positive", "clean probe flagged"))
+    if call_sites < 60:
+        print(f"    SELF-TEST FAIL: only {call_sites} helper call sites found; "
+              "the AST walk has probably stopped matching")
+        fails.append(("gate 10 coverage", call_sites))
+
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")
     return 0 if not fails else 1
