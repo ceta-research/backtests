@@ -73,6 +73,20 @@ SCOPE_ALLOW = {
     # NOT counting bugs and that need their own re-run (graham-timing's 0.0
     # benchmark substitution, capex-efficiency's invented invested_periods).
     "DATA_QUALITY_ISSUES.md",
+} | {
+    # B006 presentation layer: each renders a cash percentage read from a
+    # results JSON, so each needs total_rebalances as its denominator or it
+    # shows 168% cash on a truncated leg. oversold-quality additionally drops a
+    # workaround that filtered out rows with negative invested_periods.
+    f"{t}/generate_charts.py"
+    for t in ("52-week-high", "quality-momentum", "earnings-consistency",
+              "price-momentum", "value-momentum", "cyclical-timing",
+              "pairs-zscore", "relative-strength", "oversold-quality",
+              "pairs-fundamentals", "pairs-multi-pair")
+} | {
+    # Same denominator fix, plus it now carries window_label through to the
+    # arena summary.
+    "nse_arena/framework.py",
 }
 
 
@@ -509,12 +523,22 @@ def main():
     # ---- gate 9: no cash percentage still divides by the metrics window
     # Two distinct shapes. A single pattern anchored on the literal
     # "cash_periods" catches only the second and leaves all 55 printers unguarded.
+    # Shape 1, the run_all summary printers: `cash_periods` is bound to `cp` on
+    # an earlier line, so a pattern anchored on the literal never reaches the
+    # division. 52 of the 68 denominators are this shape.
     PRINTER = re.compile(
         r'cp\s*=\s*r\.get\("cash_periods".*?\n.*?cp\s*\*\s*100\s*/\s*'
         r'(?:n|n_periods|n_years)\b', re.S)
+    # Shape 2, chart files that divide inline by a named metrics-window key.
     INLINE = re.compile(
-        r'cash_periods.{0,80}?/\s*(?:max\()?\s*(?:\w+\.get\(")?'
-        r'(?:n_periods|n_years)\b', re.S)
+        r'cash_periods.{0,80}?/\s*(?:max\()?\s*(?:\w+\.get\(|\w+\[)?\s*'
+        r'["\']?(?:n_periods|n_years)\b', re.S)
+    # Shape 3, chart files that bind the metrics window to a local `n` first and
+    # then divide by it. Missed by both patterns above, and it is how eight of
+    # the generate_charts.py files were written.
+    LOCAL_N = re.compile(
+        r'n\s*=\s*\w+\.get\(\s*["\'](?:n_periods|n_years)["\'].*?\n.*?'
+        r'cash_periods.{0,60}?/\s*n\b', re.S)
     bad9 = []
     for f in py_files:
         src = f.read_text()
@@ -523,6 +547,9 @@ def main():
             bad9.append((rel, "summary printer divides cash by the metrics window"))
         if INLINE.search(src):
             bad9.append((rel, "inline cash pct divides by the metrics window"))
+        if LOCAL_N.search(src):
+            bad9.append((rel, "cash pct divides by a local bound to the "
+                              "metrics window"))
     print(f"9 DENOMINATOR {len(py_files) - len(set(b[0] for b in bad9))}"
           f"/{len(py_files)} files free of metrics-window cash denominators")
     for b in bad9:

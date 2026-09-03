@@ -223,8 +223,14 @@ def chart_comparison_cagr(filename):
 
 def chart_comparison_cash(filename):
     """Horizontal bar chart: Cash% by exchange (how often strategy sits out)."""
+    # B006: divide by total_rebalances, not n_years. Cash is counted over every
+    # year the strategy ran; n_years counts only the benchmark-priced ones.
+    # Fallback keeps pre-B006 result files renderable.
+    def _tr(v):
+        return v.get("total_rebalances") or v.get("n_years", 0)
+
     valid = [(k, data[k]) for k in VALID_EXCHANGES]
-    valid.sort(key=lambda x: x[1]["cash_periods"] / x[1]["n_years"])
+    valid.sort(key=lambda x: x[1]["cash_periods"] / max(_tr(x[1]), 1))
 
     names = []
     cash_pcts = []
@@ -237,7 +243,7 @@ def chart_comparison_cash(filename):
         "XETRA": "Germany", "TSX": "Canada", "STO": "Sweden",
     }
     for k, v in valid:
-        cash_pct = round(v["cash_periods"] * 100 / v["n_years"])
+        cash_pct = round(v["cash_periods"] * 100 / max(_tr(v), 1))
         cash_pcts.append(cash_pct)
         names.append(label_map.get(k, k))
         colors.append(COLORS.get(k, "#95a5a6"))

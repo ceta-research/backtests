@@ -86,7 +86,11 @@ def plot_cumulative(data, label, output_path):
     conv_rate = ts.get("convergence_rate", 0)
     avg_trade = ts.get("avg_trade_return_pct", 0)
     n = data.get("n_years", 20)
-    cash_pct = round(data.get("cash_periods", 0) * 100 / n, 0) if n > 0 else 0
+    # B006: divide by total_rebalances, not n_years. Cash is counted over every
+    # year the strategy ran; n_years counts only the benchmark-priced ones.
+    # Fallback keeps pre-B006 result files renderable.
+    tr = data.get("total_rebalances") or n
+    cash_pct = round(data.get("cash_periods", 0) * 100 / tr, 0) if tr > 0 else 0
 
     info_text = (
         f"Max Drawdown: {data['portfolio']['max_drawdown']:.1f}%\n"

@@ -289,15 +289,24 @@ def chart_comparison_drawdown(filename):
 
 def chart_cash_periods(filename):
     """Bar chart showing cash period percentage by exchange (unique to this strategy)."""
+    # B006: the `invested_periods >= 0` filter that stood here is REMOVED. It
+    # was a presentation-layer workaround for negative invested_periods -- the
+    # arithmetic is fixed at the source now, so nothing can go negative and the
+    # guard would only hide real rows. Gate on total_rebalances instead of
+    # n_periods so a fully-truncated all-cash leg still charts rather than
+    # vanishing; that leg ran, and its cash rate is the interesting fact about
+    # it. The `or` fallback keeps pre-B006 result files renderable.
+    def _tr(v):
+        return v.get("total_rebalances") or v.get("n_periods", 0)
+
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if isinstance(v, dict) and v.get("n_periods", 0) > 0
-        and v.get("invested_periods", 0) >= 0  # drop rows with broken benchmark coverage (e.g. OSL)
+        if isinstance(v, dict) and _tr(v) > 0
     ]
-    exchanges_with_data.sort(key=lambda x: x[1].get("cash_periods", 0) / max(x[1].get("n_periods", 1), 1))
+    exchanges_with_data.sort(key=lambda x: x[1].get("cash_periods", 0) / max(_tr(x[1]), 1))
 
     names = [EXCHANGE_LABELS.get(k, k) for k, v in exchanges_with_data]
-    cash_pcts = [100 * v.get("cash_periods", 0) / max(v.get("n_periods", 1), 1)
+    cash_pcts = [100 * v.get("cash_periods", 0) / max(_tr(v), 1)
                  for k, v in exchanges_with_data]
     colors = [COLORS.get(k, "#95a5a6") for k, v in exchanges_with_data]
 

@@ -332,8 +332,17 @@ def collect_eod_india_results(backtests_dir=None):
             "excess": round(comp.get("excess_cagr", 0), 2),
             "down_capture": round(comp.get("down_capture", 0), 1),
             "data_years": india.get("years"),
-            "cash_pct": round(india.get("cash_periods", 0) / india["n_periods"] * 100, 1)
-                        if india.get("n_periods") else None,
+            # B006: divide by total_rebalances, not n_periods. Cash is counted
+            # over every rebalance the strategy ran; n_periods counts only the
+            # benchmark-priced ones. Fallback keeps pre-B006 files renderable.
+            "cash_pct": round(india.get("cash_periods", 0)
+                              / (india.get("total_rebalances")
+                                 or india["n_periods"]) * 100, 1)
+                        if (india.get("total_rebalances")
+                            or india.get("n_periods")) else None,
+            # B006: the measured window, so a reader cannot take `data_years`
+            # for the requested span when the benchmark truncated the run.
+            "window_label": india.get("window_label"),
         })
 
     return results

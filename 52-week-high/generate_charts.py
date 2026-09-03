@@ -75,7 +75,12 @@ def plot_cumulative(data, label, benchmark_name, output_path):
     down_capture = stats.get("down_capture")
     excess = stats.get("excess_cagr")
     n = data.get("n_periods", 0)
-    cash_pct = round(data.get("cash_periods", 0) * 100 / n, 0) if n > 0 else 0
+    # B006: cash is counted over every rebalance the strategy ran, so divide by
+    # total_rebalances, not n_periods (benchmark-priced periods only). Dividing
+    # by n_periods renders 84/50 = 168% on the Oslo leg. Falling back to
+    # n_periods keeps pre-B006 result files renderable until they are re-run.
+    tr = data.get("total_rebalances") or n
+    cash_pct = round(data.get("cash_periods", 0) * 100 / tr, 0) if tr > 0 else 0
 
     info_text = (
         f"Excess CAGR: {excess:+.1f}%  |  Down Capture: {down_capture:.0f}%  |  Cash: {cash_pct:.0f}%"

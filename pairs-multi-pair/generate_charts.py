@@ -373,7 +373,11 @@ def chart_exchange_comparison(all_data, output_path):
         if spy_cagr is None:
             spy_cagr = (v.get("spy") or {}).get("cagr")
         label = EXCHANGE_LABELS.get(ex, ex)
-        cash_pct = round(100 * v.get("cash_periods", 0) / max(v.get("n_years", 20), 1))
+        # B006: divide by total_rebalances, not n_years. Cash is counted over
+        # every year the strategy ran; n_years is the nominal span. Fallback
+        # keeps pre-B006 result files renderable.
+        tr = v.get("total_rebalances") or v.get("n_years", 20)
+        cash_pct = round(100 * v.get("cash_periods", 0) / max(tr, 1))
         rows.append((label, cagr, cash_pct))
 
     rows.sort(key=lambda x: x[1])  # ascending so best is at top in horizontal bar
