@@ -636,3 +636,38 @@ frequency, so `--frequency annual` produced quarterly rebalance dates while
 frequency comparison run that way is meaningless. Check other topics that hardcode
 a `months=` argument alongside a `--frequency` flag. Fixed by pinning months only
 when `frequency == DEFAULT_FREQUENCY`.
+
+---
+
+## Exit-side survivorship in the invested branch (recorded 2026-09-03, NOT fixed)
+
+**Status:** Open. Pre-existing on `main`, deliberately left unchanged by the B005
+post-price floor guard.
+**Affects:** all 66 floor topics, and every topic that averages `filter_returns`'
+output.
+
+When the book clears the floor at entry, the period return is the mean of the
+names that *survived to the exit date*. `filter_returns` drops a name whose EXIT
+price is missing, so a holding that delisted to zero contributes **nothing**
+rather than -100%. It also drops a name whose realised return exceeds
+`max_single_return`, which is upside-only, so that drop removes winners. The two
+pull in opposite directions and neither is measured.
+
+This is not a new defect. It is what every topic did before the floor guard
+existed, and the B005 correction preserves it byte-for-byte on purpose: that
+change is about thin books **at entry**, and quietly altering exit-side behaviour
+under cover of a look-ahead fix would move published numbers in the flattering
+direction with no re-run to justify it.
+
+**It needs its own decision and its own re-run.** The options are not equivalent:
+drop-to-zero (assume a total loss), drop-to-benchmark (assume the position was
+liquidated at the index), or exclude the period from the series entirely. Pick
+one deliberately, then re-run; do not let it be settled as a side effect of some
+other change.
+
+**Related quirk, same area.** If a book clears the floor at entry but every name
+later loses its exit price, the invested branch's
+`sum(returns) / len(returns) if returns else 0.0` writes `portfolio_return 0.0`
+with `stocks_held 0`, which `metrics.period_accounting` then counts as a cash
+period anyway. Pre-existing and unchanged, but the corrected guard makes it
+reachable by a second route, so decide it alongside the above.

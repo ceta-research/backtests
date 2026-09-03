@@ -50,6 +50,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
+                        entry_buyable,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
@@ -296,10 +297,22 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                          verbose=verbose)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
-        # Screening can pass 30 names while only a handful of them have usable
-        # prices at this rebalance, and averaging 1-4 survivors reports a single
-        # stock's year as a diversified portfolio return.
-        if len(clean) < MIN_STOCKS:
+        # Screening can pass 30 names while only a handful of them have a usable
+        # ENTRY price, and averaging 1-4 survivors reports a single stock's year
+        # as a diversified portfolio return.
+        #
+        # Checked on `buyable`, NOT on len(clean). filter_returns also drops a
+        # name for a missing EXIT price and for a realised return over
+        # MAX_SINGLE_RETURN, neither of which is knowable on the rebalance date.
+        # Deciding cash from those is look-ahead and it flatters: a period the
+        # strategy really held and really lost gets rewritten as a flat 0.0%. If
+        # the book cleared the floor at entry the strategy ENTERED, so the
+        # exit-side survivors are averaged below exactly as they were before this
+        # guard existed. That survivor-averaging has its own known weakness; it
+        # is pre-existing, logged in DATA_QUALITY_ISSUES.md, and deliberately
+        # not changed here.
+        buyable = entry_buyable(symbol_data, min_entry_price=MIN_ENTRY_PRICE)
+        if buyable < MIN_STOCKS:
             spy_return = get_benchmark_return(
                 con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
@@ -310,11 +323,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "spy_return": spy_return,
                 "stocks_held": 0,
                 "avg_weight": 0,
-                "holdings": f"CASH ({len(clean)} priced of {len(portfolio)} screened)",
+                "holdings": f"CASH ({buyable} buyable at entry of {len(portfolio)} screened)",
             })
             if verbose:
-                print(f"    {entry_date}: only {len(clean)} of {len(portfolio)} screened "
-                      f"names had usable prices (< {MIN_STOCKS}), CASH")
+                print(f"    {entry_date}: only {buyable} of {len(portfolio)} screened "
+                      f"names were buyable at entry (< {MIN_STOCKS}), CASH")
             continue
 
         returns = []

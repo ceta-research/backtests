@@ -26,6 +26,19 @@ S3  holdings tells the truth: screen passes floor+5, exactly floor+2 price. The
     S2 cannot catch this: when every name prices, the pre-filter and post-filter
     lists are identical, so the misreporting is invisible. S3 is the only check
     that fails on `','.join(symbols)`.
+S4  the guard does NOT read the exit date: every screened name prices at ENTRY,
+    only floor-1 of them price at EXIT. The strategy could buy the whole book on
+    the rebalance date, so the period is INVESTED and the surviving names are
+    averaged. A guard on the post-filter book turns this into a flat 0.0% cash
+    period and erases a realised result -- the exact look-ahead this file exists
+    to make unreintroducible.
+S5  same, for the other exit-conditioned drop: every name prices at both dates,
+    but floor+5-(floor-1) of them return +1000% and trip max_single_return.
+    Nothing about that is knowable at entry either. S5 is NOT redundant with S4:
+    a half-fix that only special-cases the missing-exit-price drop passes S4 and
+    still fails here.
+
+S4 and S5 are what makes the correction stick, so they gate the exit code.
 
 It never touches DuckDB, the network, or a real backtest. `screen_stocks`,
 `get_prices` and `get_benchmark_return` are imported into each topic's own module
@@ -42,6 +55,7 @@ import argparse
 import ast
 import datetime
 import importlib.util
+import itertools
 import json
 import pathlib
 import sys
@@ -73,6 +87,14 @@ STATIC_ONLY = {
 SCREEN_FN = {           # topics whose screen function is not named screen_stocks
     "dogs-of-dow": "screen_dogs",
 }
+
+# S5 is VACUOUS for these two and must be reported n/a, never PASS. Neither
+# calls filter_returns; their inline filter is `if ep and xp and ep > 0` with no
+# return cap at all, so a +1000% name is simply kept, the book stays at n_screen
+# and the period is invested under any predicate. Printing PASS here would be
+# the "a check that matches nothing looks like a check that finds nothing"
+# failure the rest of this harness is built to avoid.
+NO_RETURN_CAP = {"qarp", "low-pe"}
 
 
 def load(topic):
@@ -120,22 +142,37 @@ def run_backtest_kwargs(mod, verbose=False):
 
 class Stubs:
     """Fake data boundary. Records how often the benchmark was fetched so a
-    double-fetch introduced by a bad guard shows up as a failure."""
+    double-fetch introduced by a bad guard shows up as a failure.
 
-    def __init__(self, symbols, priced):
+    entry_priced and exit_priced are SEPARATE sets, so a name can be priced at
+    entry and unpriced at exit -- the delisting case, which is the one the
+    original B005 guard got wrong and which the single `priced` set could not
+    express. exit_px overrides the exit price per symbol, so a realised return
+    above max_single_return is expressible too.
+    """
+
+    def __init__(self, symbols, priced=None, entry_priced=None,
+                 exit_priced=None, exit_px=None):
         self.symbols = list(symbols)
-        self.priced = set(priced)
+        if priced is not None:          # legacy S1/S2/S3 form: same at both dates
+            entry_priced = exit_priced = priced
+        self.entry_priced = set(entry_priced or ())
+        self.exit_priced = set(exit_priced or ())
+        self.exit_px = dict(exit_px or {})
         self.bench_calls = 0
 
     def screen(self, *a, **k):
         return self._shaped
 
     def get_prices(self, con, symbols, target_date, *a, **k):
-        px = ENTRY_PX if target_date == ENTRY else EXIT_PX
+        entry = target_date == ENTRY
+        allowed = self.entry_priced if entry else self.exit_priced
         out = {}
         for s in symbols:
-            if s == "SPY" or s in self.priced:
-                out[s] = px
+            if s == "SPY":
+                out[s] = ENTRY_PX if entry else EXIT_PX
+            elif s in allowed:
+                out[s] = ENTRY_PX if entry else self.exit_px.get(s, EXIT_PX)
         return out
 
     def get_prices_at(self, con, symbols, target_date, *a, **k):
@@ -153,18 +190,34 @@ def shape(symbols, arity):
     return [tuple([s] + fill[:arity - 1]) for s in symbols]
 
 
-def attempt(topic, n_screen, n_priced, arity, verbose=False, drop_first=False):
-    """One run at a fixed screen arity. Returns (results, stubs).
+def attempt(topic, n_screen, n_priced, arity, verbose=False, drop_first=False,
+            entry_priced=None, exit_priced=None, exit_px=None):
+    """One run at a fixed screen arity. Returns (results, stubs, floor).
 
     drop_first prices the LAST n_priced names, so the unpriced ones sort to the
     front of the screened list. Most topics truncate holdings to the first 10
     names; dropping from the tail would hide the leak behind that truncation.
+
+    n_priced prices a name at BOTH dates or NEITHER, which is all S1/S2/S3 need.
+    entry_priced/exit_priced/exit_px take counts and a price map instead and let
+    the two dates differ, which is what S4 and S5 turn on.
     """
     mod = load(topic)
     _, floor = floor_of(mod)
     symbols = [f"S{i:03d}" for i in range(n_screen)]
-    priced = symbols[n_screen - n_priced:] if drop_first else symbols[:n_priced]
-    stubs = Stubs(symbols, priced)
+
+    def pick(n):
+        return symbols[n_screen - n:] if drop_first else symbols[:n]
+
+    if entry_priced is None and exit_priced is None:
+        stubs = Stubs(symbols, priced=pick(n_priced))
+    else:
+        stubs = Stubs(symbols,
+                      entry_priced=pick(n_screen if entry_priced is None
+                                        else entry_priced),
+                      exit_priced=pick(n_screen if exit_priced is None
+                                       else exit_priced),
+                      exit_px=exit_px)
     stubs._shaped = shape(symbols, arity)
 
     setattr(mod, SCREEN_FN.get(topic, "screen_stocks"), stubs.screen)
@@ -210,10 +263,12 @@ def probe_arity(topic, n_screen):
     raise AssertionError(f"no workable screen arity for {topic}: {last[1]!r}\n{last[2]}")
 
 
-def run_case(topic, n_screen, n_priced, verbose=False, drop_first=False):
+def run_case(topic, n_screen, n_priced=None, verbose=False, drop_first=False,
+             entry_priced=None, exit_priced=None, exit_px=None):
     arity = probe_arity(topic, n_screen)
     return attempt(topic, n_screen, n_priced, arity, verbose=verbose,
-                   drop_first=drop_first)
+                   drop_first=drop_first, entry_priced=entry_priced,
+                   exit_priced=exit_priced, exit_px=exit_px)
 
 
 def check(topic, verbose=False):
@@ -231,14 +286,19 @@ def check(topic, verbose=False):
         rec = res[-1] if res else None
         det["s1_record"] = rec
         det["s1_bench_calls"] = stubs.bench_calls
-        want_holdings = f"CASH ({n_priced_s1} priced of {n_screen} screened)"
+        # The counts in this string are ENTRY-knowable ones. S1's unpriced names
+        # are unpriced at BOTH dates, so they were never buyable and cash is
+        # still the right answer; only the wording moved.
+        want_holdings = (f"CASH ({n_priced_s1} buyable at entry of "
+                         f"{n_screen} screened)")
         if topic == "capex-efficiency":
             s1_ok = (rec is not None
                      and rec.get("n_stocks") == 0
                      and rec.get("stocks_held") == 0
                      and rec.get("return") == 0.0
                      and rec.get("msg", "").startswith(
-                         f"cash ({n_priced_s1} priced of {n_screen} screened)"))
+                         f"cash ({n_priced_s1} buyable at entry of "
+                         f"{n_screen} screened)"))
         else:
             # At most one benchmark fetch: a guard that refetches where the topic
             # already had the value in scope issues a second query. Zero is legal
@@ -317,7 +377,118 @@ def check(topic, verbose=False):
         if verbose:
             det["s3_traceback"] = traceback.format_exc()
 
-    return s1_ok, s2_ok, s3_ok, det
+    # ---- S4: EVERY screened name is priced at ENTRY; only floor-1 of them are
+    # priced at EXIT. The strategy could buy the whole book on the rebalance
+    # date, so it ENTERED. Nothing that happens at the exit date may
+    # retroactively unwind that.
+    #
+    # This is the scenario the cold-eyes review reproduced. Under
+    # `len(clean) < MIN_STOCKS` the book reads floor-1 and the period is
+    # rewritten as a flat 0.0% cash period, erasing a realised result. Under
+    # `buyable < MIN_STOCKS` it reads floor+5, the period stays invested, and
+    # the exit-side survivors are averaged -- which is exactly what the topic
+    # did before the guard existed.
+    #
+    # MUTATION IT MUST FAIL UNDER: revert the guard to
+    #     if len(clean) < MIN_STOCKS:
+    # Then stocks_held == 0, portfolio_return == 0.0, and S4 fails.
+    s4_ok = False
+    n_exit_s4 = floor - 1
+    det["s4_n_exit_priced"] = n_exit_s4
+    try:
+        res, stubs, _ = run_case(topic, n_screen, entry_priced=n_screen,
+                                 exit_priced=n_exit_s4, verbose=verbose,
+                                 drop_first=True)
+        rec = res[-1] if res else None
+        det["s4_record"] = rec
+        if topic == "capex-efficiency":
+            s4_ok = (rec is not None
+                     and rec.get("n_stocks") == n_exit_s4
+                     and abs(rec.get("return", 0) - EXPECTED_RET) < 1e-9
+                     and "cash" not in str(rec.get("msg", "")))
+        else:
+            s4_ok = (rec is not None
+                     and rec.get("stocks_held") == n_exit_s4
+                     and abs(rec.get("portfolio_return", 0) - EXPECTED_RET) < 1e-9
+                     and "CASH" not in str(rec.get("holdings", "")))
+    except Exception as e:
+        det["s4_error"] = f"{e.__class__.__name__}: {e}"
+        if verbose:
+            det["s4_traceback"] = traceback.format_exc()
+
+    # ---- S5: every screened name prices at BOTH dates, but the first
+    # (n_screen - floor + 1) of them return +1000%, above every topic's
+    # max_single_return. filter_returns drops those, leaving floor-1 in `clean`.
+    # Every name was buyable at entry, so the period is INVESTED.
+    #
+    # S5 is not redundant with S4. A half-fix that special-cases only the
+    # missing-exit-price drop -- e.g. by counting names that have an entry price
+    # and calling that "priced" -- passes S4 and still flips this period to cash
+    # off a REALISED return. S5 is the only scenario that separates the two.
+    #
+    # 11x, not 4x: most topics cap at 2.0, but small-cap, small-value,
+    # trending-value and graham-net-net cap at 3.0, and the test is `>` not
+    # `>=`, so a 3.0 return would NOT be dropped there and S5 would silently
+    # degenerate into S2.
+    s5_ok = None if topic in NO_RETURN_CAP else False
+    n_blown = n_screen - (floor - 1)
+    det["s5_n_blown"] = n_blown
+    if topic not in NO_RETURN_CAP:
+        try:
+            blown = {f"S{i:03d}": ENTRY_PX * 11 for i in range(n_blown)}
+            res, stubs, _ = run_case(topic, n_screen, entry_priced=n_screen,
+                                     exit_priced=n_screen, exit_px=blown,
+                                     verbose=verbose)
+            rec = res[-1] if res else None
+            det["s5_record"] = rec
+            if topic == "capex-efficiency":
+                s5_ok = (rec is not None
+                         and rec.get("n_stocks") == floor - 1
+                         and abs(rec.get("return", 0) - EXPECTED_RET) < 1e-9
+                         and "cash" not in str(rec.get("msg", "")))
+            else:
+                s5_ok = (rec is not None
+                         and rec.get("stocks_held") == floor - 1
+                         and abs(rec.get("portfolio_return", 0) - EXPECTED_RET) < 1e-9
+                         and "CASH" not in str(rec.get("holdings", "")))
+        except Exception as e:
+            det["s5_error"] = f"{e.__class__.__name__}: {e}"
+            if verbose:
+                det["s5_traceback"] = traceback.format_exc()
+
+    return s1_ok, s2_ok, s3_ok, s4_ok, s5_ok, det
+
+
+def tie_test():
+    """Pin entry_usable() against filter_returns' own entry-side lines.
+
+    The helper DUPLICATES filter_returns' rules rather than being called by it,
+    because reordering that loop would change which names land in `skipped` (a
+    name with ep=0.50, xp=None is silent today and would start being reported).
+    Silently changing observable behaviour is the class of move this whole change
+    exists to prevent, so the duplication stays and this test pins it.
+
+    With every exit price present and the cap switched off, the ONLY thing
+    filter_returns can drop is an entry-side failure, so the two counts must
+    agree exactly for every combination of entry price and floor.
+    """
+    sys.path.insert(0, str(ROOT))
+    from data_utils import filter_returns, entry_buyable, entry_buyable_prices
+    bad = []
+    for m in (0.0, 0.5, 1.0):
+        for eps in itertools.product([None, -1.0, 0.0, 0.5, 1.0, 5.0], repeat=3):
+            data = [(f"S{i}", ep, 100.0, BIG_MCAP) for i, ep in enumerate(eps)]
+            clean, _ = filter_returns(data, min_entry_price=m,
+                                      max_single_return=1e9)
+            n = len(clean)
+            if entry_buyable(data, m) != n:
+                bad.append(("entry_buyable", m, eps, entry_buyable(data, m), n))
+            prices = {f"S{i}": ep for i, ep in enumerate(eps) if ep is not None}
+            got = entry_buyable_prices([f"S{i}" for i in range(len(eps))],
+                                       prices, m)
+            if got != n:
+                bad.append(("entry_buyable_prices", m, eps, got, n))
+    return bad
 
 
 def floor_topics():
@@ -350,11 +521,13 @@ def main():
     for t in topics:
         if t in STATIC_ONLY and not args.topic:
             continue
-        s1, s2, s3, det = check(t, verbose=args.verbose)
-        rows[t] = (s1, s2, s3, det)
+        s1, s2, s3, s4, s5, det = check(t, verbose=args.verbose)
+        rows[t] = (s1, s2, s3, s4, s5, det)
         series[t] = {"s2_record": det.get("s2_record"),
                      "s1_record": det.get("s1_record"),
-                     "s3_record": det.get("s3_record")}
+                     "s3_record": det.get("s3_record"),
+                     "s4_record": det.get("s4_record"),
+                     "s5_record": det.get("s5_record")}
 
     s1_pass = sorted(t for t, r in rows.items() if r[0])
     s1_fail = sorted(t for t, r in rows.items() if not r[0])
@@ -362,15 +535,26 @@ def main():
     s2_fail = sorted(t for t, r in rows.items() if not r[1])
     s3_pass = sorted(t for t, r in rows.items() if r[2])
     s3_fail = sorted(t for t, r in rows.items() if not r[2])
+    s4_pass = sorted(t for t, r in rows.items() if r[3])
+    s4_fail = sorted(t for t, r in rows.items() if not r[3])
+    # None means the scenario cannot exist for that topic. Counted separately so
+    # it can never be read as a pass.
+    s5_na = sorted(t for t, r in rows.items() if r[4] is None)
+    s5_pass = sorted(t for t, r in rows.items() if r[4] is True)
+    s5_fail = sorted(t for t, r in rows.items() if r[4] is False)
 
     print(f"topics exercised: {len(rows)}   (static-only, excluded: {sorted(STATIC_ONLY)})")
     print(f"S1 guard fires      PASS {len(s1_pass):3d}   FAIL {len(s1_fail):3d}")
     print(f"S2 guard inert      PASS {len(s2_pass):3d}   FAIL {len(s2_fail):3d}")
     print(f"S3 holdings honest  PASS {len(s3_pass):3d}   FAIL {len(s3_fail):3d}")
+    print(f"S4 entry-priced,    PASS {len(s4_pass):3d}   FAIL {len(s4_fail):3d}"
+          "   (exit-unpriced must NOT flip the period to cash)")
+    print(f"S5 return cap       PASS {len(s5_pass):3d}   FAIL {len(s5_fail):3d}"
+          f"   n/a {len(s5_na):3d} {sorted(NO_RETURN_CAP)} -- no cap to trip")
     if s1_fail:
         print("\nS1 FAIL (no cash record when the book fell below the floor):")
         for t in s1_fail:
-            d = rows[t][3]
+            d = rows[t][5]
             err = d.get("s1_error")
             rec = d.get("s1_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -379,7 +563,7 @@ def main():
     if s2_fail:
         print("\nS2 FAIL (guard fired when it should not have, or return wrong):")
         for t in s2_fail:
-            d = rows[t][3]
+            d = rows[t][5]
             err = d.get("s2_error")
             rec = d.get("s2_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -389,16 +573,47 @@ def main():
     if s3_fail:
         print("\nS3 FAIL (holdings names stocks that were never priced/held):")
         for t in s3_fail:
-            d = rows[t][3]
+            d = rows[t][5]
             err = d.get("s3_error")
             rec = d.get("s3_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
                                    f"stocks_held={rec.get('stocks_held') if rec else None} "
                                    f"leaked={d.get('s3_leaks')} "
                                    f"holdings={str(rec.get('holdings') if rec else None)[:60]!r}"))
+    if s4_fail:
+        print("\nS4 FAIL (LOOK-AHEAD: an exit-date fact decided the cash rule -- "
+              "every name was buyable at entry, so the period was INVESTED):")
+        for t in s4_fail:
+            d = rows[t][5]
+            err = d.get("s4_error")
+            rec = d.get("s4_record")
+            print(f"  {t:30s} " + (f"ERROR {err}" if err else
+                                   f"stocks_held={rec.get('stocks_held', rec.get('n_stocks')) if rec else None} "
+                                   f"want={d.get('s4_n_exit_priced')} "
+                                   f"ret={rec.get('portfolio_return', rec.get('return')) if rec else None} "
+                                   f"holdings={str(rec.get('holdings', rec.get('msg')) if rec else None)[:50]!r}"))
+    if s5_fail:
+        print("\nS5 FAIL (LOOK-AHEAD: a REALISED return above max_single_return "
+              "decided the cash rule):")
+        for t in s5_fail:
+            d = rows[t][5]
+            err = d.get("s5_error")
+            rec = d.get("s5_record")
+            print(f"  {t:30s} " + (f"ERROR {err}" if err else
+                                   f"stocks_held={rec.get('stocks_held', rec.get('n_stocks')) if rec else None} "
+                                   f"ret={rec.get('portfolio_return', rec.get('return')) if rec else None} "
+                                   f"holdings={str(rec.get('holdings', rec.get('msg')) if rec else None)[:50]!r}"))
+
+    # The helper the cash rule now reads must agree with filter_returns' own
+    # entry-side lines. Run once, not per topic.
+    tie_bad = tie_test()
+    print(f"\nTIE entry_usable vs filter_returns: "
+          f"{'AGREE on all 324 combinations' if not tie_bad else 'DIVERGED'}")
+    for b in tie_bad[:10]:
+        print("   ", b)
 
     if args.verbose and args.topic:
-        print(json.dumps(rows[args.topic][3], indent=2, default=str))
+        print(json.dumps(rows[args.topic][5], indent=2, default=str))
 
     if args.baseline:
         pathlib.Path(args.baseline).write_text(json.dumps(series, indent=1, default=str))
@@ -424,7 +639,9 @@ def main():
         if drift:
             return 1
 
-    return 0 if not s1_fail and not s2_fail else 1
+    # S4 and S5 gate the exit code. They are the look-ahead tests, this repo has
+    # no CI, and a test nobody's exit status depends on is a comment.
+    return 0 if not (s1_fail or s2_fail or s4_fail or s5_fail or tie_bad) else 1
 
 
 if __name__ == "__main__":

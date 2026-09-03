@@ -383,12 +383,65 @@ def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, ti
             raise
 
 
+def entry_usable(entry_price, min_entry_price=1.0):
+    """True when a name could actually be BOUGHT at the rebalance date.
+
+    This is exactly filter_returns' entry-side test and nothing else: an entry
+    price that exists, is positive, and clears the floor. It says nothing about
+    the exit price or the realised return, because neither is knowable on the
+    entry date. That is the whole point -- a cash decision may only read this.
+    """
+    return (entry_price is not None
+            and entry_price > 0
+            and entry_price >= min_entry_price)
+
+
+def entry_buyable(symbol_returns, min_entry_price=1.0):
+    """How many names were buyable at entry, over filter_returns' own input.
+
+    Pass the SAME min_entry_price the matching filter_returns call uses, or a
+    topic's cash rule and its price filter disagree. The 1.0 default matches
+    filter_returns' default, so the topics that call filter_returns with only
+    `verbose=` inherit the same floor here.
+    """
+    return sum(1 for _sym, ep, _xp, _mcap in symbol_returns
+               if entry_usable(ep, min_entry_price))
+
+
+def entry_buyable_prices(symbols, entry_prices, min_entry_price=1.0):
+    """The same count, from the screened symbols and the entry-price map.
+
+    For callers that never build the 4-tuple list (qarp, low-pe), and for the
+    nine topics that build it with the EXIT price already filtered out
+    (capex-efficiency, fcf-yield, graham-net-net, graham-timing,
+    interest-coverage, ocf-growth, owner-earnings, sector-momentum,
+    sector-rotation). Counting those pre-filtered lists would still be
+    exit-conditioned, which is the defect this whole change is about.
+    """
+    return sum(1 for s in symbols
+               if entry_usable(entry_prices.get(s), min_entry_price))
+
+
 def filter_returns(symbol_returns, min_entry_price=1.0, max_single_return=2.0, verbose=False):
     """Filter individual stock returns for data quality.
 
-    Removes stocks with:
-    - Entry price below min_entry_price (bad adjClose data, penny stock artifacts)
-    - Single-period return above max_single_return (price data artifacts, symbol reassignments)
+    Drops a name for five reasons in two classes. The class matters: only the
+    ENTRY-KNOWABLE ones may decide whether the strategy holds cash.
+
+    ENTRY-KNOWABLE (true on the rebalance date -- see entry_usable()):
+    - entry price missing
+    - entry price <= 0
+    - entry price below min_entry_price (bad adjClose, penny-stock artifacts)
+
+    EXIT-CONDITIONED (not knowable until the period ends):
+    - exit price missing (delisting, acquisition, coverage gap)
+    - realised return above max_single_return (price artifacts, symbol
+      reassignments). UPSIDE ONLY: a -99% return is kept.
+
+    NOTE: `skipped` is not a complete drop log. The three conditions on the
+    first `continue` report nothing, so len(clean) + len(skipped) is strictly
+    less than len(symbol_returns) whenever a name lacks an entry or exit price.
+    Do not reconstruct the input population from the two return values.
 
     Args:
         symbol_returns: list of (symbol, entry_price, exit_price, market_cap) tuples
@@ -399,7 +452,7 @@ def filter_returns(symbol_returns, min_entry_price=1.0, max_single_return=2.0, v
     Returns:
         tuple(clean_returns, skipped) where:
         - clean_returns: list of (symbol, raw_return, market_cap) tuples
-        - skipped: list of skip reason strings
+        - skipped: list of skip reason strings (see NOTE -- not every drop)
     """
     clean = []
     skipped = []

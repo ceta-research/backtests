@@ -26,7 +26,10 @@ for y in range(2000, 2025):
         "return": 0.0 if thin else 0.10,
         "spy_return": 0.05,
         "avg_roic": None,
-        "msg": "cash (3 priced of 30 screened)" if thin else "invested",
+        # Kept in lockstep with the literal backtest.py writes. Only the
+        # `== "invested"` test below is load-bearing, but a stale cash string
+        # here would misdescribe what a real record looks like.
+        "msg": "cash (3 buyable at entry of 30 screened)" if thin else "invested",
     })
 
 # What the pre-fix branch computed: cash rows filtered OUT of the series.

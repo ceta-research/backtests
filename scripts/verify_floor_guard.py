@@ -49,6 +49,15 @@ SCOPE_ALLOW = {
     # Carries period_data through to the combined comparison so one glob covers
     # every topic's per-period book size.
     "magic-formula/run_all_exchanges.py",
+    # B005 follow-up: hosts entry_usable/entry_buyable/entry_buyable_prices, the
+    # entry-knowable count the cash rule is now decided on. Root .py files match
+    # none of the allow rules below, so without this entry the scope gate
+    # rejects the fix's own dependency.
+    "data_utils.py",
+    # B005 follow-up: records the exit-side survivorship question this change
+    # deliberately does NOT fix, so the decision is written down where the 66
+    # guard comments point rather than living only in a commit message.
+    "DATA_QUALITY_ISSUES.md",
 }
 
 
@@ -86,39 +95,74 @@ def filter_vars(tree):
     return out
 
 
+BUYABLE_FNS = ("entry_buyable", "entry_buyable_prices")
+
+
+def buyable_vars(tree):
+    """Names bound from an entry_buyable*() call -- the entry-knowable count."""
+    out = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+            f = node.value.func
+            nm = f.id if isinstance(f, ast.Name) else getattr(f, "attr", None)
+            if nm in BUYABLE_FNS:
+                out.update(t.id for t in node.targets if isinstance(t, ast.Name))
+    return out
+
+
 def guard_hits(tree):
-    """Operator-agnostic: any Compare of len(<filter-bound var>) against a floor
+    """Operator-agnostic: any Compare of an entry-buyable count against a floor
     constant. Catches graham-timing's inverted `>=` and sector-*'s
-    MIN_PORTFOLIO_STOCKS without a separate rule for either."""
+    MIN_PORTFOLIO_STOCKS without a separate rule for either. One rule now covers
+    all 66 topics, including qarp/low-pe, which used to need their own.
+
+    Anchored on the BOUND NAME, not on `len(...)`: len() of the post-filter book
+    is now the DEFECT, not the fix -- see lookahead_hits."""
+    fl, bv = floors(tree), buyable_vars(tree)
+    return [(n.lineno, n.left.id, c.id)
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Compare) and isinstance(n.left, ast.Name)
+            and n.left.id in bv
+            for c in n.comparators
+            if isinstance(c, ast.Name) and c.id in fl]
+
+
+def lookahead_hits(tree):
+    """The DEFECT form: a floor compared against len() of the POST-FILTER book.
+
+    filter_returns drops names for a missing EXIT price and for a realised
+    return above max_single_return. A cash decision read off that count uses
+    exit-date information at the rebalance date, and it resolves the flattering
+    way: a period the strategy really held and really lost is rewritten as a
+    flat 0.0%. Any such compare is a regression -- including in qarp/low-pe,
+    where the post-price book is the inline `returns`/`held` list rather than a
+    filter_returns binding."""
     fl, fv = floors(tree), filter_vars(tree)
-    hits = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Compare) and isinstance(node.left, ast.Call):
-            f = node.left.func
-            if isinstance(f, ast.Name) and f.id == "len" and node.left.args:
-                a = node.left.args[0]
-                if isinstance(a, ast.Name) and a.id in fv:
-                    for comp in node.comparators:
-                        if isinstance(comp, ast.Name) and comp.id in fl:
-                            hits.append((node.lineno, a.id, comp.id))
-    return hits
+    names = fv | {"returns", "held", "clean", "clean_returns"}
+    return [(n.lineno, n.left.args[0].id, c.id)
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Compare) and isinstance(n.left, ast.Call)
+            and isinstance(n.left.func, ast.Name) and n.left.func.id == "len"
+            and n.left.args and isinstance(n.left.args[0], ast.Name)
+            and n.left.args[0].id in names
+            for c in n.comparators
+            if isinstance(c, ast.Name) and c.id in fl]
 
 
-def inline_guard_hits(tree):
-    """qarp/low-pe have no filter_returns; their post-price book is `returns`,
-    so the guard compares len(returns) to the floor."""
-    fl = floors(tree)
-    hits = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Compare) and isinstance(node.left, ast.Call):
-            f = node.left.func
-            if isinstance(f, ast.Name) and f.id == "len" and node.left.args:
-                a = node.left.args[0]
-                if isinstance(a, ast.Name) and a.id in ("returns", "held"):
-                    for comp in node.comparators:
-                        if isinstance(comp, ast.Name) and comp.id in fl:
-                            hits.append((node.lineno, a.id, comp.id))
-    return hits
+# The collections that stand for "every rebalance the strategy actually ran".
+EXECUTED_COLLS = {"executed", "results"}
+
+
+def derived_denominator(src):
+    """(allowed cash-count collections, human label) for one topic's source.
+
+    Reads which population the topic derives invested_periods from, so gate 7
+    can require the cash count to come from the same one.
+    """
+    if re.search(r'"invested_periods":\s*total_rebalances\s*-\s*cash_periods', src) \
+            and re.search(r"total_rebalances\s*=\s*len\(results\)", src):
+        return EXECUTED_COLLS, "total_rebalances = len(results)"
+    return {"valid"}, "len(valid)"
 
 
 def main():
@@ -158,21 +202,60 @@ def main():
     fails += bad
 
     # ---- gate 3: census
-    floor_topics, nofloor, unguarded = [], [], []
+    #
+    # Two questions, not one. Every floor topic must HAVE a post-price guard,
+    # and no guard may be decided on the post-filter book. The second half is
+    # the B005 blocker: filter_returns also drops a name for a missing EXIT
+    # price and for a realised return above MAX_SINGLE_RETURN, neither of which
+    # is knowable on the rebalance date, so `len(clean) < MIN_STOCKS` sends a
+    # period to cash off exit-date information.
+    floor_topics, nofloor, unguarded, lookahead = [], [], [], []
     for t in all_topics:
         tree = parse(t)
         if floors(tree):
             floor_topics.append(t)
-            if not (guard_hits(tree) or inline_guard_hits(tree)):
+            if not guard_hits(tree):
                 unguarded.append(t)
+            for lineno, var, fl in lookahead_hits(tree):
+                lookahead.append((t, lineno, f"floor {fl} compared against "
+                                             f"len({var})"))
         else:
             nofloor.append(t)
     print(f"3 CENSUS    floor topics {len(floor_topics)}, "
           f"guarded {len(floor_topics) - len(unguarded)}, unguarded {len(unguarded)}; "
-          f"no-floor {len(nofloor)} (must stay {len(nofloor)}: no floor invented)")
+          f"no-floor {len(nofloor)} (must stay {len(nofloor)}: no floor invented); "
+          f"exit-conditioned {len(lookahead)}")
     for t in unguarded:
         print("    UNGUARDED", t)
+    for h in lookahead:
+        print("    EXIT-CONDITIONED CASH:", h)
     fails += [("unguarded", t) for t in unguarded]
+    fails += [("exit-conditioned cash", h) for h in lookahead]
+    # SELF-TEST 1, teeth against a topic with NO guard at all. Rewriting the
+    # detector to anchor on a bound name rather than on `len(...)` could easily
+    # leave it matching nothing, and a detector that matches nothing looks
+    # exactly like a corpus with nothing wrong in it.
+    p3_none = ast.parse("MIN_STOCKS = 10\ndef f(d):\n    return d\n")
+    if guard_hits(p3_none) or floors(p3_none) != {"MIN_STOCKS": 10}:
+        print("    SELF-TEST FAIL: gate 3 no longer recognises an UNGUARDED "
+              "floor topic; a topic with no post-price guard would pass")
+        fails.append(("gate 3 unguarded-probe", "unguarded probe not detected"))
+    # SELF-TEST 2, teeth against the B005 form this change removes.
+    p3_bad = ast.parse("MIN_STOCKS = 10\ndef f(d):\n"
+                       "    clean, skipped = filter_returns(d)\n"
+                       "    if len(clean) < MIN_STOCKS:\n        return 0\n")
+    if not lookahead_hits(p3_bad) or guard_hits(p3_bad):
+        print("    SELF-TEST FAIL: gate 3 no longer flags the exit-conditioned "
+              "`len(clean) < MIN_STOCKS` guard it was rewritten to catch")
+        fails.append(("gate 3 lookahead-probe", "probe not flagged"))
+    # SELF-TEST 3, negative control: the corrected form must be ACCEPTED, or the
+    # gate cannot be satisfied by fixing the code and gets disabled instead.
+    p3_ok = ast.parse("MIN_STOCKS = 10\ndef f(d):\n"
+                      "    buyable = entry_buyable(d, min_entry_price=1.0)\n"
+                      "    if buyable < MIN_STOCKS:\n        return 0\n")
+    if not guard_hits(p3_ok) or lookahead_hits(p3_ok):
+        print("    SELF-TEST FAIL: gate 3 rejects the corrected form")
+        fails.append(("gate 3 false positive", "clean probe flagged"))
 
     # ---- gate 4: schema (per-period data published)
     missing = []
@@ -234,24 +317,52 @@ def main():
         print("    OUT OF SCOPE:", s)
     fails += [("out of scope", s) for s in stray]
 
-    # ---- gate 7: cash_periods counts over the same collection as n_periods
-    # n_periods is len(valid). Counting cash over `results` subtracts periods that
-    # are not in that denominator, which is how published legs ended up with a
+    # ---- gate 7: cash_periods and invested_periods share ONE denominator
+    #
+    # Almost every topic derives invested_periods from len(valid), and n_periods
+    # is len(valid), so counting cash over `results` subtracts periods that are
+    # not in its own denominator. That is how published legs ended up with a
     # negative invested_periods (deleveraging OSL: 50 - 53 = -3).
+    #
+    # 52-week-low is the exception, and it is prior art rather than a bug
+    # (commit 3c39bcb): its build_output publishes total_rebalances = len(results)
+    # and derives invested_periods from THAT. Forcing its cash count onto
+    # `valid` gives the record two different denominators and overstates
+    # invested periods 4-5x -- the next OSL re-run would publish ~45-56 against
+    # a true 11. So the gate checks COHERENCE between the two numbers, not a
+    # fixed collection name.
     wrong, right = [], []
     for t in floor_topics:
         src = (ROOT / t / "backtest.py").read_text()
         colls = re.findall(r"cash_periods\s*=\s*sum\(1 for r in (\w+)", src)
         if not colls:
             continue
-        (right if all(c == "valid" for c in colls) else wrong).append(t)
-        if f"Cash periods: {{cash_periods}} / {{len(results)}}" in src:
-            wrong.append(t)
+        want, denom = derived_denominator(src)
+        if all(c in want for c in colls):
+            right.append(t)
+        else:
+            wrong.append((t, f"counts cash over {sorted(set(colls))} but derives "
+                             f"invested_periods from {denom}"))
+        if want == {"valid"} and \
+                f"Cash periods: {{cash_periods}} / {{len(results)}}" in src:
+            wrong.append((t, "prints the cash rate over len(results)"))
     wrong = sorted(set(wrong))
-    print(f"7 CASHCOUNT {len(right)}/{len(right) + len(wrong)} count cash over `valid`")
-    for t in wrong:
-        print("    COUNTS OVER `results`:", t)
-    fails += [("cash_periods over results", t) for t in wrong]
+    print(f"7 CASHCOUNT {len(right)}/{len(right) + len(wrong)} count cash over "
+          "the same population invested_periods is derived from")
+    for t, why in wrong:
+        print(f"    MISMATCHED DENOMINATOR: {t} -- {why}")
+    fails += [("cash denominator mismatch", f"{t}: {why}") for t, why in wrong]
+    # SELF-TEST. The rule is now conditional, so either branch can go vacuous on
+    # its own and the clean-tree output looks the same either way. Feed it one
+    # source of each shape and require the right verdict.
+    p7_valid = 'x = {"invested_periods": len(valid) - cash_periods}'
+    p7_total = ('total_rebalances = len(results)\n'
+                'x = {"invested_periods": total_rebalances - cash_periods}')
+    if derived_denominator(p7_valid)[0] != {"valid"} or \
+            derived_denominator(p7_total)[0] != EXECUTED_COLLS:
+        print("    SELF-TEST FAIL: gate 7 can no longer tell the two "
+              "invested_periods derivations apart; one branch is dead")
+        fails.append(("gate 7 vacuous", "denominator probe misclassified"))
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")

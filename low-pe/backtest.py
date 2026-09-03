@@ -35,7 +35,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, remove_price_oscillations
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, remove_price_oscillations, entry_buyable_prices
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import add_common_args, resolve_exchanges, save_results, print_header, get_mktcap_threshold
@@ -233,10 +233,27 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 held.append(sym)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
-        # Screening can pass 30 names while only a handful of them have usable
-        # prices at this rebalance, and averaging 1-4 survivors reports a single
-        # stock's year as a diversified portfolio return.
-        if len(returns) < MIN_STOCKS:
+        # Screening can pass 30 names while only a handful of them have a usable
+        # ENTRY price, and averaging 1-4 survivors reports a single stock's year
+        # as a diversified portfolio return.
+        #
+        # Checked on `buyable`, NOT on len(returns). `returns` is post-EXIT: the
+        # loop above also drops a name whose EXIT price is missing, which is not
+        # knowable on the rebalance date. Deciding cash from that is look-ahead
+        # and it flatters: a period the strategy really held and really lost gets
+        # rewritten as a flat 0.0%. If the book cleared the floor at entry the
+        # strategy ENTERED, so the exit-side survivors are averaged below exactly
+        # as they were before this guard existed. That survivor-averaging has its
+        # own known weakness; it is pre-existing, logged in
+        # DATA_QUALITY_ISSUES.md, and deliberately not changed here.
+        #
+        # min_entry_price=0.0 because this topic filters inline and applies NO
+        # minimum entry price: the predicate then reduces to `ep is not None and
+        # ep > 0`, which is exactly the loop's own `if ep and xp and ep > 0`
+        # entry test. Any floor here would send a fully-buyable penny book to
+        # cash that the pre-guard code invested.
+        buyable = entry_buyable_prices(symbols, entry_prices, min_entry_price=0.0)
+        if buyable < MIN_STOCKS:
             bench_return = get_benchmark_return(
                 con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
@@ -246,11 +263,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "portfolio_return": 0.0,
                 "spy_return": bench_return,
                 "stocks_held": 0,
-                "holdings": f"CASH ({len(returns)} priced of {len(symbols)} screened)",
+                "holdings": f"CASH ({buyable} buyable at entry of {len(symbols)} screened)",
             })
             if verbose:
-                print(f"    {entry_date}: only {len(returns)} of {len(symbols)} screened "
-                      f"names had usable prices (< {MIN_STOCKS}), CASH")
+                print(f"    {entry_date}: only {buyable} of {len(symbols)} screened "
+                      f"names were buyable at entry (< {MIN_STOCKS}), CASH")
             continue
 
         port_return = sum(returns) / len(returns) if returns else 0.0

@@ -36,7 +36,8 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import (query_parquet, filter_returns, get_local_benchmark,
+from data_utils import (query_parquet, filter_returns, entry_buyable_prices,
+                        get_local_benchmark,
                         get_benchmark_return, remove_price_oscillations,
                         domicile_sql_condition)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
@@ -330,7 +331,20 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
                                         max_single_return=MAX_SINGLE_RETURN,
                                         verbose=verbose)
 
-        if len(clean) < MIN_PORTFOLIO_STOCKS:
+        # Checked on `buyable`, NOT on len(clean). filter_returns drops a name
+        # for a missing EXIT price and for a realised return over
+        # MAX_SINGLE_RETURN, and `symbol_data` above is ALREADY built with the
+        # exit price filtered out, so len(clean) was doubly exit-conditioned.
+        # None of that is knowable on the rebalance date, and deciding cash from
+        # it is look-ahead that flatters: a period the strategy really held and
+        # really lost gets rewritten as a flat 0.0%. If the book cleared the
+        # floor at entry the strategy ENTERED, so the exit-side survivors are
+        # averaged below exactly as they were before. That survivor-averaging
+        # has its own known weakness; it is pre-existing, logged in
+        # DATA_QUALITY_ISSUES.md, and deliberately not changed here.
+        buyable = entry_buyable_prices(symbols, entry_prices_map,
+                                       min_entry_price=MIN_ENTRY_PRICE)
+        if buyable < MIN_PORTFOLIO_STOCKS:
             results.append({
                 "rebalance_date": entry_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
@@ -339,10 +353,11 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_best=N_B
                 "stocks_held": 0,
                 "sectors_selected": "",
                 "n_qualifying_sectors": n_qualifying,
-                "holdings": f"CASH (only {len(clean)} clean stocks)",
+                "holdings": f"CASH (only {buyable} buyable at entry)",
             })
             if verbose:
-                print(f"    {entry_date}: CASH (only {len(clean)} clean stocks after filters)")
+                print(f"    {entry_date}: CASH (only {buyable} of {len(symbols)} "
+                      "screened names buyable at entry)")
             continue
 
         # Equal-weight returns with transaction costs

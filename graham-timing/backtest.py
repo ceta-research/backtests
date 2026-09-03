@@ -36,7 +36,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, get_local_benchmark, get_benchmark_return, remove_price_oscillations
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, remove_price_oscillations
 from metrics import compute_metrics as _compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
@@ -338,7 +338,23 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
             # clean_list contains (symbol, raw_return_fraction, market_cap)
             clean_returns, _ = filter_returns(raw_returns, verbose=verbose)
 
-            if len(clean_returns) >= MIN_STOCKS:
+            # Checked on `buyable`, NOT on len(clean_returns). filter_returns
+            # drops a name for a missing EXIT price and for a realised return
+            # over its max_single_return, and `raw_returns` above is ALREADY
+            # built with the exit price filtered out, so len(clean_returns) was
+            # doubly exit-conditioned. None of that is knowable on the rebalance
+            # date, and deciding cash from it is look-ahead that flatters: a
+            # period the strategy really held and really lost gets rewritten as
+            # a flat 0.0%. If the book cleared the floor at entry the strategy
+            # ENTERED, so the exit-side survivors are averaged below exactly as
+            # they were before. That survivor-averaging has its own known
+            # weakness; it is pre-existing, logged in DATA_QUALITY_ISSUES.md,
+            # and deliberately not changed here.
+            #
+            # No min_entry_price, matching this topic's own filter_returns call,
+            # which takes the $1.00 default.
+            buyable = entry_buyable_prices(symbols, entry_prices)
+            if buyable >= MIN_STOCKS:
                 # Apply transaction costs and average
                 total_return = 0.0
                 for symbol, raw_return, mkt_cap in clean_returns:
@@ -363,13 +379,16 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
                 if verbose:
                     print(f"    -> {len(clean_returns)} stocks, return: {period_return*100:+.2f}%")
             else:
-                # Not enough clean data after quality filter
+                # Too few names were buyable at entry. The old label here said
+                # "data quality filter", which described a post-exit rejection
+                # that this branch no longer reads.
                 portfolio_returns.append(0.0)
                 period_data.append({
                     "rebalance_date": target_date.isoformat(),
                     "exit_date": exit_date.isoformat(),
                     "stocks_held": 0,
-                    "holdings": "CASH (data quality filter)",
+                    "holdings": (f"CASH ({buyable} buyable at entry of "
+                                 f"{len(symbols)} screened)"),
                     "portfolio_return": 0.0,
                 })
 

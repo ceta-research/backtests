@@ -43,6 +43,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
+                        entry_buyable,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
@@ -430,10 +431,22 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                          verbose=verbose)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
-        # Screening can pass 30 names while only a handful of them have usable
-        # prices at this rebalance, and averaging 1-4 survivors reports a single
-        # stock's year as a diversified portfolio return.
-        if len(clean) < MIN_STOCKS:
+        # Screening can pass 30 names while only a handful of them have a usable
+        # ENTRY price, and averaging 1-4 survivors reports a single stock's year
+        # as a diversified portfolio return.
+        #
+        # Checked on `buyable`, NOT on len(clean). filter_returns also drops a
+        # name for a missing EXIT price and for a realised return over
+        # MAX_SINGLE_RETURN, neither of which is knowable on the rebalance date.
+        # Deciding cash from those is look-ahead and it flatters: a period the
+        # strategy really held and really lost gets rewritten as a flat 0.0%. If
+        # the book cleared the floor at entry the strategy ENTERED, so the
+        # exit-side survivors are averaged below exactly as they were before this
+        # guard existed. That survivor-averaging has its own known weakness; it
+        # is pre-existing, logged in DATA_QUALITY_ISSUES.md, and deliberately
+        # not changed here.
+        buyable = entry_buyable(symbol_data, min_entry_price=MIN_ENTRY_PRICE)
+        if buyable < MIN_STOCKS:
             bench_return = get_benchmark_return(
                 con, benchmark_symbol, entry_date, exit_date,
                 offset_days=offset_days)
@@ -444,11 +457,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "portfolio_return": 0.0,
                 "spy_return": bench_return,
                 "stocks_held": 0,
-                "holdings": f"CASH ({len(clean)} priced of {len(portfolio)} screened)",
+                "holdings": f"CASH ({buyable} buyable at entry of {len(portfolio)} screened)",
             })
             if verbose:
-                print(f"    {entry_date}: only {len(clean)} of {len(portfolio)} screened "
-                      f"names had usable prices (< {MIN_STOCKS}), CASH")
+                print(f"    {entry_date}: only {buyable} of {len(portfolio)} screened "
+                      f"names were buyable at entry (< {MIN_STOCKS}), CASH")
             continue
 
         returns = []
@@ -606,12 +619,25 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "52-Week Low Quality", benchmark_name))
 
-    # Count over `valid`, not `results`: a period the benchmark can't price is not a
-    # measured period, so counting it as cash pushes invested_periods negative.
-    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
-    invested = [r["stocks_held"] for r in valid if r["stocks_held"] > 0]
+    # Count over `executed`, every rebalance the strategy actually ran, NOT over
+    # `valid`. This topic is the prior art the convention is taken from (commit
+    # 3c39bcb): build_output derives invested_periods from
+    # total_rebalances = len(results), so counting cash over `valid` gives the
+    # two a different denominator and overstates invested periods 4-5x. The
+    # committed JSON still holds the right numbers, so nothing looks wrong; the
+    # next Oslo re-run would publish invested ~45-56 against a true 11.
+    #
+    # Folded in with the B005 guard rather than left to the follow-up commit, so
+    # that no intermediate commit publishes mismatched denominators.
+    #
+    # This topic's three results.append sites always write a float and never
+    # None, so executed == results here. The filter is kept so the shape a
+    # static gate checks is the same everywhere.
+    executed = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods = sum(1 for r in executed if r["stocks_held"] == 0)
+    invested = [r["stocks_held"] for r in executed if r["stocks_held"] > 0]
     avg_stocks = sum(invested) / len(invested) if invested else 0
-    print(f"\n  Cash periods: {cash_periods} / {len(valid)}")
+    print(f"\n  Cash periods: {cash_periods} / {len(executed)}")
     print(f"  Avg stocks (invested): {avg_stocks:.1f}")
 
     period_dates = [r["rebalance_date"] for r in valid]

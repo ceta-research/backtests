@@ -34,7 +34,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, save_results, print_header,
@@ -290,10 +290,28 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         clean, skipped = filter_returns(raw_data, verbose=verbose)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
-        # Screening can pass 30 names while only a handful of them have usable
-        # prices at this rebalance, and averaging 1-4 survivors reports a single
-        # stock's year as a diversified portfolio return.
-        if len(clean) < MIN_STOCKS:
+        # Screening can pass 30 names while only a handful of them have a usable
+        # ENTRY price, and averaging 1-4 survivors reports a single stock's year
+        # as a diversified portfolio return.
+        #
+        # Checked on `buyable`, NOT on len(clean). filter_returns also drops a
+        # name for a missing EXIT price and for a realised return over its
+        # max_single_return, neither of which is knowable on the rebalance date.
+        # Deciding cash from those is look-ahead and it flatters: a period the
+        # strategy really held and really lost gets rewritten as a flat 0.0%. If
+        # the book cleared the floor at entry the strategy ENTERED, so the
+        # exit-side survivors are averaged below exactly as they were before this
+        # guard existed. That survivor-averaging has its own known weakness; it
+        # is pre-existing, logged in DATA_QUALITY_ISSUES.md, and deliberately
+        # not changed here.
+        #
+        # `raw_data` above is built with the EXIT price already filtered out, so
+        # entry_buyable() over it would still be exit-conditioned. Count from the
+        # screened symbols and the entry-price map instead. No min_entry_price,
+        # matching this topic's own filter_returns call, which takes the $1.00
+        # default.
+        buyable = entry_buyable_prices(symbols, entry_prices)
+        if buyable < MIN_STOCKS:
             bench_return = get_benchmark_return(
                 con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
 
@@ -303,11 +321,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "portfolio_return": 0.0,
                 "spy_return": bench_return,
                 "stocks_held": 0,
-                "holdings": f"CASH ({len(clean)} priced of {len(portfolio)} screened)",
+                "holdings": f"CASH ({buyable} buyable at entry of {len(portfolio)} screened)",
             })
             if verbose:
-                print(f"    {entry_date}: only {len(clean)} of {len(portfolio)} screened "
-                      f"names had usable prices (< {MIN_STOCKS}), CASH")
+                print(f"    {entry_date}: only {buyable} of {len(portfolio)} screened "
+                      f"names were buyable at entry (< {MIN_STOCKS}), CASH")
             continue
 
         returns = []
