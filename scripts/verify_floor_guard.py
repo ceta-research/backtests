@@ -54,10 +54,16 @@ SCOPE_ALLOW = {
     # none of the allow rules below, so without this entry the scope gate
     # rejects the fix's own dependency.
     "data_utils.py",
-    # B005 follow-up: records the exit-side survivorship question this change
+    # B005 follow-up: records the exit-side survivorship question that change
     # deliberately does NOT fix, so the decision is written down where the 66
-    # guard comments point rather than living only in a commit message.
+    # guard comments point rather than living only in a commit message. B006
+    # appends to it too (graham-timing's 0.0 benchmark substitution,
+    # capex-efficiency's invented invested_periods).
     "DATA_QUALITY_ISSUES.md",
+    # B006: hosts the shared period_accounting/warn_if_truncated helper. Root
+    # .py files match none of the allow rules below, so without this entry the
+    # scope gate rejects its own dependency.
+    "metrics.py",
 }
 
 

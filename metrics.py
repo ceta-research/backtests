@@ -19,6 +19,189 @@ See METHODOLOGY.md for formula definitions and interpretation guides.
 """
 
 import math
+import sys
+
+
+def warn_if_truncated(acct, universe_name=None, stream=None):
+    """Emit one loud stderr line per benchmark-truncated leg. WARNS, NEVER RAISES.
+
+    Truncation is a legitimate result, not an error. A market whose local index
+    starts late (^OSEAX begins 2013-03-05) still ran every rebalance; the
+    benchmark simply cannot price the early ones. Raising here would stall the
+    re-run campaign on every such leg.
+
+    The raising checks inside `period_accounting` are code-correctness gates that
+    data cannot trip. This is the data-quality signal, and it is deliberately
+    non-fatal. Keeping the two separate is what lets a re-run proceed.
+    """
+    if not acct.get("window_truncated"):
+        return
+    who = universe_name or acct.get("universe") or "?"
+    bench = acct.get("benchmark_symbol")
+    first = acct.get("benchmark_first_date")
+    # Build from parts so a missing symbol/date drops out instead of printing
+    # "benchmark None starts None".
+    bits = []
+    if bench:
+        bits.append(f"benchmark {bench}")
+        if first:
+            bits[-1] += f" starts {first}"
+    bits.append(f"{acct['unmeasured_periods']} of {acct['total_rebalances']} "
+                f"rebalances unmeasured")
+    measured = acct["window_label"].split(" (")[0]
+    req_a = (acct.get("requested_start") or "?")[:4]
+    req_b = (acct.get("requested_end") or "?")[:4]
+    print(f"WARNING {who}: " + "; ".join(bits) +
+          f". Measured window is {measured}, NOT {req_a}-{req_b}.",
+          file=stream or sys.stderr)
+
+
+def period_accounting(executed, valid, cash_periods, *,
+                      benchmark_symbol=None, benchmark_first_date=None,
+                      date_key="rebalance_date", end_key="exit_date",
+                      universe_name=None, warn=True):
+    """Derive period counts + measured-window provenance for a backtest record.
+
+    Blocker B006. Closes two defects.
+
+    (a) CASH COUNTING. `cash_periods` must be counted over the SAME collection
+        passed here as `executed`: every rebalance the strategy actually ran.
+        `invested_periods` is DERIVED here and never counted separately, so
+        `cash + invested == total_rebalances` holds by construction. Counting
+        cash over one population and deriving invested from another is what
+        published 22 records with a negative invested_periods (as low as -51).
+
+    (b) SILENT WINDOW TRUNCATION. Periods the benchmark cannot price are dropped
+        from `valid` (data_utils.get_benchmark_return returns None, with no
+        per-period fallback), so a run LABELLED 2002-2025 can measure only
+        2013-2025. `years` was already honest; nothing carried the window START
+        or said the window had been cut. `window_label` does both, pre-formatted
+        so it cannot be copied into a heading and come out wrong.
+
+    Three populations, deliberately distinguished:
+        results   every record the loop appended, trailing stubs included
+        executed  results the strategy actually ran (portfolio_return not None).
+                  Excludes stubs: e.g. sector-momentum's rebalance grid runs past
+                  the price fetch cap, leaving records with no exit price.
+        valid     executed AND benchmark-priced. The metrics population;
+                  len(valid) == n_periods.
+
+    `cash_periods` counts over `executed`; `n_periods` counts `valid`. They live
+    in DIFFERENT populations ON PURPOSE. That is what preserves the honest
+    full-window cash rate (Norway sat in cash for 84 of 95 rebalances, not 84 of
+    the 50 the benchmark happened to price). NEVER relate the two.
+
+    Raises ValueError -- not `assert`, which `python -O` strips, and this is the
+    only gate this repo has -- on any wiring regression.
+
+    Args:
+        executed: list[dict] - rebalances the strategy actually ran
+        valid: list[dict] - subset of executed that the benchmark can price
+        cash_periods: int - cash count over `executed`, using the topic's own
+            predicate (predicates differ: stocks_held == 0, pairs_active <
+            MIN_PAIRS_ACTIVE, y["is_cash"], ...), so the caller counts and this
+            function owns everything derived from it.
+        benchmark_symbol: str|None - e.g. "^OSEAX". Diagnostic only.
+        benchmark_first_date: str|None - first date the benchmark prices.
+        date_key / end_key: str - record keys for period start/end. Yearly and
+            pairs records use "year" for both.
+        universe_name: str|None - used only in the truncation warning.
+        warn: bool - emit the stderr truncation line. Pass False for inner loops
+            that would otherwise warn once per pair.
+
+    Returns:
+        dict of 13 keys, meant to be splatted LAST into the output record so a
+        stale local cannot shadow it.
+    """
+    total_rebalances = len(executed)
+    n_periods = len(valid)
+
+    if isinstance(cash_periods, bool) or not isinstance(cash_periods, int):
+        raise ValueError(
+            f"cash_periods must be int, got {type(cash_periods).__name__}")
+    if not 0 <= cash_periods <= total_rebalances:
+        raise ValueError(
+            f"cash_periods={cash_periods} outside [0, "
+            f"total_rebalances={total_rebalances}]. Cash must be counted over "
+            "`executed` (every rebalance run), not `valid` and not `results`.")
+    if not 0 <= n_periods <= total_rebalances:
+        raise ValueError(
+            f"n_periods={n_periods} > total_rebalances={total_rebalances}. "
+            "`valid` must be a subset of `executed`.")
+
+    invested_periods = total_rebalances - cash_periods
+    if cash_periods + invested_periods != total_rebalances:
+        # Unreachable given the derivation above; catches a future edit that
+        # replaces the derivation with an independent count.
+        raise ValueError("cash_periods + invested_periods != total_rebalances")
+
+    def _d(rows, idx, key):
+        if not rows or key is None:
+            return None
+        row = rows[idx]
+        if not isinstance(row, dict):
+            return None
+        v = row.get(key)
+        if isinstance(v, str):
+            return v
+        if hasattr(v, "isoformat"):
+            return v.isoformat()
+        if isinstance(v, int):
+            return str(v)          # yearly records key on an int year
+        return None
+
+    measured_start = _d(valid, 0, date_key)
+    measured_end = _d(valid, -1, end_key) or _d(valid, -1, date_key)
+    requested_start = _d(executed, 0, date_key)
+    requested_end = _d(executed, -1, end_key) or _d(executed, -1, date_key)
+
+    unmeasured = total_rebalances - n_periods
+    truncated = unmeasured > 0
+
+    def _yr(s):
+        return s[:4] if isinstance(s, str) and len(s) >= 4 else "?"
+
+    def _bench_phrase():
+        if benchmark_symbol and benchmark_first_date:
+            return f"benchmark {benchmark_symbol} starts {benchmark_first_date}; "
+        if benchmark_symbol:
+            return f"benchmark {benchmark_symbol}; "
+        return ""
+
+    if n_periods == 0:
+        window_label = (
+            f"NO MEASURED PERIODS (requested "
+            f"{_yr(requested_start)}-{_yr(requested_end)}; "
+            + (f"benchmark {benchmark_symbol} prices none of it; "
+               if benchmark_symbol else "benchmark prices none of it; ")
+            + f"all {total_rebalances} rebalances unmeasured)")
+    elif truncated:
+        window_label = (
+            f"{_yr(measured_start)}-{_yr(measured_end)} ("
+            + _bench_phrase()
+            + f"{unmeasured} of {total_rebalances} rebalances unmeasured; "
+              f"requested {_yr(requested_start)}-{_yr(requested_end)})")
+    else:
+        window_label = f"{_yr(measured_start)}-{_yr(measured_end)}"
+
+    acct = {
+        "n_periods": n_periods,
+        "total_rebalances": total_rebalances,
+        "cash_periods": cash_periods,
+        "invested_periods": invested_periods,
+        "measured_start": measured_start,
+        "measured_end": measured_end,
+        "requested_start": requested_start,
+        "requested_end": requested_end,
+        "benchmark_symbol": benchmark_symbol,
+        "benchmark_first_date": benchmark_first_date,
+        "window_truncated": truncated,
+        "unmeasured_periods": unmeasured,
+        "window_label": window_label,
+    }
+    if warn:
+        warn_if_truncated(acct, universe_name)
+    return acct
 
 
 def compute_metrics(period_returns, benchmark_returns, periods_per_year,
