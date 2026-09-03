@@ -191,6 +191,95 @@ def lookahead_hits(tree):
             if isinstance(c, ast.Name) and c.id in fl]
 
 
+def _slot_names(elt, i):
+    """Names appearing in slot `i` of a built (sym, entry, exit, mcap) tuple."""
+    if isinstance(elt, ast.Tuple) and len(elt.elts) > i:
+        return {n.id for n in ast.walk(elt.elts[i]) if isinstance(n, ast.Name)}
+    return set()
+
+
+def _one_level_sources(tree, names):
+    """Expand `x` to the names on the right of a local `x = <expr>`.
+
+    One level only. It is enough to see through `xp = exit_prices.get(sym)`,
+    and it stops well short of dragging in half the function.
+    """
+    out = set(names)
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Assign) and len(n.targets) == 1
+                and isinstance(n.targets[0], ast.Name)
+                and n.targets[0].id in names):
+            out |= {m.id for m in ast.walk(n.value) if isinstance(m, ast.Name)}
+    return out
+
+
+def _builders(tree, name):
+    """Every construction site of `name`, as (element expr, [gating conditions])."""
+    sites = []
+    for node in ast.walk(tree):
+        # form 1:  name = [ <elt> for <t> in ... if <cond> ]
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == name for t in node.targets):
+            v = node.value
+            if isinstance(v, (ast.ListComp, ast.GeneratorExp, ast.SetComp)):
+                sites.append((v.elt, [c for g in v.generators for c in g.ifs]))
+        # form 2:  if <cond>: name.append(<elt>)
+        if isinstance(node, ast.If):
+            for inner in ast.walk(node):
+                if (isinstance(inner, ast.Call)
+                        and isinstance(inner.func, ast.Attribute)
+                        and inner.func.attr == "append"
+                        and isinstance(inner.func.value, ast.Name)
+                        and inner.func.value.id == name and inner.args):
+                    sites.append((inner.args[0], [node.test]))
+    return sites
+
+
+def provenance_hits(tree):
+    """The look-ahead the BOUND NAME cannot see.
+
+    guard_hits anchors on `buyable < MIN_STOCKS`, so it accepts the guard
+    whatever `buyable` was counted from. But sector-rotation, sector-momentum
+    and graham-timing build their symbol_data EXIT-FILTERED:
+
+        symbol_data = [(sym, entry.get(sym), exit.get(sym), mcap.get(sym))
+                       for sym in symbols
+                       if entry.get(sym) and exit.get(sym)]     # <-- exit slot
+
+    Counting THAT with entry_buyable() restores the exit-conditioned cash rule
+    in full, with `buyable` still the bound name and every other gate green.
+    That is why entry_buyable_prices(symbols, entry_map) exists as a separate
+    helper for those three: it takes the entry map explicitly and cannot be fed
+    an exit-filtered collection by accident.
+
+    So: resolve the collection handed to entry_buyable(), and flag it if any
+    condition gating its elements reads a name that feeds the tuple's EXIT slot
+    and not its ENTRY slot. Subtracting the entry-slot names is what keeps the
+    shared loop variable `sym` from flagging every comprehension ever written.
+    """
+    hits = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id in BUYABLE_FNS and node.args):
+            continue
+        if node.func.id == "entry_buyable_prices":
+            continue          # takes the entry price map directly; nothing to resolve
+        arg = node.args[0]
+        if not isinstance(arg, ast.Name):
+            continue
+        for elt, conds in _builders(tree, arg.id):
+            entry_side = _one_level_sources(tree, _slot_names(elt, 1))
+            exit_only = _one_level_sources(tree, _slot_names(elt, 2)) - entry_side
+            if not exit_only:
+                continue
+            for c in conds:
+                used = {n.id for n in ast.walk(c) if isinstance(n, ast.Name)}
+                bad = sorted(used & exit_only)
+                if bad:
+                    hits.append((node.lineno, arg.id, bad))
+    return hits
+
+
 def main():
     fails = []
     all_topics = topics()
@@ -235,7 +324,7 @@ def main():
     # price and for a realised return above MAX_SINGLE_RETURN, neither of which
     # is knowable on the rebalance date, so `len(clean) < MIN_STOCKS` sends a
     # period to cash off exit-date information.
-    floor_topics, nofloor, unguarded, lookahead = [], [], [], []
+    floor_topics, nofloor, unguarded, lookahead, provenance = [], [], [], [], []
     for t in all_topics:
         tree = parse(t)
         if floors(tree):
@@ -245,18 +334,24 @@ def main():
             for lineno, var, fl in lookahead_hits(tree):
                 lookahead.append((t, lineno, f"floor {fl} compared against "
                                              f"len({var})"))
+            for lineno, var, bad in provenance_hits(tree):
+                provenance.append((t, lineno, f"entry_buyable({var}) where {var} "
+                                              f"is built exit-filtered on {bad}"))
         else:
             nofloor.append(t)
     print(f"3 CENSUS    floor topics {len(floor_topics)}, "
           f"guarded {len(floor_topics) - len(unguarded)}, unguarded {len(unguarded)}; "
           f"no-floor {len(nofloor)} (must stay {len(nofloor)}: no floor invented); "
-          f"exit-conditioned {len(lookahead)}")
+          f"exit-conditioned {len(lookahead)}; exit-filtered source {len(provenance)}")
     for t in unguarded:
         print("    UNGUARDED", t)
     for h in lookahead:
         print("    EXIT-CONDITIONED CASH:", h)
+    for h in provenance:
+        print("    EXIT-FILTERED SOURCE:", h)
     fails += [("unguarded", t) for t in unguarded]
     fails += [("exit-conditioned cash", h) for h in lookahead]
+    fails += [("exit-filtered source", h) for h in provenance]
     # SELF-TEST 1, teeth against a topic with NO guard at all. Rewriting the
     # detector to anchor on a bound name rather than on `len(...)` could easily
     # leave it matching nothing, and a detector that matches nothing looks
@@ -282,6 +377,33 @@ def main():
     if not guard_hits(p3_ok) or lookahead_hits(p3_ok):
         print("    SELF-TEST FAIL: gate 3 rejects the corrected form")
         fails.append(("gate 3 false positive", "clean probe flagged"))
+    # SELF-TEST 4, teeth against the regression the bound name cannot see: the
+    # guard reads `buyable`, but `buyable` was counted over an EXIT-FILTERED
+    # collection. Both other probes stay green on this, which is the point.
+    p3_prov = ast.parse(
+        "MIN_STOCKS = 10\ndef f(symbols, e, x, m):\n"
+        "    symbol_data = [(s, e.get(s), x.get(s), m.get(s)) for s in symbols\n"
+        "                   if e.get(s) and x.get(s)]\n"
+        "    buyable = entry_buyable(symbol_data)\n"
+        "    if buyable < MIN_STOCKS:\n        return 0\n")
+    if not provenance_hits(p3_prov):
+        print("    SELF-TEST FAIL: gate 3 no longer flags entry_buyable() over an "
+              "EXIT-FILTERED collection -- the look-ahead can be reintroduced "
+              "under the corrected bound name")
+        fails.append(("gate 3 provenance-probe", "exit-filtered source not flagged"))
+    # SELF-TEST 5, negative control for the same detector. The two-argument
+    # helper and an unfiltered comprehension must both stay clean, or the gate
+    # is unsatisfiable and gets deleted rather than fixed.
+    p3_prov_ok = ast.parse(
+        "MIN_STOCKS = 10\ndef f(symbols, e, x, m):\n"
+        "    symbol_data = [(s, e.get(s), x.get(s), m.get(s)) for s in symbols\n"
+        "                   if e.get(s)]\n"
+        "    a = entry_buyable(symbol_data)\n"
+        "    b = entry_buyable_prices(symbols, e)\n"
+        "    return a + b\n")
+    if provenance_hits(p3_prov_ok):
+        print("    SELF-TEST FAIL: gate 3 provenance check flags the CORRECT form")
+        fails.append(("gate 3 provenance false positive", "clean probe flagged"))
 
     # ---- gate 4: schema (per-period data published)
     missing = []

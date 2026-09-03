@@ -366,7 +366,15 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
                         net_return = raw_return
                     total_return += net_return
 
-                period_return = total_return / len(clean_returns)
+                # `if clean_returns else 0.0` is load-bearing, not defensive
+                # noise. The cash rule above is decided on `buyable`, so this
+                # branch is now reachable with an EMPTY clean_returns: every
+                # name buyable at entry, none surviving to the exit side
+                # (coverage ending mid-period, a halt, a mass delisting, or
+                # every survivor tripping max_single_return). Under the old
+                # exit-conditioned guard that case took the else branch.
+                period_return = (total_return / len(clean_returns)
+                                 if clean_returns else 0.0)
                 portfolio_returns.append(period_return)
 
                 period_data.append({

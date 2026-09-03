@@ -333,9 +333,20 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             net_returns.append(net_ret)
 
         # Calculate equal-weight portfolio return
-        port_return = sum(net_returns) / len(net_returns)
+        #
+        # Both fallbacks are load-bearing, not defensive noise. The cash rule
+        # above is decided on `buyable`, so this branch is now reachable with an
+        # EMPTY `clean`: every name buyable at entry, none surviving to the exit
+        # side. The pre-guard higher up only catches "no prices for EITHER leg";
+        # it does not fire when a name priced at exit and was then dropped for a
+        # return over max_single_return, which empties `clean` just as well.
+        # Under the old exit-conditioned guard that case cashed out before
+        # reaching here. avg_roic uses None, matching what the cash record above
+        # already writes for this field.
+        port_return = sum(net_returns) / len(net_returns) if net_returns else 0.0
 
-        avg_roic = sum(roics.get(sym, 0) for sym, _, _ in clean) / len(clean)
+        avg_roic = (sum(roics.get(sym, 0) for sym, _, _ in clean) / len(clean)
+                    if clean else None)
 
         results.append({
             "start_date": rdate.isoformat(),

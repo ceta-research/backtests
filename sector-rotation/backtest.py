@@ -352,7 +352,13 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_worst=N_
                 net_ret = raw_ret
             returns.append(net_ret)
 
-        port_return = sum(returns) / len(returns)
+        # `if returns else 0.0` is load-bearing, not defensive noise. The cash
+        # rule above is decided on `buyable`, so this branch is now reachable
+        # with an EMPTY `clean`: every name buyable at entry, none of them
+        # surviving to the exit side (coverage ending mid-period, a halt, a mass
+        # delisting, or every survivor tripping max_single_return). Under the
+        # old exit-conditioned guard that case cashed out before reaching here.
+        port_return = sum(returns) / len(returns) if returns else 0.0
         sectors_selected = ", ".join(sorted(set(r[1] for r in portfolio_rows)))
 
         results.append({

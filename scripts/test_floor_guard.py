@@ -38,7 +38,17 @@ S5  same, for the other exit-conditioned drop: every name prices at both dates,
     a half-fix that only special-cases the missing-exit-price drop passes S4 and
     still fails here.
 
-S4 and S5 are what makes the correction stick, so they gate the exit code.
+S6  zero survivors: every screened name buyable at ENTRY, NONE surviving to the
+    exit side -- via lost exit prices (S6a) and via every name tripping
+    max_single_return (S6b). Correcting the guard MADE this branch reachable,
+    and 4 of the 66 topics divided by the empty book there and raised
+    ZeroDivisionError. S6 is a CRASH regression, not a look-ahead test: a
+    zero-survivor period is legitimately 0.0% under either guard, so S6 cannot
+    tell a reverted guard from a correct one. It asserts only that the period is
+    reached, recorded and does not raise.
+
+S4 and S5 are what makes the correction stick, and S6 keeps the correction from
+crashing, so all three gate the exit code.
 
 It never touches DuckDB, the network, or a real backtest. `screen_stocks`,
 `get_prices` and `get_benchmark_return` are imported into each topic's own module
@@ -73,16 +83,18 @@ BIG_MCAP = 5.0e9         # above every tiered_cost breakpoint, keeps costs flat
 
 FLOOR_NAMES = ("MIN_STOCKS", "MIN_PORTFOLIO_STOCKS")
 
-# Topics whose run_backtest is not a (con, rebalance_dates, ...) period loop, or
-# whose data boundary is not the screen_stocks/get_prices pair. All four are
-# already-guarded topics that this change touches only with the one-line
-# period_data insert, so they are covered by the static gates in verify.py
-# (AST byte-identity of the guard block + schema scan) instead.
-STATIC_ONLY = {
-    "graham-timing",     # run_backtest(exchanges) drives its own connection
-    "sector-momentum",   # screen_sectors + get_prices_at
-    "sector-rotation",   # screen_sectors + get_prices_at
-}
+# Topics that cannot be driven dynamically and are covered by the static gates
+# in verify_floor_guard.py instead.
+#
+# This set USED to hold graham-timing, sector-momentum and sector-rotation, and
+# that was a hole, not a simplification. All three carried the look-ahead on
+# main, so they were the highest-risk topics in the population, and the static
+# gate anchors on the bound name `buyable` rather than on how the counted
+# collection was built -- so swapping entry_buyable_prices(symbols, entry_map)
+# back to entry_buyable(symbol_data) fully reintroduced the look-ahead with
+# every gate and every test green. They are driven now (see DRIVERS below), and
+# gate 3 checks construction-site provenance as a second line.
+STATIC_ONLY = set()
 
 SCREEN_FN = {           # topics whose screen function is not named screen_stocks
     "dogs-of-dow": "screen_dogs",
@@ -152,35 +164,68 @@ class Stubs:
     """
 
     def __init__(self, symbols, priced=None, entry_priced=None,
-                 exit_priced=None, exit_px=None):
+                 exit_priced=None, exit_px=None, n_qualifying=6):
         self.symbols = list(symbols)
         if priced is not None:          # legacy S1/S2/S3 form: same at both dates
             entry_priced = exit_priced = priced
         self.entry_priced = set(entry_priced or ())
         self.exit_priced = set(exit_priced or ())
         self.exit_px = dict(exit_px or {})
+        self.n_qualifying = n_qualifying
+        self._asked = list(symbols)
         self.bench_calls = 0
 
     def screen(self, *a, **k):
         return self._shaped
 
-    def get_prices(self, con, symbols, target_date, *a, **k):
-        entry = target_date == ENTRY
+    def _leg(self, entry):
         allowed = self.entry_priced if entry else self.exit_priced
         out = {}
-        for s in symbols:
+        for s in self._asked:
             if s == "SPY":
                 out[s] = ENTRY_PX if entry else EXIT_PX
             elif s in allowed:
                 out[s] = ENTRY_PX if entry else self.exit_px.get(s, EXIT_PX)
         return out
 
-    def get_prices_at(self, con, symbols, target_date, *a, **k):
-        return self.get_prices(con, symbols, target_date, *a, **k)
+    def get_prices(self, con, symbols, target_date, *a, **k):
+        self._asked = symbols
+        return self._leg(target_date == ENTRY)
+
+    def get_prices_at(self, con, symbols, year, month, *a, **k):
+        """sector-momentum/sector-rotation's own price fetcher.
+
+        Its signature is (con, symbols, YEAR, MONTH, offset_days), NOT the
+        (con, symbols, date) form get_prices takes. Delegating to get_prices
+        here -- which the first version of this stub did -- compares an int year
+        against a date, so EVERY fetch resolved to the exit leg and neither
+        topic could be driven at all. That mis-signature is the whole reason the
+        sector twins sat in STATIC_ONLY.
+        """
+        self._asked = symbols
+        return self._leg((year, month) == (ENTRY.year, ENTRY.month))
+
+    def screen_sectors(self, con, target_date, *a, **k):
+        """(rows, n_qualifying) for the sector twins.
+
+        Rows are the 6-tuples their SQL returns:
+        (symbol, sector, recent_price, market_cap, avg_sector_return,
+        n_qualifying). Sectors alternate over two names because both topics take
+        the best/worst N_SECTORS=2 buckets and derive `sectors_selected` from
+        the set. n_qualifying is returned above MIN_QUALIFYING_SECTORS so the
+        SECTOR floor never fires and the STOCK floor -- the one under test --
+        is what decides the period.
+        """
+        n_qual = self.n_qualifying
+        return ([(s, f"Sector{i % 2}", ENTRY_PX, BIG_MCAP, 0.25, n_qual)
+                 for i, s in enumerate(self.symbols)], n_qual)
 
     def get_benchmark_return(self, *a, **k):
         self.bench_calls += 1
         return BENCH_RET
+
+    def close(self):        # graham-timing calls con.close()
+        pass
 
 
 def shape(symbols, arity):
@@ -221,15 +266,63 @@ def attempt(topic, n_screen, n_priced, arity, verbose=False, drop_first=False,
     stubs._shaped = shape(symbols, arity)
 
     setattr(mod, SCREEN_FN.get(topic, "screen_stocks"), stubs.screen)
-    for name in ("get_prices", "get_prices_at", "get_benchmark_return"):
+    for name in ("get_prices", "get_prices_at", "get_benchmark_return",
+                 "screen_sectors"):
         if hasattr(mod, name):
             setattr(mod, name, getattr(stubs, name))
     # cyclical-timing gates the whole book on a macro signal; force it invested
     if hasattr(mod, "compute_expansion_signal"):
         mod.compute_expansion_signal = lambda *a, **k: (True, 1.0, 50)
 
-    results = mod.run_backtest(**run_backtest_kwargs(mod, verbose=verbose))
+    results = DRIVERS.get(topic, drive_default)(mod, stubs, symbols, verbose)
     return results, stubs, floor
+
+
+# ---------------------------------------------------------------------------
+# Drivers. Most topics are a (con, rebalance_dates, ...) period loop over the
+# screen_stocks/get_prices pair and need nothing beyond the default. The three
+# below are not, which is why they used to be STATIC_ONLY -- a static gate can
+# see that a guard block is byte-identical, but only a driven run can prove the
+# guard reads the entry leg, and only a driven run reaches the invested branch
+# where the zero-survivor crash lives.
+# ---------------------------------------------------------------------------
+
+def drive_default(mod, stubs, symbols, verbose):
+    return mod.run_backtest(**run_backtest_kwargs(mod, verbose=verbose))
+
+
+def drive_sector(mod, stubs, symbols, verbose):
+    """sector-momentum / sector-rotation.
+
+    Their data boundary is screen_sectors + get_prices_at, both stubbed above.
+    The rest is the ordinary (con, rebalance_dates) loop and returns a list of
+    period dicts, so the scenario assertions apply unchanged.
+    """
+    return mod.run_backtest(None, [ENTRY, EXIT], use_costs=False, verbose=verbose)
+
+
+def drive_graham_timing(mod, stubs, symbols, verbose):
+    """graham-timing drives its OWN connection, so the seam is one level up.
+
+    run_backtest(exchanges, ...) builds a CetaResearch client, generates its own
+    rebalance dates and opens a DuckDB via fetch_data_via_api. Stub those four
+    and the period loop below them is the same screen/price loop as everywhere
+    else. It returns a metrics dict rather than a list, with the per-period
+    records under 'period_data'.
+    """
+    mod.CetaResearch = lambda *a, **k: object()
+    mod.fetch_data_via_api = lambda *a, **k: stubs
+    mod.generate_rebalance_dates = lambda *a, **k: [ENTRY, EXIT]
+    mod.get_mktcap_threshold = lambda *a, **k: 0.0
+    res = mod.run_backtest(["NYSE"], apply_costs=False, verbose=verbose)
+    return (res or {}).get("period_data", [])
+
+
+DRIVERS = {
+    "sector-momentum": drive_sector,
+    "sector-rotation": drive_sector,
+    "graham-timing": drive_graham_timing,
+}
 
 
 _ARITY_CACHE = {}
@@ -271,13 +364,52 @@ def run_case(topic, n_screen, n_priced=None, verbose=False, drop_first=False,
                    exit_priced=exit_priced, exit_px=exit_px)
 
 
+# How a topic spells its period record. These are real, pre-existing dialect
+# differences, NOT defects, and they are declared rather than sniffed so that a
+# topic silently changing its units or dropping a field shows up as a FAIL
+# instead of being absorbed. Every value here was read off the topic's own
+# `results.append(...)`.
+#
+#   ret_scale : divisor to get a FRACTION out of the stored return.
+#               graham-timing stores round(period_return * 100, 2), a PERCENT.
+#   cash_fmt  : the exact holdings/msg string the cash branch writes.
+#               The sector twins have no screened-count in scope at that point
+#               and write the shorter form.
+#   has_bench : whether the per-period record carries a benchmark at all.
+#               graham-timing accumulates spy_returns in a PARALLEL list and
+#               never puts it in period_data, so asserting on it there would be
+#               asserting on a field the topic has never had.
+DEFAULT_DIALECT = {"ret_scale": 1.0, "has_bench": True,
+                   "cash_fmt": "CASH ({b} buyable at entry of {n} screened)"}
+DIALECT = {
+    "graham-timing":   {"ret_scale": 100.0, "has_bench": False},
+    "sector-momentum": {"cash_fmt": "CASH (only {b} buyable at entry)"},
+    "sector-rotation": {"cash_fmt": "CASH (only {b} buyable at entry)"},
+}
+
+
+def dialect_of(topic):
+    d = dict(DEFAULT_DIALECT)
+    d.update(DIALECT.get(topic, {}))
+    return d
+
+
 def check(topic, verbose=False):
     """Returns (s1_ok, s2_ok, detail dict)."""
     mod = load(topic)
     _, floor = floor_of(mod)
     n_screen = floor + 5
     n_priced_s1 = 3
+    dia = dialect_of(topic)
+    scale = dia["ret_scale"]
     det = {"floor": floor, "n_screen": n_screen}
+
+    def ret_ok(rec, want=EXPECTED_RET):
+        """Compare the stored return against `want` as a FRACTION."""
+        if rec is None:
+            return False
+        v = rec.get("portfolio_return", rec.get("return"))
+        return v is not None and abs(v / scale - want) < 1e-9
 
     # ---- S1: only 3 of the screened names price -> must be CASH
     s1_ok = False
@@ -289,8 +421,7 @@ def check(topic, verbose=False):
         # The counts in this string are ENTRY-knowable ones. S1's unpriced names
         # are unpriced at BOTH dates, so they were never buyable and cash is
         # still the right answer; only the wording moved.
-        want_holdings = (f"CASH ({n_priced_s1} buyable at entry of "
-                         f"{n_screen} screened)")
+        want_holdings = dia["cash_fmt"].format(b=n_priced_s1, n=n_screen)
         if topic == "capex-efficiency":
             s1_ok = (rec is not None
                      and rec.get("n_stocks") == 0
@@ -307,7 +438,8 @@ def check(topic, verbose=False):
             s1_ok = (rec is not None
                      and rec.get("stocks_held") == 0
                      and rec.get("portfolio_return") == 0.0
-                     and rec.get("spy_return") is not None
+                     and (rec.get("spy_return") is not None
+                          or not dia["has_bench"])
                      and stubs.bench_calls <= 1
                      and rec.get("holdings") == want_holdings)
         det["s1_want_holdings"] = want_holdings
@@ -327,7 +459,7 @@ def check(topic, verbose=False):
             s2_ok = (rec is not None
                      and rec.get("n_stocks") == n_screen
                      and rec.get("stocks_held") == n_screen
-                     and abs(rec.get("return", 0) - EXPECTED_RET) < 1e-9)
+                     and ret_ok(rec))
         else:
             held = rec.get("holdings", "") if rec else ""
             named = [x for x in held.replace("...", "").split(",") if x.strip()]
@@ -337,7 +469,7 @@ def check(topic, verbose=False):
                                               for n in named)
             s2_ok = (rec is not None
                      and rec.get("stocks_held") == n_screen
-                     and abs(rec.get("portfolio_return", 0) - EXPECTED_RET) < 1e-9
+                     and ret_ok(rec)
                      and holdings_ok)
     except Exception as e:
         det["s2_error"] = f"{e.__class__.__name__}: {e}"
@@ -404,12 +536,12 @@ def check(topic, verbose=False):
         if topic == "capex-efficiency":
             s4_ok = (rec is not None
                      and rec.get("n_stocks") == n_exit_s4
-                     and abs(rec.get("return", 0) - EXPECTED_RET) < 1e-9
+                     and ret_ok(rec)
                      and "cash" not in str(rec.get("msg", "")))
         else:
             s4_ok = (rec is not None
                      and rec.get("stocks_held") == n_exit_s4
-                     and abs(rec.get("portfolio_return", 0) - EXPECTED_RET) < 1e-9
+                     and ret_ok(rec)
                      and "CASH" not in str(rec.get("holdings", "")))
     except Exception as e:
         det["s4_error"] = f"{e.__class__.__name__}: {e}"
@@ -444,19 +576,81 @@ def check(topic, verbose=False):
             if topic == "capex-efficiency":
                 s5_ok = (rec is not None
                          and rec.get("n_stocks") == floor - 1
-                         and abs(rec.get("return", 0) - EXPECTED_RET) < 1e-9
+                         and ret_ok(rec)
                          and "cash" not in str(rec.get("msg", "")))
             else:
                 s5_ok = (rec is not None
                          and rec.get("stocks_held") == floor - 1
-                         and abs(rec.get("portfolio_return", 0) - EXPECTED_RET) < 1e-9
+                         and ret_ok(rec)
                          and "CASH" not in str(rec.get("holdings", "")))
         except Exception as e:
             det["s5_error"] = f"{e.__class__.__name__}: {e}"
             if verbose:
                 det["s5_traceback"] = traceback.format_exc()
 
-    return s1_ok, s2_ok, s3_ok, s4_ok, s5_ok, det
+    # ---- S6: the book is buyable at entry and ZERO names survive to the exit
+    # side. This is the crash regression, not a look-ahead test.
+    #
+    # Correcting the guard MADE this reachable. Under the old
+    # `len(clean) < MIN_STOCKS` an empty book cashed out and never reached the
+    # invested branch; under `buyable < MIN_STOCKS` the period is correctly
+    # invested and execution falls into `sum(returns) / len(returns)`. 62 topics
+    # carry an `if returns else 0.0` fallback there and 4 did not, so
+    # capex-efficiency, graham-timing, sector-momentum and sector-rotation
+    # raised ZeroDivisionError on an ordinary input: a final rebalance whose
+    # exit date runs past data coverage, an exchange-wide halt, a mass
+    # delisting. The remedy is the fallback. Reverting the guard is NOT the
+    # remedy -- that restores the look-ahead S4 and S5 exist to forbid.
+    #
+    # S6 cannot discriminate a reverted guard: a zero-survivor period is
+    # legitimately 0.0% either way. S4 and S5 stay the look-ahead sentinels.
+    # All S6 asserts is that the period is REACHED, RECORDED and does not raise.
+    #
+    # Two routes, because they empty the book through different code:
+    #   S6a  no name prices at EXIT       -- the delisting/coverage route
+    #   S6b  every name blows the cap     -- the realised-return route. Topics
+    #        with no cap cannot express it, so it is n/a there, never PASS.
+    #        This is the route that reached capex-efficiency: its "no prices for
+    #        either leg" pre-guard absorbs S6a, so S6a alone would have missed
+    #        two of the five sites.
+    s6_ok = False
+    try:
+        res, stubs, _ = run_case(topic, n_screen, entry_priced=n_screen,
+                                 exit_priced=0, verbose=verbose)
+        rec = res[-1] if res else None
+        det["s6a_record"] = rec
+        s6a = (rec is not None
+               and rec.get("stocks_held", rec.get("n_stocks")) == 0
+               and (rec.get("portfolio_return", rec.get("return"))) == 0.0)
+    except Exception as e:
+        s6a = False
+        det["s6a_error"] = f"{e.__class__.__name__}: {e}"
+        if verbose:
+            det["s6a_traceback"] = traceback.format_exc()
+
+    if topic in NO_RETURN_CAP:
+        s6b = None
+    else:
+        try:
+            all_blown = {f"S{i:03d}": ENTRY_PX * 11 for i in range(n_screen)}
+            res, stubs, _ = run_case(topic, n_screen, entry_priced=n_screen,
+                                     exit_priced=n_screen, exit_px=all_blown,
+                                     verbose=verbose)
+            rec = res[-1] if res else None
+            det["s6b_record"] = rec
+            s6b = (rec is not None
+                   and rec.get("stocks_held", rec.get("n_stocks")) == 0
+                   and (rec.get("portfolio_return", rec.get("return"))) == 0.0)
+        except Exception as e:
+            s6b = False
+            det["s6b_error"] = f"{e.__class__.__name__}: {e}"
+            if verbose:
+                det["s6b_traceback"] = traceback.format_exc()
+
+    s6_ok = s6a and (s6b is not False)
+    det["s6a"], det["s6b"] = s6a, s6b
+
+    return s1_ok, s2_ok, s3_ok, s4_ok, s5_ok, s6_ok, det
 
 
 def tie_test():
@@ -521,13 +715,15 @@ def main():
     for t in topics:
         if t in STATIC_ONLY and not args.topic:
             continue
-        s1, s2, s3, s4, s5, det = check(t, verbose=args.verbose)
-        rows[t] = (s1, s2, s3, s4, s5, det)
+        s1, s2, s3, s4, s5, s6, det = check(t, verbose=args.verbose)
+        rows[t] = (s1, s2, s3, s4, s5, s6, det)
         series[t] = {"s2_record": det.get("s2_record"),
                      "s1_record": det.get("s1_record"),
                      "s3_record": det.get("s3_record"),
                      "s4_record": det.get("s4_record"),
-                     "s5_record": det.get("s5_record")}
+                     "s5_record": det.get("s5_record"),
+                     "s6a_record": det.get("s6a_record"),
+                     "s6b_record": det.get("s6b_record")}
 
     s1_pass = sorted(t for t, r in rows.items() if r[0])
     s1_fail = sorted(t for t, r in rows.items() if not r[0])
@@ -542,6 +738,9 @@ def main():
     s5_na = sorted(t for t, r in rows.items() if r[4] is None)
     s5_pass = sorted(t for t, r in rows.items() if r[4] is True)
     s5_fail = sorted(t for t, r in rows.items() if r[4] is False)
+    s6_pass = sorted(t for t, r in rows.items() if r[5])
+    s6_fail = sorted(t for t, r in rows.items() if not r[5])
+    s6b_na = sorted(t for t, r in rows.items() if r[6].get("s6b") is None)
 
     print(f"topics exercised: {len(rows)}   (static-only, excluded: {sorted(STATIC_ONLY)})")
     print(f"S1 guard fires      PASS {len(s1_pass):3d}   FAIL {len(s1_fail):3d}")
@@ -551,10 +750,12 @@ def main():
           "   (exit-unpriced must NOT flip the period to cash)")
     print(f"S5 return cap       PASS {len(s5_pass):3d}   FAIL {len(s5_fail):3d}"
           f"   n/a {len(s5_na):3d} {sorted(NO_RETURN_CAP)} -- no cap to trip")
+    print(f"S6 zero survivors   PASS {len(s6_pass):3d}   FAIL {len(s6_fail):3d}"
+          f"   (S6b n/a {len(s6b_na)}: no cap) -- must record 0.0%, never raise")
     if s1_fail:
         print("\nS1 FAIL (no cash record when the book fell below the floor):")
         for t in s1_fail:
-            d = rows[t][5]
+            d = rows[t][6]
             err = d.get("s1_error")
             rec = d.get("s1_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -563,7 +764,7 @@ def main():
     if s2_fail:
         print("\nS2 FAIL (guard fired when it should not have, or return wrong):")
         for t in s2_fail:
-            d = rows[t][5]
+            d = rows[t][6]
             err = d.get("s2_error")
             rec = d.get("s2_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -573,7 +774,7 @@ def main():
     if s3_fail:
         print("\nS3 FAIL (holdings names stocks that were never priced/held):")
         for t in s3_fail:
-            d = rows[t][5]
+            d = rows[t][6]
             err = d.get("s3_error")
             rec = d.get("s3_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -584,7 +785,7 @@ def main():
         print("\nS4 FAIL (LOOK-AHEAD: an exit-date fact decided the cash rule -- "
               "every name was buyable at entry, so the period was INVESTED):")
         for t in s4_fail:
-            d = rows[t][5]
+            d = rows[t][6]
             err = d.get("s4_error")
             rec = d.get("s4_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -596,13 +797,26 @@ def main():
         print("\nS5 FAIL (LOOK-AHEAD: a REALISED return above max_single_return "
               "decided the cash rule):")
         for t in s5_fail:
-            d = rows[t][5]
+            d = rows[t][6]
             err = d.get("s5_error")
             rec = d.get("s5_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
                                    f"stocks_held={rec.get('stocks_held', rec.get('n_stocks')) if rec else None} "
                                    f"ret={rec.get('portfolio_return', rec.get('return')) if rec else None} "
                                    f"holdings={str(rec.get('holdings', rec.get('msg')) if rec else None)[:50]!r}"))
+
+    if s6_fail:
+        print("\nS6 FAIL (a period that was BUYABLE at entry and lost every exit "
+              "price must record 0.0%, not raise and not vanish):")
+        for t in s6_fail:
+            d = rows[t][6]
+            for leg in ("s6a", "s6b"):
+                if d.get(leg) is False or d.get(f"{leg}_error"):
+                    err = d.get(f"{leg}_error")
+                    rec = d.get(f"{leg}_record")
+                    print(f"  {t:26s} {leg} " + (f"ERROR {err}" if err else
+                          f"stocks_held={rec.get('stocks_held', rec.get('n_stocks')) if rec else None} "
+                          f"ret={rec.get('portfolio_return', rec.get('return')) if rec else None}"))
 
     # The helper the cash rule now reads must agree with filter_returns' own
     # entry-side lines. Run once, not per topic.
@@ -613,7 +827,7 @@ def main():
         print("   ", b)
 
     if args.verbose and args.topic:
-        print(json.dumps(rows[args.topic][5], indent=2, default=str))
+        print(json.dumps(rows[args.topic][6], indent=2, default=str))
 
     if args.baseline:
         pathlib.Path(args.baseline).write_text(json.dumps(series, indent=1, default=str))
@@ -639,9 +853,11 @@ def main():
         if drift:
             return 1
 
-    # S4 and S5 gate the exit code. They are the look-ahead tests, this repo has
-    # no CI, and a test nobody's exit status depends on is a comment.
-    return 0 if not (s1_fail or s2_fail or s4_fail or s5_fail or tie_bad) else 1
+    # S4, S5 and S6 gate the exit code. S4/S5 are the look-ahead tests and S6 is
+    # the crash the correction made reachable. This repo has no CI, and a test
+    # nobody's exit status depends on is a comment.
+    return 0 if not (s1_fail or s2_fail or s4_fail or s5_fail or s6_fail
+                     or tie_bad) else 1
 
 
 if __name__ == "__main__":
