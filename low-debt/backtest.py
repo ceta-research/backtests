@@ -368,6 +368,24 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                          max_single_return=MAX_SINGLE_RETURN,
                                          verbose=verbose)
 
+        # The cash rule has to be re-checked HERE, not just on the screen count.
+        # Screening can pass 30 names while only a handful of them have usable
+        # prices at this rebalance, and averaging 1-4 survivors reports a single
+        # stock's year as a diversified portfolio return.
+        if len(clean) < MIN_STOCKS:
+            results.append({
+                "rebalance_date": entry_date.isoformat(),
+                "exit_date": exit_date.isoformat(),
+                "portfolio_return": 0.0,
+                "spy_return": spy_return,
+                "stocks_held": 0,
+                "holdings": f"CASH ({len(clean)} priced of {len(portfolio)} screened)",
+            })
+            if verbose:
+                print(f"    {entry_date}: only {len(clean)} of {len(portfolio)} screened "
+                      f"names had usable prices (< {MIN_STOCKS}), CASH")
+            continue
+
         returns = []
         for sym, raw_ret, mcap in clean:
             if use_costs:
@@ -385,7 +403,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "portfolio_return": round(port_return, 6),
             "spy_return": round(spy_return, 6) if spy_return is not None else None,
             "stocks_held": len(returns),
-            "holdings": ",".join(symbols[:20]),  # store first 20 for logging
+            "holdings": ",".join(sym for sym, _, _ in clean[:20]),  # first 20 actually held
         })
 
         if verbose:
@@ -433,6 +451,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
         "cash_periods": cash_periods,
         "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
+        "period_data": results,
         "portfolio": format_series(p),
         "spy": format_series(b),
         "comparison": {
