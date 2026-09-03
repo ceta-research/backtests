@@ -815,6 +815,80 @@ Both are outside this repo and outside every gate here, so B006 did not touch
 them. **They must be fixed before the first re-run topic is fact-checked**, or
 the gate will reject correct numbers and accept wrong ones.
 
+### Re-run population, and the 13 live posts that depend on it
+
+`scripts/scan_results_invariant.py` flags **22 arithmetically impossible records
+across 13 topics** at this commit. Every one is an OSL (Oslo) leg except
+`qarp` JNB, which is the separate 100%-cash class: JNB has no
+`LOCAL_INDEX_BENCHMARKS` entry, falls back to SPY and prices nothing.
+
+`^OSEAX` starting 2013-03-05 is the whole cause, re-verified against the
+warehouse on 2026-09-03: `^OSEAX` 2013-03-05 (3,377 rows), `^TWII` 1997-07-02
+(7,179), `^SET.BK` 1982-01-04 (11,247). It is the only `LOCAL_INDEX_BENCHMARKS`
+symbol starting after 2000. The blocker also named TAI and SET as suspect; they
+are not.
+
+| topic | published post | n_periods | cash | invested | years |
+|---|---|---|---|---|---|
+| deleveraging | risk-03-deleveraging (2026-02-05) | 50 | 53 | -3 | 12.5 |
+| earnings-consistency | growth-02-earnings-consistency (2026-02-26) | 12 | 25 | -13 | 12.0 |
+| etf-underowned | etf-03-underowned (2026-03-28) | 12 | 20 | -8 | 12.0 |
+| ev-ebitda | value-03-ev-ebitda (2026-01-17) | 11 | 13 | -2 | 11.0 |
+| ev-ebitda-relative | timing-02-ev-ebitda-relative (2026-02-09) | 11 | 25 | -14 | 11.0 |
+| fcf-compounders | cashflow-04-compounders (2026-03-13) | 12 | 25 | -13 | 12.0 |
+| fcf-yield | value-04-fcf-yield (2026-04-05) | 12 | 23 | -11 | 12.0 |
+| garp | factor-08-garp (2026-02-07) | 50 | 73 | -23 | 12.5 |
+| oversold-quality | reversion-03-oversold-quality (2026-01-24) | 50 | 101 | -51 | 12.5 |
+| qarp | factor-02-qarp (2026-01-01) | 0 | 51 | -51 | 0.0 |
+| relative-strength | momentum-07-relative-strength (2026-02-23) | 50 | 65 | -15 | 12.5 |
+| value-momentum | factor-03-value-momentum (2026-03-23) | 24 | 29 | -5 | 12.0 |
+| volume-confirmed-momentum | momentum-08-volume-confirmed (2026-02-24) | 24 | 40 | -16 | 12.0 |
+
+**The count of affected live posts is 13, not the 4 the blocker estimated.** All
+13 are published. 12 make a substantive Norway claim in their comparison blog:
+8 as a table row or figure (growth-02, etf-03, value-03, timing-02, factor-08,
+reversion-03, factor-03, momentum-08) and 4 in prose only (risk-03,
+cashflow-04, value-04, momentum-07). qarp's bad leg is JNB, so it carries no
+Norway row at all. Note the shared dividend-disclosure paragraph names "Oslo All
+Share" in almost every comparison blog; those boilerplate mentions are excluded
+from this count. Two mappings are not in
+`scripts/copy_charts_to_content.py`'s `TOPIC_DIRS` and were resolved from the
+results filenames instead: `fcf-yield` publishes as `value-04-fcf-yield` (its
+results files are literally named `value-04-fcf-yield_norway.json`), and
+`etf-underowned` as `etf-03-underowned`.
+
+The published cash rates **cannot be reproduced from the committed records** and
+must be re-derived after the re-run rather than relabelled. Examples:
+reversion-03 states "98-99% cash" where `cash/n_periods` is 202%; timing-02
+states "100% cash across all 25 years" where the record is 25 cash against
+`n_periods` 11; factor-03 states "57% cash" against 29/24 = 121%.
+
+Two specific published claims are wrong on their face, beyond the window label:
+
+- `value-03-ev-ebitda`, comparison blog line 163: "Results for markets like
+  Norway and Israel before 2005 are based on fewer companies than later years."
+  There is no pre-2005 Norway benchmark coverage at all. `^OSEAX` begins
+  2013-03-05, so the sentence asserts coverage that does not exist. Its Norway
+  row (line 48) also sits under a 2000-2025 heading with no truncation note.
+- `timing-02-ev-ebitda-relative`, line 57: "The Oslo All Share series in this
+  dataset starts in 2014." It starts 2013-03-05.
+- `momentum-07-relative-strength`, line 28, is a third and subtler class:
+  "Norway (OSL) ... had more than 5 consecutive years of zero qualifying stocks
+  at the start of the backtest period." That is defect (b) restated as a finding
+  about the market. The early years are missing because `^OSEAX` cannot price
+  them, not because the screen found nothing. Any prose that explains a
+  benchmark coverage gap as strategy behaviour needs re-checking, not just
+  relabelling.
+
+`factor-03-value-momentum` (lines 44, 108) and `reversion-03-oversold-quality`
+(line 58) already disclose the 2013 start and are the least wrong of the set;
+their cash rates still need re-deriving.
+
+Correcting these is an editorial task and needs Ghost care (bulk republish
+unpublishes first, and a 5xx mid-flight strands a post as a 404). B006
+deliberately touched no post. Relabel-versus-drop for each Oslo leg is also an
+editorial call and is deliberately not made here.
+
 ### Seven cohort topics still count cash over the metrics window
 
 `altman-z`, `asset-light`, `cash-conversion`, `income-quality`,
