@@ -620,6 +620,13 @@ def main():
             tr = r.get("total_rebalances", n)
             cp = r.get("cash_periods", 0)
             cash_pct = round(cp * 100 / tr, 0) if tr > 0 else 0
+            # B006: this table prints to STDOUT; period_accounting's truncation
+            # warning goes to STDERR. A `> log.txt` re-run therefore kept the
+            # numbers and lost the caveat, which is the shape defect (b) takes
+            # downstream. Names the exchange so the note stands alone, and
+            # prints nothing at all on an untruncated leg.
+            if r.get("window_truncated"):
+                print(f"  {uni}: MEASURED {r.get('window_label')}")
             cagr = p.get("cagr")
             excess = c.get("excess_cagr")
             sharpe = p.get("sharpe_ratio")

@@ -668,6 +668,61 @@ def main():
               "the AST walk has probably stopped matching")
         fails.append(("gate 10 coverage", call_sites))
 
+    # ---- gate 11: the measured window has a READER, not just a writer
+    #
+    # Defect (b) is a labelling failure, so writing window_label into the JSON
+    # fixes nothing on its own -- a field nothing reads changes no heading. The
+    # provenance block shipped with exactly one consumer in the whole repo, and
+    # that one was a DEAD STORE (nse_arena/framework.py collected window_label
+    # into its row dict and print_comparison never emitted it). Meanwhile the
+    # stderr warning, the only live channel, was captured and discarded by
+    # scripts/batch_rerun_diff.py -- the tool the re-run campaign uses to build
+    # its log. Both are now wired, and this gate keeps them wired.
+    #
+    # Anchored on the summary printers because that table is where a blog or
+    # README window actually gets copied from. It prints to STDOUT while the
+    # warning goes to STDERR, so a `> log.txt` re-run keeps the numbers and
+    # loses the caveat unless the note is in the table itself.
+    PRINTER_ANCHOR = "cash_pct = round(cp * 100 / tr, 0) if tr > 0 else 0"
+    bad11, printers = [], 0
+    for f in py_files:
+        src = f.read_text()
+        rel = str(f.relative_to(ROOT))
+        # Skip this file: it names the anchor as a literal, so without the
+        # exclusion the gate counts itself as a 55th printer and passes on its
+        # own comment text. Found by the count reading 55 against a known 54.
+        if PRINTER_ANCHOR not in src or rel.startswith("scripts/"):
+            continue
+        printers += 1
+        if "window_truncated" not in src or "window_label" not in src:
+            bad11.append((rel, "summary printer does not surface the measured "
+                               "window; a truncated leg prints its cash rate "
+                               "with nothing to say the window was cut"))
+    print(f"11 PROVENANCE {printers - len(bad11)}/{printers} summary printers "
+          "surface the measured window")
+    for b in bad11:
+        print("    NO WINDOW NOTE:", b)
+    fails += [("window note missing", b) for b in bad11]
+    # The two single-file readers, checked by name because each is a distinct
+    # channel and losing either is silent.
+    READERS = {
+        "scripts/batch_rerun_diff.py": (
+            'ln.startswith("WARNING ")',
+            "the re-run campaign's log would swallow every truncation warning"),
+        "nse_arena/framework.py": (
+            "MEASURED {r['window_label']}",
+            "window_label would go back to being a dead store"),
+    }
+    for rel, (needle, why) in READERS.items():
+        p = ROOT / rel
+        if not p.exists() or needle not in p.read_text():
+            print(f"    READER LOST: {rel} no longer contains {needle!r} -- {why}")
+            fails.append(("provenance reader lost", rel))
+    if printers < 50:
+        print(f"    SELF-TEST FAIL: only {printers} summary printers found; "
+              "the anchor has probably drifted")
+        fails.append(("gate 11 coverage", printers))
+
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")
     return 0 if not fails else 1

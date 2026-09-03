@@ -342,7 +342,10 @@ def collect_eod_india_results(backtests_dir=None):
                             or india.get("n_periods")) else None,
             # B006: the measured window, so a reader cannot take `data_years`
             # for the requested span when the benchmark truncated the run.
+            # Both fields are carried: print_comparison gates on the boolean
+            # rather than sniffing the label's punctuation.
             "window_label": india.get("window_label"),
+            "window_truncated": india.get("window_truncated", False),
         })
 
     return results
@@ -377,6 +380,12 @@ def print_comparison(results, title="NSE Strategy Comparison"):
         print(f"  {i:<3} {r['strategy']:<25} {r.get('type','?'):<9} "
               f"{r['cagr']:>+6.1f}% {max_dd:>7} {sharpe:>7} {calmar:>7} "
               f"{excess_str} {dcap:>8} {win_rate:>5.1f}%")
+        # B006: window_label was collected into the row and then never emitted,
+        # so this table showed `data_years` with nothing to say the benchmark
+        # had truncated the run. Printed only when truncated, so an untruncated
+        # arena table looks exactly as it did.
+        if r.get("window_truncated") and r.get("window_label"):
+            print(f"      MEASURED {r['window_label']}")
 
     print(f"{'='*100}")
 

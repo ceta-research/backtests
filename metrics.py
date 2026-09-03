@@ -51,8 +51,17 @@ def warn_if_truncated(acct, universe_name=None, stream=None):
     measured = acct["window_label"].split(" (")[0]
     req_a = (acct.get("requested_start") or "?")[:4]
     req_b = (acct.get("requested_end") or "?")[:4]
-    print(f"WARNING {who}: " + "; ".join(bits) +
-          f". Measured window is {measured}, NOT {req_a}-{req_b}.",
+    # The n_periods == 0 label is a sentence, not a span, so the generic
+    # "Measured window is X, NOT Y" phrasing renders as "Measured window is NO
+    # MEASURED PERIODS, NOT 2002-2027" -- true but unreadable, and this is the
+    # loudest channel the fix has. Say it plainly instead.
+    if acct.get("n_periods", 0) == 0:
+        tail = (f". NOTHING was measured: this leg has no benchmark-priced "
+                f"period at all, so every published metric is null. The "
+                f"strategy still ran {req_a}-{req_b}.")
+    else:
+        tail = f". Measured window is {measured}, NOT {req_a}-{req_b}."
+    print(f"WARNING {who}: " + "; ".join(bits) + tail,
           file=stream or sys.stderr)
 
 

@@ -79,6 +79,21 @@ def run_backtest(strategy_dir, preset="us", timeout=300):
         )
         output = result.stdout + result.stderr
 
+        # B006: pass truncation warnings through instead of swallowing them.
+        #
+        # This function captures both streams and returns only the parsed
+        # floats below, so every "WARNING <exch>: benchmark ^OSEAX starts
+        # 2013-03-05 ... Measured window is 2013-2025, NOT 2002-2025" line that
+        # period_accounting emits was captured and discarded -- by the very tool
+        # the re-run campaign uses to produce its log. That made the measured
+        # window invisible in exactly the artifact a blog writer reads back.
+        #
+        # Printed to stdout (not re-raised to stderr) so it lands in the same
+        # redirected log as the per-strategy result lines.
+        warnings = [ln for ln in output.splitlines() if ln.startswith("WARNING ")]
+        for ln in warnings:
+            print(f"    {strategy_dir} [{preset}] {ln}")
+
         # Parse metrics from the standard output format:
         #   CAGR                              8.28%      8.02%
         #   Sharpe Ratio                      0.299      0.361
@@ -97,6 +112,9 @@ def run_backtest(strategy_dir, preset="us", timeout=300):
             "excess": float(excess_match.group(1)) if excess_match else None,
             "osc_rows_removed": int(osc_match.group(1)) if osc_match else 0,
             "osc_symbols": int(osc_match.group(2)) if osc_match else 0,
+            # B006: carried on the result so a caller that writes a report can
+            # persist the measured window alongside the CAGR it qualifies.
+            "window_warnings": warnings,
             "exit_code": result.returncode,
         }
     except subprocess.TimeoutExpired:
