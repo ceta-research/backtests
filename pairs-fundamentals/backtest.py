@@ -41,7 +41,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_local_benchmark, get_benchmark_return,
                         LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations)
-from metrics import compute_metrics, compute_annual_returns, format_metrics
+from metrics import (compute_metrics, compute_annual_returns, format_metrics,
+                     period_accounting)
 from costs import tiered_cost
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_risk_free_rate, get_mktcap_threshold)
@@ -468,20 +469,33 @@ def build_output(m, annual, valid, results, universe_name,
             "total_return":          pct(s.get("total_return")),
         }
 
-    cash_periods = sum(1 for r in results if r["pairs_active"] < MIN_PAIRS_ACTIVE)
-    invested = [r["pairs_active"] for r in results if r["pairs_active"] >= MIN_PAIRS_ACTIVE]
+    # B006: the counting SCOPE here was already right -- cash over every year
+    # the strategy ran, not just the years the benchmark can price. What changes
+    # is that invested_periods is now DERIVED from total_rebalances instead of
+    # counted independently, and the measured window is published. Every
+    # results.append site writes a float portfolio_return, so executed ==
+    # results; the filter is kept so the shape matches every other topic.
+    executed = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods = sum(1 for r in executed if r["pairs_active"] < MIN_PAIRS_ACTIVE)
+    invested = [r["pairs_active"] for r in executed if r["pairs_active"] >= MIN_PAIRS_ACTIVE]
     avg_pairs = round(sum(invested) / len(invested), 1) if invested else 0
 
     return {
         "universe": universe_name,
+        # B006: n_periods, total_rebalances, cash_periods, invested_periods and
+        # the window-provenance block. These are yearly records, so the period
+        # keys are "year". `n_years` below is kept for backward compatibility
+        # and equals n_periods. No key may re-declare an accounting key --
+        # gate 8 enforces that.
+        **period_accounting(executed, valid, cash_periods,
+                            universe_name=universe_name,
+                            benchmark_symbol=benchmark_symbol,
+                            date_key="year", end_key="year"),
         "n_years": len(valid),
         "years": f"{START_YEAR}-{END_YEAR}",
         "frequency": "annual",
         "execution": "next-day close (MOC)",
-        "benchmark_symbol": benchmark_symbol,
         "benchmark_name": benchmark_name,
-        "cash_periods": cash_periods,
-        "invested_periods": len(invested),
         "avg_pairs_when_invested": avg_pairs,
         "portfolio": fmt(p),
         "spy": fmt(b),
@@ -560,9 +574,12 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate, verbose,
     m = compute_metrics(port_returns, spy_returns, 1, risk_free_rate=risk_free_rate)
     print(format_metrics(m, "Pairs", benchmark_name))
 
-    cash_periods = sum(1 for r in results if r["pairs_active"] < MIN_PAIRS_ACTIVE)
+    # B006: scope unchanged (every year the strategy ran). `executed` drops any
+    # record the strategy never actually ran; this topic writes none.
+    executed = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods = sum(1 for r in executed if r["pairs_active"] < MIN_PAIRS_ACTIVE)
     avg_pairs = sum(r["pairs_active"] for r in valid) / len(valid)
-    print(f"\n  Cash periods: {cash_periods}/{len(results)}")
+    print(f"\n  Cash periods: {cash_periods}/{len(executed)}")
     print(f"  Avg active pairs: {avg_pairs:.1f}")
 
     annual = compute_annual_returns(port_returns, spy_returns,
@@ -676,8 +693,12 @@ def main():
             p = r.get("portfolio", {})
             c = r.get("comparison", {})
             n = r.get("n_years", 0)
+            # B006: divide by total_rebalances, not n_years. Cash is counted
+            # over every year the strategy ran; n_years counts only the
+            # benchmark-priced ones. Fallback keeps pre-B006 JSONs renderable.
+            tr = r.get("total_rebalances", n)
             cp = r.get("cash_periods", 0)
-            cash_pct = round(cp * 100 / n, 0) if n > 0 else 0
+            cash_pct = round(cp * 100 / tr, 0) if tr > 0 else 0
             cagr = p.get("cagr")
             exc  = c.get("excess_cagr")
             shp  = p.get("sharpe_ratio")

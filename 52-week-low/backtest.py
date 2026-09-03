@@ -46,7 +46,8 @@ from data_utils import (query_parquet, get_prices, generate_rebalance_dates, fil
                         entry_buyable,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations)
-from metrics import compute_metrics, compute_annual_returns, format_metrics
+from metrics import (compute_metrics, compute_annual_returns, format_metrics,
+                     period_accounting)
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_risk_free_rate, get_mktcap_threshold, EXCHANGE_PRESETS)
@@ -525,20 +526,21 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
             "pct_negative_periods": pct(s.get("pct_negative_periods")),
         }
 
-    # n_periods reports benchmark-valid periods (used for metrics).
-    # total_rebalances counts every rebalance the strategy actually ran, including
-    # those without benchmark data (relevant for OSL where ^OSEAX has FMP gaps).
-    # invested_periods is derived from total_rebalances so cash_periods +
-    # invested_periods = total_rebalances regardless of benchmark coverage.
-    total_rebalances = len(results)
     return {
         "universe": universe_name,
-        "n_periods": len(valid),
-        "total_rebalances": total_rebalances,
+        # B006: n_periods, total_rebalances, cash_periods, invested_periods and
+        # the window-provenance block. This topic already published
+        # total_rebalances and derived invested_periods from it (commit
+        # 3c39bcb); period_accounting now owns that derivation for every topic,
+        # so the numbers are unchanged here and the convention is shared.
+        # `executed` is every rebalance the strategy ran; `valid` is the
+        # benchmark-priced subset metrics use. No key below may re-declare one
+        # of these -- gate 8 enforces that.
+        **period_accounting(
+            [r for r in results if r["portfolio_return"] is not None],
+            valid, cash_periods, universe_name=universe_name),
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
-        "cash_periods": cash_periods,
-        "invested_periods": total_rebalances - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
         "period_data": results,
         "portfolio": format_series(p),
@@ -627,12 +629,14 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # committed JSON still holds the right numbers, so nothing looks wrong; the
     # next Oslo re-run would publish invested ~45-56 against a true 11.
     #
-    # Folded in with the B005 guard rather than left to the follow-up commit, so
-    # that no intermediate commit publishes mismatched denominators.
+    # Landed with the B005 guard rather than here, so that no intermediate
+    # commit publishes mismatched denominators. B006 then generalises the
+    # convention to every topic through period_accounting.
     #
     # This topic's three results.append sites always write a float and never
-    # None, so executed == results here. The filter is kept so the shape a
-    # static gate checks is the same everywhere.
+    # None, so executed == results here. The filter is kept for uniformity with
+    # every other topic, and so the shape a static gate checks is the same
+    # everywhere.
     executed = [r for r in results if r["portfolio_return"] is not None]
     cash_periods = sum(1 for r in executed if r["stocks_held"] == 0)
     invested = [r["stocks_held"] for r in executed if r["stocks_held"] > 0]
@@ -766,8 +770,14 @@ def main():
             p = r.get("portfolio", {})
             c = r.get("comparison", {})
             n = r.get("n_periods", 0)
+            # B006: cash is counted over every rebalance the strategy ran, so
+            # the percentage must divide by total_rebalances, NOT n_periods
+            # (which counts only benchmark-priced periods). Dividing by
+            # n_periods gives 84/50 = 168% on the OSL leg. The fallback keeps
+            # pre-B006 JSONs renderable until they are re-run.
+            tr = r.get("total_rebalances", n)
             cp = r.get("cash_periods", 0)
-            cash_pct = round(cp * 100 / n, 0) if n > 0 else 0
+            cash_pct = round(cp * 100 / tr, 0) if tr > 0 else 0
             cagr = p.get("cagr")
             excess = c.get("excess_cagr")
             sharpe = p.get("sharpe_ratio")

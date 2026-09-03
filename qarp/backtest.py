@@ -406,10 +406,13 @@ def build_output(raw_metrics, results, universe_name, periods_per_year):
 
     valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
 
-    # Count over `valid`, not `results`: a period the benchmark can't price is not a
-    # measured period, so counting it as cash pushes invested_periods negative.
-    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
-    invested = [r["stocks_held"] for r in valid if r["stocks_held"] > 0]
+    # B006: count over `executed` (every rebalance the strategy actually ran),
+    # not `valid` (only those the benchmark can also price). Keeps the honest
+    # full-window cash rate. This is the count that fed the JNB record's
+    # invested_periods = -51; it is now derived in period_accounting instead.
+    executed = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods = sum(1 for r in executed if r["stocks_held"] == 0)
+    invested = [r["stocks_held"] for r in executed if r["stocks_held"] > 0]
     avg_stocks = sum(invested) / len(invested) if invested else 0
 
     period_dates = [r["rebalance_date"] for r in valid]
@@ -425,10 +428,20 @@ def build_output(raw_metrics, results, universe_name, periods_per_year):
 
     return {
         "universe": universe_name,
-        "n_periods": len(valid),
+        # B006: n_periods, total_rebalances, cash_periods, invested_periods and
+        # the window-provenance block. `executed` is every rebalance the
+        # strategy ran; `valid` is the benchmark-priced subset metrics use. No
+        # key below may re-declare one of these -- gate 8 enforces that.
+        #
+        # This is the topic whose JNB leg published n=0, cash=51, invested=-51.
+        # JNB has no LOCAL_INDEX_BENCHMARKS entry and falls back to SPY, so the
+        # leg is 100% cash with zero measurable periods. Under this convention
+        # it reads as total_rebalances=51, cash=51, invested=0, n_periods=0 with
+        # an explicit NO MEASURED PERIODS label, rather than as an absent run.
+        **period_accounting(
+            [r for r in results if r["portfolio_return"] is not None],
+            valid, cash_periods, universe_name=universe_name),
         "years": round(len(valid) / periods_per_year, 1),
-        "cash_periods": cash_periods,
-        "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
         "period_data": results,
         "portfolio": {
@@ -553,12 +566,15 @@ def main():
     # Display
     print(format_metrics(raw_metrics, "QARP", benchmark_name))
 
-    # Count over `valid`, not `results`: a period the benchmark can't price is not a
-    # measured period, so counting it as cash pushes invested_periods negative.
-    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
-    invested = [r["stocks_held"] for r in valid if r["stocks_held"] > 0]
+    # B006: count over `executed` (every rebalance the strategy actually ran),
+    # not `valid` (only those the benchmark can also price). Keeps the honest
+    # full-window cash rate: an OSL leg that sat in cash before ^OSEAX starts
+    # still sat in cash. invested_periods is derived in period_accounting.
+    executed = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods = sum(1 for r in executed if r["stocks_held"] == 0)
+    invested = [r["stocks_held"] for r in executed if r["stocks_held"] > 0]
     avg_stocks = sum(invested) / len(invested) if invested else 0
-    print(f"\n  Cash periods: {cash_periods} / {len(valid)}")
+    print(f"\n  Cash periods: {cash_periods} / {len(executed)}")
     print(f"  Avg stocks (invested): {avg_stocks:.1f}")
 
     period_dates = [r["rebalance_date"] for r in valid]

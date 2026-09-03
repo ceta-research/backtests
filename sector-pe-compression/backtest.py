@@ -30,7 +30,8 @@ from math import isnan, sqrt
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, generate_rebalance_dates
-from metrics import compute_metrics, compute_annual_returns, format_metrics
+from metrics import (compute_metrics, compute_annual_returns, format_metrics,
+                     period_accounting)
 from cli_utils import get_risk_free_rate
 
 # --- Signal parameters ---
@@ -400,10 +401,15 @@ def build_output(metrics, annual, valid, results, periods_per_year, cash_periods
     return {
         "universe": "S&P 500 Sectors (11 GICS sectors)",
         "strategy": "Sector P/E Compression",
-        "n_periods": len(valid),
+        # B006: n_periods, total_rebalances, cash_periods, invested_periods and
+        # the window-provenance block. `executed` is every rebalance the
+        # strategy ran; `valid` is the benchmark-priced subset metrics use. No
+        # key below may re-declare one of these -- gate 8 enforces that.
+        **period_accounting(
+            [r for r in results if r["portfolio_return"] is not None],
+            valid, cash_periods, universe_name="S&P 500 Sectors"),
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": "quarterly",
-        "cash_periods": cash_periods,
         "avg_sectors_when_invested": round(avg_sectors, 1),
         "portfolio": fmt(p),
         "spy": fmt(b),
@@ -477,9 +483,15 @@ def main():
     # Filter to periods with valid spy return
     valid = [r for r in results if r["spy_return"] is not None]
 
-    # Count "cash" periods (held SPY because nothing was compressed)
-    cash_periods = sum(1 for r in valid if r["n_compressed_sectors"] == 0)
-    invested = [r["n_compressed_sectors"] for r in valid if r["n_compressed_sectors"] > 0]
+    # Count "cash" periods (held SPY because nothing was compressed).
+    # B006: count over `executed` (every rebalance the strategy actually ran),
+    # not `valid` (only those the benchmark can also price). This topic's single
+    # results.append site always writes a float portfolio_return, never None, so
+    # executed == results here; the filter is kept so every topic presents the
+    # same shape to the static gates.
+    executed = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods = sum(1 for r in executed if r["n_compressed_sectors"] == 0)
+    invested = [r["n_compressed_sectors"] for r in executed if r["n_compressed_sectors"] > 0]
     avg_sectors = sum(invested) / len(invested) if invested else 0
 
     port_returns = [r["portfolio_return"] for r in valid]

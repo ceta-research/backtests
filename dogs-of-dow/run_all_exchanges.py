@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark
-from metrics import compute_metrics, compute_annual_returns
+from metrics import compute_metrics, compute_annual_returns, period_accounting
 from costs import tiered_cost, apply_costs
 from cli_utils import get_risk_free_rate, get_mktcap_threshold, REGIONAL_RISK_FREE_RATES
 
@@ -121,8 +121,14 @@ def main():
             b = metrics["benchmark"]
             c = metrics["comparison"]
 
-            cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
-            invested = [r["stocks_held"] for r in results if r["stocks_held"] > 0]
+            # B006: the counting SCOPE here was already right (the full run, not
+            # just the benchmark-priced subset). What was wrong was the
+            # derivation below, which subtracted this full-window count from
+            # len(valid). `executed` refines `results` by dropping trailing
+            # stubs the strategy never ran.
+            executed = [r for r in results if r["portfolio_return"] is not None]
+            cash_periods = sum(1 for r in executed if r["stocks_held"] == 0)
+            invested = [r["stocks_held"] for r in executed if r["stocks_held"] > 0]
             avg_stocks = sum(invested) / len(invested) if invested else 0
 
             period_dates = [r["rebalance_date"] for r in valid]
@@ -155,11 +161,14 @@ def main():
                 "benchmark_symbol": benchmark_symbol,
                 "benchmark_name": benchmark_name,
                 "execution": "Next-day close (MOC)",
-                "n_periods": len(valid),
+                # B006: n_periods, total_rebalances, cash_periods,
+                # invested_periods and the window-provenance block. No key below
+                # may re-declare one of these -- gate 8 enforces that.
+                **period_accounting(executed, valid, cash_periods,
+                                    universe_name=name,
+                                    benchmark_symbol=benchmark_symbol),
                 "years": round(len(valid) / periods_per_year, 1),
                 "frequency": args.frequency,
-                "cash_periods": cash_periods,
-                "invested_periods": len(valid) - cash_periods,
                 "avg_stocks_when_invested": round(avg_stocks, 1),
                 "portfolio": format_series(p),
                 "spy": format_series(b),

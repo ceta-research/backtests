@@ -671,3 +671,58 @@ later loses its exit price, the invested branch's
 with `stocks_held 0`, which `metrics.period_accounting` then counts as a cash
 period anyway. Pre-existing and unchanged, but the corrected guard makes it
 reachable by a second route, so decide it alongside the above.
+
+---
+
+## Open, found during B006 (period accounting), NOT fixed there
+
+Both were found while reworking period counting. Neither is a counting bug, and
+fixing either changes published numbers, so both need their own re-run.
+
+### graham-timing scores an unpriceable period as a 0% benchmark return
+
+`graham-timing/backtest.py:379`:
+
+```python
+spy_returns.append(bench_return if bench_return is not None else 0.0)
+```
+
+Every other topic drops a period the benchmark cannot price (it never enters
+`valid`, so it never reaches `compute_metrics`). This one substitutes 0.0 and
+feeds it in. The period is then treated as one where the benchmark returned
+exactly nothing, which is a claim about the market rather than an admission of
+missing data.
+
+Consequences: excess CAGR, alpha, beta, win rate and up/down capture are all
+computed against a benchmark series containing invented zeros. On an exchange
+with a late-starting local index this is not a rounding matter. `^OSEAX` begins
+2013-03-05, so a 2000-2025 Oslo run would substitute zeros for roughly half the
+window.
+
+It also means the topic reports no window truncation, correctly, because under
+this substitution nothing is ever dropped. `window_truncated` is False and that
+is honest about the accounting; it is the returns that are wrong.
+
+Fix is to drop the period as every other topic does, then re-run. That will move
+the published numbers, which is why B006 left it alone.
+
+### capex-efficiency/merge_results.py publishes an invented invested_periods
+
+`capex-efficiency/merge_results.py:105` emits:
+
+```python
+"invested_periods": len(period_returns),
+```
+
+with no `cash_periods` anywhere in the file. That number is the count of periods
+that produced a return, i.e. executed periods, published under a name that means
+"periods where the strategy held stock". Any leg that sat in cash is counted as
+invested.
+
+It cannot be fixed in place: this script merges per-exchange CSVs, and those CSVs
+do not carry a cash count. The topic is already `SCHEMA_EXEMPT` in the floor
+guard for the related reason that its per-period data lands in
+`results/returns_*.csv` rather than JSON. It is listed in
+`scripts/verify_floor_guard.py` under `ACCOUNTING_EXEMPT` with a pointer here.
+
+Fix is to have the topic write a cash count into its CSVs, then re-run.

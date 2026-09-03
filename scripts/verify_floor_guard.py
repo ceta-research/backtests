@@ -64,6 +64,15 @@ SCOPE_ALLOW = {
     # .py files match none of the allow rules below, so without this entry the
     # scope gate rejects its own dependency.
     "metrics.py",
+    # B006: both carry their own copy of the per-exchange accounting block
+    # rather than importing the topic's build_output, so the counting fix has to
+    # land in them directly.
+    "dogs-of-dow/run_all_exchanges.py",
+    "interest-coverage/run_all_exchanges.py",
+    # B006: records two defects found while reworking period counting that are
+    # NOT counting bugs and that need their own re-run (graham-timing's 0.0
+    # benchmark substitution, capex-efficiency's invented invested_periods).
+    "DATA_QUALITY_ISSUES.md",
 }
 
 
@@ -153,22 +162,6 @@ def lookahead_hits(tree):
             and n.left.args[0].id in names
             for c in n.comparators
             if isinstance(c, ast.Name) and c.id in fl]
-
-
-# The collections that stand for "every rebalance the strategy actually ran".
-EXECUTED_COLLS = {"executed", "results"}
-
-
-def derived_denominator(src):
-    """(allowed cash-count collections, human label) for one topic's source.
-
-    Reads which population the topic derives invested_periods from, so gate 7
-    can require the cash count to come from the same one.
-    """
-    if re.search(r'"invested_periods":\s*total_rebalances\s*-\s*cash_periods', src) \
-            and re.search(r"total_rebalances\s*=\s*len\(results\)", src):
-        return EXECUTED_COLLS, "total_rebalances = len(results)"
-    return {"valid"}, "len(valid)"
 
 
 def main():
@@ -323,52 +316,218 @@ def main():
         print("    OUT OF SCOPE:", s)
     fails += [("out of scope", s) for s in stray]
 
-    # ---- gate 7: cash_periods and invested_periods share ONE denominator
+    # ---- gate 7: cash is counted over the EXECUTED collection, never `valid`
     #
-    # Almost every topic derives invested_periods from len(valid), and n_periods
-    # is len(valid), so counting cash over `results` subtracts periods that are
-    # not in its own denominator. That is how published legs ended up with a
-    # negative invested_periods (deleveraging OSL: 50 - 53 = -3).
+    # B006. This gate previously asserted the opposite. That was convention (A):
+    # make cash_periods share a denominator with n_periods by counting both over
+    # `valid`. It bought coherence by discarding real cash periods, and it broke
+    # the one topic that had already solved this correctly (52-week-low, commit
+    # 3c39bcb), which counts cash over the full run and publishes
+    # total_rebalances alongside a smaller n_periods.
     #
-    # 52-week-low is the exception, and it is prior art rather than a bug
-    # (commit 3c39bcb): its build_output publishes total_rebalances = len(results)
-    # and derives invested_periods from THAT. Forcing its cash count onto
-    # `valid` gives the record two different denominators and overstates
-    # invested periods 4-5x -- the next OSL re-run would publish ~45-56 against
-    # a true 11. So the gate checks COHERENCE between the two numbers, not a
-    # fixed collection name.
-    wrong, right = [], []
-    for t in floor_topics:
-        src = (ROOT / t / "backtest.py").read_text()
-        colls = re.findall(r"cash_periods\s*=\s*sum\(1 for r in (\w+)", src)
-        if not colls:
-            continue
-        want, denom = derived_denominator(src)
-        if all(c in want for c in colls):
-            right.append(t)
-        else:
-            wrong.append((t, f"counts cash over {sorted(set(colls))} but derives "
-                             f"invested_periods from {denom}"))
-        if want == {"valid"} and \
-                f"Cash periods: {{cash_periods}} / {{len(results)}}" in src:
-            wrong.append((t, "prints the cash rate over len(results)"))
+    # The convention now is that they are DIFFERENT populations:
+    #   cash_periods   counted over `executed` -- every rebalance the strategy
+    #                  ran (portfolio_return is not None, so trailing stubs drop)
+    #   n_periods      len(valid) -- executed AND benchmark-priced
+    # They are never compared. That is what preserves the honest full-window
+    # cash rate: Norway sat in cash for 84 of 95 rebalances, not 84 of the 50
+    # that ^OSEAX (which starts 2013-03-05) happened to price.
+    py_files = sorted(ROOT.glob("*/*.py"))
+    wrong, checked = [], 0
+    for f in py_files:
+        src = f.read_text()
+        rel = str(f.relative_to(ROOT))
+        colls = re.findall(r"cash_periods\s*=\s*sum\(1 for \w+ in (\w+)", src)
+        if colls:
+            checked += 1
+        for coll in colls:
+            if coll == "valid":
+                wrong.append((rel, f"counts cash over `{coll}`, not the "
+                                   "executed collection"))
+        if re.search(r'"invested_periods":\s*len\(valid\)\s*-\s*cash_periods', src):
+            wrong.append((rel, "derives invested_periods from len(valid)"))
+        if re.search(r"Cash periods: \{cash_periods\} / \{len\(valid\)\}", src):
+            wrong.append((rel, "prints the cash rate over len(valid)"))
+        # The pe-compression-style assert bound a full-window count to the
+        # truncated metrics window. Anchored so the explanatory COMMENT that
+        # replaced it does not match.
+        if re.search(r"^\s*assert\s+0\s*<=\s*len\(valid\)\s*-\s*cash_periods",
+                     src, re.M):
+            wrong.append((rel, "pe-compression-style assert reintroduced"))
     wrong = sorted(set(wrong))
-    print(f"7 CASHCOUNT {len(right)}/{len(right) + len(wrong)} count cash over "
-          "the same population invested_periods is derived from")
-    for t, why in wrong:
-        print(f"    MISMATCHED DENOMINATOR: {t} -- {why}")
-    fails += [("cash denominator mismatch", f"{t}: {why}") for t, why in wrong]
-    # SELF-TEST. The rule is now conditional, so either branch can go vacuous on
-    # its own and the clean-tree output looks the same either way. Feed it one
-    # source of each shape and require the right verdict.
-    p7_valid = 'x = {"invested_periods": len(valid) - cash_periods}'
-    p7_total = ('total_rebalances = len(results)\n'
-                'x = {"invested_periods": total_rebalances - cash_periods}')
-    if derived_denominator(p7_valid)[0] != {"valid"} or \
-            derived_denominator(p7_total)[0] != EXECUTED_COLLS:
-        print("    SELF-TEST FAIL: gate 7 can no longer tell the two "
-              "invested_periods derivations apart; one branch is dead")
-        fails.append(("gate 7 vacuous", "denominator probe misclassified"))
+    print(f"7 CASHCOUNT {checked - len(set(w[0] for w in wrong))}/{checked} "
+          "count cash over the executed collection")
+    for rel, why in wrong:
+        print(f"    WRONG SCOPE: {rel} -- {why}")
+    fails += [("cash scope", f"{rel}: {why}") for rel, why in wrong]
+
+    # ---- gate 8: universal adoption of the shared helper
+    #
+    # Scoped, not "every build_output". A build_output is IN SCOPE if the dict it
+    # returns names one of the accounting keys; those with no period-accounting
+    # concept at all are listed as exempt rather than forced to carry
+    # meaningless fields.
+    #
+    # ***TRAP, hit for real while writing this***: ast.unparse renders string
+    # literals with SINGLE quotes, so a substring test for '"cash_periods"'
+    # against unparsed source matches NOTHING and the gate passes vacuously on
+    # every file. This gate inspects ast.Dict key NODES, never unparsed text,
+    # and the coverage self-test below catches a regression back to that.
+    OWNED = {"n_periods", "cash_periods", "invested_periods", "total_rebalances"}
+
+    def dict_literals(tree):
+        return [n for n in ast.walk(tree) if isinstance(n, ast.Dict)]
+
+    def owned_keys(d):
+        """Owned keys this dict actually COMPUTES.
+
+        Two shapes are deliberately not period accounting and are excluded by
+        structure rather than by an exemption list, so a new topic in either
+        shape needs no maintenance here:
+
+        COHORT DICTS. The quintile-style topics (altman-z, asset-light,
+        cash-conversion, income-quality, margin-expansion, roe-dupont,
+        sustained-roic) emit `"cash_periods": {"high": n, "low": m}` -- a
+        mapping keyed by cohort, not a count of rebalances. There is no single
+        invested_periods to derive and no single measured window, so the helper
+        does not apply.
+
+        PASSTHROUGH READS. Merge and audit scripts copy a value straight out of
+        a record already on disk (`v.get("invested_periods")`). They report what
+        a run produced; they do not compute it. Rewriting them to call the
+        helper would invent numbers rather than carry them.
+        """
+        out = set()
+        for k, v in zip(d.keys, d.values):
+            if not (isinstance(k, ast.Constant) and k.value in OWNED):
+                continue
+            if isinstance(v, ast.Dict):
+                continue                       # cohort mapping, not a count
+            src = ast.unparse(v)
+            if re.search(r'\.get\(\s*[\'"]' + re.escape(k.value) + r'[\'"]', src):
+                continue                       # passthrough read
+            if re.search(r'\[\s*[\'"]' + re.escape(k.value) + r'[\'"]\s*\]', src):
+                continue                       # passthrough subscript
+            out.add(k.value)
+        return out
+
+    def has_acct_splat(d):
+        """A None key in an ast.Dict is a ** splat. Accept it when its value is a
+        period_accounting() call or a name bound from one."""
+        for k, v in zip(d.keys, d.values):
+            if k is not None:
+                continue
+            src = ast.unparse(v)
+            if "period_accounting" in src or src.strip().lstrip("_") == "acct":
+                return True
+        return False
+
+    # A dict is doing PERIOD ACCOUNTING, and so must use the helper, when it
+    # computes a relationship between the counts: an invested_periods or a
+    # total_rebalances, or both an n_periods and a cash_periods. The B006 defect
+    # is precisely that relationship going wrong. A dict computing only ONE
+    # count states a fact with nothing to contradict it, so there is nothing for
+    # the helper to own -- e.g. sector-correlation's regime study and
+    # 52-week-low/run_concentration.py publish n_periods alone, and
+    # pairs-multi-pair's per-pair diversification table publishes cash_periods
+    # alone.
+    def is_accounting(keys):
+        return bool(keys & {"invested_periods", "total_rebalances"}) or \
+            {"n_periods", "cash_periods"} <= keys
+
+    ACCOUNTING_EXEMPT = {
+        # Merges per-exchange CSVs into a comparison JSON and publishes
+        # "invested_periods": len(period_returns) with no cash count anywhere.
+        # That number is really the count of periods that produced a return,
+        # i.e. executed periods, mislabelled as invested. Fixing the label needs
+        # a cash count this script's CSV inputs do not carry, so it needs a
+        # re-run to fix properly and is logged in DATA_QUALITY_ISSUES.md rather
+        # than papered over with an invented number here.
+        "capex-efficiency/merge_results.py":
+            "publishes invested_periods with no cash count; see "
+            "DATA_QUALITY_ISSUES.md",
+        # Declares the expected record shape as a key -> type map so it can
+        # CHECK records. It does not produce one, so there is nothing here for
+        # the helper to compute.
+        "scripts/test_build_output_synthetic.py":
+            "declares the expected schema as a key -> type map, not a record",
+    }
+
+    in_scope, bad8 = [], []
+    for f in py_files:
+        try:
+            tree = ast.parse(f.read_text())
+        except SyntaxError:
+            continue
+        rel = str(f.relative_to(ROOT))
+        if rel in ACCOUNTING_EXEMPT:
+            continue
+        for d in dict_literals(tree):
+            ok = owned_keys(d)
+            splat = has_acct_splat(d)
+            if not splat and not is_accounting(ok):
+                continue
+            if not ok and not splat:
+                continue
+            in_scope.append((rel, d.lineno))
+            if ok and splat:
+                bad8.append((rel, d.lineno,
+                             f"splats the helper AND hard-codes {sorted(ok)}"))
+            elif ok and not splat:
+                bad8.append((rel, d.lineno,
+                             f"hard-codes {sorted(ok)} instead of splatting "
+                             "period_accounting()"))
+    print(f"8 ACCOUNTING {len(in_scope) - len(bad8)}/{len(in_scope)} "
+          "accounting dicts take their counts from period_accounting() "
+          f"(exempt: {list(ACCOUNTING_EXEMPT)})")
+    for b in bad8:
+        print("    HAND-ROLLED:", b)
+    fails += [("hand-rolled accounting", b) for b in bad8]
+    # SELF-TEST, positive control. Coverage alone does NOT protect this gate:
+    # every conforming dict is in scope via its ** splat, so an owned_keys()
+    # that silently matches nothing keeps the count at 71 while quietly failing
+    # to flag a single hand-rolled dict. (Verified: with owned_keys() gated on
+    # an ast.unparse substring -- which renders string literals with SINGLE
+    # quotes, so a '"cash_periods"' test matches nothing -- a hand-rolled
+    # build_output goes completely undetected.) So feed the detector a dict that
+    # MUST be flagged and check that it is.
+    probe = ast.parse(
+        'x = {"universe": u, "n_periods": len(valid), '
+        '"cash_periods": c, "invested_periods": len(valid) - c}')
+    probe_dict = next(n for n in ast.walk(probe) if isinstance(n, ast.Dict))
+    probe_keys = owned_keys(probe_dict)
+    if not is_accounting(probe_keys) or has_acct_splat(probe_dict):
+        print("    SELF-TEST FAIL: the detector no longer flags a hand-rolled "
+              f"accounting dict (owned_keys returned {sorted(probe_keys)}); "
+              "gate 8 is passing vacuously")
+        fails.append(("gate 8 vacuous", sorted(probe_keys)))
+    if len(in_scope) < 60:
+        print(f"    SELF-TEST FAIL: only {len(in_scope)} accounting dicts found; "
+              "the AST walk has probably stopped matching")
+        fails.append(("gate 8 coverage", len(in_scope)))
+
+    # ---- gate 9: no cash percentage still divides by the metrics window
+    # Two distinct shapes. A single pattern anchored on the literal
+    # "cash_periods" catches only the second and leaves all 55 printers unguarded.
+    PRINTER = re.compile(
+        r'cp\s*=\s*r\.get\("cash_periods".*?\n.*?cp\s*\*\s*100\s*/\s*'
+        r'(?:n|n_periods|n_years)\b', re.S)
+    INLINE = re.compile(
+        r'cash_periods.{0,80}?/\s*(?:max\()?\s*(?:\w+\.get\(")?'
+        r'(?:n_periods|n_years)\b', re.S)
+    bad9 = []
+    for f in py_files:
+        src = f.read_text()
+        rel = str(f.relative_to(ROOT))
+        if PRINTER.search(src):
+            bad9.append((rel, "summary printer divides cash by the metrics window"))
+        if INLINE.search(src):
+            bad9.append((rel, "inline cash pct divides by the metrics window"))
+    print(f"9 DENOMINATOR {len(py_files) - len(set(b[0] for b in bad9))}"
+          f"/{len(py_files)} files free of metrics-window cash denominators")
+    for b in bad9:
+        print("    WRONG DENOMINATOR:", b)
+    fails += [("cash denominator", b) for b in bad9]
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")

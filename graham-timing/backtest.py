@@ -37,7 +37,8 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, remove_price_oscillations
-from metrics import compute_metrics as _compute_metrics, compute_annual_returns, format_metrics
+from metrics import (compute_metrics as _compute_metrics, compute_annual_returns,
+                     format_metrics, period_accounting)
 from costs import tiered_cost
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
 
@@ -405,8 +406,20 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
     n_periods = len(portfolio_returns)
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
-    cash_periods = sum(1 for pd in period_data if pd["stocks_held"] == 0)
-    invested_periods = n_periods - cash_periods
+    # B006: this topic has NO benchmark truncation, and the reason matters.
+    # Above, spy_returns.append(bench_return if bench_return is not None else 0.0)
+    # force-fills a missing benchmark with 0.0, so there is no `valid` filter at
+    # all and every executed period is also a metrics period: executed == valid
+    # == period_data, and window_truncated is False by construction. That is
+    # correct for the accounting; the 0.0 substitution is a SEPARATE defect
+    # (it silently scores an unpriced period as a 0% benchmark return) logged in
+    # DATA_QUALITY_ISSUES.md, not fixed here.
+    _acct = period_accounting(
+        period_data, period_data,
+        sum(1 for pd in period_data if pd["stocks_held"] == 0),
+        benchmark_symbol=benchmark_symbol)
+    cash_periods = _acct["cash_periods"]
+    invested_periods = _acct["invested_periods"]
     avg_stocks = sum(pd["stocks_held"] for pd in period_data if pd["stocks_held"] > 0)
     avg_stocks_when_invested = avg_stocks / invested_periods if invested_periods > 0 else 0
 
@@ -428,10 +441,11 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
     result = {
         "universe": "+".join(sorted(set(exchanges))),
         "frequency": frequency,
-        "n_periods": n_periods,
+        # B006: n_periods, total_rebalances, cash_periods, invested_periods and
+        # the window-provenance block, from the _acct computed above. No key
+        # below may re-declare one of these -- gate 8 enforces that.
+        **_acct,
         "years": round(years, 1),
-        "cash_periods": cash_periods,
-        "invested_periods": invested_periods,
         "avg_stocks_when_invested": round(avg_stocks_when_invested, 1),
         "portfolio": metrics["portfolio"],
         "spy": metrics["benchmark"],

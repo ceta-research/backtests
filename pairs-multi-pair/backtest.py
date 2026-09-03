@@ -47,7 +47,8 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_local_benchmark, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
-from metrics import compute_metrics, compute_annual_returns, format_metrics
+from metrics import (compute_metrics, compute_annual_returns, format_metrics,
+                     period_accounting)
 from costs import tiered_cost
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_risk_free_rate, get_mktcap_threshold)
@@ -864,6 +865,13 @@ def build_diversification_analysis(per_year_data, risk_free_rate=0.02):
             p = m["portfolio"]
             c = m["comparison"]
 
+            # B006: scope is already correct (the whole yearly series, not just
+            # the benchmark-priced subset). This inner loop publishes only
+            # cash_periods for the diversification table -- no invested_periods
+            # and no n_periods -- so there is no derivation to fix and no
+            # accounting block to add. Deliberately NOT calling
+            # period_accounting here: it would emit one truncation warning per
+            # pair-size/allocation combination.
             cash_periods  = sum(1 for y in yearly if y["is_cash"])
             invested      = [y for y in yearly if not y["is_cash"]]
             avg_active    = (round(sum(y["n_active"] for y in invested) / len(invested), 1)
@@ -912,8 +920,17 @@ def build_output(m, per_year_data, primary_yearly, diversification_analysis,
             "total_return":          pct(s.get("total_return")),
         }
 
-    cash_periods = sum(1 for y in primary_yearly if y["is_cash"])
-    invested_yrs = [y for y in primary_yearly if not y["is_cash"]]
+    # B006: the counting SCOPE was already right (every year the strategy ran).
+    # What changes is that invested_periods is DERIVED rather than counted
+    # independently, and the measured window is published. compute_portfolio_
+    # for_size always writes a float portfolio_return, so executed ==
+    # primary_yearly; `valid` is the benchmark-priced subset, mirroring
+    # valid_primary in main().
+    executed_primary = [y for y in primary_yearly
+                        if y["portfolio_return"] is not None]
+    valid_primary = [y for y in executed_primary if y["spy_return"] is not None]
+    cash_periods = sum(1 for y in executed_primary if y["is_cash"])
+    invested_yrs = [y for y in executed_primary if not y["is_cash"]]
     avg_active   = (round(sum(y["n_active"] for y in invested_yrs) / len(invested_yrs), 1)
                     if invested_yrs else 0)
     total_trades = trade_stats.get("total_trades", 0)
@@ -936,14 +953,21 @@ def build_output(m, per_year_data, primary_yearly, diversification_analysis,
 
     return {
         "universe":               universe_name,
+        # B006: n_periods, total_rebalances, cash_periods, invested_periods and
+        # the window-provenance block, for the 20-pair inverse-vol primary
+        # series. These are yearly records, so the period keys are "year".
+        # `n_years` below is the nominal span and is NOT the same as n_periods,
+        # which counts benchmark-priced years. No key may re-declare an
+        # accounting key -- gate 8 enforces that.
+        **period_accounting(executed_primary, valid_primary, cash_periods,
+                            universe_name=universe_name,
+                            benchmark_symbol=benchmark_symbol,
+                            date_key="year", end_key="year"),
         "n_years":                END_YEAR - START_YEAR + 1,
         "years":                  f"{START_YEAR}-{END_YEAR}",
         "frequency":              "daily_zscore",
         "portfolio_config":       "20-pair inverse_vol",
         "benchmark_name":         benchmark_name,
-        "benchmark_symbol":       benchmark_symbol,
-        "cash_periods":           cash_periods,
-        "invested_periods":       len(invested_yrs),
         "avg_active_pairs":       avg_active,
         "total_trades":           total_trades,
         "trade_stats":            trade_stats,
@@ -1021,8 +1045,13 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     print(format_metrics(m, "Multi-Pair 20 (inv-vol)", benchmark_name))
 
     # ── Trade stats summary ───────────────────────────────────────────────────
-    cash_periods = sum(1 for y in primary_yearly if y["is_cash"])
-    print(f"\n  Cash periods (20-pair inv-vol): {cash_periods}/{len(primary_yearly)}")
+    # B006: count over executed years, and report the measured window next to
+    # the cash rate so the two are never read as the same denominator.
+    executed_primary = [y for y in primary_yearly
+                        if y["portfolio_return"] is not None]
+    cash_periods = sum(1 for y in executed_primary if y["is_cash"])
+    print(f"\n  Cash periods (20-pair inv-vol): {cash_periods}/{len(executed_primary)}")
+    print(f"  Benchmark-priced years: {len(valid_primary)}/{len(executed_primary)}")
     if trade_stats:
         print(f"  Total trades (all pairs, all years): {trade_stats['total_trades']}")
         print(f"  Convergence rate: {trade_stats['convergence_rate']}%")
@@ -1176,9 +1205,13 @@ def main():
             p  = r.get("portfolio", {})
             c  = r.get("comparison", {})
             n  = r.get("n_years", 0)
+            # B006: divide by total_rebalances, not n_years. Cash is counted
+            # over every year the strategy ran; n_years is the nominal span.
+            # Fallback keeps pre-B006 JSONs renderable.
+            tr = r.get("total_rebalances", n)
             cp = r.get("cash_periods", 0)
             aa = r.get("avg_active_pairs", "N/A")
-            cash_pct = round(cp * 100 / n, 0) if n > 0 else 0
+            cash_pct = round(cp * 100 / tr, 0) if tr > 0 else 0
             cagr = p.get("cagr")
             exc  = c.get("excess_cagr")
             shp  = p.get("sharpe_ratio")

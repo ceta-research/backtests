@@ -44,7 +44,8 @@ from data_utils import (query_parquet, get_prices, generate_rebalance_dates,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                         remove_price_oscillations, filter_returns,
                         entry_buyable_prices)
-from metrics import compute_metrics, compute_annual_returns, format_metrics
+from metrics import (compute_metrics, compute_annual_returns, format_metrics,
+                     period_accounting)
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, save_results, print_header,
                        get_risk_free_rate, get_mktcap_threshold, EXCHANGE_PRESETS)
@@ -470,12 +471,15 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
 
     print(format_metrics(metrics, "FCF Yield", benchmark_name))
 
-    # Count over `valid`, not `results`: a period the benchmark can't price is not a
-    # measured period, so counting it as cash pushes invested_periods negative.
-    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
-    invested = [r["stocks_held"] for r in valid if r["stocks_held"] > 0]
+    # B006: count over `executed` (every rebalance the strategy actually ran),
+    # not `valid` (only those the benchmark can also price). Keeps the honest
+    # full-window cash rate: an OSL leg that sat in cash before ^OSEAX starts
+    # still sat in cash. invested_periods is derived in period_accounting.
+    executed = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods = sum(1 for r in executed if r["stocks_held"] == 0)
+    invested = [r["stocks_held"] for r in executed if r["stocks_held"] > 0]
     avg_stocks = sum(invested) / len(invested) if invested else 0
-    print(f"\n  Cash periods: {cash_periods} / {len(valid)}")
+    print(f"\n  Cash periods: {cash_periods} / {len(executed)}")
     print(f"  Avg stocks (invested): {avg_stocks:.1f}")
 
     period_dates = [r["rebalance_date"] for r in valid]
@@ -519,11 +523,16 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
         "universe": universe_name,
         "benchmark_name": benchmark_name,
         "benchmark_symbol": benchmark_symbol,
-        "n_periods": len(valid),
+        # B006: n_periods, total_rebalances, cash_periods, invested_periods and
+        # the window-provenance block. `executed` is every rebalance the
+        # strategy ran; `valid` is the benchmark-priced subset metrics use. No
+        # key below may re-declare one of these -- gate 8 enforces that.
+        **period_accounting(
+            [r for r in results if r["portfolio_return"] is not None],
+            valid, cash_periods, universe_name=universe_name,
+            benchmark_symbol=benchmark_symbol),
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
-        "cash_periods": cash_periods,
-        "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
         "period_data": results,
         "portfolio": format_series(p),

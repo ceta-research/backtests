@@ -43,7 +43,8 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_local_benchmark, remove_price_oscillations
-from metrics import compute_metrics, compute_annual_returns, format_metrics
+from metrics import (compute_metrics, compute_annual_returns, format_metrics,
+                     period_accounting)
 from costs import tiered_cost
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_risk_free_rate, get_mktcap_threshold)
@@ -713,20 +714,33 @@ def build_output(m, annual, valid, results, trade_stats, universe_name):
             "total_return":          pct(s.get("total_return")),
         }
 
-    cash_periods  = sum(1 for r in results if r["pairs_with_trades"] < MIN_PAIRS_ACTIVE)
-    invested_yrs  = [r for r in results if r["pairs_with_trades"] >= MIN_PAIRS_ACTIVE]
+    # B006: the counting SCOPE here was already right -- cash over every year
+    # the strategy ran, not just the years the benchmark can price. What changes
+    # is that invested_periods is now DERIVED from total_rebalances instead of
+    # counted independently, and the measured window is published. Every
+    # results.append site writes a float portfolio_return, so executed ==
+    # results; the filter is kept so the shape matches every other topic.
+    executed      = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods  = sum(1 for r in executed if r["pairs_with_trades"] < MIN_PAIRS_ACTIVE)
+    invested_yrs  = [r for r in executed if r["pairs_with_trades"] >= MIN_PAIRS_ACTIVE]
     avg_pairs     = (round(sum(r["pairs_with_trades"] for r in invested_yrs) / len(invested_yrs), 1)
                      if invested_yrs else 0)
-    total_trades  = sum(r["total_trades"] for r in results)
-    trades_per_yr = round(total_trades / len(results), 1) if results else 0
+    total_trades  = sum(r["total_trades"] for r in executed)
+    trades_per_yr = round(total_trades / len(executed), 1) if executed else 0
 
     return {
         "universe":             universe_name,
+        # B006: n_periods, total_rebalances, cash_periods, invested_periods and
+        # the window-provenance block. These are yearly records, so the period
+        # keys are "year". `n_years` below is kept for backward compatibility
+        # and equals n_periods. No key may re-declare an accounting key --
+        # gate 8 enforces that.
+        **period_accounting(executed, valid, cash_periods,
+                            universe_name=universe_name,
+                            date_key="year", end_key="year"),
         "n_years":              len(valid),
         "years":                f"{START_YEAR}-{END_YEAR}",
         "frequency":            "daily_zscore",
-        "cash_periods":         cash_periods,
-        "invested_periods":     len(invested_yrs),
         "avg_pairs_with_trades": avg_pairs,
         "total_trades":         total_trades,
         "trades_per_year":      trades_per_yr,
@@ -805,8 +819,11 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     print(format_metrics(m, "Pairs (z-score)", benchmark_name))
 
     # Trade statistics summary
-    cash_periods = sum(1 for r in results if r["pairs_with_trades"] < MIN_PAIRS_ACTIVE)
-    print(f"\n  Cash periods: {cash_periods}/{len(results)}")
+    # B006: scope unchanged (every year the strategy ran). `executed` drops any
+    # record the strategy never actually ran; this topic writes none.
+    executed = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods = sum(1 for r in executed if r["pairs_with_trades"] < MIN_PAIRS_ACTIVE)
+    print(f"\n  Cash periods: {cash_periods}/{len(executed)}")
     if trade_stats:
         print(f"  Total trades: {trade_stats['total_trades']}")
         print(f"  Convergence rate: {trade_stats['convergence_rate']}%")
@@ -926,8 +943,12 @@ def main():
             c  = r.get("comparison", {})
             ts = r.get("trade_stats", {})
             n  = r.get("n_years", 0)
+            # B006: divide by total_rebalances, not n_years. Cash is counted
+            # over every year the strategy ran; n_years counts only the
+            # benchmark-priced ones. Fallback keeps pre-B006 JSONs renderable.
+            tr = r.get("total_rebalances", n)
             cp = r.get("cash_periods", 0)
-            cash_pct  = round(cp * 100 / n, 0) if n > 0 else 0
+            cash_pct  = round(cp * 100 / tr, 0) if tr > 0 else 0
             conv_pct  = ts.get("convergence_rate", "N/A")
             avg_hold  = ts.get("avg_holding_days", "N/A")
             cagr      = p.get("cagr")

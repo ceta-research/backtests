@@ -46,7 +46,8 @@ from data_utils import (query_parquet, get_prices, generate_rebalance_dates, fil
                         entry_buyable,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                         domicile_sql_condition, remove_price_oscillations)
-from metrics import compute_metrics, compute_annual_returns, format_metrics
+from metrics import (compute_metrics, compute_annual_returns, format_metrics,
+                     period_accounting)
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
                        get_risk_free_rate, get_mktcap_threshold)
@@ -394,7 +395,14 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
 
     return {
         "universe": universe_name,
-        "n_periods": len(valid),
+        # B006: n_periods, total_rebalances, cash_periods, invested_periods and
+        # the window-provenance block. `executed` is every rebalance the
+        # strategy ran; `valid` is the benchmark-priced subset metrics use. No
+        # key below may re-declare one of these -- gate 8 enforces that.
+        **period_accounting(
+            [r for r in results if r["portfolio_return"] is not None],
+            valid, cash_periods, universe_name=universe_name,
+            benchmark_symbol=benchmark_symbol),
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
         # The benchmark a result was measured against. `spy` below is a legacy
@@ -406,8 +414,6 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
         "period_end": years_covered[-1] if years_covered else None,
         "periods_dropped_no_benchmark": len(results) - len(valid),
         "domicile_filtered": domicile,
-        "cash_periods": cash_periods,
-        "invested_periods": len(valid) - cash_periods,
         "avg_stocks_when_invested": round(avg_stocks, 1),
         "period_data": results,
         "min_stocks_when_invested": min_stocks,
@@ -489,17 +495,26 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "P/E Compression", benchmark_name))
 
-    # Count over `valid`, not `results`. A period whose benchmark has no price
-    # (^OSEAX starts 2013, so a 2000-2025 run has no benchmark for half of it)
-    # drops out of `valid` but was still counted as cash, which drove
-    # invested_periods negative and made the whole record incoherent.
-    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
-    invested = [r["stocks_held"] for r in valid if r["stocks_held"] > 0]
+    # B006: count over `executed` (every rebalance the strategy actually ran),
+    # not `valid` (only those the benchmark can also price). A period the
+    # benchmark cannot price (^OSEAX starts 2013-03-05, so a 2000-2025 run has
+    # no benchmark for half of it) WAS still run and WAS still in cash, so
+    # dropping it understates the honest cash rate. cash_periods and n_periods
+    # are different populations by design; invested_periods is derived from
+    # total_rebalances in period_accounting and can no longer go negative.
+    #
+    # The `assert 0 <= len(valid) - cash_periods <= len(valid)` that stood here
+    # is REMOVED, not merely relaxed. It bound a full-window count to the
+    # truncated metrics window, so under this convention it goes negative on OSL
+    # and would hard-stall the re-run with a message pointing at the wrong
+    # thing. period_accounting raises a ValueError on the real defect instead.
+    executed = [r for r in results if r["portfolio_return"] is not None]
+    cash_periods = sum(1 for r in executed if r["stocks_held"] == 0)
+    invested = [r["stocks_held"] for r in executed if r["stocks_held"] > 0]
     avg_stocks = sum(invested) / len(invested) if invested else 0
     min_stocks = min(invested) if invested else 0
     dropped = len(results) - len(valid)
-    assert 0 <= len(valid) - cash_periods <= len(valid), "invested_periods out of range"
-    print(f"\n  Cash periods: {cash_periods} / {len(valid)}")
+    print(f"\n  Cash periods: {cash_periods} / {len(executed)}")
     print(f"  Avg stocks (invested): {avg_stocks:.1f}  (min {min_stocks})")
     if dropped:
         print(f"  ⚠ {dropped} of {len(results)} periods dropped: no benchmark price "
@@ -641,8 +656,12 @@ def main():
             p = r.get("portfolio", {})
             c = r.get("comparison", {})
             n = r.get("n_periods", 0)
+            # B006: divide by total_rebalances, not n_periods. Cash is counted
+            # over every rebalance the strategy ran; n_periods counts only the
+            # benchmark-priced ones. Fallback keeps pre-B006 JSONs renderable.
+            tr = r.get("total_rebalances", n)
             cp = r.get("cash_periods", 0)
-            cash_pct = round(cp * 100 / n, 0) if n > 0 else 0
+            cash_pct = round(cp * 100 / tr, 0) if tr > 0 else 0
             cagr = p.get("cagr")
             excess = c.get("excess_cagr")
             sharpe = p.get("sharpe_ratio")
