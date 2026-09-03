@@ -205,7 +205,7 @@ def main():
             sharpe = exchange_result["portfolio"]["sharpe_ratio"]
             max_dd = exchange_result["portfolio"]["max_drawdown"]
             print(f"\n  CAGR: {cagr}% (SPY: {spy_cagr}%), Sharpe: {sharpe}, "
-                  f"MaxDD: {max_dd}%, Cash: {cash_periods}/{len(results)}, "
+                  f"MaxDD: {max_dd}%, Cash: {cash_periods}/{len(executed)}, "
                   f"Avg stocks: {avg_stocks:.0f}")
 
         except Exception as e:
@@ -234,8 +234,17 @@ def main():
         sharpe_str = f"{p['sharpe_ratio']:>8.3f}" if p.get('sharpe_ratio') is not None else f"{'N/A':>8}"
         print(f"{name:<12} {p['cagr']:>7.1f}% {r['spy']['cagr']:>7.1f}% "
               f"{r['excess_cagr']:>+7.1f}% {sharpe_str} "
-              f"{p['max_drawdown']:>7.1f}% {r['cash_periods']:>5}/{r['n_periods']:<1} "
+              f"{p['max_drawdown']:>7.1f}% "
+              f"{r['cash_periods']:>5}/{r.get('total_rebalances') or r['n_periods']:<1} "
               f"{r['avg_stocks_when_invested']:>5.0f}")
+        # B006: the cash count is over every rebalance the strategy ran, so it
+        # is paired with total_rebalances above, never with n_periods (which
+        # counts only benchmark-priced periods). The two are different
+        # populations and the design's rule is that they are never related.
+        # Gate 9 cannot see this shape -- it is an f-string slash, not a
+        # division -- so it stayed wrong while the gate reported all clean.
+        if r.get("window_truncated"):
+            print(f"{'':<12} MEASURED {r.get('window_label')}")
 
 
 if __name__ == "__main__":

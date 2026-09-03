@@ -481,7 +481,16 @@ def main():
     print(f"  Backtest done in {time.time()-t1:.0f}s")
 
     # Filter to periods with valid spy return
-    valid = [r for r in results if r["spy_return"] is not None]
+    # B006: filter on BOTH keys, as the other 66 topics do. period_accounting
+    # raises if `valid` is not a subset of `executed`, and with only the
+    # spy_return test that containment held by accident: no results.append site
+    # in this file currently writes a None portfolio_return. Add one trailing-
+    # stub or skip path that records a benchmark return without a portfolio
+    # return -- which sector-momentum's grid already does for its own reasons --
+    # and this topic starts hard-crashing on real data. The invariant would be
+    # firing correctly; the caller would be wrong. Behaviour is unchanged today.
+    valid = [r for r in results
+             if r["portfolio_return"] is not None and r["spy_return"] is not None]
 
     # Count "cash" periods (held SPY because nothing was compressed).
     # B006: count over `executed` (every rebalance the strategy actually ran),

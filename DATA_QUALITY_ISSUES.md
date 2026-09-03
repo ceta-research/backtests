@@ -676,8 +676,9 @@ reachable by a second route, so decide it alongside the above.
 
 ## Open, found during B006 (period accounting), NOT fixed there
 
-Both were found while reworking period counting. Neither is a counting bug, and
-fixing either changes published numbers, so both need their own re-run.
+All were found while reworking period counting. None is a counting bug in the
+new helper, and fixing any of them changes published numbers or reaches outside
+this repo, so each needs its own re-run or its own owner.
 
 ### graham-timing scores an unpriceable period as a 0% benchmark return
 
@@ -726,3 +727,112 @@ guard for the related reason that its per-period data lands in
 `scripts/verify_floor_guard.py` under `ACCOUNTING_EXEMPT` with a pointer here.
 
 Fix is to have the topic write a cash count into its CSVs, then re-run.
+
+Note that B005 made this overstatement WORSE, which the entry above does not
+say. Commits `0d36652` and `a0760d4` turned two bare `continue`s into cash rows
+(return 0.0, stocks_held 0) that previously never reached the CSV at all, and
+`8a2b5b5` removed the `msg == "invested"` filter that main carried. So cash
+periods now both reach the CSV and compound into the series, and every one of
+them is published as an invested period. It is the only site in the repo where
+a period B005 makes cash is miscounted by the B006 regime.
+
+### oversold-quality charts render 202% cash until its OSL leg is re-run
+
+`oversold-quality/generate_charts.py` used to carry a hand-rolled filter
+(`>= 0  # drop rows with broken benchmark coverage (e.g. OSL)`) that hid the
+broken row rather than fixing it. B006 removed it, on the reasoning that a
+visibly wrong chart beats a silently dropped exchange.
+
+That is only safe if the next person to regenerate charts knows what they will
+see. The committed pre-B006 record (`oversold-quality/results/exchange_comparison.json`,
+OSL: n_periods=50, cash_periods=101, invested_periods=-51) has no
+`total_rebalances`, so the `.get("total_rebalances") or .get("n_periods")`
+fallback divides by the truncated 50 and prints `100 * 101 / 50 = 202%`.
+
+**Re-run the OSL leg before regenerating oversold-quality's charts.** The 202%
+is a pre-B006 record being rendered by post-B006 code, not a new defect, and it
+disappears the moment the record carries a real `total_rebalances`.
+
+### sector-momentum and sector-rotation count unrunnable trailing periods as cash
+
+Both run a quarterly rebalance grid to `BACKTEST_END + 1` (2026-10) while their
+price fetch caps at `2026-03-01` (`sector-momentum/backtest.py:152`,
+`sector-rotation/backtest.py:149`). The trailing periods cannot be run, but
+neither topic skips them: they are recorded as `portfolio_return: 0.0` with
+`stocks_held: 0` (sector-momentum:303/338, sector-rotation:286/320), which is
+the same shape as a genuine cash period.
+
+So they count as cash, and under the B006 convention they also count toward
+`total_rebalances`. An AST census confirmed no `results.append` anywhere in this
+repo writes a None `portfolio_return` (204 dict literals checked), so the
+`executed = [r for r in results if r["portfolio_return"] is not None]` filter
+excludes nothing today. Comments in both topics and in `metrics.py` previously
+claimed it did; they have been corrected.
+
+Committed data shows every leg at `n_periods=104` against a 107-iteration grid,
+so the inflation is 3 periods per exchange. On re-run, sector-rotation ASX goes
+3/104 (2.9%) to 6/107 (5.6%) and sector-momentum HKSE 4/104 (3.8%) to 7/107
+(6.5%): roughly a doubled cash rate, none of it honest cash.
+
+**This matters for how the re-run is read.** The general note that cash rates
+rise under convention (B) because pre-benchmark cash periods re-enter the count
+is true and is the fix working. For these two topics, about 3 periods per leg is
+NOT that; it is phantom.
+
+Fix is to cap the rebalance grid at the price-fetch date, or to skip rather than
+append past it. Either changes published numbers and needs a run to verify, so
+B006 left it alone.
+
+### ts-content-creator's fact-check gates use the wrong cash denominator
+
+Two scripts in the sibling content repo validate published copy against these
+results JSONs, and both predate the convention:
+
+- `ts-content-creator/scripts/check_pct_tokens.py:30` computes
+  `d["cash_periods"] / d["n_periods"] * 100`. Under convention (B) that mixes
+  populations. On the real committed `52-week-low/results/returns_OSL.json`
+  (n_periods=50, total_rebalances=95, cash_periods=84, invested_periods=11) it
+  yields 168.0% and 22.0% where the true rates are 88.4% and 11.6%. Those values
+  go into the `canon` set the checker validates against, so the effect is
+  inverted: a writer who correctly states Norway's 88.4% cash rate gets it
+  rejected as unsourced, while 168.0% is blessed as canonical. Fix is
+  `d.get("total_rebalances") or d["n_periods"]`, the same fallback used at
+  `nse_arena/framework.py:338` and `oversold-quality/generate_charts.py:299`.
+  Note also that the divide is unconditional, so a leg with `n_periods == 0`
+  raises ZeroDivisionError. None exists in committed data today, but under
+  convention (B) a fully-truncated leg is a reportable record rather than a
+  suppressed one, which makes that case reachable.
+
+- `ts-content-creator/scripts/check_nonpct_tokens.py:164-180` matches
+  `"sat in cash for X of the Y years"` and compares only `X` against
+  `cash_periods`; `m.group(2)`, the year count, is never referenced. It is
+  therefore blind to precisely the window length defect (b) corrupts, and
+  "sat in cash for 84 of the 25 years" passes cleanly. Fix is to compare the
+  denominator against `total_rebalances` and report a mismatch with the leg's
+  `window_label`.
+
+Both are outside this repo and outside every gate here, so B006 did not touch
+them. **They must be fixed before the first re-run topic is fact-checked**, or
+the gate will reject correct numbers and accept wrong ones.
+
+### Seven cohort topics still count cash over the metrics window
+
+`altman-z`, `asset-light`, `cash-conversion`, `income-quality`,
+`margin-expansion`, `roe-dupont` and `sustained-roic` emit
+`"cash_periods": {"high": n, "low": m}` from 14 sites that all read
+`sum(1 for p in valid if ...)`. That is convention (A), the rejected one: on a
+truncated leg it understates the cash rate, and these records carry no window
+provenance at all.
+
+They are excluded from gate 8 by structure, with a documented rationale: a
+cohort mapping has no single `invested_periods` to derive and no single measured
+window. That rationale covers the DERIVATION but is silent on the SCOPE, and the
+scope half still applies. Gate 7 cannot see them either, because they bind to
+`high_cash`/`low_cash` rather than `cash_periods`.
+
+Latent, not live: none of the seven has an OSL or Norway results file, and
+`^OSEAX` is the only `LOCAL_INDEX_BENCHMARKS` symbol starting after 2000
+(verified: `^OSEAX` 2013-03-05, `^TWII` 1997-07-02, `^SET.BK` 1982-01-04).
+
+Flipping the 14 counts needs per-topic verification that each cohort predicate's
+keys exist on unpriced rows, which is not a mechanical edit, so B006 left them.

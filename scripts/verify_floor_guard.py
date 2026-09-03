@@ -60,6 +60,11 @@ SCOPE_ALLOW = {
     # appends to it too (graham-timing's 0.0 benchmark substitution,
     # capex-efficiency's invented invested_periods).
     "DATA_QUALITY_ISSUES.md",
+    # B006: its CAGR chart gated on `cash_periods < total_periods`, comparing a
+    # full-run cash count against the truncated metrics window, so a truncated
+    # leg was read as 100%-cash and dropped from the chart with no trace. The
+    # gate now compares against total_rebalances.
+    "magic-formula/generate_charts.py",
     # B006: hosts the shared period_accounting/warn_if_truncated helper. Root
     # .py files match none of the allow rules below, so without this entry the
     # scope gate rejects its own dependency.
@@ -539,10 +544,28 @@ def main():
     LOCAL_N = re.compile(
         r'n\s*=\s*\w+\.get\(\s*["\'](?:n_periods|n_years)["\'].*?\n.*?'
         r'cash_periods.{0,60}?/\s*n\b', re.S)
+    # Shape 4, an f-string that prints "cash/window" as a RATIO rather than
+    # dividing. Missed by all three patterns above: there is no arithmetic to
+    # anchor on, and the `{r['` between the slash and n_periods defeats INLINE's
+    # bounded gap. Both run_all_exchanges.py comparison tables were written this
+    # way and stayed wrong while gate 9 reported 324/324 clean.
+    # The negative lookahead lets the correct form through: a divisor that reads
+    # `total_rebalances` first and falls back to n_periods for pre-B006 files is
+    # right, and flagging it would make the gate unfixable-by-fixing.
+    FSTRING_RATIO = re.compile(
+        r"cash_periods.{0,40}?\}\s*/\s*\{(?![^}]*total_rebalances)"
+        r"[^}]{0,60}?n_periods\b")
     bad9 = []
     for f in py_files:
         src = f.read_text()
         rel = str(f.relative_to(ROOT))
+        # This file carries the shape-4 probe literals below, so without the
+        # exclusion the gate flags its own self-test. (Gate 11 hit the same
+        # trap on its anchor constant.) Everything else in scripts/ is still
+        # scanned.
+        if FSTRING_RATIO.search(src) and rel != "scripts/verify_floor_guard.py":
+            bad9.append((rel, "f-string pairs the cash count with the metrics "
+                              "window as a ratio"))
         if PRINTER.search(src):
             bad9.append((rel, "summary printer divides cash by the metrics window"))
         if INLINE.search(src):
@@ -555,6 +578,24 @@ def main():
     for b in bad9:
         print("    WRONG DENOMINATOR:", b)
     fails += [("cash denominator", b) for b in bad9]
+    # SELF-TEST for shape 4. It is the newest and the most regex-fragile of the
+    # four (a negative lookahead plus two bounded gaps), and a pattern that
+    # matches nothing is indistinguishable from a pattern that finds nothing.
+    # Positive: the exact line both run_all comparison tables shipped with.
+    # Negative: the fixed form, which must be allowed through or the gate could
+    # not be satisfied by fixing the code.
+    p9_bad = ("f\"{p['max_drawdown']:>7.1f}% "
+              "{r['cash_periods']:>5}/{r['n_periods']:<1} \"")
+    p9_ok = ("f\"{r['cash_periods']:>5}"
+             "/{r.get('total_rebalances') or r['n_periods']:<1} \"")
+    if not FSTRING_RATIO.search(p9_bad):
+        print("    SELF-TEST FAIL: gate 9 shape 4 no longer flags the "
+              "cash/n_periods f-string ratio it was added for")
+        fails.append(("gate 9 shape 4 vacuous", "probe not flagged"))
+    if FSTRING_RATIO.search(p9_ok):
+        print("    SELF-TEST FAIL: gate 9 shape 4 flags the corrected form; "
+              "the gate cannot be satisfied by fixing the code")
+        fails.append(("gate 9 shape 4 false positive", "clean probe flagged"))
 
     # ---- gate 10: every call to the shared helper actually BINDS the callee
     #

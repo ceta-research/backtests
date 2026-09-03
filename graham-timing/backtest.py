@@ -537,7 +537,13 @@ def main():
                 print(f"  Sharpe:    {(p['sharpe_ratio'] or 0):>7.3f}")
                 print(f"  Max DD:    {p['max_drawdown']*100:>7.2f}%")
                 print(f"  Down Cap:  {(c['down_capture'] or 0)*100:>7.1f}%")
-                print(f"  Cash:      {result['cash_periods']}/{result['n_periods']} periods")
+                # B006: total_rebalances, not n_periods. They are equal for this
+                # topic (executed == valid, see the note at the accounting call)
+                # so nothing printed changes, but the cash count belongs against
+                # the run it was counted over. If a `valid` filter is ever added
+                # here, this line stays correct instead of quietly going wrong.
+                print(f"  Cash:      {result['cash_periods']}"
+                      f"/{result.get('total_rebalances') or result['n_periods']} periods")
                 print(f"  Avg Stks:  {result['avg_stocks_when_invested']:.1f}")
                 print(f"\nResults saved to: {args.output}")
             else:

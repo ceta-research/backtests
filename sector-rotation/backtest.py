@@ -512,13 +512,24 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Sector Rotation", benchmark_name))
 
-    # B006: count over `executed`, not `results` and not `valid`. The price
-    # fetch stops at 2026-03-01 while rebalance dates run to 2026-10, so the
-    # trailing records are stubs with no exit price and no benchmark return.
-    # `executed` excludes them (portfolio_return is None), so they inflate
-    # neither cash_periods nor total_rebalances -- which was the real point of
-    # the earlier fix. Using `valid` also dropped periods the strategy DID run
-    # but the benchmark cannot price, understating the honest cash rate.
+    # B006: count over `executed`, not `valid`. Using `valid` drops periods the
+    # strategy DID run but the benchmark cannot price, understating the honest
+    # cash rate, which is the defect this convention exists to prevent.
+    #
+    # CORRECTION to an earlier version of this comment, which claimed `executed`
+    # excludes this topic's trailing stubs. IT DOES NOT. The price fetch stops
+    # at 2026-03-01 while the rebalance grid runs to 2026-10, so the last few
+    # periods cannot be run -- but they are recorded at lines 286 and 320 as
+    # portfolio_return 0.0 with stocks_held 0, i.e. as CASH, not as None. They
+    # therefore pass the filter below and inflate both cash_periods and
+    # total_rebalances. No results.append site in this repo writes a None
+    # portfolio_return (204 checked), so `executed == results` everywhere and
+    # the filter is a forward guard, not a live exclusion.
+    #
+    # Consequence for the re-run, logged in DATA_QUALITY_ISSUES.md: this topic's
+    # cash count rises by ~3 per exchange for reasons that are NOT honest cash.
+    # Capping the grid at the price-fetch date is the real fix and needs a run
+    # to verify, so it is deliberately not done here.
     executed = [r for r in results if r["portfolio_return"] is not None]
     cash_periods = sum(1 for r in executed if r["stocks_held"] == 0)
     invested = [r["stocks_held"] for r in executed if r["stocks_held"] > 0]

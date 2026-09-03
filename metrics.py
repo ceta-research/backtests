@@ -88,12 +88,28 @@ def period_accounting(executed, valid, cash_periods, *,
         so it cannot be copied into a heading and come out wrong.
 
     Three populations, deliberately distinguished:
-        results   every record the loop appended, trailing stubs included
-        executed  results the strategy actually ran (portfolio_return not None).
-                  Excludes stubs: e.g. sector-momentum's rebalance grid runs past
-                  the price fetch cap, leaving records with no exit price.
+        results   every record the loop appended
+        executed  results the strategy actually ran (portfolio_return not None)
         valid     executed AND benchmark-priced. The metrics population;
                   len(valid) == n_periods.
+
+    ON `executed` BEING INERT TODAY, which an earlier version of this docstring
+    got wrong. It claimed the filter excludes trailing stubs, naming
+    sector-momentum's grid running past its price-fetch cap. It does not. An
+    AST census of every results.append in the repo found 204 dict literals
+    writing `portfolio_return` and NOT ONE writing None, literally or
+    conditionally. sector-momentum and sector-rotation record their unrunnable
+    trailing periods as portfolio_return 0.0 with stocks_held 0 -- as CASH --
+    so those periods pass the filter and inflate both cash_periods and
+    total_rebalances in exactly the way the filter was said to prevent.
+
+    So `executed == results` everywhere right now, and the filter is a forward
+    guard: it is what makes `valid` a subset by construction, and it is what a
+    topic that DOES start recording unrun periods as None would need. Do not
+    read it as a live stub exclusion. The trailing-period inflation in those two
+    topics is real, is ~3 periods per exchange, and is logged in
+    DATA_QUALITY_ISSUES.md rather than fixed here, because capping a rebalance
+    grid needs a backtest run to verify and this change ships without one.
 
     `cash_periods` counts over `executed`; `n_periods` counts `valid`. They live
     in DIFFERENT populations ON PURPOSE. That is what preserves the honest

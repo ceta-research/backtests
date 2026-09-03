@@ -98,7 +98,23 @@ def build_comparison(all_results):
             "beta": c.get("beta"),
             "alpha": c.get("alpha"),
             "cash_periods": data.get("cash_periods"),
+            # B006: `total_periods` is n_periods under an old name, so this node
+            # paired a FULL-RUN cash count with the TRUNCATED metrics window and
+            # dropped everything needed to tell them apart. Two consequences,
+            # both silent: generate_charts.py's `cash_periods < total_periods`
+            # gate reads a truncated leg (84 cash, 50 priced) as 100%-cash and
+            # drops it from the chart with no trace, and the renamed schema made
+            # all 16 exchange nodes invisible to scripts/scan_results_invariant.py,
+            # which the re-run population scan depends on.
+            #
+            # The alias stays so pre-B006 charts still render; the real fields
+            # are carried alongside it.
             "total_periods": data.get("n_periods"),
+            "n_periods": data.get("n_periods"),
+            "total_rebalances": data.get("total_rebalances"),
+            "invested_periods": data.get("invested_periods"),
+            "window_truncated": data.get("window_truncated"),
+            "window_label": data.get("window_label"),
             "avg_stocks": data.get("avg_stocks_when_invested"),
             "years": data.get("years"),
             # Carry the per-period array through. avg_stocks hides the minimum book

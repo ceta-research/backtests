@@ -152,10 +152,21 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
 
 def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange."""
+    # B006: the gate's intent is "drop a leg that never traded" (PAR is 103/103
+    # cash). Comparing against `total_periods` -- which is n_periods, the
+    # benchmark-priced window -- instead reads a TRUNCATED leg as a 100%-cash
+    # one and drops it silently: an OSL leg at 84 cash over 95 rebalances with
+    # only 50 priced fails `84 < 50` and vanishes from the chart. Cash is
+    # counted over every rebalance run, so it must be compared against
+    # total_rebalances. The fallback keeps pre-B006 comparison files rendering
+    # exactly as they do today.
+    def _ran(v):
+        return v.get("total_rebalances") or v.get("total_periods", 1)
+
     exchanges_with_data = [
         (k, v) for k, v in ec_data.items()
         if v.get("total_periods", 0) > 0
-        and v.get("cash_periods", 0) < v.get("total_periods", 1)
+        and v.get("cash_periods", 0) < _ran(v)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["cagr"], reverse=True)
 

@@ -533,17 +533,25 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Sector Momentum", benchmark_name))
 
-    # B006: count over `executed`, not `results` and not `valid`. This topic is
-    # where the third class of dropped period was found: the rebalance grid runs
-    # to 2026-10 while the price fetch caps at 2026-03-01, so the trailing
-    # records are stubs with no exit price and no benchmark return. Those are
-    # not rebalances the strategy ran, and counting them as cash inflates the
-    # cash rate -- which is why `executed` filters on portfolio_return rather
-    # than using `results` wholesale.
+    # B006: count over `executed`, not `valid`. `valid` would be wrong because a
+    # period the benchmark cannot price WAS run and WAS in cash, so dropping it
+    # understates the honest cash rate. `executed` is the population that
+    # answers "what did the strategy do".
     #
-    # `valid` would be wrong for the opposite reason: a period the benchmark
-    # cannot price WAS run and WAS in cash, so dropping it understates cash.
-    # executed is the population that answers "what did the strategy do".
+    # CORRECTION to an earlier version of this comment, which claimed `executed`
+    # excludes this topic's trailing stubs. IT DOES NOT. The rebalance grid runs
+    # to 2026-10 while the price fetch caps at 2026-03-01, so the last few
+    # periods cannot be run -- but they are recorded at lines 303 and 338 as
+    # portfolio_return 0.0 with stocks_held 0, i.e. as CASH, not as None. They
+    # pass the filter below and inflate both cash_periods and total_rebalances.
+    # No results.append site in this repo writes a None portfolio_return (204
+    # checked), so `executed == results` everywhere and the filter is a forward
+    # guard, not a live exclusion.
+    #
+    # Consequence for the re-run, logged in DATA_QUALITY_ISSUES.md: this topic's
+    # cash count rises by ~3 per exchange for reasons that are NOT honest cash.
+    # Capping the grid at the price-fetch date is the real fix and needs a run
+    # to verify, so it is deliberately not done here.
     executed = [r for r in results if r["portfolio_return"] is not None]
     cash_periods = sum(1 for r in executed if r["stocks_held"] == 0)
     invested = [r["stocks_held"] for r in executed if r["stocks_held"] > 0]
