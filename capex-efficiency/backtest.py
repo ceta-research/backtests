@@ -221,6 +221,12 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         next_rdate = rebalance_dates[i + 1]
         print(f"\n  Period {i+1}/{len(rebalance_dates)-1}: {rdate} → {next_rdate}")
 
+        # Benchmark first, so a cash period records the real benchmark instead of
+        # a fabricated 0.0. Cash periods now enter the metric series, so a fake
+        # benchmark observation there would corrupt alpha/beta and excess return.
+        bench_return = get_benchmark_return(
+            con, benchmark_symbol, rdate, next_rdate, offset_days=offset_days)
+
         # Screen
         qualifying = screen_stocks(con, rdate, mktcap_min)
         n_stocks = len(qualifying)
@@ -234,7 +240,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "n_stocks": 0,
                 "stocks_held": 0,
                 "return": 0.0,
-                "spy_return": 0.0,
+                "spy_return": bench_return if bench_return is not None else 0.0,
                 "avg_roic": None,
                 "msg": f"cash (< {MIN_STOCKS} stocks)"
             })
@@ -260,15 +266,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "n_stocks": 0,
                 "stocks_held": 0,
                 "return": 0.0,
-                "spy_return": 0.0,
+                "spy_return": bench_return if bench_return is not None else 0.0,
                 "avg_roic": None,
                 "msg": "cash (no prices for the period)"
             })
             continue
-
-        # Benchmark return
-        bench_return = get_benchmark_return(
-            con, benchmark_symbol, rdate, next_rdate, offset_days=offset_days)
 
         # Collect raw returns for filtering
         raw_data = []
@@ -377,8 +379,13 @@ def main():
                     print(f"  Skipping {preset_name}: no valid periods")
                     continue
 
-                returns = [r["return"] for r in period_results if r.get("msg") == "invested"]
-                bench_returns = [r["spy_return"] for r in period_results if r.get("msg") == "invested"]
+                # Cash periods compound at 0%, they are not deleted. Filtering to
+                # msg == "invested" dropped them from the series, and with
+                # periods_per_year=1 metrics.py derives years from len(series), so
+                # a dropped bad period shortened the horizon and inflated CAGR.
+                # Every other floor topic compounds cash at 0%; match them.
+                returns = [r["return"] for r in period_results]
+                bench_returns = [r["spy_return"] for r in period_results]
 
                 if not returns:
                     print(f"  Skipping {preset_name}: no valid returns")
@@ -386,7 +393,7 @@ def main():
 
                 rfr = get_risk_free_rate(exchanges)
                 metrics = compute_metrics(returns, bench_returns, periods_per_year=1, risk_free_rate=rfr)
-                period_dates = [r["start_date"] for r in period_results if r.get("msg") == "invested"]
+                period_dates = [r["start_date"] for r in period_results]
                 annual_returns = compute_annual_returns(returns, bench_returns, period_dates, periods_per_year=1)
 
                 all_results[preset_name.upper()] = {
@@ -442,9 +449,10 @@ def main():
         print("No valid periods. Exiting.")
         return
 
-    # Extract returns from invested periods
-    returns = [r["return"] for r in period_results if r.get("msg") == "invested"]
-    bench_returns = [r["spy_return"] for r in period_results if r.get("msg") == "invested"]
+    # Every period counts, cash included at 0%. See the note in the global path:
+    # filtering cash out shortened the horizon and inflated CAGR.
+    returns = [r["return"] for r in period_results]
+    bench_returns = [r["spy_return"] for r in period_results]
 
     if not returns:
         print("No valid returns. Exiting.")
@@ -453,7 +461,7 @@ def main():
     # Compute metrics
     rfr = get_risk_free_rate(exchanges)
     metrics = compute_metrics(returns, bench_returns, periods_per_year=1, risk_free_rate=rfr)
-    period_dates = [r["start_date"] for r in period_results if r.get("msg") == "invested"]
+    period_dates = [r["start_date"] for r in period_results]
     annual_returns = compute_annual_returns(returns, bench_returns, period_dates, periods_per_year=1)
 
     # Print results
