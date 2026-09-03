@@ -250,7 +250,20 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         px_end = get_prices(con, symbols, next_rdate, offset_days=offset_days)
 
         if not px_start or not px_end:
-            print("    → Missing prices, skipping period")
+            # Same defect class as the floor re-check below: a bare continue
+            # deleted the period from the series rather than recording it, so a
+            # rebalance with no prices at all left no trace in the output.
+            print("    → Cash (no prices for either leg of the period)")
+            results.append({
+                "start_date": rdate.isoformat(),
+                "end_date": next_rdate.isoformat(),
+                "n_stocks": 0,
+                "stocks_held": 0,
+                "return": 0.0,
+                "spy_return": 0.0,
+                "avg_roic": None,
+                "msg": "cash (no prices for the period)"
+            })
             continue
 
         # Benchmark return
