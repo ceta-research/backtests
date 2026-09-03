@@ -700,6 +700,46 @@ because the surrounding argument is entirely about precision of claims.
 
 ---
 
+## No committed result can be attributed to the cash rule yet (recorded 2026-09-04)
+
+**Status:** Open, and it clears only by re-running. The code side is done.
+**Affects:** the whole committed corpus — 2,884 period records, of which **0**
+carry the entry funnel.
+
+> **2,884, not 2,987.** A working tree can report 2,987 because
+> `graham-timing/results/us.json` holds 103 more and is UNTRACKED — `.gitignore`
+> line 12 is `*/results/`, and that one file was never force-added. 2,884 is
+> what a clean checkout sees, so 2,884 is the number. Same trap as
+> `volume-confirmed-momentum/results/vcm_osl.json`, which made
+> `scripts/scan_results_invariant.py` report "the scanner lost its teeth" on
+> every checkout but the author's; that one was fixed by committing the file.
+> Quote the clean-checkout figure or the next reader cannot reproduce it.
+
+Every period record of every floor topic now writes `screened`,
+`entry_buyable` and `min_stocks` beside `stocks_held`, so a cash period can be
+attributed to the screen (never priced) or to the post-price guard (priced,
+book below the floor), and an invested period carries the count it was bought
+on. The schema is in `data_utils.py` above `period_state()`; gate 13 in
+`scripts/verify_floor_guard.py` keeps it present and entry-knowable; S7 in
+`scripts/test_floor_guard.py` keeps it describing the period it sits in.
+
+**None of that reaches anything already published.** Nothing was re-run, so the
+funnel exists only in code. Measured with `scripts/scan_results_invariant.py`:
+2,987 records skipped as pre-funnel, 0 checked. Until a leg is regenerated, the
+only way to tell a pre-screen cash period from a guard-fired one in a committed
+artifact is still git forensics or a re-run — and for five of the six topics
+where the guard actually fires (fcf-growth, pe-compression, cyclical-timing,
+sector-momentum, sector-rotation) it is not possible at all, because they
+serialize only the aggregate `cash_periods`, which lumps the two together.
+graham-timing is the exception; it is the sole topic that commits `period_data`,
+which is why it was the only one auditable during B005.
+
+The scanner prints the two counts on every run. When the first re-run lands,
+"funnel records 0 checked" starts moving. If it does not move after a re-run,
+the re-run did not pick up this code.
+
+---
+
 ## Open, found during B006 (period accounting), NOT fixed there
 
 All were found while reworking period counting. None is a counting bug in the

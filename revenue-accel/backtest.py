@@ -300,6 +300,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "spy_return": spy_return,
                 "spy_usd_return": spy_usd_return,
                 "stocks_held": 0,
+                "screened": len(portfolio),
+                "entry_buyable": None,
+                "min_stocks": MIN_STOCKS,
                 "holdings": f"CASH ({len(portfolio)} passed)",
             })
             if verbose:
@@ -343,6 +346,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "spy_return": spy_return,
                 "spy_usd_return": spy_usd_return,
                 "stocks_held": 0,
+                "screened": len(portfolio),
+                "entry_buyable": buyable,
+                "min_stocks": MIN_STOCKS,
                 "holdings": f"CASH ({buyable} buyable at entry of {len(portfolio)} screened)",
             })
             if verbose:
@@ -368,6 +374,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "spy_return": round(spy_return, 6) if spy_return is not None else None,
             "spy_usd_return": round(spy_usd_return, 6) if spy_usd_return is not None else None,
             "stocks_held": len(returns),
+            "screened": len(portfolio),
+            "entry_buyable": buyable,
+            "min_stocks": MIN_STOCKS,
             "holdings": ",".join(sym for sym, _, _ in clean[:20]),
         })
 

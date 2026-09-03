@@ -316,6 +316,9 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
                 "rebalance_date": target_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
                 "stocks_held": 0,
+                "screened": len(stocks),
+                "entry_buyable": None,
+                "min_stocks": MIN_STOCKS,
                 "holdings": "CASH",
                 "portfolio_return": 0.0,
             })
@@ -381,6 +384,9 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
                     "rebalance_date": target_date.isoformat(),
                     "exit_date": exit_date.isoformat(),
                     "stocks_held": len(clean_returns),
+                    "screened": len(stocks),
+                    "entry_buyable": buyable,
+                    "min_stocks": MIN_STOCKS,
                     "holdings": ",".join([s[0] for s in clean_returns[:10]]) + ("..." if len(clean_returns) > 10 else ""),
                     "portfolio_return": round(period_return * 100, 2),
                 })
@@ -396,6 +402,9 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
                     "rebalance_date": target_date.isoformat(),
                     "exit_date": exit_date.isoformat(),
                     "stocks_held": 0,
+                    "screened": len(stocks),
+                    "entry_buyable": buyable,
+                    "min_stocks": MIN_STOCKS,
                     "holdings": (f"CASH ({buyable} buyable at entry of "
                                  f"{len(symbols)} screened)"),
                     "portfolio_return": 0.0,

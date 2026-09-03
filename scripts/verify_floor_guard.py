@@ -13,6 +13,13 @@ Gates:
   4 SCHEMA     every floor topic publishes per-period data
   5 HOLDINGS   no invested-branch holdings expression still reads the pre-filter list
   6 SCOPE      nothing outside */backtest.py and scripts/ is modified
+  7 CASHCOUNT  cash is counted over `executed`, never over the metrics window
+  8 ACCOUNTING every accounting dict takes its counts from period_accounting()
+  9 DENOMINATOR no cash percentage divides by the metrics window
+ 10 BINDING    every period_accounting() call site actually imports the callee
+ 11 PROVENANCE the measured window has a reader, not just a writer
+ 12 CHARTS     chart inclusion gates on window_truncated too
+ 13 FUNNEL     every period record carries an entry-knowable, decodable funnel
 
 Usage:  python scripts/verify_floor_guard.py
 """
@@ -278,6 +285,100 @@ def provenance_hits(tree):
                 if bad:
                     hits.append((node.lineno, arg.id, bad))
     return hits
+
+
+# ---------------------------------------------------------------------------
+# The entry funnel (gate 13). See the block comment above period_state() in
+# data_utils.py for what the three fields mean and why min_stocks is one of them.
+FUNNEL_KEYS = ("screened", "entry_buyable", "min_stocks")
+# Names that hold the POST-FILTER book. Reading any of them into an
+# entry-knowable field reintroduces B005 INSIDE the field built to audit it,
+# which is strictly worse than not having the field: the artifact would then
+# assert an exit-conditioned count as entry-knowable. filter_vars() adds each
+# topic's own filter_returns binding on top of these.
+EXIT_CONDITIONED = {"clean", "clean_returns", "returns", "held", "net_returns",
+                    "skipped"}
+
+
+def period_dicts(tree):
+    """Every appended dict literal that is a per-period record.
+
+    Anchored on `stocks_held`, the one key all 66 topics' records share --
+    including capex-efficiency, whose records land in a CSV rather than JSON and
+    whose other keys (start_date/n_stocks/msg) match nothing else.
+    """
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "append" and node.args
+                and isinstance(node.args[0], ast.Dict)):
+            d = node.args[0]
+            if any(isinstance(k, ast.Constant) and k.value == "stocks_held"
+                   for k in d.keys):
+                yield d
+
+
+def funnel_hits(tree):
+    """Every way a period record's entry-funnel fields can be wrong.
+
+    Four separate checks, because they fail independently:
+
+    PRESENCE.    All three keys, in EVERY record of a floor topic -- cash
+                 branches included. Not optional-when-unknown: cli_utils'
+                 save_results derives its CSV header from period_results[0],
+                 so a key missing from the first record is missing from the
+                 whole file. Null carries "not measured"; absence carries
+                 nothing.
+    PROVENANCE.  `entry_buyable` must be None, a name bound from an
+                 entry_buyable*() call, or a direct call to one. Anything else
+                 is a hand-rolled count that no other gate inspects.
+    FLOOR.       `min_stocks` must be the topic's floor CONSTANT, never a
+                 literal. A literal 10 sitting beside a MIN_STOCKS that someone
+                 later changes to 12 is the classic stale duplicate.
+    TAINT.       Neither entry-knowable field may read the post-filter book.
+                 This is what stops `"entry_buyable": len(clean)`.
+
+    Plus null monotonicity: a record that never screened cannot know how many
+    of the names it never screened were buyable.
+
+    The ORDERING invariant (stocks_held <= entry_buyable <= screened) is a
+    property of values, not of syntax, so it is not checkable here. It is
+    asserted on real records by S7 in scripts/test_floor_guard.py and on the
+    committed corpus by scripts/scan_results_invariant.py.
+    """
+    fl, bv = floors(tree), buyable_vars(tree)
+    tainted = filter_vars(tree) | EXIT_CONDITIONED
+    out = []
+    for d in period_dicts(tree):
+        vals = {k.value: v for k, v in zip(d.keys, d.values)
+                if isinstance(k, ast.Constant)}
+        missing = [k for k in FUNNEL_KEYS if k not in vals]
+        if missing:
+            out.append((d.lineno, f"period record is missing {missing}"))
+            continue
+        ms = vals["min_stocks"]
+        if not (isinstance(ms, ast.Name) and ms.id in fl):
+            out.append((d.lineno, f"min_stocks is {ast.unparse(ms)}, not this "
+                                  f"topic's floor constant {sorted(fl)}"))
+        eb = vals["entry_buyable"]
+        if not ((isinstance(eb, ast.Constant) and eb.value is None)
+                or (isinstance(eb, ast.Name) and eb.id in bv)
+                or (isinstance(eb, ast.Call) and isinstance(eb.func, ast.Name)
+                    and eb.func.id in BUYABLE_FNS)):
+            out.append((d.lineno, f"entry_buyable is {ast.unparse(eb)}, not None "
+                                  "and not an entry_buyable*() count"))
+        for key in ("screened", "entry_buyable"):
+            used = {n.id for n in ast.walk(vals[key]) if isinstance(n, ast.Name)}
+            bad = sorted(used & tainted)
+            if bad:
+                out.append((d.lineno, f"{key} reads the POST-FILTER book {bad}; "
+                                      "that count is exit-conditioned (B005)"))
+        sc = vals["screened"]
+        if (isinstance(sc, ast.Constant) and sc.value is None
+                and not (isinstance(eb, ast.Constant) and eb.value is None)):
+            out.append((d.lineno, "screened is None but entry_buyable is not; "
+                                  "a period that never screened cannot know "
+                                  "how many names were buyable"))
+    return out
 
 
 def main():
@@ -1012,6 +1113,97 @@ def main():
     if charts < 40:
         print(f"    SELF-TEST FAIL: only {charts} chart files found; anchor drifted")
         fails.append(("gate 12 coverage", charts))
+
+    # ---- gate 13: the entry funnel is present, entry-knowable and decodable
+    #
+    # B005 corrected which count the floor is compared against. It left the
+    # decision UNAUDITABLE: a committed cash period says `stocks_held: 0` and
+    # nothing else, so pre-screen cash and post-price cash are the same record.
+    # Five of the six topics where the guard actually fires serialize only the
+    # aggregate cash_periods, which lumps the two together, so the class could
+    # not be measured from published artifacts at all -- only by git forensics
+    # or a re-run. Three keys per period record close that at zero compute cost.
+    #
+    # `min_stocks` is in the record because the funnel alone cannot separate
+    # guard-fired cash from a ZERO-SURVIVOR invested period. Correcting the
+    # guard made the latter reachable (S6 in scripts/test_floor_guard.py) and it
+    # also records stocks_held 0. Measured on the harness: S1 writes
+    # buyable=3 floor=10, S6 writes buyable=15 floor=10, and only the floor
+    # tells them apart. The floor also VARIES -- 5 for dogs-of-dow,
+    # 52-week-low, graham-net-net and oversold-quality, 8 for trending-value,
+    # 10 elsewhere -- so no scanner can supply one itself.
+    bad13, records = [], 0
+    for t in floor_topics:
+        tree = parse(t)
+        records += sum(1 for _ in period_dicts(tree))
+        for lineno, why in funnel_hits(tree):
+            bad13.append((t, lineno, why))
+    print(f"13 FUNNEL     {len(floor_topics) - len({t for t, _, _ in bad13})}"
+          f"/{len(floor_topics)} floor topics carry a valid entry funnel "
+          f"({records} period records)")
+    for b in bad13:
+        print("    FUNNEL:", b)
+    fails += [("entry funnel", b) for b in bad13]
+
+    # SELF-TESTS. Each probe is a mistake someone could actually make, and each
+    # must be caught by a DIFFERENT check inside funnel_hits -- a gate with one
+    # live check and four dead ones passes this block just as well.
+    _P = ("MIN_STOCKS = 10\ndef f(d, symbols, e):\n"
+          "    clean, skipped = filter_returns(d)\n"
+          "    buyable = entry_buyable(d)\n"
+          "    r = []\n    r.append({%s})\n")
+
+    def probe(body):
+        return funnel_hits(ast.parse(_P % body))
+
+    # positive controls
+    for label, body in (
+        ("no funnel keys at all",
+         '"stocks_held": 0'),
+        ("entry_buyable counted off the POST-FILTER book (B005 inside the "
+         "audit field)",
+         '"stocks_held": 0, "screened": 30, "entry_buyable": len(clean), '
+         '"min_stocks": MIN_STOCKS'),
+        ("min_stocks written as a literal, free to drift from the constant",
+         '"stocks_held": 0, "screened": 30, "entry_buyable": buyable, '
+         '"min_stocks": 10'),
+        ("screened counted off the post-filter book",
+         '"stocks_held": 0, "screened": len(clean), "entry_buyable": buyable, '
+         '"min_stocks": MIN_STOCKS'),
+        ("screened null while entry_buyable claims a count",
+         '"stocks_held": 0, "screened": None, "entry_buyable": buyable, '
+         '"min_stocks": MIN_STOCKS'),
+    ):
+        if not probe(body):
+            print(f"    SELF-TEST FAIL: gate 13 no longer flags {label}")
+            fails.append(("gate 13 probe", label))
+    # negative controls: both accepted spellings must pass, or the gate cannot
+    # be satisfied by writing the field correctly and gets deleted rather than
+    # fixed. The second is capex-efficiency's, which counts inline because its
+    # no-prices branch runs before `buyable` is bound.
+    for label, body in (
+        ("the bound-name form",
+         '"stocks_held": 0, "screened": 30, "entry_buyable": buyable, '
+         '"min_stocks": MIN_STOCKS'),
+        ("the inline entry_buyable_prices() form",
+         '"stocks_held": 0, "screened": 30, '
+         '"entry_buyable": entry_buyable_prices(symbols, e), '
+         '"min_stocks": MIN_STOCKS'),
+        ("the never-screened form, both counts null",
+         '"stocks_held": 0, "screened": None, "entry_buyable": None, '
+         '"min_stocks": MIN_STOCKS'),
+    ):
+        if probe(body):
+            print(f"    SELF-TEST FAIL: gate 13 flags {label}, which is CORRECT")
+            fails.append(("gate 13 false positive", label))
+    # Coverage. 64 topics record 3 period dicts and 2 record 4
+    # (capex-efficiency's no-prices branch, cyclical-timing's signal-off
+    # branch), so the anchor should find 200. A walk that stops matching
+    # reports a clean corpus, which is what this catches.
+    if records < 190:
+        print(f"    SELF-TEST FAIL: only {records} period records found; the "
+              "`stocks_held` anchor has drifted and the gate is near-vacuous")
+        fails.append(("gate 13 coverage", records))
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")

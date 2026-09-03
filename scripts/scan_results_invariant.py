@@ -204,6 +204,125 @@ def truncated_legs(data):
                   if v["n_periods"] < TRUNCATION_RATIO * mx)
 
 
+# ---------------------------------------------------------------------------
+# DEFECT (c): a per-period entry funnel that contradicts itself.
+#
+# B005's guard is now recorded per period: `screened`, `entry_buyable` and
+# `min_stocks` sit beside `stocks_held` in every period record of every floor
+# topic, so a committed cash period can finally be attributed to the screen or
+# to the guard. See the block above period_state() in data_utils.py.
+#
+# CONDITIONAL, and that is deliberate. The committed corpus predates the fields
+# entirely -- nothing here was re-run -- so REQUIRING them would fail all 1712
+# results files and say nothing about anything. Records that carry the funnel
+# get checked; records that do not are counted and skipped. The count is the
+# honest progress meter for the re-run: it reads 0 today and rises as legs are
+# regenerated.
+#
+# Consequence worth naming: this detector is VACUOUS against the corpus right
+# now. Its self-test is therefore not a nicety, it is the only thing separating
+# "no funnel record is broken" from "there are no funnel records". Same reason
+# truncation_selftest() exists.
+FUNNEL_KEYS = ("screened", "entry_buyable", "min_stocks")
+
+
+def funnel_problem(rec):
+    """The first way one period record's funnel contradicts itself, or None.
+
+    Checks ORDER and NULL MONOTONICITY only. It deliberately does NOT assert
+    "a cash record implies entry_buyable < min_stocks": capex-efficiency's
+    no-prices branch reaches cash with a fully buyable book when only the EXIT
+    leg is missing, and a zero-survivor period is invested with stocks_held 0.
+    Both are correct records that a cash-semantics rule would flag.
+    """
+    if not all(k in rec for k in FUNNEL_KEYS):
+        return None                                   # pre-funnel record
+    sc, eb, fl = rec["screened"], rec["entry_buyable"], rec["min_stocks"]
+    held = rec.get("stocks_held", rec.get("n_stocks"))
+    if not isinstance(fl, int) or isinstance(fl, bool) or fl <= 0:
+        return f"min_stocks={fl!r} is not a positive int"
+    for name, v in (("screened", sc), ("entry_buyable", eb)):
+        if v is not None and (not isinstance(v, int) or isinstance(v, bool) or v < 0):
+            return f"{name}={v!r} is neither null nor a non-negative int"
+    if sc is None and eb is not None:
+        return (f"screened is null but entry_buyable={eb}; a period that never "
+                "screened cannot know how many names were buyable")
+    if sc is not None and eb is not None and eb > sc:
+        return f"entry_buyable({eb}) > screened({sc})"
+    if eb is not None and isinstance(held, int) and held > eb:
+        return f"stocks_held({held}) > entry_buyable({eb})"
+    return None
+
+
+def funnel_scan(obj, ptr, rel, hits, counts):
+    """Walk any nested structure, checking every list under a `period_data` key."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "period_data" and isinstance(v, list):
+                for i, rec in enumerate(v):
+                    if not isinstance(rec, dict):
+                        continue
+                    if all(f in rec for f in FUNNEL_KEYS):
+                        counts["funnel"] = counts.get("funnel", 0) + 1
+                        problem = funnel_problem(rec)
+                        if problem:
+                            hits.append((rel, f"{ptr}/period_data/{i}", problem))
+                    else:
+                        counts["prefunnel"] = counts.get("prefunnel", 0) + 1
+            funnel_scan(v, f"{ptr}/{k}", rel, hits, counts)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            funnel_scan(v, f"{ptr}/{i}", rel, hits, counts)
+
+
+def funnel_selftest():
+    """Teeth and false-positive control, on SYNTHETIC records.
+
+    The corpus carries no funnel records at all today, so without this the
+    detector reports a clean scan whether it works or not.
+    """
+    bad = []
+    ok = {"stocks_held": 12, "screened": 30, "entry_buyable": 12, "min_stocks": 10}
+    cases_bad = {
+        "entry_buyable above screened":
+            {**ok, "entry_buyable": 40},
+        "stocks_held above entry_buyable":
+            {**ok, "stocks_held": 20, "entry_buyable": 12},
+        "screened null while entry_buyable claims a count":
+            {**ok, "screened": None},
+        "min_stocks not a positive int":
+            {**ok, "min_stocks": "10"},
+        "entry_buyable a bool rather than a count":
+            {**ok, "entry_buyable": True},
+    }
+    for label, rec in cases_bad.items():
+        if not funnel_problem(rec):
+            bad.append(f"NOT detected: {label}")
+    cases_ok = {
+        "the ordinary invested record": ok,
+        # The two records a cash-semantics rule would wrongly flag.
+        "guard-fired cash (buyable below the floor)":
+            {"stocks_held": 0, "screened": 30, "entry_buyable": 4, "min_stocks": 10},
+        "entered, zero survivors (buyable above the floor, held 0)":
+            {"stocks_held": 0, "screened": 30, "entry_buyable": 30, "min_stocks": 10},
+        "pre-screen cash (never priced)":
+            {"stocks_held": 0, "screened": 3, "entry_buyable": None, "min_stocks": 10},
+        "never screened (signal off)":
+            {"stocks_held": 0, "screened": None, "entry_buyable": None, "min_stocks": 10},
+        "capex-efficiency's n_stocks spelling":
+            {"n_stocks": 12, "screened": 30, "entry_buyable": 12, "min_stocks": 10},
+    }
+    for label, rec in cases_ok.items():
+        problem = funnel_problem(rec)
+        if problem:
+            bad.append(f"FALSELY flagged {label}: {problem}")
+    # A record without the fields must be SKIPPED, never flagged -- that is what
+    # keeps the whole legacy corpus out of this check.
+    if funnel_problem({"stocks_held": 0, "portfolio_return": 0.0}) is not None:
+        bad.append("a pre-funnel record was flagged instead of skipped")
+    return bad
+
+
 def truncation_selftest():
     """Teeth and false-positive control, on SYNTHETIC fixtures.
 
@@ -230,7 +349,7 @@ def truncation_selftest():
 
 def main(argv):
     naive = "--naive" in argv
-    hits, counts, truncated = [], {}, []
+    hits, counts, truncated, fhits = [], {}, [], []
     files = sorted(ROOT.glob("*/results/*.json"))
     unreadable = []
     for f in files:
@@ -240,6 +359,7 @@ def main(argv):
             unreadable.append((str(f.relative_to(ROOT)), str(e)[:60]))
             continue
         walk(data, "", str(f.relative_to(ROOT)), hits, counts, naive)
+        funnel_scan(data, "", str(f.relative_to(ROOT)), fhits, counts)
         if f.name == "exchange_comparison.json" and isinstance(data, dict):
             rel = str(f.relative_to(ROOT))
             for ptr, n, mx in truncated_legs(data):
@@ -364,6 +484,32 @@ def main(argv):
         print(f"SELF-TEST ok: {len(tflagged)} truncated legs, exactly the "
               f"documented set ({only_b} carry defect (b) ONLY and are invisible "
               "to the invariant check)")
+
+    # ---- defect (c) detector: the per-period entry funnel.
+    print()
+    nf, npf = counts.get("funnel", 0), counts.get("prefunnel", 0)
+    print(f"funnel records       {nf} checked, {npf} pre-funnel (skipped)")
+    print(f"funnel FAIL          {len(fhits)}")
+    for rel, ptr, problem in sorted(fhits)[:20]:
+        print(f"  FUNNEL {rel}{ptr}  -- {problem}")
+    fbad = funnel_selftest()
+    if fbad:
+        ok = False
+        print(f"SELF-TEST FAIL: the funnel detector is broken ({len(fbad)}):")
+        for b in fbad:
+            print("    ", b)
+    else:
+        print("SELF-TEST ok: funnel detector passes 12 synthetic controls "
+              "(5 teeth, 6 false-positive, 1 skip-the-legacy-corpus)")
+    if fhits:
+        ok = False
+    if nf == 0:
+        # A statement of fact, not a failure. It becomes one the moment a re-run
+        # lands and this line does not move.
+        print("NOTE: no committed record carries the entry funnel yet, so the "
+              "corpus half of this check is vacuous. It stops being vacuous "
+              "with the first re-run; the self-test above is what holds until "
+              "then.")
 
     print()
     print("SELF-TEST PASS" if ok else "SELF-TEST FAILED")

@@ -72,6 +72,11 @@ import sys
 import traceback
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+# The canonical funnel decoder, imported rather than reimplemented: a second
+# copy of the decoding rule here could drift from the one every future scan
+# uses, and S7 would then be testing itself.
+from data_utils import period_state, CASH_POST_PRICE, INVESTED   # noqa: E402
 
 ENTRY = datetime.date(2020, 1, 2)
 EXIT = datetime.date(2021, 1, 4)
@@ -650,7 +655,74 @@ def check(topic, verbose=False):
     s6_ok = s6a and (s6b is not False)
     det["s6a"], det["s6b"] = s6a, s6b
 
-    return s1_ok, s2_ok, s3_ok, s4_ok, s5_ok, s6_ok, det
+    # ---- S7: the entry funnel decodes the period it was written for.
+    #
+    # Free: it reads the records S1-S6 already produced, runs no backtest and
+    # costs no query. What it adds is the half a static gate cannot reach.
+    # verify_floor_guard gate 13 proves the three keys are PRESENT and
+    # entry-knowable; only real records can show that the VALUES are right.
+    #
+    # Two claims:
+    #
+    # (a) ORDERING. stocks_held <= entry_buyable <= screened, wherever each is
+    #     non-null. True by construction -- the exit-side survivors are a subset
+    #     of the names buyable at entry, which are a subset of the screen -- so
+    #     any violation means a field was wired to the wrong quantity. S3 is the
+    #     scenario with teeth here: floor+2 of floor+5 price, so all three
+    #     numbers differ and a field copied from its neighbour shows up.
+    #
+    # (b) DECODING. Each scenario must decode to the state it was built to
+    #     produce. S1 is the guard firing (post-price cash); S6 is a period the
+    #     strategy ENTERED and whose whole book was lost on the exit side. Both
+    #     record stocks_held 0. If the two ever decode the same way, min_stocks
+    #     has stopped doing its job and a re-run would republish guard-fired
+    #     cash and realised-zero periods as one indistinguishable population --
+    #     the exact confusion this field exists to prevent.
+    want_state = {
+        "s1_record": CASH_POST_PRICE,          # 3 buyable of floor+5, guard fires
+        "s2_record": INVESTED,
+        "s3_record": INVESTED,
+        "s4_record": INVESTED,                 # entry-priced, exit-unpriced
+        "s5_record": INVESTED,                 # entry-priced, return cap tripped
+        "s6a_record": INVESTED,                # entered, zero survivors
+        "s6b_record": INVESTED,
+    }
+    s7_bad = []
+    for name, expect in want_state.items():
+        rec = det.get(name)
+        if rec is None:
+            continue                            # scenario n/a or already errored
+        missing = [k for k in ("screened", "entry_buyable", "min_stocks")
+                   if k not in rec]
+        if missing:
+            s7_bad.append(f"{name}: missing {missing}")
+            continue
+        if rec["min_stocks"] != floor:
+            s7_bad.append(f"{name}: min_stocks={rec['min_stocks']} != {floor}")
+        held = rec.get("stocks_held", rec.get("n_stocks"))
+        sc, eb = rec["screened"], rec["entry_buyable"]
+        if sc is None and eb is not None:
+            s7_bad.append(f"{name}: screened None but entry_buyable={eb}")
+        if eb is not None and sc is not None and eb > sc:
+            s7_bad.append(f"{name}: entry_buyable={eb} > screened={sc}")
+        if eb is not None and held is not None and held > eb:
+            s7_bad.append(f"{name}: stocks_held={held} > entry_buyable={eb}")
+        got = period_state(rec)
+        if got != expect:
+            s7_bad.append(f"{name}: decodes {got}, expected {expect} "
+                          f"(held={held} buyable={eb} floor={rec['min_stocks']})")
+    # The discrimination claim, stated as its own assertion so that losing it
+    # cannot hide behind a passing ordering check.
+    r1, r6 = det.get("s1_record"), det.get("s6a_record")
+    if r1 and r6 and "entry_buyable" in r1 and "entry_buyable" in r6:
+        if period_state(r1) == period_state(r6):
+            s7_bad.append("S1 (guard fired) and S6a (entered, zero survivors) "
+                          "decode identically; min_stocks is not separating "
+                          "cash from a realised 0.0%")
+    det["s7_bad"] = s7_bad
+    s7_ok = not s7_bad
+
+    return s1_ok, s2_ok, s3_ok, s4_ok, s5_ok, s6_ok, s7_ok, det
 
 
 def tie_test():
@@ -715,8 +787,8 @@ def main():
     for t in topics:
         if t in STATIC_ONLY and not args.topic:
             continue
-        s1, s2, s3, s4, s5, s6, det = check(t, verbose=args.verbose)
-        rows[t] = (s1, s2, s3, s4, s5, s6, det)
+        s1, s2, s3, s4, s5, s6, s7, det = check(t, verbose=args.verbose)
+        rows[t] = (s1, s2, s3, s4, s5, s6, s7, det)
         series[t] = {"s2_record": det.get("s2_record"),
                      "s1_record": det.get("s1_record"),
                      "s3_record": det.get("s3_record"),
@@ -740,7 +812,9 @@ def main():
     s5_fail = sorted(t for t, r in rows.items() if r[4] is False)
     s6_pass = sorted(t for t, r in rows.items() if r[5])
     s6_fail = sorted(t for t, r in rows.items() if not r[5])
-    s6b_na = sorted(t for t, r in rows.items() if r[6].get("s6b") is None)
+    s6b_na = sorted(t for t, r in rows.items() if r[7].get("s6b") is None)
+    s7_pass = sorted(t for t, r in rows.items() if r[6])
+    s7_fail = sorted(t for t, r in rows.items() if not r[6])
 
     print(f"topics exercised: {len(rows)}   (static-only, excluded: {sorted(STATIC_ONLY)})")
     print(f"S1 guard fires      PASS {len(s1_pass):3d}   FAIL {len(s1_fail):3d}")
@@ -752,10 +826,12 @@ def main():
           f"   n/a {len(s5_na):3d} {sorted(NO_RETURN_CAP)} -- no cap to trip")
     print(f"S6 zero survivors   PASS {len(s6_pass):3d}   FAIL {len(s6_fail):3d}"
           f"   (S6b n/a {len(s6b_na)}: no cap) -- must record 0.0%, never raise")
+    print(f"S7 entry funnel     PASS {len(s7_pass):3d}   FAIL {len(s7_fail):3d}"
+          "   (held <= buyable <= screened, and S1 cash must not decode as S6)")
     if s1_fail:
         print("\nS1 FAIL (no cash record when the book fell below the floor):")
         for t in s1_fail:
-            d = rows[t][6]
+            d = rows[t][7]
             err = d.get("s1_error")
             rec = d.get("s1_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -764,7 +840,7 @@ def main():
     if s2_fail:
         print("\nS2 FAIL (guard fired when it should not have, or return wrong):")
         for t in s2_fail:
-            d = rows[t][6]
+            d = rows[t][7]
             err = d.get("s2_error")
             rec = d.get("s2_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -774,7 +850,7 @@ def main():
     if s3_fail:
         print("\nS3 FAIL (holdings names stocks that were never priced/held):")
         for t in s3_fail:
-            d = rows[t][6]
+            d = rows[t][7]
             err = d.get("s3_error")
             rec = d.get("s3_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -785,7 +861,7 @@ def main():
         print("\nS4 FAIL (LOOK-AHEAD: an exit-date fact decided the cash rule -- "
               "every name was buyable at entry, so the period was INVESTED):")
         for t in s4_fail:
-            d = rows[t][6]
+            d = rows[t][7]
             err = d.get("s4_error")
             rec = d.get("s4_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -797,7 +873,7 @@ def main():
         print("\nS5 FAIL (LOOK-AHEAD: a REALISED return above max_single_return "
               "decided the cash rule):")
         for t in s5_fail:
-            d = rows[t][6]
+            d = rows[t][7]
             err = d.get("s5_error")
             rec = d.get("s5_record")
             print(f"  {t:30s} " + (f"ERROR {err}" if err else
@@ -809,7 +885,7 @@ def main():
         print("\nS6 FAIL (a period that was BUYABLE at entry and lost every exit "
               "price must record 0.0%, not raise and not vanish):")
         for t in s6_fail:
-            d = rows[t][6]
+            d = rows[t][7]
             for leg in ("s6a", "s6b"):
                 if d.get(leg) is False or d.get(f"{leg}_error"):
                     err = d.get(f"{leg}_error")
@@ -817,6 +893,13 @@ def main():
                     print(f"  {t:26s} {leg} " + (f"ERROR {err}" if err else
                           f"stocks_held={rec.get('stocks_held', rec.get('n_stocks')) if rec else None} "
                           f"ret={rec.get('portfolio_return', rec.get('return')) if rec else None}"))
+
+    if s7_fail:
+        print("\nS7 FAIL (the per-period entry funnel does not describe the "
+              "period it was written for):")
+        for t in s7_fail:
+            for why in rows[t][7].get("s7_bad", ["no detail"]):
+                print(f"  {t:30s} {why}")
 
     # The helper the cash rule now reads must agree with filter_returns' own
     # entry-side lines. Run once, not per topic.
@@ -827,7 +910,7 @@ def main():
         print("   ", b)
 
     if args.verbose and args.topic:
-        print(json.dumps(rows[args.topic][6], indent=2, default=str))
+        print(json.dumps(rows[args.topic][7], indent=2, default=str))
 
     if args.baseline:
         pathlib.Path(args.baseline).write_text(json.dumps(series, indent=1, default=str))
@@ -854,10 +937,13 @@ def main():
             return 1
 
     # S4, S5 and S6 gate the exit code. S4/S5 are the look-ahead tests and S6 is
-    # the crash the correction made reachable. This repo has no CI, and a test
-    # nobody's exit status depends on is a comment.
+    # the crash the correction made reachable. S7 joins them: the funnel is the
+    # only thing that makes a committed cash period attributable, and a field
+    # that quietly stops describing its period is worse than no field, because a
+    # scan would then report a confident wrong answer. This repo has no CI, and
+    # a test nobody's exit status depends on is a comment.
     return 0 if not (s1_fail or s2_fail or s4_fail or s5_fail or s6_fail
-                     or tie_bad) else 1
+                     or s7_fail or tie_bad) else 1
 
 
 if __name__ == "__main__":

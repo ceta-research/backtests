@@ -437,6 +437,78 @@ def entry_buyable_prices(symbols, entry_prices, min_entry_price=1.0):
                if entry_usable(entry_prices.get(s), min_entry_price))
 
 
+# ---------------------------------------------------------------------------
+# THE ENTRY FUNNEL, the per-period audit trail for the cash rule.
+#
+# B005 corrected WHICH count the stock floor is compared against. It did not
+# make the decision auditable: a committed cash period records
+# `stocks_held: 0` and nothing else, so PRE-SCREEN cash (the screen returned
+# too few names) and POST-PRICE cash (the screen was fine, the guard fired) are
+# indistinguishable in an artifact. Five of the six topics where the guard
+# actually fires serialize only the AGGREGATE cash_periods, which lumps the two
+# together, so the class could not be measured from published output at all --
+# only by git forensics or a re-run.
+#
+# Every period record of every floor topic therefore carries three more keys,
+# written immediately after `stocks_held`:
+#
+#   "screened"      int|None  names the SCREEN returned on the rebalance date.
+#                             None = the screen never ran (a market-timing
+#                             signal was off, so there was nothing to screen).
+#   "entry_buyable" int|None  how many of those had a usable ENTRY price, i.e.
+#                             entry_buyable()/entry_buyable_prices() over the
+#                             screened names. None = prices were never fetched.
+#   "min_stocks"    int       the floor this topic's cash rule compares against
+#                             (MIN_STOCKS, or MIN_PORTFOLIO_STOCKS for the
+#                             sector twins). Written as the CONSTANT, never a
+#                             literal, so it cannot drift from the rule.
+#
+# All three are ENTRY-KNOWABLE. None of them may be computed from `clean` /
+# `returns` / `held`, which are the post-filter books and are exit-conditioned;
+# that is the B005 defect, and putting it inside the audit field would be worse
+# than not having the field. Gate 13 in scripts/verify_floor_guard.py enforces
+# it statically.
+#
+# `min_stocks` is what makes the record decodable, and it is not redundant.
+# Correcting the guard made a ZERO-SURVIVOR invested period reachable (every
+# name buyable at entry, none surviving to the exit side -- see S6 in
+# scripts/test_floor_guard.py), and that period also records `stocks_held: 0`.
+# Without the floor in the record, it is indistinguishable from guard-fired
+# cash. The floor also VARIES across the 66 topics -- 5, 8 and 10 -- so no
+# scanner can supply one itself.
+#
+# Ordering invariant, true by construction because each stage is a subset of
+# the one above it:  stocks_held <= entry_buyable <= screened.
+# Null monotonicity: `screened is None` implies `entry_buyable is None`.
+# ---------------------------------------------------------------------------
+
+CASH_NEVER_SCREENED = "cash-never-screened"
+CASH_PRE_SCREEN = "cash-pre-screen"
+CASH_POST_PRICE = "cash-post-price"
+INVESTED = "invested"
+
+
+def period_state(record):
+    """Decode one period record into its funnel state. The canonical reader.
+
+    Returns one of the four constants above, or None when the record predates
+    the funnel fields (the committed corpus does -- nothing here was re-run, so
+    every scanner over it must treat the fields as OPTIONAL).
+
+    `INVESTED` covers a zero-survivor period: the strategy entered, and every
+    name it bought lost its exit price or tripped max_single_return. That is a
+    realised 0.0%, NOT a cash period, and telling the two apart is the reason
+    `min_stocks` is in the record.
+    """
+    if "entry_buyable" not in record or "min_stocks" not in record:
+        return None
+    buyable, floor = record["entry_buyable"], record["min_stocks"]
+    if buyable is None:
+        return (CASH_NEVER_SCREENED if record.get("screened") is None
+                else CASH_PRE_SCREEN)
+    return CASH_POST_PRICE if buyable < floor else INVESTED
+
+
 def filter_returns(symbol_returns, min_entry_price=1.0, max_single_return=2.0, verbose=False):
     """Filter individual stock returns for data quality.
 

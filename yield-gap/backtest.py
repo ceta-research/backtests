@@ -270,6 +270,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, ey_threshold,
                 "portfolio_return": 0.0,
                 "spy_return": bench_return,
                 "stocks_held": 0,
+                "screened": len(portfolio),
+                "entry_buyable": None,
+                "min_stocks": MIN_STOCKS,
                 "holdings": f"CASH ({len(portfolio)} passed)",
             })
             if verbose:
@@ -312,6 +315,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, ey_threshold,
                 "portfolio_return": 0.0,
                 "spy_return": bench_return,
                 "stocks_held": 0,
+                "screened": len(portfolio),
+                "entry_buyable": buyable,
+                "min_stocks": MIN_STOCKS,
                 "holdings": f"CASH ({buyable} buyable at entry of {len(portfolio)} screened)",
             })
             if verbose:
@@ -336,6 +342,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, ey_threshold,
             "portfolio_return": round(port_return, 6),
             "spy_return": round(bench_return, 6) if bench_return is not None else None,
             "stocks_held": len(returns),
+            "screened": len(portfolio),
+            "entry_buyable": buyable,
+            "min_stocks": MIN_STOCKS,
             "holdings": ",".join(sym for sym, _, _ in clean[:10]) + ("..." if len(clean) > 10 else ""),
         })
 
