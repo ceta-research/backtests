@@ -28,8 +28,12 @@ FLOOR_NAMES = ("MIN_STOCKS", "MIN_PORTFOLIO_STOCKS")
 
 # Documented exemptions, each with the reason it cannot satisfy the generic gate.
 SCHEMA_EXEMPT = {
-    "capex-efficiency": "different record schema (start_date/n_stocks/msg); "
-                        "ships period_results via the legacy save_results path",
+    # Different record schema (start_date/n_stocks/msg), and its per-exchange
+    # output goes through cli_utils.save_results, which writes a metrics JSON plus
+    # results/returns_{exchange}.csv. period_results reaches JSON only on the
+    # --global path. So a re-run-population scan reads per-period stocks_held from
+    # results/returns_*.csv for this topic, not from a returns_*.json.
+    "capex-efficiency": "per-period data lands in results/returns_*.csv, not JSON",
 }
 HOLDINGS_EXEMPT = {
     "capex-efficiency": "has no holdings key at all",
