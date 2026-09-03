@@ -241,13 +241,15 @@ def check(topic, verbose=False):
                      and rec.get("msg", "").startswith(
                          f"cash ({n_priced_s1} priced of {n_screen} screened)"))
         else:
-            # bench_calls must be exactly 1: a guard that refetches the benchmark
-            # where the topic already had it in scope issues a second query.
+            # At most one benchmark fetch: a guard that refetches where the topic
+            # already had the value in scope issues a second query. Zero is legal
+            # too, for the topics that price SPY through get_prices instead of
+            # get_benchmark_return (dcf-threshold, quality-momentum).
             s1_ok = (rec is not None
                      and rec.get("stocks_held") == 0
                      and rec.get("portfolio_return") == 0.0
                      and rec.get("spy_return") is not None
-                     and stubs.bench_calls == 1
+                     and stubs.bench_calls <= 1
                      and rec.get("holdings") == want_holdings)
         det["s1_want_holdings"] = want_holdings
     except Exception as e:
