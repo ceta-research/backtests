@@ -180,17 +180,41 @@ def attempt(topic, n_screen, n_priced, arity, verbose=False, drop_first=False):
     return results, stubs, floor
 
 
-def run_case(topic, n_screen, n_priced, verbose=False, drop_first=False):
-    """Auto-probe the screen tuple arity: 2-tuples for most topics, plain
-    strings for qarp, 3-tuples for capex, 4-tuples for trending-value."""
+_ARITY_CACHE = {}
+
+
+def probe_arity(topic, n_screen):
+    """Pick the screen tuple arity by running the ALL-PRICED case and requiring a
+    fully invested book.
+
+    'First arity that does not raise' is not safe once a floor guard exists: the
+    guard's `continue` skips the rest of the loop body, so a wrong arity that
+    used to raise now returns a cash record instead, and the probe would lock in
+    the wrong shape and call the result a pass. Requiring stocks_held == n_screen
+    forces the probe through the full invested path, which is the only place the
+    arity actually has to be right.
+    """
+    if topic in _ARITY_CACHE:
+        return _ARITY_CACHE[topic]
     last = None
     for arity in (2, 1, 3, 4, 5, 6):
         try:
-            return attempt(topic, n_screen, n_priced, arity, verbose=verbose,
-                           drop_first=drop_first)
+            res, stubs, floor = attempt(topic, n_screen, n_screen, arity)
+            rec = res[-1] if res else None
+            held = rec.get("stocks_held", rec.get("n_stocks")) if rec else None
+            if held == n_screen:
+                _ARITY_CACHE[topic] = arity
+                return arity
+            last = (arity, AssertionError(f"arity {arity} gave stocks_held={held}"), "")
         except Exception as e:
             last = (arity, e, traceback.format_exc())
     raise AssertionError(f"no workable screen arity for {topic}: {last[1]!r}\n{last[2]}")
+
+
+def run_case(topic, n_screen, n_priced, verbose=False, drop_first=False):
+    arity = probe_arity(topic, n_screen)
+    return attempt(topic, n_screen, n_priced, arity, verbose=verbose,
+                   drop_first=drop_first)
 
 
 def check(topic, verbose=False):
