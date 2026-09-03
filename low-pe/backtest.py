@@ -218,6 +218,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         exit_prices = get_prices(con, symbols, exit_date)
 
         returns = []
+        held = []
         for sym in symbols:
             ep = entry_prices.get(sym)
             xp = exit_prices.get(sym)
@@ -229,6 +230,28 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 else:
                     net_ret = raw_ret
                 returns.append(net_ret)
+                held.append(sym)
+
+        # The cash rule has to be re-checked HERE, not just on the screen count.
+        # Screening can pass 30 names while only a handful of them have usable
+        # prices at this rebalance, and averaging 1-4 survivors reports a single
+        # stock's year as a diversified portfolio return.
+        if len(returns) < MIN_STOCKS:
+            bench_return = get_benchmark_return(
+                con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
+
+            results.append({
+                "rebalance_date": entry_date.isoformat(),
+                "exit_date": exit_date.isoformat(),
+                "portfolio_return": 0.0,
+                "spy_return": bench_return,
+                "stocks_held": 0,
+                "holdings": f"CASH ({len(returns)} priced of {len(symbols)} screened)",
+            })
+            if verbose:
+                print(f"    {entry_date}: only {len(returns)} of {len(symbols)} screened "
+                      f"names had usable prices (< {MIN_STOCKS}), CASH")
+            continue
 
         port_return = sum(returns) / len(returns) if returns else 0.0
 
@@ -241,7 +264,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "portfolio_return": round(port_return, 6),
             "spy_return": round(bench_return, 6) if bench_return is not None else None,
             "stocks_held": len(returns),
-            "holdings": ",".join(symbols[:10]) + ("..." if len(symbols) > 10 else ""),
+            "holdings": ",".join(held[:10]) + ("..." if len(held) > 10 else ""),
         })
 
         if verbose:

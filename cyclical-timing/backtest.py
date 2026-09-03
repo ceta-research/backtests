@@ -346,6 +346,10 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                         max_single_return=MAX_SINGLE_RETURN,
                                         verbose=verbose)
 
+        # The cash rule has to be re-checked HERE, not just on the screen count.
+        # Screening can pass 30 names while only a handful of them have usable
+        # prices at this rebalance, and averaging 1-4 survivors reports a single
+        # stock's year as a diversified portfolio return.
         if len(clean) < MIN_STOCKS:
             results.append({
                 "rebalance_date": entry_date.isoformat(),
@@ -356,10 +360,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "signal_active": True,
                 "expansion_ratio": round(exp_ratio, 3),
                 "n_signal_stocks": n_qualifying,
-                "holdings": f"CASH ({len(clean)} clean stocks after price filter)",
+                "holdings": f"CASH ({len(clean)} priced of {len(portfolio)} screened)",
             })
             if verbose:
-                print(f"    {entry_date}: CASH ({len(clean)} clean after price filter)")
+                print(f"    {entry_date}: only {len(clean)} of {len(portfolio)} screened "
+                      f"names had usable prices (< {MIN_STOCKS}), CASH")
             continue
 
         returns = []
