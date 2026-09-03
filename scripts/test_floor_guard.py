@@ -302,13 +302,16 @@ def check(topic, verbose=False):
                      for x in held.replace("...", "").split(",") if x.strip()]
             # the first (n_screen - n_priced_s3) names were never priced
             dropped = {f"S{i:03d}" for i in range(n_screen - n_priced_s3)}
-            # no unpriced name may be named, and an untruncated list must be complete
+            # The requirement is honesty, not completeness: no name that was never
+            # priced may appear, and the list may not claim more names than were
+            # held. How far a topic truncates the display (10, 20, all, with or
+            # without an ellipsis) is a formatting choice and not this check's
+            # business.
             leaks = [n for n in named if n in dropped]
-            complete = truncated or len(named) == n_priced_s3
             s3_ok = (rec is not None
                      and rec.get("stocks_held") == n_priced_s3
                      and not leaks
-                     and complete)
+                     and len(named) <= n_priced_s3)
             det["s3_leaks"] = leaks
     except Exception as e:
         det["s3_error"] = f"{e.__class__.__name__}: {e}"

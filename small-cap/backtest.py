@@ -369,7 +369,7 @@ def run_backtest(con, rebalance_dates, small_cap_min, small_cap_max,
             "portfolio_return": round(port_return, 6),
             "spy_return": round(bench_return, 6) if bench_return is not None else None,
             "stocks_held": len(returns),
-            "holdings": ",".join(symbols),
+            "holdings": ",".join(sym for sym, _, _ in clean),
         })
 
         if verbose:

@@ -387,7 +387,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "signal_active": True,
             "expansion_ratio": round(exp_ratio, 3),
             "n_signal_stocks": n_qualifying,
-            "holdings": ",".join(symbols[:10]),
+            "holdings": ",".join(sym for sym, _, _ in clean[:10]),
         })
 
         if verbose:

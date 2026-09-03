@@ -354,7 +354,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "spy_return": round(spy_return, 6) if spy_return is not None else None,
             "spy_usd_return": round(spy_usd_return, 6) if spy_usd_return is not None else None,
             "stocks_held": len(returns),
-            "holdings": ",".join(symbols[:20]),
+            "holdings": ",".join(sym for sym, _, _ in clean[:20]),
         })
 
         if verbose:

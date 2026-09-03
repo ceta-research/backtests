@@ -414,7 +414,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "stocks_held": len(returns),
             "avg_pe": round(avg_pe, 1),
             "avg_momentum_12m": round(avg_mom, 1),
-            "holdings": ",".join(symbols[:10]) + ("..." if len(symbols) > 10 else ""),
+            "holdings": ",".join(sym for sym, _, _ in clean[:10]) + ("..." if len(clean) > 10 else ""),
         })
 
         if verbose:

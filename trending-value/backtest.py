@@ -401,9 +401,11 @@ def run_backtest(con, rebalance_dates, cap_min, cap_max,
             con, benchmark_symbol, entry_date, exit_date,
             offset_days=offset_days)
 
-        # Log top holdings with momentum
-        top_holdings = [f"{s}({m*100:+.0f}%)" for s, _, _, m in portfolio[:5]]
-        holdings_str = ", ".join(top_holdings) + ("..." if len(portfolio) > 5 else "")
+        # Log top holdings with momentum. Read the names off the priced book, not
+        # the screened list: names that never priced were not held.
+        moms = {s: m for s, _, _, m in portfolio}
+        top_holdings = [f"{s}({moms[s]*100:+.0f}%)" for s, _, _ in clean[:5]]
+        holdings_str = ", ".join(top_holdings) + ("..." if len(clean) > 5 else "")
 
         results.append({
             "rebalance_date": entry_date.isoformat(),

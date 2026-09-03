@@ -350,7 +350,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "stocks_held": len(returns),
             "avg_ownership_ratio": round(avg_ownership, 4),
             "avg_etf_count": round(avg_etf, 1),
-            "holdings": ",".join(symbols),
+            "holdings": ",".join(sym for sym, _, _ in clean),
         })
 
         if verbose:
