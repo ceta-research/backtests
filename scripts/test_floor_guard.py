@@ -68,7 +68,6 @@ STATIC_ONLY = {
     "graham-timing",     # run_backtest(exchanges) drives its own connection
     "sector-momentum",   # screen_sectors + get_prices_at
     "sector-rotation",   # screen_sectors + get_prices_at
-    "capex-efficiency",  # different record schema; handled by its own case below
 }
 
 SCREEN_FN = {           # topics whose screen function is not named screen_stocks

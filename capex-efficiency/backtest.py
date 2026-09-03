@@ -232,8 +232,10 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "start_date": rdate.isoformat(),
                 "end_date": next_rdate.isoformat(),
                 "n_stocks": 0,
+                "stocks_held": 0,
                 "return": 0.0,
                 "spy_return": 0.0,
+                "avg_roic": None,
                 "msg": f"cash (< {MIN_STOCKS} stocks)"
             })
             continue
@@ -266,8 +268,23 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         # Filter out artifacts (>200% single-period returns, penny stocks)
         clean, skipped = filter_returns(raw_data, verbose=verbose)
 
-        if not clean:
-            print("    → No valid returns after filtering")
+        # The cash rule has to be re-checked HERE, not just on the screen count.
+        # Screening can pass 30 names while only a handful of them have usable
+        # prices at this rebalance, and averaging 1-4 survivors reports a single
+        # stock's year as a diversified portfolio return. Recording cash also
+        # keeps the period in the series: the old `continue` deleted it.
+        if len(clean) < MIN_STOCKS:
+            print(f"    → Cash (only {len(clean)} of {n_stocks} screened names priced)")
+            results.append({
+                "start_date": rdate.isoformat(),
+                "end_date": next_rdate.isoformat(),
+                "n_stocks": 0,
+                "stocks_held": 0,
+                "return": 0.0,
+                "spy_return": bench_return if bench_return is not None else 0.0,
+                "avg_roic": None,
+                "msg": f"cash ({len(clean)} priced of {n_stocks} screened)"
+            })
             continue
 
         # Apply costs to individual returns, then calculate portfolio return
@@ -289,6 +306,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "start_date": rdate.isoformat(),
             "end_date": next_rdate.isoformat(),
             "n_stocks": len(clean),
+            "stocks_held": len(clean),
             "return": port_return,
             "spy_return": bench_return if bench_return is not None else 0.0,
             "avg_roic": avg_roic,
