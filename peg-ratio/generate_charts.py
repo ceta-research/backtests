@@ -204,7 +204,7 @@ def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange (all exchanges with data)."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0
+        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -247,7 +247,7 @@ def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0
+        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 

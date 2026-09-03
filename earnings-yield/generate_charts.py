@@ -93,7 +93,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe, bench_label="S
                 label=f"{bench_label} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
-        if ex_key not in data or data[ex_key].get("invested_periods", 0) == 0:
+        if (ex_key not in data or data[ex_key].get("invested_periods", 0) == 0
+                or data[ex_key].get("window_truncated", False)):
             continue
         ex = data[ex_key]
         years, vals = get_cumulative_growth(ex_key)
@@ -133,7 +134,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe, bench_label="S
 
 def chart_annual_bars(exchanges, filename, title, footer_universe, bench_label="S&P 500"):
     """Generate annual returns bar chart for given exchanges vs their benchmark."""
-    active = [e for e in exchanges if e in data and data[e].get("invested_periods", 0) > 0]
+    active = [e for e in exchanges if e in data and data[e].get("invested_periods", 0) > 0
+              and not data[e].get("window_truncated", False)]
     if not active:
         print(f"  Skipping {filename}: no data for {exchanges}")
         return
@@ -180,6 +182,7 @@ def chart_comparison_cagr(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if not v.get("error") and v.get("invested_periods", 0) > 0
+        and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -227,6 +230,7 @@ def chart_comparison_drawdown(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if not v.get("error") and v.get("invested_periods", 0) > 0
+        and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 

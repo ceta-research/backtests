@@ -126,8 +126,18 @@ def period_accounting(executed, valid, cash_periods, *,
             predicate (predicates differ: stocks_held == 0, pairs_active <
             MIN_PAIRS_ACTIVE, y["is_cash"], ...), so the caller counts and this
             function owns everything derived from it.
-        benchmark_symbol: str|None - e.g. "^OSEAX". Diagnostic only.
+        benchmark_symbol: str|None - e.g. "^OSEAX". Diagnostic only. Passed by
+            15 of the 71 production call sites; null on the rest.
         benchmark_first_date: str|None - first date the benchmark prices.
+            NOT PASSED BY ANY PRODUCTION CALL SITE as of 2026-09-03 -- only
+            scripts/test_period_accounting.py and scripts/test_window_provenance.py
+            supply it. So the richer phrase it unlocks ("benchmark ^OSEAX starts
+            2013-03-05; ...") is reachable only from those tests; a real run can
+            emit at most "benchmark ^OSEAX; ...". The record still carries
+            measured_start/measured_end and the span in window_label, so this
+            costs DIAGNOSIS, not correctness. Wiring it up (or dropping the
+            parameter) is a follow-up for a human -- it needs a first-priced-date
+            lookup at each call site, which is a query, not an edit.
         date_key / end_key: str - record keys for period start/end. Yearly and
             pairs records use "year" for both.
         universe_name: str|None - used only in the truncation warning.

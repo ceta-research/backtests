@@ -161,7 +161,7 @@ def chart_comparison_cagr(filename):
     # Sort by CAGR descending, exclude zero-data exchanges
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0
+        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -211,7 +211,7 @@ def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0
+        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
     ]
     # Sort by drawdown (least negative = best at top)
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
@@ -256,7 +256,7 @@ def chart_comparison_sortino(filename):
     """Horizontal bar chart: Sortino ratio by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0
+        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
         and v["portfolio"].get("sortino_ratio") is not None
     ]
     if not exchanges_with_data:
@@ -310,7 +310,7 @@ def chart_comparison_capture(filename):
     """
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0
+        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
         and v.get("comparison", {}).get("up_capture") is not None
         and v.get("comparison", {}).get("down_capture") is not None
     ]

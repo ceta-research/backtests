@@ -174,6 +174,7 @@ def chart_comparison_cagr(filename, eligible_exchanges):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if k in eligible_exchanges and v.get("invested_periods", 0) > 0
+        and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -229,6 +230,7 @@ MIN_INVESTED_PERIODS = 10
 ELIGIBLE = [k for k in data.keys()
             if not data[k].get("error")
             and data[k].get("invested_periods", 0) >= MIN_INVESTED_PERIODS
+            and not data[k].get("window_truncated", False)
             and k not in ["SES"]]
 _dropped = [(k, data[k].get("invested_periods", 0)) for k in data
             if not data[k].get("error") and k not in ELIGIBLE and k != "SES"]

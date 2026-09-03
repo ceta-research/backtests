@@ -176,6 +176,7 @@ def chart_comparison_cagr(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if isinstance(v, dict) and v.get("invested_periods", 0) > 0
+    and not v.get("window_truncated", False)
            and v.get("portfolio", {}).get("cagr") is not None
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
@@ -220,6 +221,7 @@ def chart_comparison_drawdown(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if isinstance(v, dict) and v.get("invested_periods", 0) > 0
+    and not v.get("window_truncated", False)
            and v.get("portfolio", {}).get("max_drawdown") is not None
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
@@ -264,6 +266,7 @@ def chart_comparison_drawdown(filename):
 valid_exchanges = [
     k for k, v in data.items()
     if isinstance(v, dict) and v.get("invested_periods", 0) > 0
+    and not v.get("window_truncated", False)
        and v.get("portfolio", {}).get("cagr") is not None
 ]
 

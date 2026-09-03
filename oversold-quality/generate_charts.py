@@ -205,6 +205,7 @@ def chart_comparison_cagr(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_FOR_CHART
+        and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -248,6 +249,7 @@ def chart_comparison_drawdown(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_FOR_CHART
+        and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 
@@ -343,7 +345,9 @@ def chart_cash_periods(filename):
 EXCHANGES_WITH_CLEAN_DATA = []  # Populated after reviewing results
 
 # Try to generate charts based on what's in the results file
-available_exchanges = [k for k, v in data.items() if isinstance(v, dict) and v.get("invested_periods", 0) > 0]
+available_exchanges = [k for k, v in data.items() if isinstance(v, dict)
+                       and v.get("invested_periods", 0) > 0
+                       and not v.get("window_truncated", False)]
 print(f"Found {len(available_exchanges)} exchanges with results: {available_exchanges}")
 
 if "NYSE_NASDAQ_AMEX" in available_exchanges:

@@ -176,7 +176,8 @@ def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange (excluding PAR)."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0 and k != "PAR"
+        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
+        and k != "PAR"
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -221,7 +222,8 @@ def chart_comparison_sharpe(filename):
     """Horizontal bar chart: Sharpe ratio by exchange (excluding PAR)."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0 and k != "PAR"
+        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
+        and k != "PAR"
            and v["portfolio"]["sharpe_ratio"] is not None
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["sharpe_ratio"], reverse=True)

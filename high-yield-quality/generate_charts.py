@@ -198,7 +198,8 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
 def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange."""
-    items = [(k, v) for k, v in data.items() if v["invested_periods"] > 0]
+    items = [(k, v) for k, v in data.items() if v["invested_periods"] > 0
+             and not v.get("window_truncated", False)]
     items.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
     names = [EXCHANGE_LABELS.get(k, k) for k, v in items]
@@ -239,7 +240,8 @@ def chart_comparison_cagr(filename):
 
 def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
-    items = [(k, v) for k, v in data.items() if v["invested_periods"] > 0]
+    items = [(k, v) for k, v in data.items() if v["invested_periods"] > 0
+             and not v.get("window_truncated", False)]
     items.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 
     names = [EXCHANGE_LABELS.get(k, k) for k, v in items]

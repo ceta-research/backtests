@@ -56,7 +56,8 @@ DEDICATED = [
     "SIX", "JPX", "HKSE", "SHZ_SHH", "ASX", "TAI",
 ]
 # All exchanges with data (for comparison charts) - exclude PAR (0 data)
-ALL_WITH_DATA = [k for k in data if data[k].get("invested_periods", 0) > 0]
+ALL_WITH_DATA = [k for k in data if data[k].get("invested_periods", 0) > 0
+                 and not data[k].get("window_truncated", False)]
 
 
 def get_cumulative_growth(exchange_key, initial=10000):
@@ -170,7 +171,7 @@ def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0
+        if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -213,7 +214,7 @@ def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0
+        if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 

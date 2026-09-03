@@ -211,6 +211,7 @@ def chart_comparison_cagr(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_PERIODS
+        and not v.get("window_truncated", False)
            and v.get("portfolio", {}).get("cagr") is not None
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
@@ -256,6 +257,7 @@ def chart_comparison_drawdown(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_PERIODS
+        and not v.get("window_truncated", False)
            and v.get("portfolio", {}).get("max_drawdown") is not None
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
@@ -307,6 +309,7 @@ MIN_INVESTED_PERIODS = 10
 valid_exchanges = [
     k for k, v in data.items()
     if isinstance(v, dict) and v.get("invested_periods", 0) >= MIN_INVESTED_PERIODS
+       and not v.get("window_truncated", False)
        and v.get("portfolio", {}).get("cagr") is not None
 ]
 _dropped = [(k, v.get("invested_periods", 0)) for k, v in data.items()

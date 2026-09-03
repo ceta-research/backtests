@@ -95,7 +95,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
                 label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
-        if ex_key not in data or data[ex_key]["invested_periods"] == 0:
+        if (ex_key not in data or data[ex_key]["invested_periods"] == 0
+                or data[ex_key].get("window_truncated", False)):
             continue
         ex = data[ex_key]
         years, vals = get_cumulative_growth(ex_key)
@@ -135,7 +136,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
 
 def chart_annual_bars(exchanges, filename, title, footer_universe):
     """Generate annual returns bar chart for given exchanges vs SPY."""
-    active = [e for e in exchanges if e in data and data[e]["invested_periods"] > 0]
+    active = [e for e in exchanges if e in data and data[e]["invested_periods"] > 0
+              and not data[e].get("window_truncated", False)]
     if not active:
         print(f"  Skipping {filename}: no data for {exchanges}")
         return
@@ -181,7 +183,7 @@ def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0
+        if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
@@ -223,7 +225,7 @@ def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0
+        if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 
@@ -265,7 +267,7 @@ def chart_comparison_sharpe(filename):
     """Horizontal bar chart: Sharpe ratio by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0
+        if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
         and v["portfolio"].get("sharpe_ratio") is not None
     ]
     if not exchanges_with_data:
@@ -346,7 +348,8 @@ REGIONAL_CHART_MAP = {
 }
 
 for ex_key, (slug, name, footer) in REGIONAL_CHART_MAP.items():
-    if ex_key in data and data[ex_key].get("invested_periods", 0) > 0:
+    if (ex_key in data and data[ex_key].get("invested_periods", 0) > 0
+            and not data[ex_key].get("window_truncated", False)):
         print(f"Generating {name} charts...")
         chart_cumulative(
             [ex_key], f"1_{slug}_cumulative_growth.png",

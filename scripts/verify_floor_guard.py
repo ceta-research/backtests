@@ -458,6 +458,15 @@ def main():
     stray = sorted(p for p in touched if not (
         p.endswith("/backtest.py")
         or p.startswith("scripts/")
+        # Chart scripts are in scope as a CLASS, not one at a time. Fixing
+        # invested_periods removes the accidental filter that kept
+        # benchmark-truncated legs out of ranked comparisons, so every file
+        # gating on it has to read window_truncated too -- 42 of them. An
+        # enumerated allow-list here would have to be edited in lockstep with
+        # gate 12 and would say less than gate 12 already says: gate 12 checks
+        # the PREDICATE in every one of these files, which is a tighter
+        # constraint than naming the files.
+        or p.endswith("/generate_charts.py")
         or p in SCOPE_ALLOW))
     print(f"6 SCOPE     {len(touched)} files changed, {len(stray)} outside "
           f"*/backtest.py + scripts/ + {len(SCOPE_ALLOW)} allowed")
@@ -495,7 +504,12 @@ def main():
                                    "executed collection"))
         if re.search(r'"invested_periods":\s*len\(valid\)\s*-\s*cash_periods', src):
             wrong.append((rel, "derives invested_periods from len(valid)"))
-        if re.search(r"Cash periods: \{cash_periods\} / \{len\(valid\)\}", src):
+        # Anchored on the RATIO, not on the label. It used to require the
+        # literal phrase "Cash periods: ", which sector-pe-compression spells
+        # "SPY periods (no compression): " -- so the last surviving instance of
+        # the shape sat in the corpus with this gate green over it. A label is
+        # free to be reworded; the denominator is what this gate is about.
+        if re.search(r"\{cash_periods\} / \{len\(valid\)\}", src):
             wrong.append((rel, "prints the cash rate over len(valid)"))
         # The pe-compression-style assert bound a full-window count to the
         # truncated metrics window. Anchored so the explanatory COMMENT that
@@ -600,6 +614,12 @@ def main():
         # the helper to compute.
         "scripts/test_build_output_synthetic.py":
             "declares the expected schema as a key -> type map, not a record",
+        # Read-only scanner. Its only accounting-shaped dicts are the synthetic
+        # in-memory fixtures the truncation detector's self-test is built from,
+        # which exist precisely so that detector is not tested solely against
+        # the corpus it scans. It never writes a results record.
+        "scripts/scan_results_invariant.py":
+            "synthetic self-test fixtures; the scanner writes nothing",
     }
 
     in_scope, bad8 = [], []
@@ -904,6 +924,94 @@ def main():
         print(f"    SELF-TEST FAIL: only {printers} summary printers found; "
               "the anchor has probably drifted")
         fails.append(("gate 11 coverage", printers))
+
+    # ---- gate 12: chart inclusion must read the measured window
+    #
+    # Fixing invested_periods removes an ACCIDENTAL filter. `invested_periods
+    # > 0` is the standard "did this leg produce data" gate in 42 chart files.
+    # Under the old arithmetic a benchmark-truncated leg produced a NEGATIVE
+    # invested_periods and silently failed it. Under
+    # `invested_periods = total_rebalances - cash_periods` it is always >= 0, so
+    # the leg re-enters -- measured over roughly half the window its siblings are
+    # measured over, under a footer still claiming the full span. Seven legs flip
+    # on the committed corpus (deleveraging, ev-ebitda, oversold-quality,
+    # relative-strength, value-momentum, volume-confirmed-momentum, yield-gap),
+    # all OSL, and the direction is flattering: max drawdown roughly half the
+    # sibling median in every one, CAGR above the sibling median in six.
+    #
+    # So chart inclusion now reads window_truncated as well. That is not a new
+    # editorial choice -- it reproduces deliberately what the old arithmetic did
+    # by accident. Whether a truncated leg should instead appear WITH its
+    # measured window annotated on the bar is a real editorial question and it
+    # stays open for a human; excluding is the conservative default.
+    #
+    # These files json.load at module scope, so this gate is static. Importing
+    # them would execute a file read on a clean checkout.
+    def _mentions(node, name):
+        return any(isinstance(n, ast.Constant) and n.value == name
+                   for n in ast.walk(node))
+
+    def chart_gate_hits(tree):
+        """Gating expressions that read invested_periods but not window_truncated.
+
+        Descends tracking the NEAREST enclosing function rather than walking the
+        module and every function separately: the latter collects each condition
+        twice, once with no function in scope, and the helper exemption below
+        then never applies.
+        """
+        out = []
+
+        def visit(node, fn):
+            if isinstance(node, ast.FunctionDef):
+                fn = node
+            conds = []
+            if isinstance(node, ast.comprehension):
+                conds += node.ifs
+            elif isinstance(node, ast.If):
+                conds.append(node.test)
+            elif isinstance(node, ast.Return) and node.value is not None:
+                conds.append(node.value)
+            for c in conds:
+                if _mentions(c, "invested_periods") and not _mentions(c, "window_truncated"):
+                    # A predicate helper (deleveraging's is_clean,
+                    # interest-coverage's) may reject the truncated leg on an
+                    # earlier line of its own body instead of inline.
+                    if fn is not None and _mentions(fn, "window_truncated"):
+                        continue
+                    out.append(c.lineno)
+            for ch in ast.iter_child_nodes(node):
+                visit(ch, fn)
+
+        visit(tree, None)
+        return sorted(set(out))
+
+    bad12, charts = [], 0
+    for p in sorted(ROOT.glob("*/generate_charts.py")):
+        src = p.read_text()
+        if "invested_periods" not in src:
+            continue
+        charts += 1
+        for lineno in chart_gate_hits(ast.parse(src)):
+            bad12.append((f"{p.parent.name}/generate_charts.py", lineno))
+    print(f"12 CHARTS     {charts - len({f for f, _ in bad12})}/{charts} chart files "
+          "gate inclusion on window_truncated as well as invested_periods")
+    for b in bad12:
+        print("    TRUNCATED LEG COULD RE-ENTER:", b)
+    fails += [("chart gate ignores window_truncated", b) for b in bad12]
+    # SELF-TEST, both directions. A detector that matches nothing looks exactly
+    # like a corpus with nothing wrong in it.
+    p12_bad = ast.parse('x = [k for k, v in d.items() if v["invested_periods"] > 0]\n')
+    if not chart_gate_hits(p12_bad):
+        print("    SELF-TEST FAIL: gate 12 no longer flags a bare invested_periods gate")
+        fails.append(("gate 12 probe", "bare gate not flagged"))
+    p12_ok = ast.parse('x = [k for k, v in d.items() if v["invested_periods"] > 0\n'
+                       '     and not v.get("window_truncated", False)]\n')
+    if chart_gate_hits(p12_ok):
+        print("    SELF-TEST FAIL: gate 12 flags the corrected chart gate")
+        fails.append(("gate 12 false positive", "clean probe flagged"))
+    if charts < 40:
+        print(f"    SELF-TEST FAIL: only {charts} chart files found; anchor drifted")
+        fails.append(("gate 12 coverage", charts))
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")

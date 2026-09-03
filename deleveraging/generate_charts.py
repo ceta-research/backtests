@@ -62,6 +62,8 @@ def is_clean(key, val):
     """Check if exchange has usable results."""
     if "error" in val:
         return False
+    if val.get("window_truncated", False):
+        return False
     return val.get("invested_periods", 0) > 0
 
 

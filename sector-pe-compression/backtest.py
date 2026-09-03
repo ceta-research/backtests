@@ -510,7 +510,12 @@ def main():
     metrics = compute_metrics(port_returns, spy_returns, periods_per_year,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Sector P/E Compression", "S&P 500 (SPY)"))
-    print(f"\n  SPY periods (no compression): {cash_periods} / {len(valid)}")
+    # Denominator is `executed`, matching the collection cash_periods is counted
+    # over above. It read len(valid) -- a full-run numerator over the metrics
+    # window, the shape replaced everywhere else in this change. Latent rather
+    # than live here (SPY prices the whole window, so executed == valid today),
+    # but it was the last surviving instance.
+    print(f"\n  SPY periods (no compression): {cash_periods} / {len(executed)}")
     print(f"  Avg compressed sectors (invested): {avg_sectors:.1f}")
 
     period_dates = [r["rebalance_date"] for r in valid]

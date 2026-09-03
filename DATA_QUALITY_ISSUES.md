@@ -672,6 +672,32 @@ with `stocks_held 0`, which `metrics.period_accounting` then counts as a cash
 period anyway. Pre-existing and unchanged, but the corrected guard makes it
 reachable by a second route, so decide it alongside the above.
 
+> **That sentence was true of 62 topics and false of four, until 2026-09-03.**
+> `capex-efficiency:336,338`, `graham-timing:369`, `sector-momentum:374` and
+> `sector-rotation:355` had no `if ... else 0.0` fallback, so the zero-survivor
+> period did not write 0.0 — it raised `ZeroDivisionError` and killed the run.
+> The old exit-conditioned guard hid this by cashing out before the invested
+> branch was reached; correcting the guard made it reachable. All five sites
+> now carry the fallback and the paragraph above holds everywhere. An auditor
+> reading this section before that fix was told they were safe when they were
+> not, which is why it is recorded here rather than only in a commit message.
+> Covered by scenario S6 in `scripts/test_floor_guard.py`, on both routes (lost
+> exit prices, and every survivor tripping `max_single_return` — the second is
+> the only one that reaches capex-efficiency, whose "no prices for either leg"
+> pre-guard absorbs the first).
+
+**Bounded imprecision in the entry leg itself (pre-existing, not a regression).**
+The cash rule reads the ENTRY leg only, never the exit leg. That is the claim
+that holds. It is *not* the same as "strictly true on the rebalance date":
+`get_prices` searches forward up to `window_days=10`, so a name whose first
+trade is nine days after the rebalance counts as buyable; and
+`remove_price_oscillations` deletes rows using `LEAD(adjClose, 1)` and
+`LEAD(adjClose, 2)`, so whether a day's price survives into the map depends on
+the two bars after it. Both are identical on main — `filter_returns` read the
+same map — so neither is introduced here, and the forward window pushes periods
+from cash to invested, the conservative direction for this guard. Worth stating
+because the surrounding argument is entirely about precision of claims.
+
 ---
 
 ## Open, found during B006 (period accounting), NOT fixed there
@@ -844,6 +870,33 @@ are not.
 | value-momentum | factor-03-value-momentum (2026-03-23) | 24 | 29 | -5 | 12.0 |
 | volume-confirmed-momentum | momentum-08-volume-confirmed (2026-02-24) | 24 | 40 | -16 | 12.0 |
 
+> **This table covers defect (a) — impossible arithmetic — ONLY.** The
+> invariant check flags `invested_periods < 0`. Silent window truncation,
+> defect (b), leaves no arithmetic trace whenever `cash_periods <= n_periods`,
+> so it is structurally invisible to that check and the 13 here are not the
+> whole population. `scripts/scan_results_invariant.py` now carries a second
+> detector for it (`truncated_legs`): inside one `exchange_comparison.json`
+> every leg shares a rebalance grid, so the file's maximum `n_periods` is
+> `total_rebalances`, and a leg materially below it was cut. Measured
+> 2026-09-03: **18 truncated legs, every one OSL. 9 also carry a negative
+> `invested_periods` and are in the table above. 9 do not.** Of those 9,
+> `52-week-low` is the correct prior art and `garp` is already in the re-run
+> set via its `returns_OSL.json`, leaving **7 topics outside the documented
+> population**: `52-week-high` (50 of 103), `etf-rebalancing` (12 of 20),
+> `pe-compression` (11 of 25), `peg-ratio` (50 of 103), `price-momentum`
+> (24 of 51), `price-to-book` (11 of 25), `yield-gap` (11 of 25).
+>
+> Because their `invested_periods` was never negative, **nothing ever
+> suppressed them**: `peg-ratio/generate_charts.py` and
+> `price-to-book/generate_charts.py` gate on `invested_periods > 0` and OSL
+> passes, so those comparison charts already render a 2013-2025 Norway bar
+> among 2000-2025 siblings, live today. The re-run population is the UNION of
+> both detectors. Two cautions for whoever works it: the published peg-ratio
+> comparison post's numbers do not match its current committed results file, so
+> it needs the same per-post verification the 13 above got; and `yield-gap`'s
+> `returns_OSL.json` says n=25 while its `exchange_comparison.json` node says
+> n=11, so only the comparison node — the one the charts read — is truncated.
+
 **The count of affected live posts is 13, not the 4 the blocker estimated.** All
 13 are published. 12 make a substantive Norway claim in their comparison blog:
 8 as a table row or figure (growth-02, etf-03, value-03, timing-02, factor-08,
@@ -910,3 +963,70 @@ Latent, not live: none of the seven has an OSL or Norway results file, and
 
 Flipping the 14 counts needs per-topic verification that each cohort predicate's
 keys exist on unpriced rows, which is not a mechanical edit, so B006 left them.
+
+### Truncated legs would have re-entered every ranked comparison chart
+
+Fixing `invested_periods` removes an **accidental filter**.
+`invested_periods > 0` is the standard "did this leg produce data" gate in 42
+`generate_charts.py` files. Under the old arithmetic a benchmark-truncated leg
+produced a NEGATIVE `invested_periods` and silently failed it. Under
+`invested_periods = total_rebalances - cash_periods` it is always `>= 0`, so the
+leg re-enters — measured over roughly half the window its siblings are measured
+over, under a footer still printing the full span.
+
+Measured on the committed corpus, **7 legs flip from excluded to included**, all
+OSL, and the direction is uniformly flattering:
+
+| topic | invested_periods | n of grid | max drawdown | sibling median |
+|---|---|---|---|---|
+| deleveraging | -3 → 50 | 50 of 103 | -24.24 | -58.65 |
+| ev-ebitda | -2 → 12 | 11 of 25 | -14.74 | -46.07 |
+| oversold-quality | -51 → 2 | 50 of 103 | 0.00 | -47.45 |
+| relative-strength | -15 → 38 | 50 of 103 | -26.96 | -56.11 |
+| value-momentum | -5 → 22 | 24 of 51 | -14.72 | -48.57 |
+| volume-confirmed-momentum | -16 → 9 | 24 of 49 | -19.24 | -40.13 |
+| yield-gap | 0 → 14 | 11 of 25 | -7.33 | -45.29 |
+
+CAGR is above the sibling median in 6 of the 7. `chart_comparison_cagr` sorts by
+CAGR, so Norway would land near the top of a ranked bar chart as a high-return,
+low-drawdown market. `pe-compression` is an eighth case that flips only against
+its stricter `MIN_INVESTED_PERIODS = 10` gate (2 → 16).
+
+**Fixed by excluding truncated legs**: every one of those 42 files now gates on
+`window_truncated` as well, enforced by gate 12 in
+`scripts/verify_floor_guard.py`. This is deliberately NOT a new editorial
+decision — it reproduces on purpose what the old arithmetic did by accident. It
+is also a no-op on today's corpus: no committed results file carries
+`window_truncated`, so `.get(..., False)` is falsy everywhere and the charts are
+byte-identical until a re-run.
+
+**Two consequences to expect after the re-run, and one open call for a human.**
+Once re-run records carry `window_truncated = True`, the ~8 currently-rendered
+truncated legs from the defect-(b) list above (`peg-ratio` OSL and the rest)
+will DROP out of ranked comparisons. That is intended: it is the fix for the
+live 2013-2025-Norway-bar-under-a-2000-2025-header defect. But the predicate is
+blunt — it excludes ANY truncated leg, including a trivially truncated one.
+**Whether a truncated leg should instead appear WITH its measured window
+annotated on the bar is a real editorial question and it is deliberately left
+open.** `window_truncated` / `window_label` are already carried into every
+results record and already read by the 54 stdout printers, so the chart layer
+only needs to read them if that is the call.
+
+### Bisect warning: three interior commits publish mismatched denominators
+
+B005 and B006 must land as ONE unit. b005's tip folds in b006's 52-week-low hunk
+so the branch tips and the merge product are all correct, but three interior
+commits are not: **`9fadc81`, `75bf3a5` and `037ad42`** count cash over `valid`
+while `build_output` still derives `invested_periods` from `len(results)`. On
+52-week-low — the only affected topic — that overstates invested periods by
+4-5x (true 11, would publish 45-56). Nothing is published from an interior
+commit, because this branch runs no backtests and commits no results, so the
+only exposure is a bisect or a cherry-pick landing on one of the three. Do not
+cherry-pick them in isolation; squash-merge b005 if the interior states must not
+reach the mainline at all.
+
+A second window is bisect-unsafe for a different reason. Between **`bc1772d`**
+(which corrected the cash rule) and the commit that added the `if ... else 0.0`
+fallbacks, `capex-efficiency`, `graham-timing`, `sector-momentum` and
+`sector-rotation` raise `ZeroDivisionError` on a zero-survivor period. See the
+boxed note under "Exit-side survivorship" above.

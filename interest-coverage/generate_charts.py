@@ -54,6 +54,8 @@ FOOTER = "Data: Ceta Research | Interest Coverage (>5x, D/E<1.5, ROE>8%), quarte
 def is_clean(key, val):
     """Check if exchange has clean data (not excluded)."""
     status = val.get("status", "completed")
+    if val.get("window_truncated", False):
+        return False
     return status == "completed" and val.get("invested_periods", 0) > 0
 
 

@@ -176,7 +176,8 @@ def chart_annual_bars(key, filename, footer_universe):
 def chart_comparison_cagr(filename):
     """Horizontal bar: CAGR by exchange with SPY reference line."""
     valid = [(k, v) for k, v in data.items()
-             if v.get("invested_periods", 0) > 0 and v.get("portfolio", {}).get("cagr") is not None]
+             if v.get("invested_periods", 0) > 0 and v.get("portfolio", {}).get("cagr") is not None
+             and not v.get("window_truncated", False)]
     valid.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
     names = [EXCHANGE_LABELS.get(k, k) for k, _ in valid]

@@ -384,12 +384,27 @@ def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, ti
 
 
 def entry_usable(entry_price, min_entry_price=1.0):
-    """True when a name could actually be BOUGHT at the rebalance date.
+    """True when a name could be BOUGHT on the ENTRY leg of the period.
 
     This is exactly filter_returns' entry-side test and nothing else: an entry
     price that exists, is positive, and clears the floor. It says nothing about
     the exit price or the realised return, because neither is knowable on the
     entry date. That is the whole point -- a cash decision may only read this.
+
+    "Entry leg", not "true on the rebalance date": the entry-price map this
+    reads is not STRICTLY rebalance-dated, and the distinction is worth keeping
+    honest in a repo whose results are published.
+      - get_prices searches FORWARD up to window_days=10, so a name whose first
+        trade is nine days after the rebalance still counts as buyable.
+      - remove_price_oscillations deletes rows using LEAD(adjClose, 1) and
+        LEAD(adjClose, 2), so whether a given day's price survives into the map
+        depends on the two bars that follow it.
+    Both are PRE-EXISTING and byte-identical on main -- filter_returns read the
+    same map -- so neither is a regression here, and the forward window pushes
+    periods from cash to INVESTED, which is the conservative direction for this
+    particular guard. They are bounded and logged in DATA_QUALITY_ISSUES.md. The
+    claim this docstring makes is the one that literally holds: the cash rule
+    reads the entry leg only, never the exit leg.
     """
     return (entry_price is not None
             and entry_price > 0

@@ -176,6 +176,7 @@ def chart_comparison_cagr(filename):
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if not v.get("error") and v.get("invested_periods", 0) > 0
+        and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
