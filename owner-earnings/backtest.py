@@ -479,10 +479,12 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
 
     print(format_metrics(metrics, "Owner Earnings", benchmark_name))
 
-    cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
-    invested = [r["stocks_held"] for r in results if r["stocks_held"] > 0]
+    # Count over `valid`, not `results`: a period the benchmark can't price is not a
+    # measured period, so counting it as cash pushes invested_periods negative.
+    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
+    invested = [r["stocks_held"] for r in valid if r["stocks_held"] > 0]
     avg_stocks = sum(invested) / len(invested) if invested else 0
-    print(f"\n  Cash periods: {cash_periods} / {len(results)}")
+    print(f"\n  Cash periods: {cash_periods} / {len(valid)}")
     print(f"  Avg stocks (invested): {avg_stocks:.1f}")
 
     period_dates = [r["rebalance_date"] for r in valid]

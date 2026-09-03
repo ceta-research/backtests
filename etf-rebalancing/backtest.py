@@ -483,12 +483,14 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Low Rebal Exposure", benchmark_name))
 
-    cash_periods = sum(1 for r in results if r["stocks_held"] == 0)
-    invested = [r for r in results if r["stocks_held"] > 0]
+    # Count over `valid`, not `results`: a period the benchmark can't price is not a
+    # measured period, so counting it as cash pushes invested_periods negative.
+    cash_periods = sum(1 for r in valid if r["stocks_held"] == 0)
+    invested = [r for r in valid if r["stocks_held"] > 0]
     avg_stocks = sum(r["stocks_held"] for r in invested) / len(invested) if invested else 0
     avg_ownership = sum(r["avg_ownership_ratio"] for r in invested) / len(invested) if invested else 0
     avg_etf = sum(r["avg_etf_count"] for r in invested) / len(invested) if invested else 0
-    print(f"\n  Cash periods: {cash_periods} / {len(results)}")
+    print(f"\n  Cash periods: {cash_periods} / {len(valid)}")
     print(f"  Avg stocks (invested): {avg_stocks:.1f}")
     print(f"  Avg ETF ownership ratio (portfolio): {avg_ownership:.4f}")
     print(f"  Avg ETF count (portfolio): {avg_etf:.1f}")
