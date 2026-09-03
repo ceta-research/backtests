@@ -65,6 +65,14 @@ SCOPE_ALLOW = {
     # leg was read as 100%-cash and dropped from the chart with no trace. The
     # gate now compares against total_rebalances.
     "magic-formula/generate_charts.py",
+    # THE ONE RESULTS FILE THIS CHANGE ADDS, and the only one it may touch. It
+    # is a positive control for scripts/scan_results_invariant.py that was
+    # gitignored and present only in the author's tree, so the scan reported
+    # "the scanner lost its teeth" on every other checkout. Force-added, copied
+    # byte-for-byte and verified with cmp; no backtest produced it and no other
+    # results file is modified. Gate 6 flagged it correctly before this entry
+    # existed -- that is the gate working, and the exemption is deliberate.
+    "volume-confirmed-momentum/results/vcm_osl.json",
     # B006: hosts the shared period_accounting/warn_if_truncated helper. Root
     # .py files match none of the allow rules below, so without this entry the
     # scope gate rejects its own dependency.
@@ -616,7 +624,14 @@ def main():
     # a Call's `.args` and `.keywords` -- the ARGUMENTS -- and never inspects
     # the callee itself. 13 topics are executed by neither. A static gate over
     # every call site is the only check that reaches all of them.
-    HELPERS = {"period_accounting", "warn_if_truncated"}
+    # entry_buyable/entry_buyable_prices are in here for the same reason: the
+    # B005 correction added one call and one import to each of 66 files, and a
+    # missed import is invisible to every other gate until a real run dies. Gate
+    # 2 does not catch it (the call is inside run_backtest), and the dynamic
+    # harness cannot reach graham-timing, sector-momentum or sector-rotation at
+    # all. This static walk is the only check that covers all 66.
+    HELPERS = {"period_accounting", "warn_if_truncated",
+               "entry_buyable", "entry_buyable_prices"}
 
     def bound_names(tree):
         """Names bound at any scope in the file: imports, defs, assignments.
@@ -704,7 +719,11 @@ def main():
     if unbound_helper_calls(probe10_ok):
         print("    SELF-TEST FAIL: gate 10 flags a correctly-imported call")
         fails.append(("gate 10 false positive", "clean probe flagged"))
-    if call_sites < 60:
+    # MEASURED, not guessed: 170 call sites at this tip (101 period-accounting
+    # plus the 66 entry_buyable* guards and the helper definitions themselves).
+    # The floor sits a little under that so a topic being retired does not fail
+    # the gate, while a walk that stops matching still does.
+    if call_sites < 150:
         print(f"    SELF-TEST FAIL: only {call_sites} helper call sites found; "
               "the AST walk has probably stopped matching")
         fails.append(("gate 10 coverage", call_sites))

@@ -153,7 +153,26 @@ def main(argv):
     flagged = {(rel, ptr) for rel, ptr, *_ in hits}
     ok = True
 
-    missing = EXPECT_FLAGGED - flagged
+    # An EXPECT_FLAGGED path that is absent from disk is a CORPUS problem, not a
+    # detector problem, and the two must never print the same message. This fired
+    # for real: volume-confirmed-momentum/results/vcm_osl.json is gitignored
+    # (.gitignore `*/results/`) and existed only in the author's working tree, so
+    # every clean checkout reported "the scanner lost its teeth" while the
+    # detector was working perfectly and the count silently dropped from 22 to
+    # 21. It is committed now (`git add -f`, the established pattern here -- 1712
+    # results files are tracked the same way), so absence below means someone
+    # deleted it or the checkout is partial.
+    absent = sorted(p for p, _ in EXPECT_FLAGGED if not (ROOT / p).exists())
+    if absent:
+        ok = False
+        print(f"CORPUS INCOMPLETE: {len(absent)} EXPECT_FLAGGED file(s) absent "
+              "from this checkout. The scan population is not the one the "
+              "self-test was calibrated against, so neither a PASS nor a FAIL "
+              "above means anything. This is NOT a lost-teeth result.")
+        for p in absent:
+            print("    ", p)
+
+    missing = {(p, ptr) for p, ptr in (EXPECT_FLAGGED - flagged) if p not in absent}
     extra = flagged - EXPECT_FLAGGED
     if missing:
         ok = False
