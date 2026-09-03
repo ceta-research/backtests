@@ -19,6 +19,7 @@ Usage:  python scripts/verify_floor_guard.py
 import ast
 import pathlib
 import py_compile
+import re
 import subprocess
 import sys
 
@@ -38,6 +39,12 @@ HOLDINGS_EXEMPT = {
 # untouched (`git status --porcelain pairs-cointegration/` is empty).
 IMPORT_EXEMPT = {
     "pairs-cointegration": "needs statsmodels, not installed in this venv",
+}
+# Files outside */backtest.py and scripts/ that this change is allowed to touch.
+SCOPE_ALLOW = {
+    # Carries period_data through to the combined comparison so one glob covers
+    # every topic's per-period book size.
+    "magic-formula/run_all_exchanges.py",
 }
 
 
@@ -202,19 +209,45 @@ def main():
     fails += bad
 
     # ---- gate 6: scope
-    out = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT,
-                         capture_output=True, text=True).stdout.strip().splitlines()
-    stray = []
-    for line in out:
-        path = line[3:].strip().strip('"')
-        if path.endswith("/backtest.py") or path.startswith("scripts/"):
-            continue
-        stray.append(path)
-    print(f"6 SCOPE     {len(out)} files modified, {len(stray)} outside "
-          f"*/backtest.py + scripts/")
+    # Union of the working tree and everything already committed on this branch, so
+    # the gate keeps its teeth after the work is committed. Checking only
+    # `git status` would report a clean tree and pass vacuously.
+    touched = set()
+    for line in subprocess.run(["git", "status", "--porcelain"], cwd=ROOT,
+                               capture_output=True, text=True).stdout.splitlines():
+        touched.add(line[3:].strip().strip('"'))
+    committed = subprocess.run(["git", "diff", "main...HEAD", "--name-only"], cwd=ROOT,
+                               capture_output=True, text=True)
+    if committed.returncode == 0:
+        touched.update(p for p in committed.stdout.split() if p)
+    stray = sorted(p for p in touched if not (
+        p.endswith("/backtest.py")
+        or p.startswith("scripts/")
+        or p in SCOPE_ALLOW))
+    print(f"6 SCOPE     {len(touched)} files changed, {len(stray)} outside "
+          f"*/backtest.py + scripts/ + {len(SCOPE_ALLOW)} allowed")
     for s in stray:
         print("    OUT OF SCOPE:", s)
     fails += [("out of scope", s) for s in stray]
+
+    # ---- gate 7: cash_periods counts over the same collection as n_periods
+    # n_periods is len(valid). Counting cash over `results` subtracts periods that
+    # are not in that denominator, which is how published legs ended up with a
+    # negative invested_periods (deleveraging OSL: 50 - 53 = -3).
+    wrong, right = [], []
+    for t in floor_topics:
+        src = (ROOT / t / "backtest.py").read_text()
+        colls = re.findall(r"cash_periods\s*=\s*sum\(1 for r in (\w+)", src)
+        if not colls:
+            continue
+        (right if all(c == "valid" for c in colls) else wrong).append(t)
+        if f"Cash periods: {{cash_periods}} / {{len(results)}}" in src:
+            wrong.append(t)
+    wrong = sorted(set(wrong))
+    print(f"7 CASHCOUNT {len(right)}/{len(right) + len(wrong)} count cash over `valid`")
+    for t in wrong:
+        print("    COUNTS OVER `results`:", t)
+    fails += [("cash_periods over results", t) for t in wrong]
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")

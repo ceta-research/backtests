@@ -101,6 +101,9 @@ def build_comparison(all_results):
             "total_periods": data.get("n_periods"),
             "avg_stocks": data.get("avg_stocks_when_invested"),
             "years": data.get("years"),
+            # Carry the per-period array through. avg_stocks hides the minimum book
+            # size, which is what a re-run population scan needs to see.
+            "period_data": data.get("period_data"),
         }
 
     output = {
