@@ -35,7 +35,7 @@ The effective threshold adapts per market:
 
 The "yield gap" concept has roots in the Fed Model (Yardeni, 2000) and the equity risk premium (ERP) literature. At the stock level, high earnings yields relative to bonds have historically predicted outperformance (Campbell & Vuolteenaho, 2004; Damodaran, 2012).
 
-**Key insight:** Quality companies (positive ROE, manageable debt) trading at high earnings yields are typically cheap for temporary reasons — a down cycle, sector rotation, or short-term earnings pressure — not structural deterioration.
+**Key insight:** Quality companies (positive ROE, manageable debt) trading at high earnings yields are typically cheap for temporary reasons: a down cycle, sector rotation, or short-term earnings pressure, not structural deterioration.
 
 ## Usage
 
