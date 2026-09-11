@@ -57,6 +57,7 @@ TOPIC_DIRS = {
     "sector-momentum": "sector-07-momentum",
     "fcf-growth": "growth-03-fcf-growth",
     "rd-efficiency": "growth-05-rd-efficiency",
+    "yield-gap": "reversion-06-yield-gap",
 }
 
 # Regions whose blog is not live; copying into them is harmless but noisy.

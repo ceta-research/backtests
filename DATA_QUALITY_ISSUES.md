@@ -331,6 +331,33 @@ result stands. If cash periods jump, the apparent alpha belonged to foreign
 secondary listings. Check that number before assuming any market is safe or
 suspect.
 
+### yield-gap: invested periods go UP under the filter (measured 2026-09-11)
+
+Run alongside the buyable-at-entry floor (B005), which refuses a rebalance unless
+10 screened names have a usable entry price. That changes what the domicile
+filter does:
+
+| Market | As listed | Domicile-only | Delta | Invested periods |
+|--------|-----------|---------------|-------|------------------|
+| XETRA  | +2.11% | +1.85% | -0.26pp | 22 -> **23** |
+| SIX    | +5.53% | +3.67% | -1.86pp | 18 -> **20** |
+| WSE    | -4.78% | -3.80% | +0.98pp | 14 -> 11 |
+
+Germany and Switzerland become **more** investable when foreign listings are
+removed, the opposite of the fcf-yield pattern. The reason is that the foreign
+secondary lines are disproportionately the ones with no tradeable entry price, so
+they were consuming top-30 slots and pushing the book below the floor without
+contributing a position. Strip them out and the domestic names that remain are
+fewer but all buyable.
+
+**Consequence for the diagnostic:** once a strategy enforces a buyable-at-entry
+floor, "cash periods jumped" is no longer the only tell, and a *drop* in cash
+periods under `--domicile-filter` is evidence the listed universe was padded with
+untradeable lines rather than evidence the filter is harmless. Read the excess
+delta alongside it. Here neither European market flips sign, so the published
+listed-universe figures stand, with the SIX edge understood as roughly a third
+foreign-listing driven.
+
 ### Event studies are far worse, and it forced a live retraction (measured 2026-08-28)
 
 `analyst-revision` is an event study on FMP `stock_grade`, and the contamination is
