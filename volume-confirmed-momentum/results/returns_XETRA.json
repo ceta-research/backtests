@@ -1,197 +1,795 @@
 {
   "universe": "XETRA",
+  "universe_basis": "exchange_listing",
+  "benchmark_name": "DAX",
+  "benchmark_symbol": "^GDAXI",
   "n_periods": 49,
+  "total_rebalances": 49,
+  "cash_periods": 4,
+  "invested_periods": 45,
+  "measured_start": "2001-01-01",
+  "measured_end": "2025-07-01",
+  "requested_start": "2001-01-01",
+  "requested_end": "2025-07-01",
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2001-2025",
   "years": 24.5,
   "frequency": "semi-annual",
-  "cash_periods": 3,
-  "invested_periods": 46,
   "avg_stocks_when_invested": 26.1,
+  "period_data": [
+    {
+      "rebalance_date": "2001-01-01",
+      "exit_date": "2001-07-01",
+      "portfolio_return": -0.076768,
+      "spy_return": -0.028669,
+      "stocks_held": 10,
+      "screened": 10,
+      "entry_buyable": 10,
+      "min_stocks": 10,
+      "avg_momentum_12m": 34.6,
+      "holdings": "QIA.DE,PEP.DE,EOAN.DE,SOBA.DE,CCC3.DE,BRM.DE,CPA.DE,BAYN.DE,HEN.DE,SIE.DE"
+    },
+    {
+      "rebalance_date": "2001-07-01",
+      "exit_date": "2002-01-01",
+      "portfolio_return": -0.017607,
+      "spy_return": -0.154124,
+      "stocks_held": 13,
+      "screened": 13,
+      "entry_buyable": 13,
+      "min_stocks": 10,
+      "avg_momentum_12m": 23.5,
+      "holdings": "VOW3.DE,SZG.DE,RPL.DE,HEN.DE,HAR.DE,BAYN.DE,HEN3.DE,SIE.DE,EOAN.DE,CPA.DE..."
+    },
+    {
+      "rebalance_date": "2002-01-01",
+      "exit_date": "2002-07-01",
+      "portfolio_return": 0.0,
+      "spy_return": -0.18807126124096377,
+      "stocks_held": 0,
+      "screened": 6,
+      "entry_buyable": null,
+      "min_stocks": 10,
+      "holdings": "CASH (6 passed, need 10)"
+    },
+    {
+      "rebalance_date": "2002-07-01",
+      "exit_date": "2003-01-01",
+      "portfolio_return": -0.220643,
+      "spy_return": -0.259991,
+      "stocks_held": 11,
+      "screened": 11,
+      "entry_buyable": 11,
+      "min_stocks": 10,
+      "avg_momentum_12m": 42.9,
+      "holdings": "PUM.DE,DB1.DE,ABR.DE,HEN3.DE,PEP.DE,CCC3.DE,BAS.DE,MAN3.DE,VOW.DE,SZG.DE..."
+    },
+    {
+      "rebalance_date": "2003-01-01",
+      "exit_date": "2003-07-01",
+      "portfolio_return": 0.0,
+      "spy_return": 0.043799757261558464,
+      "stocks_held": 0,
+      "screened": 5,
+      "entry_buyable": null,
+      "min_stocks": 10,
+      "holdings": "CASH (5 passed, need 10)"
+    },
+    {
+      "rebalance_date": "2003-07-01",
+      "exit_date": "2004-01-01",
+      "portfolio_return": 0.0,
+      "spy_return": 0.23987977671386373,
+      "stocks_held": 0,
+      "screened": 9,
+      "entry_buyable": null,
+      "min_stocks": 10,
+      "holdings": "CASH (9 passed, need 10)"
+    },
+    {
+      "rebalance_date": "2004-01-01",
+      "exit_date": "2004-07-01",
+      "portfolio_return": 0.164013,
+      "spy_return": -0.00491,
+      "stocks_held": 19,
+      "screened": 20,
+      "entry_buyable": 19,
+      "min_stocks": 10,
+      "avg_momentum_12m": 48.9,
+      "holdings": "BSD2.DE,MAN3.DE,PUM.DE,DPW.DE,REP.DE,GIS.DE,DHL.DE,PAE.DE,AUD.DE,ZIM.DE..."
+    },
+    {
+      "rebalance_date": "2004-07-01",
+      "exit_date": "2005-01-01",
+      "portfolio_return": 0.030792,
+      "spy_return": 0.073212,
+      "stocks_held": 20,
+      "screened": 22,
+      "entry_buyable": 21,
+      "min_stocks": 10,
+      "avg_momentum_12m": 40.6,
+      "holdings": "PUM.DE,MRK.DE,AIR.DE,ZIM.DE,SZG.DE,FME.DE,ADS.DE,HOT.DE,DPW.DE,DHL.DE..."
+    },
+    {
+      "rebalance_date": "2005-01-01",
+      "exit_date": "2005-07-01",
+      "portfolio_return": 0.210976,
+      "spy_return": 0.077334,
+      "stocks_held": 29,
+      "screened": 30,
+      "entry_buyable": 29,
+      "min_stocks": 10,
+      "avg_momentum_12m": 32.2,
+      "holdings": "AUD.DE,SDF.DE,SZG.DE,SRB.DE,NTA.DE,MRK.DE,FRA.DE,HEI.DE,EOAN.DE,ADS.DE..."
+    },
+    {
+      "rebalance_date": "2005-07-01",
+      "exit_date": "2006-01-01",
+      "portfolio_return": 0.186849,
+      "spy_return": 0.178779,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 36.0,
+      "holdings": "SZG.DE,AUD.DE,RAA.DE,WDC.DE,CON.DE,HOT.DE,BCY.DE,HMSB.DE,PEO.DE,FPE.DE..."
+    },
+    {
+      "rebalance_date": "2006-01-01",
+      "exit_date": "2006-07-01",
+      "portfolio_return": 0.130491,
+      "spy_return": 0.048204,
+      "stocks_held": 28,
+      "screened": 30,
+      "entry_buyable": 28,
+      "min_stocks": 10,
+      "avg_momentum_12m": 43.7,
+      "holdings": "AK3.DE,AHC.DE,GIS.DE,CBK.DE,SDF.DE,PCX.DE,RWE.DE,UTDI.DE,ZEG.DE,FRE.DE..."
+    },
+    {
+      "rebalance_date": "2006-07-01",
+      "exit_date": "2007-01-01",
+      "portfolio_return": 0.158212,
+      "spy_return": 0.169524,
+      "stocks_held": 27,
+      "screened": 30,
+      "entry_buyable": 27,
+      "min_stocks": 10,
+      "avg_momentum_12m": 65.3,
+      "holdings": "SZG.DE,AK3.DE,ADM.DE,TKA.DE,UTDI.DE,RAA.DE,TTK.DE,CBK.DE,DB1.DE,HOT.DE..."
+    },
+    {
+      "rebalance_date": "2007-01-01",
+      "exit_date": "2007-07-01",
+      "portfolio_return": 0.140729,
+      "spy_return": 0.191152,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 40.4,
+      "holdings": "LCR.DE,8TI.DE,VOW.DE,FPE3.DE,VOW3.DE,FPE.DE,FOT.DE,PSM.DE,PAH3.DE,DB1.DE..."
+    },
+    {
+      "rebalance_date": "2007-07-01",
+      "exit_date": "2008-01-01",
+      "portfolio_return": -0.029673,
+      "spy_return": -0.001147,
+      "stocks_held": 28,
+      "screened": 30,
+      "entry_buyable": 28,
+      "min_stocks": 10,
+      "avg_momentum_12m": 1476.1,
+      "holdings": "ERCG.DE,B5A.DE,NDX1.DE,KSB3.DE,KSB.DE,VOS.DE,VWSB.DE,HOT.DE,SDF.DE,MBG.DE..."
+    },
+    {
+      "rebalance_date": "2008-01-01",
+      "exit_date": "2008-07-01",
+      "portfolio_return": -0.105435,
+      "spy_return": -0.206777,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 739.0,
+      "holdings": "ERCG.DE,VWSB.DE,RIO1.DE,SGL.DE,SDF.DE,WCH.DE,KWS.DE,PAH3.DE,ZIL2.DE,SII.DE..."
+    },
+    {
+      "rebalance_date": "2008-07-01",
+      "exit_date": "2009-01-01",
+      "portfolio_return": -0.30822,
+      "spy_return": -0.211302,
+      "stocks_held": 12,
+      "screened": 12,
+      "entry_buyable": 12,
+      "min_stocks": 10,
+      "avg_momentum_12m": 15.3,
+      "holdings": "KIN2.DE,SLL.DE,HAL.DE,B5A.DE,CHV.DE,DB1.DE,ADM.DE,RNY.DE,ZIL2.DE,FRE.DE..."
+    },
+    {
+      "rebalance_date": "2009-01-01",
+      "exit_date": "2009-07-01",
+      "portfolio_return": -0.050023,
+      "spy_return": -0.051192,
+      "stocks_held": 10,
+      "screened": 12,
+      "entry_buyable": 10,
+      "min_stocks": 10,
+      "avg_momentum_12m": 21.7,
+      "holdings": "VOW.DE,AMG.DE,WMT.DE,GIS.DE,MDO.DE,NWT.DE,JNJ.DE,NFS.DE,ZEG.DE,KTF.DE"
+    },
+    {
+      "rebalance_date": "2009-07-01",
+      "exit_date": "2010-01-01",
+      "portfolio_return": 0.0,
+      "spy_return": 0.2818294632899876,
+      "stocks_held": 0,
+      "screened": 8,
+      "entry_buyable": null,
+      "min_stocks": 10,
+      "holdings": "CASH (8 passed, need 10)"
+    },
+    {
+      "rebalance_date": "2010-01-01",
+      "exit_date": "2010-07-01",
+      "portfolio_return": 0.00634,
+      "spy_return": -0.035407,
+      "stocks_held": 28,
+      "screened": 30,
+      "entry_buyable": 28,
+      "min_stocks": 10,
+      "avg_momentum_12m": 60.0,
+      "holdings": "WDC.DE,SII.DE,S92.DE,SRB.DE,NTA.DE,FPE3.DE,BSD2.DE,FPE.DE,VOW3.DE,HEN.DE..."
+    },
+    {
+      "rebalance_date": "2010-07-01",
+      "exit_date": "2011-01-01",
+      "portfolio_return": 0.290317,
+      "spy_return": 0.198073,
+      "stocks_held": 28,
+      "screened": 30,
+      "entry_buyable": 28,
+      "min_stocks": 10,
+      "avg_momentum_12m": 104.8,
+      "holdings": "CR6.DE,BMT.DE,AEC1.DE,1NBA.DE,SII.DE,AK3.DE,AIXA.DE,NTA.DE,PPX.DE,SRB.DE..."
+    },
+    {
+      "rebalance_date": "2011-01-01",
+      "exit_date": "2011-07-01",
+      "portfolio_return": 0.002547,
+      "spy_return": 0.064841,
+      "stocks_held": 28,
+      "screened": 30,
+      "entry_buyable": 28,
+      "min_stocks": 10,
+      "avg_momentum_12m": 60.6,
+      "holdings": "SII.DE,BZF1.DE,WYR.DE,BMW3.DE,AZ2.DE,SLL.DE,HCL.DE,FPE3.DE,RWL.DE,AUD.DE..."
+    },
+    {
+      "rebalance_date": "2011-07-01",
+      "exit_date": "2012-01-01",
+      "portfolio_return": -0.169661,
+      "spy_return": -0.183723,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 65.6,
+      "holdings": "O5G.DE,PCE1.DE,BOSS.DE,GIL.DE,VOW3.DE,WYR.DE,HAL.DE,LCR.DE,CON.DE,PSM.DE..."
+    },
+    {
+      "rebalance_date": "2012-01-01",
+      "exit_date": "2012-07-01",
+      "portfolio_return": 0.121396,
+      "spy_return": 0.069222,
+      "stocks_held": 15,
+      "screened": 17,
+      "entry_buyable": 15,
+      "min_stocks": 10,
+      "avg_momentum_12m": 14.6,
+      "holdings": "IBM.DE,MDO.DE,WYR.DE,BOSS.DE,KTF.DE,SZU.DE,FRE.DE,MTT.DE,AMZ.DE,CCC3.DE..."
+    },
+    {
+      "rebalance_date": "2012-07-01",
+      "exit_date": "2013-01-01",
+      "portfolio_return": 0.131053,
+      "spy_return": 0.197457,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 24.8,
+      "holdings": "SRB.DE,BMT.DE,DUE.DE,SRT3.DE,FNTN.DE,ASME.DE,SRT.DE,HAR.DE,ALS.DE,CPA.DE..."
+    },
+    {
+      "rebalance_date": "2013-01-01",
+      "exit_date": "2013-07-01",
+      "portfolio_return": 0.117165,
+      "spy_return": 0.016968,
+      "stocks_held": 29,
+      "screened": 30,
+      "entry_buyable": 29,
+      "min_stocks": 10,
+      "avg_momentum_12m": 48.0,
+      "holdings": "SRT.DE,HDI.DE,GIS.DE,SRT3.DE,BMT.DE,CON.DE,FPE.DE,IXD1.DE,FPE3.DE,NOV.DE..."
+    },
+    {
+      "rebalance_date": "2013-07-01",
+      "exit_date": "2014-01-01",
+      "portfolio_return": 0.210847,
+      "spy_return": 0.188259,
+      "stocks_held": 29,
+      "screened": 30,
+      "entry_buyable": 29,
+      "min_stocks": 10,
+      "avg_momentum_12m": 57.9,
+      "holdings": "MOR.DE,GIS.DE,DWD.DE,TRVC.DE,1U1.DE,PSM.DE,NOEJ.DE,UTDI.DE,FMC1.DE,FNTN.DE..."
+    },
+    {
+      "rebalance_date": "2014-01-01",
+      "exit_date": "2014-07-01",
+      "portfolio_return": 0.16847,
+      "spy_return": 0.054386,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 63.9,
+      "holdings": "MTE.DE,T6A.DE,GIS.DE,DUE.DE,PSM.DE,NOEJ.DE,BCO.DE,RRTL.DE,ARL.DE,BIO3.DE..."
+    },
+    {
+      "rebalance_date": "2014-07-01",
+      "exit_date": "2015-01-01",
+      "portfolio_return": 0.040979,
+      "spy_return": -0.014785,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 54.2,
+      "holdings": "NDX1.DE,1U1.DE,AEC1.DE,MTE.DE,SIX2.DE,O2C.DE,WAC.DE,UTDI.DE,NNGF.DE,ZEG.DE..."
+    },
+    {
+      "rebalance_date": "2015-01-01",
+      "exit_date": "2015-07-01",
+      "portfolio_return": 0.17625,
+      "spy_return": 0.136678,
+      "stocks_held": 29,
+      "screened": 30,
+      "entry_buyable": 29,
+      "min_stocks": 10,
+      "avg_momentum_12m": 99.2,
+      "holdings": "NOV.DE,LOM.DE,UNH.DE,WDP.DE,MSN.DE,PCE1.DE,ERT.DE,EBA.DE,GYC.DE,MTE.DE..."
+    },
+    {
+      "rebalance_date": "2015-07-01",
+      "exit_date": "2016-01-01",
+      "portfolio_return": 0.099582,
+      "spy_return": -0.07351,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 68.1,
+      "holdings": "ERT.DE,BBZA.DE,SYK.DE,NOVC.DE,SRT3.DE,NWO.DE,UNH.DE,BRM.DE,GYC.DE,SRB.DE..."
+    },
+    {
+      "rebalance_date": "2016-01-01",
+      "exit_date": "2016-07-01",
+      "portfolio_return": -0.039138,
+      "spy_return": -0.055852,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 64.5,
+      "holdings": "RY4C.DE,SRT.DE,SRT3.DE,NEM.DE,GRM.DE,8TI.DE,RHM.DE,RAA.DE,RNL.DE,PFV.DE..."
+    },
+    {
+      "rebalance_date": "2016-07-01",
+      "exit_date": "2017-01-01",
+      "portfolio_return": 0.050783,
+      "spy_return": 0.194585,
+      "stocks_held": 23,
+      "screened": 23,
+      "entry_buyable": 23,
+      "min_stocks": 10,
+      "avg_momentum_12m": 22.0,
+      "holdings": "SNH.DE,HOT.DE,AWC.DE,AFX.DE,TTK.DE,CXU.DE,KMY.DE,JNJ.DE,SYK.DE,BMT.DE..."
+    },
+    {
+      "rebalance_date": "2017-01-01",
+      "exit_date": "2017-07-01",
+      "portfolio_return": 0.07329,
+      "spy_return": 0.075613,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 32.6,
+      "holdings": "1COV.DE,I8R.DE,CAT1.DE,EVT.DE,2KD.DE,UNH.DE,RPL.DE,CHV.DE,CMC.DE,NCB.DE..."
+    },
+    {
+      "rebalance_date": "2017-07-01",
+      "exit_date": "2018-01-01",
+      "portfolio_return": 0.086533,
+      "spy_return": 0.031749,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 100.1,
+      "holdings": "WAF.DE,EVT.DE,EJT1.DE,I8R.DE,ACX.DE,WSU.DE,2FE.DE,DEZ.DE,DRW3.DE,8TI.DE..."
+    },
+    {
+      "rebalance_date": "2018-01-01",
+      "exit_date": "2018-07-01",
+      "portfolio_return": 0.001517,
+      "spy_return": -0.049196,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 55.0,
+      "holdings": "ALD.DE,WAF.DE,WAC.DE,AHLA.DE,1U1.DE,BCO.DE,MTE.DE,2PP.DE,T1L.DE,AT1.DE..."
+    },
+    {
+      "rebalance_date": "2018-07-01",
+      "exit_date": "2019-01-01",
+      "portfolio_return": -0.1547,
+      "spy_return": -0.135476,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 59.1,
+      "holdings": "SIX2.DE,MTE.DE,1FC.DE,WAF.DE,COK.DE,BCO.DE,OEWA.DE,SIX3.DE,AMZ.DE,JEN.DE..."
+    },
+    {
+      "rebalance_date": "2019-01-01",
+      "exit_date": "2019-07-01",
+      "portfolio_return": 0.298059,
+      "spy_return": 0.183979,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 37.2,
+      "holdings": "SGM.DE,OEWA.DE,AMZ.DE,EVT.DE,NEM.DE,MSF.DE,PFE.DE,BVB.DE,TEG.DE,CIS.DE..."
+    },
+    {
+      "rebalance_date": "2019-07-01",
+      "exit_date": "2020-01-01",
+      "portfolio_return": 0.114136,
+      "spy_return": 0.06859,
+      "stocks_held": 29,
+      "screened": 30,
+      "entry_buyable": 29,
+      "min_stocks": 10,
+      "avg_momentum_12m": 21.7,
+      "holdings": "VAR1.DE,AFX.DE,6MK.DE,SRT.DE,WDP.DE,IBE1.DE,2PP.DE,MUV2.DE,GUI.DE,DTEA.DE..."
+    },
+    {
+      "rebalance_date": "2020-01-01",
+      "exit_date": "2020-07-01",
+      "portfolio_return": -0.109718,
+      "spy_return": -0.058081,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 72.2,
+      "holdings": "VAR1.DE,HLAG.DE,AMD.DE,AKX.DE,COK.DE,NOVC.DE,BRNK.DE,DIC.DE,W3U.DE,EVD.DE..."
+    },
+    {
+      "rebalance_date": "2020-07-01",
+      "exit_date": "2021-01-01",
+      "portfolio_return": 0.147328,
+      "spy_return": 0.088693,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 85.1,
+      "holdings": "ERCG.DE,UNP.DE,XER2.DE,HLAG.DE,ECV.DE,NOVC.DE,SII.DE,SRT3.DE,SRT.DE,EJT1.DE..."
+    },
+    {
+      "rebalance_date": "2021-01-01",
+      "exit_date": "2021-07-01",
+      "portfolio_return": 0.16252,
+      "spy_return": 0.140117,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 57.8,
+      "holdings": "HMI.DE,3E2.DE,VBK.DE,ECV.DE,VWSB.DE,ZAL.DE,HBM.DE,QCI.DE,ZIL2.DE,NXU.DE..."
+    },
+    {
+      "rebalance_date": "2021-07-01",
+      "exit_date": "2022-01-01",
+      "portfolio_return": 0.076018,
+      "spy_return": 0.023683,
+      "stocks_held": 29,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 89.7,
+      "holdings": "FPMB.DE,ST5.DE,02M.DE,8TI.DE,AUS.DE,8GM.DE,WAC.DE,HAR.DE,NGLB.DE,BSL.DE..."
+    },
+    {
+      "rebalance_date": "2022-01-01",
+      "exit_date": "2022-07-01",
+      "portfolio_return": -0.272221,
+      "spy_return": -0.202697,
+      "stocks_held": 29,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 64.2,
+      "holdings": "EUZ.DE,BSL.DE,NA9.DE,HMI.DE,ABEA.DE,KLA.DE,AMD.DE,ASME.DE,HDI.DE,7HP.DE..."
+    },
+    {
+      "rebalance_date": "2022-07-01",
+      "exit_date": "2023-01-01",
+      "portfolio_return": 0.033042,
+      "spy_return": 0.101452,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 53.8,
+      "holdings": "RHM.DE,SDF.DE,02M.DE,CHV.DE,NOVC.DE,PNE3.DE,HAG.DE,EKT.DE,ADM.DE,2X0.DE..."
+    },
+    {
+      "rebalance_date": "2023-01-01",
+      "exit_date": "2023-07-01",
+      "portfolio_return": 0.071123,
+      "spy_return": 0.142991,
+      "stocks_held": 19,
+      "screened": 21,
+      "entry_buyable": 20,
+      "min_stocks": 10,
+      "avg_momentum_12m": 27.7,
+      "holdings": "PNE3.DE,CGN.DE,LLY.DE,WMB.DE,GIS.DE,TOTB.DE,PAE.DE,48Z.DE,ZEG.DE,CAT1.DE..."
+    },
+    {
+      "rebalance_date": "2023-07-01",
+      "exit_date": "2024-01-01",
+      "portfolio_return": 0.050793,
+      "spy_return": 0.042803,
+      "stocks_held": 29,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 52.8,
+      "holdings": "S92.DE,ELG.DE,HMI.DE,GXI.DE,HOT.DE,1YD.DE,AMD.DE,BOY.DE,C9F.DE,TLX.DE..."
+    },
+    {
+      "rebalance_date": "2024-01-01",
+      "exit_date": "2024-07-01",
+      "portfolio_return": 0.156487,
+      "spy_return": 0.09572,
+      "stocks_held": 29,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 43.9,
+      "holdings": "HOT.DE,KSB3.DE,12DA.DE,NEM.DE,VTSC.DE,KSB.DE,2FE.DE,LLY.DE,NRA.DE,RY4C.DE..."
+    },
+    {
+      "rebalance_date": "2024-07-01",
+      "exit_date": "2025-01-01",
+      "portfolio_return": 0.04788,
+      "spy_return": 0.089805,
+      "stocks_held": 30,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 66.0,
+      "holdings": "RRU.DE,12DA.DE,SMHN.DE,RHM.DE,IOS.DE,QCI.DE,8TRA.DE,KIN2.DE,NOV.DE,FB2A.DE..."
+    },
+    {
+      "rebalance_date": "2025-01-01",
+      "exit_date": "2025-07-01",
+      "portfolio_return": 0.059619,
+      "spy_return": 0.188041,
+      "stocks_held": 25,
+      "screened": 30,
+      "entry_buyable": 30,
+      "min_stocks": 10,
+      "avg_momentum_12m": 61.9,
+      "holdings": "48Z.DE,RRU.DE,1QZ.DE,WMT.DE,12DA.DE,INR.DE,SMHN.DE,WMB.DE,AEC1.DE,NWT.DE..."
+    }
+  ],
   "portfolio": {
-    "total_return": 557.06,
-    "cagr": 7.99,
-    "max_drawdown": -42.25,
-    "annualized_volatility": 20.01,
-    "sharpe_ratio": 0.299,
-    "sortino_ratio": 0.465,
-    "calmar_ratio": 0.189,
-    "var_95": -21.28,
+    "total_return": 506.49,
+    "cagr": 7.63,
+    "max_drawdown": -42.96,
+    "annualized_volatility": 18.54,
+    "sharpe_ratio": 0.304,
+    "sortino_ratio": 0.48,
+    "calmar_ratio": 0.178,
+    "var_95": -22.06,
     "max_consecutive_losses": 4,
     "pct_negative_periods": 24.49
   },
   "spy": {
-    "total_return": 648.95,
-    "cagr": 8.57,
-    "max_drawdown": -36.65,
-    "annualized_volatility": 14.96,
-    "sharpe_ratio": 0.439,
-    "sortino_ratio": 0.741,
-    "calmar_ratio": 0.234,
-    "var_95": -15.48,
+    "total_return": 278.23,
+    "cagr": 5.58,
+    "max_drawdown": -50.63,
+    "annualized_volatility": 18.85,
+    "sharpe_ratio": 0.19,
+    "sortino_ratio": 0.293,
+    "calmar_ratio": 0.11,
+    "var_95": -20.68,
     "max_consecutive_losses": 4,
-    "pct_negative_periods": 26.53
+    "pct_negative_periods": 36.73
   },
   "comparison": {
-    "excess_cagr": -0.58,
-    "win_rate": 48.98,
-    "information_ratio": 0.032,
-    "tracking_error": 12.76,
-    "up_capture": 110.89,
-    "down_capture": 124.35,
-    "beta": 1.031,
-    "alpha": -0.78
+    "excess_cagr": 2.05,
+    "win_rate": 59.18,
+    "information_ratio": 0.145,
+    "tracking_error": 13.51,
+    "up_capture": 94.76,
+    "down_capture": 64.83,
+    "beta": 0.727,
+    "alpha": 3.03
   },
-  "excess_cagr": -0.58,
-  "win_rate_vs_spy": 48.98,
+  "excess_cagr": 2.05,
+  "win_rate_vs_spy": 59.18,
   "annual_returns": [
     {
       "year": 2001,
-      "portfolio": -21.71,
-      "spy": -9.17,
-      "excess": -12.54
+      "portfolio": -9.3,
+      "spy": -17.84,
+      "excess": 8.54
     },
     {
       "year": 2002,
-      "portfolio": -21.28,
-      "spy": -19.92,
-      "excess": -1.36
+      "portfolio": -22.06,
+      "spy": -39.92,
+      "excess": 17.85
     },
     {
       "year": 2003,
       "portfolio": 0.0,
-      "spy": 24.12,
-      "excess": -24.12
+      "spy": 29.42,
+      "excess": -29.42
     },
     {
       "year": 2004,
-      "portfolio": 21.77,
-      "spy": 10.24,
-      "excess": 11.53
+      "portfolio": 19.99,
+      "spy": 6.79,
+      "excess": 13.19
     },
     {
       "year": 2005,
-      "portfolio": 42.54,
-      "spy": 7.17,
-      "excess": 35.36
+      "portfolio": 43.72,
+      "spy": 26.99,
+      "excess": 16.73
     },
     {
       "year": 2006,
-      "portfolio": 23.31,
-      "spy": 13.65,
-      "excess": 9.67
+      "portfolio": 30.93,
+      "spy": 22.59,
+      "excess": 8.34
     },
     {
       "year": 2007,
-      "portfolio": 13.46,
-      "spy": 4.4,
-      "excess": 9.06
+      "portfolio": 10.69,
+      "spy": 18.98,
+      "excess": -8.29
     },
     {
       "year": 2008,
-      "portfolio": -38.76,
-      "spy": -34.31,
-      "excess": -4.45
+      "portfolio": -38.12,
+      "spy": -37.44,
+      "excess": -0.68
     },
     {
       "year": 2009,
-      "portfolio": 13.65,
-      "spy": 24.73,
-      "excess": -11.09
+      "portfolio": -5.0,
+      "spy": 21.62,
+      "excess": -26.62
     },
     {
       "year": 2010,
-      "portfolio": 30.77,
-      "spy": 14.31,
-      "excess": 16.46
+      "portfolio": 29.85,
+      "spy": 15.57,
+      "excess": 14.28
     },
     {
       "year": 2011,
-      "portfolio": -19.32,
-      "spy": 2.46,
-      "excess": -21.78
+      "portfolio": -16.75,
+      "spy": -13.08,
+      "excess": -3.68
     },
     {
       "year": 2012,
-      "portfolio": 27.23,
-      "spy": 17.09,
-      "excess": 10.14
+      "portfolio": 26.84,
+      "spy": 28.03,
+      "excess": -1.2
     },
     {
       "year": 2013,
-      "portfolio": 36.66,
-      "spy": 27.77,
-      "excess": 8.88
+      "portfolio": 35.27,
+      "spy": 20.84,
+      "excess": 14.43
     },
     {
       "year": 2014,
-      "portfolio": 27.4,
-      "spy": 14.5,
-      "excess": 12.91
+      "portfolio": 21.64,
+      "spy": 3.88,
+      "excess": 17.76
     },
     {
       "year": 2015,
-      "portfolio": 35.23,
-      "spy": -0.12,
-      "excess": 35.35
+      "portfolio": 29.34,
+      "spy": 5.31,
+      "excess": 24.03
     },
     {
       "year": 2016,
-      "portfolio": 1.87,
-      "spy": 14.45,
-      "excess": -12.58
+      "portfolio": 0.97,
+      "spy": 12.79,
+      "excess": -11.82
     },
     {
       "year": 2017,
-      "portfolio": 17.57,
-      "spy": 21.64,
-      "excess": -4.07
+      "portfolio": 16.62,
+      "spy": 10.98,
+      "excess": 5.64
     },
     {
       "year": 2018,
-      "portfolio": -15.6,
-      "spy": -5.15,
-      "excess": -10.45
+      "portfolio": -15.34,
+      "spy": -17.8,
+      "excess": 2.46
     },
     {
       "year": 2019,
-      "portfolio": 43.11,
-      "spy": 32.31,
-      "excess": 10.8
+      "portfolio": 44.62,
+      "spy": 26.52,
+      "excess": 18.1
     },
     {
       "year": 2020,
-      "portfolio": 14.02,
-      "spy": 15.64,
-      "excess": -1.62
+      "portfolio": 2.14,
+      "spy": 2.55,
+      "excess": -0.4
     },
     {
       "year": 2021,
-      "portfolio": 23.68,
-      "spy": 31.26,
-      "excess": -7.59
+      "portfolio": 25.09,
+      "spy": 16.71,
+      "excess": 8.38
     },
     {
       "year": 2022,
-      "portfolio": -27.5,
-      "spy": -18.99,
-      "excess": -8.51
+      "portfolio": -24.82,
+      "spy": -12.18,
+      "excess": -12.64
     },
     {
       "year": 2023,
-      "portfolio": 10.42,
-      "spy": 26.0,
-      "excess": -15.58
+      "portfolio": 12.55,
+      "spy": 19.19,
+      "excess": -6.64
     },
     {
       "year": 2024,
-      "portfolio": 21.06,
-      "spy": 25.28,
-      "excess": -4.22
+      "portfolio": 21.19,
+      "spy": 19.41,
+      "excess": 1.77
     },
     {
       "year": 2025,
-      "portfolio": 0.96,
-      "spy": 6.28,
-      "excess": -5.32
+      "portfolio": 5.96,
+      "spy": 18.8,
+      "excess": -12.84
     }
   ]
 }
