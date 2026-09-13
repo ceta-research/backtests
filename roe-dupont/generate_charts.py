@@ -14,6 +14,9 @@ Usage:
 """
 
 import argparse
+import os as _cu_os, sys as _cu_sys
+_cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
+from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title
 import json
 import os
 import sys
@@ -74,7 +77,7 @@ def chart_cumulative(results, universe_name, output_prefix=""):
     ax.set_title(f"DuPont ROE Decomposition: Cumulative Growth ({universe_name})",
                  fontsize=14, fontweight="bold")
     ax.set_xlabel("Year")
-    ax.set_ylabel("Growth of $1")
+    ax.set_ylabel("Growth of " + currency_prefix(universe_name) + "1")
     ax.legend(loc="upper left")
     ax.grid(True, alpha=0.3)
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("$%.1f"))

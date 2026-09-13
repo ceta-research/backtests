@@ -1,5 +1,8 @@
 """Generate all Low Volatility + Quality charts for blog posts from exchange_comparison.json."""
 import matplotlib.pyplot as plt
+import os as _cu_os, sys as _cu_sys
+_cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -142,22 +145,22 @@ def chart_cumulative(exchange_key, filename, title):
     ax.plot(years, vals, color=COLORS[exchange_key], linewidth=2.2, label=label)
 
     final_k = vals[-1] / 1000
-    ax.annotate(f"${final_k:,.0f}K",
+    ax.annotate(money(final_k, exchange_key, suffix="K"),
                 xy=(years[-1], vals[-1]),
                 xytext=(8, 0), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS[exchange_key])
 
     spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(f"${spy_final_k:,.0f}K",
+    ax.annotate(money(spy_final_k, exchange_key, suffix="K"),
                 xy=(spy_years[-1], spy_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
     universe_label = EXCHANGE_UNIVERSE_LABELS.get(exchange_key, exchange_key)
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
-    ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
+    ax.set_ylabel(money_axis_label(exchange_key), fontsize=12, fontweight="bold")
+    ax.set_title(localize_money_title(title, exchange_key), fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(money_formatter(exchange_key))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_axisbelow(True)

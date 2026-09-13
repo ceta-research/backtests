@@ -13,6 +13,9 @@ Usage:
 """
 
 import json
+import os as _cu_os, sys as _cu_sys
+_cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
+from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title
 import os
 import sys
 
@@ -78,7 +81,7 @@ def plot_cumulative(data, exchange_key, label):
     ax.plot(years + [years[-1] + 1], spy_vals, "r--", linewidth=1.5, label=bench_name)
     ax.set_title(f"{STRATEGY_NAME}: Cumulative Growth ({label})", fontsize=14)
     ax.set_xlabel("Year")
-    ax.set_ylabel("Growth of $1")
+    ax.set_ylabel("Growth of " + currency_prefix(exchange_key) + "1")
     ax.legend()
     ax.grid(True, alpha=0.3)
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("$%.1f"))

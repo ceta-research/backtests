@@ -1,5 +1,8 @@
 """Generate all PEG Ratio charts for blog posts from exchange_comparison.json."""
 import matplotlib.pyplot as plt
+import os as _cu_os, sys as _cu_sys
+_cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -138,7 +141,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
     ax.set_ylabel("Portfolio Value", fontsize=12, fontweight="bold")
-    ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
+    ax.set_title(localize_money_title(title, exchanges[0]), fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"{x:,.0f}"))
     ax.set_ylim(0, None)

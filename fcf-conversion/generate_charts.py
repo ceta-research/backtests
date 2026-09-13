@@ -12,6 +12,9 @@ Usage:
 """
 
 import argparse
+import os as _cu_os, sys as _cu_sys
+_cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money, money_axis_label, money_formatter
 import json
 import os
 import sys
@@ -78,7 +81,7 @@ def cumulative_growth_chart(annual_returns, exchange, out_path):
 
     ax.set_title(f"Cumulative Growth of $10,000 ({exchange})", fontsize=14, fontweight="bold")
     ax.set_xlabel("Year")
-    ax.set_ylabel("Portfolio Value ($)")
+    ax.set_ylabel(money_axis_label(exchange))
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:,.0f}"))
     ax.legend(loc="upper left")
 

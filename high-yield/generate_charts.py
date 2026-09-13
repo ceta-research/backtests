@@ -27,7 +27,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Run as `python3 high-yield/generate_charts.py` from the backtests root, so
 # sys.path[0] is THIS directory; the shared helper lives one level up.
 sys.path.insert(0, os.path.dirname(SCRIPT_DIR))
-from chart_utils import benchmark_label
+from chart_utils import benchmark_label, currency_prefix, localize_money_title, money, money_axis_label, money_formatter
 
 RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
 CHARTS_DIR = os.path.join(SCRIPT_DIR, "charts")
@@ -69,7 +69,7 @@ def plot_cumulative(data, exchange_key, label, bench_label="S&P 500"):
     ax.plot(years + [years[-1] + 1], spy_vals, "r--", linewidth=1.5, label=bench_label)
     ax.set_title(f"High Dividend Yield Quality: Cumulative Growth ({label})", fontsize=14)
     ax.set_xlabel("Year")
-    ax.set_ylabel("Growth of $1")
+    ax.set_ylabel("Growth of " + currency_prefix(exchange_key) + "1")
     ax.legend()
     ax.grid(True, alpha=0.3)
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("$%.1f"))

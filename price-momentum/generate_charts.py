@@ -18,7 +18,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from chart_utils import benchmark_label
+from chart_utils import benchmark_label, currency_prefix, localize_money_title, money, money_axis_label, money_formatter
 
 try:
     import matplotlib
@@ -68,7 +68,7 @@ def plot_cumulative(data, label, bench_label, output_path):
     ax.set_title(f"12-Month Momentum vs {bench_label}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
-    ax.set_ylabel("Portfolio Value ($1 Start)", fontsize=12)
+    ax.set_ylabel("Portfolio Value (" + currency_prefix(data.get("universe")) + "1 Start)", fontsize=12)
     ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda v, _: f"${v:.1f}"))
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3, linestyle=":")

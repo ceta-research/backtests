@@ -11,6 +11,9 @@ Usage:
 """
 
 import json
+import os as _cu_os, sys as _cu_sys
+_cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money, money_axis_label, money_formatter
 import os
 from pathlib import Path
 
@@ -102,16 +105,16 @@ def chart_cumulative_piotroski(exchange_key, region_label, filename):
 
         final_k = vals[-1] / 1000
         offset_y = {"high": 8, "all": -4, "low": -16, "spy": -28}.get(key, 0)
-        ax.annotate(f"${final_k:,.0f}K", xy=(years[-1], vals[-1]),
+        ax.annotate(money(final_k, exchange_key, suffix="K"), xy=(years[-1], vals[-1]),
                     xytext=(8, offset_y), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=color)
 
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
+    ax.set_ylabel(money_axis_label(exchange_key), fontsize=12, fontweight="bold")
     ax.set_title(f"Piotroski F-Score: Growth of $10,000 on {region_label}",
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=9, loc="upper left")
     ax.yaxis.set_major_formatter(
-        mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+        money_formatter(exchange_key))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_axisbelow(True)

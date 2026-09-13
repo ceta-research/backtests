@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from chart_utils import benchmark_label
+from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -144,17 +144,17 @@ def chart_cumulative_growth(data, universe, region):
         (spy_cum, C_SPY, -14),
     ]:
         final_k = vals[-1] / 1000
-        ax.annotate(f"${final_k:,.0f}K",
+        ax.annotate(money(final_k, universe, suffix="K"),
                     xy=(years[-1], vals[-1]),
                     xytext=(8, offset_y), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=color)
 
     label = REGION_LABELS.get(universe, universe)
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
+    ax.set_ylabel(money_axis_label(universe), fontsize=12, fontweight="bold")
     ax.set_title(f"Growth of $10,000: Margin Expansion Portfolios vs {bench} - {label}",
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(money_formatter(universe))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.2, linestyle="--")
     ax.set_axisbelow(True)

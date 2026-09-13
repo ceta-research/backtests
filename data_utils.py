@@ -114,7 +114,12 @@ LOCAL_CURRENCY = {
     "ASX": "AUD",
     "SAO": "BRL",
     "SGX": "SGD", "SES": "SGD",
-    "JNB": "ZAR",
+    "JNB": "ZAR", "JSE": "ZAR",
+    "AMS": "EUR", "PAR": "EUR", "MIL": "EUR", "BME": "EUR",
+    "KLS": "MYR",
+    "JKT": "IDR",
+    "TLV": "ILS",
+    "WSE": "PLN",
 }
 
 # Home country per exchange, for the opt-in domicile filter.

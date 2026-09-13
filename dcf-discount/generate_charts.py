@@ -11,6 +11,9 @@ Usage:
 """
 
 import argparse
+import os as _cu_os, sys as _cu_sys
+_cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money, money_axis_label, money_formatter
 import json
 import os
 import sys
@@ -72,7 +75,7 @@ def generate_cumulative_chart(exchange, result, output_dir, strategy_name="DCF D
     ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=9)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:.1f}"))
     ax.set_title(f"{strategy_name}: Cumulative Growth ({exchange})\n$1 invested", fontsize=13, pad=12)
-    ax.set_ylabel("Portfolio Value ($)")
+    ax.set_ylabel(money_axis_label(exchange))
     ax.legend()
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()

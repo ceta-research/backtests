@@ -1,6 +1,9 @@
 """Generate CCC backtest charts from per-exchange result JSON files."""
 import matplotlib
 matplotlib.use('Agg')
+import os as _cu_os, sys as _cu_sys
+_cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
@@ -115,17 +118,17 @@ def chart_cumulative_growth(data, universe, region):
         (spy_cum, C_SPY, -14),
     ]:
         final_k = vals[-1] / 1000
-        ax.annotate(f"${final_k:,.0f}K",
+        ax.annotate(money(final_k, universe, suffix="K"),
                     xy=(years[-1], vals[-1]),
                     xytext=(8, offset_y), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=color)
 
     label = REGION_LABELS.get(universe, universe)
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
+    ax.set_ylabel(money_axis_label(universe), fontsize=12, fontweight="bold")
     ax.set_title(f"Growth of $10,000: CCC Portfolios vs S&P 500 - {label}",
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(money_formatter(universe))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.2, linestyle="--")
     ax.set_axisbelow(True)

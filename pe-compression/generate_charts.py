@@ -9,7 +9,7 @@ from pathlib import Path
 # This script runs as `python3 pe-compression/generate_charts.py` from the
 # backtests root, so sys.path[0] is the topic dir, not the repo root.
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_label
+from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -145,7 +145,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
     ax.set_ylabel(f"Portfolio Value ({sym.strip()})", fontsize=12, fontweight="bold")
-    ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
+    ax.set_title(localize_money_title(title, exchanges[0]), fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"{sym}{x:,.0f}"))
     ax.set_ylim(0, None)

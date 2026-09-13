@@ -1,5 +1,8 @@
 """Generate all Revenue Surprise charts for blog posts from exchange_comparison.json."""
 import matplotlib.pyplot as plt
+import os as _cu_os, sys as _cu_sys
+_cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -102,9 +105,9 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
         ax.plot(ex_years, ex_values, color=COLORS[ex_key], linewidth=2,
                 label=EXCHANGE_LABELS.get(ex_key, ex_key))
 
-    ax.set_title(title, fontsize=16, fontweight="bold", pad=20)
+    ax.set_title(localize_money_title(title, exchanges[0]), fontsize=16, fontweight="bold", pad=20)
     ax.set_xlabel("Year", fontsize=12)
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12)
+    ax.set_ylabel(money_axis_label(exchanges[0]), fontsize=12)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x/1000:.0f}K"))
     ax.legend(loc="upper left", framealpha=0.9)
     ax.grid(True, alpha=0.3)

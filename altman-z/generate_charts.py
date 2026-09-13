@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, benchmark_cumulative
+from chart_utils import benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -109,16 +109,16 @@ def chart_cumulative_growth(exchange_key, filename):
 
         final_k = vals[-1] / 1000
         offset_y = {"safe": 8, "distress": -16, "spy": -28}.get(key, 0)
-        ax.annotate(f"${final_k:,.0f}K", xy=(years[-1], vals[-1]),
+        ax.annotate(money(final_k, exchange_key, suffix="K"), xy=(years[-1], vals[-1]),
                     xytext=(8, offset_y), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=color)
 
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
+    ax.set_ylabel(money_axis_label(exchange_key), fontsize=12, fontweight="bold")
     ax.set_title(f"Altman Z-Score: Growth of $10,000 on {label}",
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=9, loc="upper left")
     ax.yaxis.set_major_formatter(
-        mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+        money_formatter(exchange_key))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_axisbelow(True)

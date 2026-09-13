@@ -14,7 +14,7 @@ from pathlib import Path
 
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, benchmark_cumulative
+from chart_utils import benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -99,7 +99,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None, 
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
     ax.set_ylabel(f"Portfolio Value ({currency.strip()})", fontsize=12, fontweight="bold")
-    ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
+    ax.set_title(localize_money_title(title, exchanges[0]), fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"{currency}{x:,.0f}"))
     ax.set_ylim(0, None)

@@ -12,7 +12,7 @@ import matplotlib.ticker as mticker
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, benchmark_cumulative
+from chart_utils import benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -119,10 +119,10 @@ def chart_cumulative(key, filename, footer_universe):
                 textcoords="offset points", fontsize=9, fontweight="bold",
                 color=COLORS["SPY"])
 
-    ax.set_ylabel("Portfolio Value ($)", fontsize=12, fontweight="bold")
-    ax.set_title(title, fontsize=13, fontweight="bold", pad=15)
+    ax.set_ylabel(money_axis_label(key), fontsize=12, fontweight="bold")
+    ax.set_title(localize_money_title(title, key), fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(money_formatter(key))
     ax.set_ylim(0, None)
     ax.grid(True, alpha=0.3, linestyle="--")
     ax.set_axisbelow(True)
