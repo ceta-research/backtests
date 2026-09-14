@@ -22,6 +22,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import currency_prefix
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
 CHARTS_DIR = os.path.join(SCRIPT_DIR, "charts")
@@ -54,7 +58,7 @@ def plot_cumulative(data, universe, output_path):
     ax.plot(range(len(spy_cum)), spy_cum, 'k--', linewidth=1.5, label='S&P 500')
 
     ax.set_xlabel('Year')
-    ax.set_ylabel('Growth of $1')
+    ax.set_ylabel('Growth of ' + currency_prefix(universe) + '1')
     ax.set_title(f'Asset-Light vs Asset-Heavy: Cumulative Growth ({universe})')
     ax.legend(loc='upper left')
     ax.grid(True, alpha=0.3)

@@ -27,6 +27,10 @@ except ImportError:
     print("Error: matplotlib not installed. Run: pip install matplotlib")
     sys.exit(1)
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import currency_prefix, money_formatter
+
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 CHARTS_DIR = os.path.join(os.path.dirname(__file__), "charts")
 
@@ -65,8 +69,9 @@ def plot_cumulative(data, label, output_path, bench_label="S&P 500 (SPY)"):
     ax.set_title(f"Earnings Growth Consistency vs {bench_label}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
-    ax.set_ylabel("Portfolio Value ($1 Start)", fontsize=12)
-    ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda v, _: f"${v:.1f}"))
+    ax.set_ylabel("Portfolio Value (" + currency_prefix(data.get("universe")) + "1 Start)",
+                  fontsize=12)
+    ax.yaxis.set_major_formatter(money_formatter(data.get("universe"), decimals=1))
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3, linestyle=":")
     ax.set_xlim(x[0] - 0.5, x[-1] + 0.5)

@@ -25,6 +25,10 @@ except ImportError:
     print("matplotlib required: pip install matplotlib")
     sys.exit(1)
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money_axis_label, money_formatter
+
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 CHARTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
 
@@ -63,10 +67,13 @@ def cumulative_growth_chart(results, exchange_name, output_path):
     x_labels = [str(years[0] - 1)] + [str(y) for y in years]
     ax.set_xticks(range(len(x_labels)))
     ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=8)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:,.0f}"))
-    ax.set_title(f"{STRATEGY_NAME}: Cumulative Growth of $10,000 ({exchange_name})",
+    ex_key = results.get("universe")
+    ax.yaxis.set_major_formatter(money_formatter(ex_key))
+    ax.set_title(localize_money_title(
+                     f"{STRATEGY_NAME}: Cumulative Growth of $10,000 ({exchange_name})",
+                     ex_key),
                  fontsize=13, fontweight="bold")
-    ax.set_ylabel("Portfolio Value")
+    ax.set_ylabel(money_axis_label(ex_key))
     ax.legend(loc="upper left")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()

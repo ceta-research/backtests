@@ -20,7 +20,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from chart_utils import benchmark_label
+from chart_utils import benchmark_label, currency_prefix, money_formatter
 
 try:
     import matplotlib
@@ -109,8 +109,9 @@ def plot_cumulative_growth(exchange_key, data, label, bench, filename):
 
     ax.set_title(f"Low Debt Quality vs {bench} — {label}", fontsize=14, fontweight="bold", pad=15)
     ax.set_xlabel("Year", fontsize=11)
-    ax.set_ylabel("Portfolio Value ($1 invested)", fontsize=11)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:.1f}"))
+    ax.set_ylabel("Portfolio Value (" + currency_prefix(exchange_key) + "1 invested)",
+                  fontsize=11)
+    ax.yaxis.set_major_formatter(money_formatter(exchange_key, decimals=1))
     ax.legend(fontsize=10)
     ax.grid(True, alpha=0.3)
 

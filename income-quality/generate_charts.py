@@ -19,6 +19,10 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money_axis_label, money_formatter
+
 CHART_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
 RESULTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "results", "exchange_comparison.json")
@@ -87,11 +91,13 @@ def plot_cumulative(data, exchange_name, region_key):
     ax.plot(x_labels, spy_growth, color=COLORS['spy'],
             linewidth=2, linestyle='--', label=f'S&P 500 ({data["portfolios"]["sp500"]["cagr"]}% CAGR)')
 
-    ax.set_title(f'Growth of $10,000: High Income Quality vs S&P 500 ({exchange_name})',
+    ax.set_title(localize_money_title(
+                     f'Growth of $10,000: High Income Quality vs S&P 500 ({exchange_name})',
+                     exchange_name),
                  fontsize=14, fontweight='bold')
     ax.set_xlabel('Year')
-    ax.set_ylabel('Portfolio Value ($)')
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+    ax.set_ylabel(money_axis_label(exchange_name))
+    ax.yaxis.set_major_formatter(money_formatter(exchange_name))
     ax.legend(loc='upper left', fontsize=11)
 
     start_yr = years[0]

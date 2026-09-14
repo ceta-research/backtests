@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, benchmark_cumulative
+from chart_utils import (benchmark_cumulative, benchmark_label, currency_prefix,
+                         localize_money_title, money)
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -85,8 +86,14 @@ def get_spy_cumulative(ref_key, initial=10000):
     return benchmark_cumulative(data, ref_key, initial)
 
 
-def format_k(val, pos):
-    return f"${val/1000:,.0f}K"
+def format_k(exchange_key):
+    """Tick formatter for thousands in the exchange's own currency, e.g. "Rs149K".
+
+    Returns are in the local currency, so the ticks must be too. A hardcoded "$"
+    here overstates the implied wealth by the FX rate.
+    """
+    prefix = currency_prefix(exchange_key)
+    return mticker.FuncFormatter(lambda val, pos: f"{prefix}{val/1000:,.0f}K")
 
 
 def chart_cumulative_single(exchange_key, filename, title_suffix=""):
@@ -107,10 +114,12 @@ def chart_cumulative_single(exchange_key, filename, title_suffix=""):
     color = COLORS.get(exchange_key, "#1a5276")
     ax.plot(years, vals, color=color, linewidth=2.4, label=label, zorder=3)
 
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(format_k))
+    ax.yaxis.set_major_formatter(format_k(exchange_key))
     ax.set_xlabel("Year", fontsize=11)
-    ax.set_ylabel("Portfolio Value ($10,000 initial)", fontsize=11)
-    ax.set_title(f"Net Debt/EBITDA Strategy vs S&P 500{title_suffix}\n$10,000 initial investment, 2000–2025",
+    ax.set_ylabel(f"Portfolio Value ({money(10000, exchange_key)} initial)", fontsize=11)
+    ax.set_title(localize_money_title(
+                     f"Net Debt/EBITDA Strategy vs S&P 500{title_suffix}\n$10,000 initial investment, 2000–2025",
+                     exchange_key),
                  fontsize=13, fontweight="bold", pad=12)
     ax.legend(fontsize=10, loc="upper left")
     ax.grid(axis="y", alpha=0.3, color="#cccccc")

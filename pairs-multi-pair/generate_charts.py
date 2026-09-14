@@ -28,6 +28,10 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+from chart_utils import localize_money_title, money, money_formatter
+
 # ─── Paths ────────────────────────────────────────────────────────────────────
 _ROOT       = os.path.dirname(os.path.abspath(__file__))
 CHARTS_DIR  = os.path.join(_ROOT, "charts")
@@ -146,18 +150,20 @@ def chart_cumulative_growth(us_data, output_path):
                 label=f"20-pair (equal, {eq_cagr*100:.1f}% CAGR idealised)",
                 linestyle="-.", zorder=2)
 
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(
-        lambda v, _: f"${v:,.0f}"
-    ))
+    # Usually US (so "$"), but extract_us_data falls back to whatever exchange the
+    # results file holds, and --results can point at a single non-US run. Drive the
+    # money labels off the universe rather than hardcoding the dollar.
+    ex_key = us_data.get("universe")
+    ax.yaxis.set_major_formatter(money_formatter(ex_key))
     ax.set_xlabel("Year", fontsize=11)
-    ax.set_ylabel("Portfolio Value (starting $1,000)", fontsize=11)
+    ax.set_ylabel(f"Portfolio Value (starting {money(1000, ex_key)})", fontsize=11)
 
     inv_vol_cagr = (us_data.get("portfolio") or {}).get("cagr")
     spy_cagr     = (us_data.get("spy") or {}).get("cagr")
     title = "Multi-Pair Portfolio: Cumulative Growth of $1,000 (US)"
     if inv_vol_cagr is not None and spy_cagr is not None:
         title += f"\n20-pair inv-vol: {inv_vol_cagr}% CAGR vs SPY: {spy_cagr}% CAGR"
-    ax.set_title(title, fontsize=12, pad=14)
+    ax.set_title(localize_money_title(title, ex_key), fontsize=12, pad=14)
 
     ax.legend(fontsize=10)
     ax.grid(axis="y", alpha=0.3, linestyle="--")
