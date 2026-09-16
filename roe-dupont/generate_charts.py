@@ -80,7 +80,7 @@ def chart_cumulative(results, universe_name, output_prefix=""):
     ax.set_ylabel("Growth of " + currency_prefix(universe_name) + "1")
     ax.legend(loc="upper left")
     ax.grid(True, alpha=0.3)
-    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("$%.1f"))
+    ax.yaxis.set_major_formatter(money_formatter(universe_name, decimals=1))
 
     plt.tight_layout()
     path = os.path.join(CHART_DIR, f"{output_prefix}1_{universe_name.lower()}_cumulative_growth.png")

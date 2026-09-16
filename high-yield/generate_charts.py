@@ -72,7 +72,7 @@ def plot_cumulative(data, exchange_key, label, bench_label="S&P 500"):
     ax.set_ylabel("Growth of " + currency_prefix(exchange_key) + "1")
     ax.legend()
     ax.grid(True, alpha=0.3)
-    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("$%.1f"))
+    ax.yaxis.set_major_formatter(money_formatter(exchange_key, decimals=1))
 
     os.makedirs(CHARTS_DIR, exist_ok=True)
     slug = label.lower().replace(" ", "_")
