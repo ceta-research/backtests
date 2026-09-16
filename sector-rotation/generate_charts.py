@@ -110,11 +110,11 @@ def chart_cumulative(key, filename, footer_universe):
             label=f"{EXCHANGE_LABELS[key]} ({cagr}% CAGR)")
 
     # Annotate endpoints
-    ax.annotate(f"${vals[-1] / 1000:,.0f}K",
+    ax.annotate(money(vals[-1] / 1000, key, suffix="K"),
                 xy=(years[-1], vals[-1]), xytext=(8, 0),
                 textcoords="offset points", fontsize=9, fontweight="bold",
                 color=COLORS[key])
-    ax.annotate(f"${spy_vals[-1] / 1000:,.0f}K",
+    ax.annotate(money(spy_vals[-1] / 1000, key, suffix="K"),
                 xy=(spy_years[-1], spy_vals[-1]), xytext=(8, -12),
                 textcoords="offset points", fontsize=9, fontweight="bold",
                 color=COLORS["SPY"])

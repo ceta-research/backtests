@@ -114,7 +114,8 @@ def chart_cumulative_growth(exchange_key, filename):
                     fontsize=9, fontweight="bold", color=color)
 
     ax.set_ylabel(money_axis_label(exchange_key), fontsize=12, fontweight="bold")
-    ax.set_title(f"Altman Z-Score: Growth of $10,000 on {label}",
+    ax.set_title(localize_money_title(
+                     f"Altman Z-Score: Growth of $10,000 on {label}", exchange_key),
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=9, loc="upper left")
     ax.yaxis.set_major_formatter(

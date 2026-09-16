@@ -79,10 +79,11 @@ def cumulative_growth_chart(annual_returns, exchange, out_path):
     ax.plot(x, port_vals, color=STRATEGY_COLOR, linewidth=2, label="FCF Conversion Quality")
     ax.plot(x, spy_vals, color=BENCHMARK_COLOR, linewidth=2, label="S&P 500")
 
-    ax.set_title(f"Cumulative Growth of $10,000 ({exchange})", fontsize=14, fontweight="bold")
+    ax.set_title(localize_money_title(f"Cumulative Growth of $10,000 ({exchange})", exchange),
+                 fontsize=14, fontweight="bold")
     ax.set_xlabel("Year")
     ax.set_ylabel(money_axis_label(exchange))
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:,.0f}"))
+    ax.yaxis.set_major_formatter(money_formatter(exchange))
     ax.legend(loc="upper left")
 
     fig.tight_layout()

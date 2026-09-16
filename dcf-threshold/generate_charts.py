@@ -118,17 +118,19 @@ def generate_cumulative_chart(exchange, result, output_dir):
 
     ax.set_xticks(range(len(x_labels)))
     ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=9)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:.1f}"))
-    ax.set_title(f"{STRATEGY_NAME}: Cumulative Growth — {label}\n$1 invested, 2000–2025",
+    ax.yaxis.set_major_formatter(money_formatter(exchange, decimals=1))
+    ax.set_title(localize_money_title(
+                     f"{STRATEGY_NAME}: Cumulative Growth — {label}\n$1 invested, 2000–2025",
+                     exchange),
                  fontsize=13, pad=12)
     ax.set_ylabel(money_axis_label(exchange))
     ax.legend()
     ax.grid(axis="y", alpha=0.3)
 
     # Annotate final values
-    ax.annotate(f"${port_cum[-1]:.2f}", xy=(len(port_cum) - 1, port_cum[-1]),
+    ax.annotate(money(port_cum[-1], exchange, decimals=2), xy=(len(port_cum) - 1, port_cum[-1]),
                 fontsize=9, color=color, ha="left", va="bottom")
-    ax.annotate(f"${spy_cum[-1]:.2f}", xy=(len(spy_cum) - 1, spy_cum[-1]),
+    ax.annotate(money(spy_cum[-1], exchange, decimals=2), xy=(len(spy_cum) - 1, spy_cum[-1]),
                 fontsize=9, color=SPY_COLOR, ha="left", va="top")
 
     fig.tight_layout()

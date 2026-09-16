@@ -110,7 +110,8 @@ def chart_cumulative_piotroski(exchange_key, region_label, filename):
                     fontsize=9, fontweight="bold", color=color)
 
     ax.set_ylabel(money_axis_label(exchange_key), fontsize=12, fontweight="bold")
-    ax.set_title(f"Piotroski F-Score: Growth of $10,000 on {region_label}",
+    ax.set_title(localize_money_title(
+                     f"Piotroski F-Score: Growth of $10,000 on {region_label}", exchange_key),
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=9, loc="upper left")
     ax.yaxis.set_major_formatter(

@@ -125,7 +125,8 @@ def chart_cumulative_growth(data, universe, region):
 
     label = REGION_LABELS.get(universe, universe)
     ax.set_ylabel(money_axis_label(universe), fontsize=12, fontweight="bold")
-    ax.set_title(f"Growth of $10,000: CCC Portfolios vs S&P 500 - {label}",
+    ax.set_title(localize_money_title(
+                     f"Growth of $10,000: CCC Portfolios vs S&P 500 - {label}", universe),
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
     ax.yaxis.set_major_formatter(money_formatter(universe))

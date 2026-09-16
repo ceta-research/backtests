@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import currency_prefix, localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -108,12 +108,15 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     ax.set_title(localize_money_title(title, exchanges[0]), fontsize=16, fontweight="bold", pad=20)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel(money_axis_label(exchanges[0]), fontsize=12)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"${x/1000:.0f}K"))
+    prefix = currency_prefix(exchanges[0])
+    ax.yaxis.set_major_formatter(
+        mticker.FuncFormatter(lambda x, p: f"{prefix}{x/1000:.0f}K"))
     ax.legend(loc="upper left", framealpha=0.9)
     ax.grid(True, alpha=0.3)
     ax.set_xlim(spy_years[0], spy_years[-1])
 
-    footer_text = f"$10,000 invested in {spy_years[0]}, quarterly rebalancing, {footer_universe}"
+    footer_text = (f"{money(10000, exchanges[0])} invested in {spy_years[0]}, "
+                   f"quarterly rebalancing, {footer_universe}")
     plt.figtext(0.5, 0.02, footer_text, ha="center", fontsize=9,
                 style="italic", color="#555")
 

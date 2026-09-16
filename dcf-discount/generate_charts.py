@@ -73,8 +73,10 @@ def generate_cumulative_chart(exchange, result, output_dir, strategy_name="DCF D
 
     ax.set_xticks(range(len(x_labels)))
     ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=9)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"${x:.1f}"))
-    ax.set_title(f"{strategy_name}: Cumulative Growth ({exchange})\n$1 invested", fontsize=13, pad=12)
+    ax.yaxis.set_major_formatter(money_formatter(exchange, decimals=1))
+    ax.set_title(localize_money_title(
+                     f"{strategy_name}: Cumulative Growth ({exchange})\n$1 invested", exchange),
+                 fontsize=13, pad=12)
     ax.set_ylabel(money_axis_label(exchange))
     ax.legend()
     ax.grid(axis="y", alpha=0.3)
