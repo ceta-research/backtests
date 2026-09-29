@@ -9,7 +9,7 @@ Signal:
   - 12M price return (skip last month): (price at T-30d) / (price at T-365d) - 1
     Skip-last-month avoids the well-documented short-term reversal in momentum stocks.
   - Volume confirmation: 3-month avg daily volume > 12-month avg daily volume (vol_ratio > 1.0)
-    Rising volume confirms institutional buying interest behind the price trend.
+    Practitioner rule: rising volume is taken to confirm the trend (untested here; no control arm).
   - Minimal quality gate: netIncome > 0 AND operatingCashFlow > 0 (FY, 45-day lag)
     Eliminates speculative momentum in money-losing stocks.
   - Market cap > exchange threshold (standard mid-to-large cap filter)
@@ -20,8 +20,9 @@ Rebalancing: Semi-annual (Jan 1, Jul 1), 2001-2025.
 Academic basis:
   Lee, C.M.C. & Swaminathan, B. (2000). "Price Momentum and Trading Volume."
   Journal of Finance, 55(5), 2017-2069.
-  Key finding: High-volume momentum stocks sustain returns longer and exhibit
-  stronger momentum. Low-volume momentum reverses faster.
+  Key finding (long leg): high-volume winners reverse FASTER; low-volume winners
+  persist longer. This strategy buys the leg the paper flags as late-stage, and
+  tests the practitioner rule (3M/12M raw volume ratio), not the paper (turnover).
 
 Usage:
     python3 volume-confirmed-momentum/backtest.py                          # US default

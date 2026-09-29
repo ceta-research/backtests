@@ -1,6 +1,6 @@
 # Volume-Confirmed Momentum
 
-A momentum strategy that filters for stocks with strong 12-month price performance *and* rising trading volume. Volume confirmation identifies momentum backed by real buying activity, not low-conviction price drift.
+A momentum strategy that filters for stocks with strong 12-month price performance *and* rising trading volume. The practitioner idea is that rising volume confirms a trend; see Academic Basis for what the cited paper actually found.
 
 ## Strategy
 
@@ -18,7 +18,9 @@ A momentum strategy that filters for stocks with strong 12-month price performan
 
 Lee, C.M.C. & Swaminathan, B. (2000). *Price Momentum and Trading Volume.* Journal of Finance, 55(5), 2017–2069.
 
-Key finding: High-volume momentum stocks sustain their outperformance significantly longer than low-volume momentum stocks. Volume acts as a signal of informed institutional participation — when price rises on above-average volume, the move is more likely to continue.
+The paper is usually cited in support of volume confirmation, but on the long leg it points the other way: "high (low) volume winners (losers) experience faster reversals," and "among winners, low volume stocks show greater persistence in price momentum." It classes high-volume winners as late-stage momentum. The winners-minus-losers spread is wider among high-volume stocks at intermediate horizons, but that is a long-short result driven partly by the loser leg, and the authors say it "is not because volume 'fuels' price momentum."
+
+This backtest doesn't test the paper. L&S ranked NYSE/AMEX stocks on turnover; this strategy uses a raw 3M/12M volume ratio across NYSE, NASDAQ and AMEX, long-only, held six months. It tests the practitioner rule that grew out of the paper.
 
 ## Running the Backtest
 
