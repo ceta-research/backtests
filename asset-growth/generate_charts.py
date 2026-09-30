@@ -268,12 +268,14 @@ print("India charts...")
 chart_cumulative(
     ["NSE"], "india_cumulative_growth.png",
     f"Growth of $10,000: Asset Growth India vs {benchmark_label(data, 'NSE')} (2000-2025)",
-    "NSE (returns in INR)"
+    "NSE (returns in INR)",
+    benchmark_exchange="NSE",
 )
 chart_annual_bars(
     ["NSE"], "india_annual_returns.png",
     "Asset Growth India: Year-by-Year Returns (2000-2024)",
-    "NSE (returns in INR)"
+    "NSE (returns in INR)",
+    benchmark_label=benchmark_label(data, "NSE"),
 )
 
 print("UK charts...")

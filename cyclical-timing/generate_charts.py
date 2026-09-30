@@ -14,7 +14,7 @@ Usage:
 import json
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title
+from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title, benchmark_label
 import os
 import sys
 
@@ -55,8 +55,8 @@ def cumulative_growth(returns):
     return curve
 
 
-def plot_cumulative(data, label, output_path, title_suffix=""):
-    """Plot cumulative growth chart (strategy vs SPY)."""
+def plot_cumulative(data, label, output_path, exch_key, bench, title_suffix=""):
+    """Plot cumulative growth chart (strategy vs the exchange's benchmark)."""
     annual = data["annual_returns"]
     years = [ar["year"] for ar in annual]
     port_rets = [ar["portfolio"] for ar in annual]
@@ -72,13 +72,14 @@ def plot_cumulative(data, label, output_path, title_suffix=""):
     ax.plot(x, port_curve, color=STRATEGY_COLOR, linewidth=2.5,
             label=f"Cyclical Timing  (CAGR: {data['portfolio']['cagr']:.1f}%)")
     ax.plot(x, spy_curve, color=BENCHMARK_COLOR, linewidth=1.8, linestyle="--",
-            label=f"S&P 500 (SPY)  (CAGR: {data['spy']['cagr']:.1f}%)")
+            label=f"{bench}  (CAGR: {data['spy']['cagr']:.1f}%)")
 
-    ax.set_title(f"Cyclical Sector Timing vs S&P 500\n{label}{title_suffix}",
+    ax.set_title(f"Cyclical Sector Timing vs {bench}\n{label}{title_suffix}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
-    ax.set_ylabel("Portfolio Value (" + currency_prefix(data.get("universe")) + "1 Start)", fontsize=12)
-    ax.yaxis.set_major_formatter(money_formatter(data.get("universe"), decimals=1))
+    # exch_key, not data["universe"]: returns files carry "Canada", "JSE" there
+    ax.set_ylabel("Portfolio Value (" + currency_prefix(exch_key) + "1 Start)", fontsize=12)
+    ax.yaxis.set_major_formatter(money_formatter(exch_key, decimals=1))
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3, linestyle=":")
     ax.set_xlim(x[0] - 0.5, x[-1] + 0.5)
@@ -112,8 +113,8 @@ def plot_cumulative(data, label, output_path, title_suffix=""):
     print(f"  Saved: {output_path}")
 
 
-def plot_annual_returns(data, label, output_path, title_suffix=""):
-    """Plot annual returns bar chart (strategy vs SPY)."""
+def plot_annual_returns(data, label, output_path, bench, title_suffix=""):
+    """Plot annual returns bar chart (strategy vs the exchange's benchmark)."""
     annual = data["annual_returns"]
     years = [ar["year"] for ar in annual]
     port_rets = [ar["portfolio"] for ar in annual]
@@ -128,9 +129,9 @@ def plot_annual_returns(data, label, output_path, title_suffix=""):
                    color=[POSITIVE_COLOR if r >= 0 else NEGATIVE_COLOR for r in port_rets],
                    alpha=0.85, label="Cyclical Timing")
     bars2 = ax.bar(x + width / 2, spy_rets, width,
-                   color=BENCHMARK_COLOR, alpha=0.6, label="S&P 500")
+                   color=BENCHMARK_COLOR, alpha=0.6, label=bench)
 
-    ax.set_title(f"Annual Returns: Cyclical Timing vs S&P 500\n{label}{title_suffix}",
+    ax.set_title(f"Annual Returns: Cyclical Timing vs {bench}\n{label}{title_suffix}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Annual Return (%)", fontsize=12)
@@ -266,21 +267,29 @@ def main():
 
     print("Generating charts...")
 
-    # Per-exchange charts
+    # Per-exchange charts come from returns_{key}.json: the local-benchmark
+    # rerun the blogs quote. exchange_comparison.json predates it (S&P 500 for all).
     for exch_key, (region_slug, label) in EXCHANGE_LABELS.items():
-        data = all_data.get(exch_key)
+        path = os.path.join(RESULTS_DIR, f"returns_{exch_key}.json")
+        data = None
+        if os.path.exists(path):
+            with open(path) as f:
+                data = json.load(f)
         if not data or "error" in data or not data.get("portfolio"):
             print(f"  Skipping {exch_key} (no results)")
             continue
+        bench = benchmark_label({exch_key: data}, exch_key)
 
         print(f"\n  {label}")
         plot_cumulative(
             data, label,
-            os.path.join(CHARTS_DIR, f"1_{region_slug}_cumulative_growth.png")
+            os.path.join(CHARTS_DIR, f"1_{region_slug}_cumulative_growth.png"),
+            exch_key, bench
         )
         plot_annual_returns(
             data, label,
-            os.path.join(CHARTS_DIR, f"2_{region_slug}_annual_returns.png")
+            os.path.join(CHARTS_DIR, f"2_{region_slug}_annual_returns.png"),
+            bench
         )
 
     # Comparison charts

@@ -15,7 +15,7 @@ Usage:
 import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import currency_code, localize_money_title, money, money_axis_label, money_formatter
 import json
 import os
 import sys
@@ -26,6 +26,7 @@ SPY_COLOR = "#ff7f0e"        # orange
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "United States",
+    "BSE_NSE":          "India",   # results still key India as BSE_NSE
     "NSE":          "India",
     "JPX":              "Japan",
     "LSE":              "United Kingdom",
@@ -44,6 +45,7 @@ EXCHANGE_LABELS = {
 
 EXCHANGE_COLORS = {
     "NYSE_NASDAQ_AMEX": "#1f77b4",
+    "BSE_NSE":          "#e07b39",
     "NSE":          "#e07b39",
     "JPX":              "#e74c3c",
     "LSE":              "#8e44ad",
@@ -130,8 +132,14 @@ def generate_cumulative_chart(exchange, result, output_dir):
     # Annotate final values
     ax.annotate(money(port_cum[-1], exchange, decimals=2), xy=(len(port_cum) - 1, port_cum[-1]),
                 fontsize=9, color=color, ha="left", va="bottom")
-    ax.annotate(money(spy_cum[-1], exchange, decimals=2), xy=(len(spy_cum) - 1, spy_cum[-1]),
+    # Every exchange here was run against SPY, which is USD, not local money.
+    ccy = currency_code(exchange)
+    spy_end = f"${spy_cum[-1]:,.2f}" if ccy == "USD" else f"US${spy_cum[-1]:,.2f}"
+    ax.annotate(spy_end, xy=(len(spy_cum) - 1, spy_cum[-1]),
                 fontsize=9, color=SPY_COLOR, ha="left", va="top")
+    if ccy and ccy != "USD":
+        fig.text(0.5, -0.01, f"Strategy returns in {ccy}; S&P 500 (SPY) benchmark in USD",
+                 ha="center", fontsize=8, color="#7f8c8d")
 
     fig.tight_layout()
     out_path = os.path.join(output_dir, f"1_{exchange.lower()}_cumulative_growth.png")

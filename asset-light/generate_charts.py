@@ -24,7 +24,7 @@ import matplotlib.ticker as mticker
 
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import currency_prefix
+from chart_utils import benchmark_label, currency_prefix
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
@@ -39,8 +39,8 @@ def cumulative_growth(returns):
     return values
 
 
-def plot_cumulative(data, universe, output_path):
-    """Plot cumulative growth: light vs heavy vs SPY."""
+def plot_cumulative(data, universe, output_path, bench_name="S&P 500"):
+    """Plot cumulative growth: light vs heavy vs the exchange's benchmark."""
     years = [d["year"] for d in data]
     light_rets = [d["light"] for d in data]
     heavy_rets = [d["heavy"] for d in data]
@@ -55,7 +55,7 @@ def plot_cumulative(data, universe, output_path):
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.plot(range(len(light_cum)), light_cum, 'b-', linewidth=2, label='Asset-Light (top 20%)')
     ax.plot(range(len(heavy_cum)), heavy_cum, 'r-', linewidth=1.5, label='Asset-Heavy (bottom 20%)')
-    ax.plot(range(len(spy_cum)), spy_cum, 'k--', linewidth=1.5, label='S&P 500')
+    ax.plot(range(len(spy_cum)), spy_cum, 'k--', linewidth=1.5, label=bench_name)
 
     ax.set_xlabel('Year')
     ax.set_ylabel('Growth of ' + currency_prefix(universe) + '1')
@@ -203,7 +203,8 @@ def main():
         print(f"Generating charts for {universe}...")
 
         plot_cumulative(data["annual_returns"], universe,
-                       os.path.join(CHARTS_DIR, f"1_{slug}_cumulative_growth.png"))
+                       os.path.join(CHARTS_DIR, f"1_{slug}_cumulative_growth.png"),
+                       benchmark_label({universe: data}, universe))
         plot_annual_returns(data["annual_returns"], universe,
                           os.path.join(CHARTS_DIR, f"2_{slug}_annual_returns.png"))
     else:
@@ -217,7 +218,8 @@ def main():
             slug = name.lower().replace(" ", "_")
             print(f"\n  {name}:")
             plot_cumulative(result["annual_returns"], name,
-                           os.path.join(CHARTS_DIR, f"1_{slug}_cumulative_growth.png"))
+                           os.path.join(CHARTS_DIR, f"1_{slug}_cumulative_growth.png"),
+                           benchmark_label(data, name))
             plot_annual_returns(result["annual_returns"], name,
                               os.path.join(CHARTS_DIR, f"2_{slug}_annual_returns.png"))
 

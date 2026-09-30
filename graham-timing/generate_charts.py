@@ -8,7 +8,7 @@ Usage:
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -59,7 +59,7 @@ def chart_cumulative(exchange_key, color="#1a5276"):
     # SPY benchmark
     spy_years, spy_vals = get_spy_cumulative(exchange_key)
     ax.plot(spy_years, spy_vals, color="#95a5a6", linewidth=2,
-            label=f"S&P 500 ({ex['spy']['cagr']*100:.2f}% CAGR)", linestyle="--")
+            label=f"{benchmark_label(data, exchange_key)} ({ex['spy']['cagr']*100:.2f}% CAGR)", linestyle="--")
 
     # Portfolio
     years, vals = get_cumulative_growth(exchange_key)
@@ -115,7 +115,7 @@ def chart_annual_bars(exchange_key, color="#1a5276"):
     x = list(range(len(years)))
 
     ax.bar([i - width/2 for i in x], spy_returns, width,
-           label="S&P 500", color="#95a5a6", alpha=0.7)
+           label=benchmark_label(data, exchange_key), color="#95a5a6", alpha=0.7)
     ax.bar([i + width/2 for i in x], port_returns, width,
            label="Graham Timing", color=color, alpha=0.85)
 

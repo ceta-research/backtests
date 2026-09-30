@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -26,6 +26,11 @@ individual = {}
 for p in results_dir.glob("magic_formula_*.json"):
     key = p.stem.replace("magic_formula_", "")
     with open(p) as f:
+        individual[key] = json.load(f)
+# The India and Indonesia posts quote the factor-01_* reruns (India NSE-only);
+# the magic_formula_* files for those two are older runs (India BSE+NSE).
+for key, name in {"India": "factor-01_nse.json", "JKT": "factor-01_jkt.json"}.items():
+    with open(results_dir / name) as f:
         individual[key] = json.load(f)
 
 # Color palette
@@ -111,7 +116,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     if spy_years:
         spy_cagr = individual.get(spy_source, {}).get("spy", {}).get("cagr", "?")
         ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-                label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+                label=f"{benchmark_label(individual, spy_source)} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in individual:
@@ -223,21 +228,21 @@ chart_cumulative(
 print("India cumulative growth...")
 chart_cumulative(
     ["India"], "india_cumulative_growth.png",
-    "Growth of $10,000: Magic Formula India vs S&P 500 (2000-2025)",
+    f"Growth of $10,000: Magic Formula India vs {benchmark_label(individual, 'India')} (2000-2025)",
     "NSE, quarterly rebalance, equal weight, top 30"
 )
 
 print("Indonesia (JKT) cumulative growth...")
 chart_cumulative(
     ["JKT"], "jkt_cumulative_growth.png",
-    "Growth of $10,000: Magic Formula Indonesia vs S&P 500 (2000-2025)",
-    "Jakarta Stock Exchange, quarterly rebalance, equal weight, top 30"
+    f"Growth of $10,000: Magic Formula Indonesia vs {benchmark_label(individual, 'JKT')} (2000-2025)",
+    "Jakarta Stock Exchange (returns in IDR, benchmark in USD), quarterly rebalance, equal weight, top 30"
 )
 
 print("Brazil (SAO) cumulative growth...")
 chart_cumulative(
     ["SAO"], "brazil_cumulative_growth.png",
-    "Growth of $10,000: Magic Formula Brazil vs S&P 500 (2000-2025)",
+    f"Growth of $10,000: Magic Formula Brazil vs {benchmark_label(individual, 'SAO')} (2000-2025)",
     "B3 (Bovespa), quarterly rebalance, equal weight, top 30"
 )
 

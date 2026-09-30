@@ -2,7 +2,8 @@
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_cagr, benchmark_cumulative, benchmark_label,
+                         localize_money_title, money, money_axis_label, money_formatter)
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -13,6 +14,14 @@ charts_dir.mkdir(exist_ok=True)
 
 with open(results_dir / "exchange_comparison.json") as f:
     data = json.load(f)
+
+# India/UK posts quote the per-exchange reruns, whose "spy" is the local index (Sensex, FTSE 100).
+local = {}
+for _k in ("NSE", "LSE"):
+    _p = results_dir / f"returns_{_k}.json"
+    if _p.exists():
+        with open(_p) as f:
+            local[_k] = json.load(f)
 
 # Color palette
 COLORS = {
@@ -55,9 +64,9 @@ EXCHANGE_LABELS = {
 }
 
 
-def get_cumulative_growth(exchange_key, initial=10000):
+def get_cumulative_growth(exchange_key, initial=10000, src=None):
     """Compute cumulative growth from annual returns."""
-    ex = data[exchange_key]
+    ex = (data if src is None else src)[exchange_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]
     for ar in ex["annual_returns"]:
@@ -77,21 +86,28 @@ def get_spy_cumulative(initial=10000):
     return years, values
 
 
-def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+def chart_cumulative(exchanges, filename, title, footer_universe, src=None):
+    """Generate cumulative growth chart vs SPY, or vs src's own local benchmark."""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
+    if src is None:
+        src = data
+        spy_years, spy_vals = get_spy_cumulative()
+        spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
+        bench = "S&P 500"
+    else:
+        spy_years, spy_vals = benchmark_cumulative(src, exchanges[0])
+        spy_cagr = benchmark_cagr(src, exchanges[0])
+        bench = benchmark_label(src, exchanges[0])
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{bench} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
-        if ex_key not in data:
+        if ex_key not in src:
             print(f"  Warning: {ex_key} not in results, skipping")
             continue
-        ex = data[ex_key]
-        years, vals = get_cumulative_growth(ex_key)
+        ex = src[ex_key]
+        years, vals = get_cumulative_growth(ex_key, src=src)
         cagr = ex["portfolio"]["cagr"]
         label = f"{EXCHANGE_LABELS.get(ex_key, ex_key)} ({cagr}% CAGR)"
         ax.plot(years, vals, color=COLORS.get(ex_key, "#95a5a6"), linewidth=2.2, label=label)
@@ -127,9 +143,11 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     plt.close()
 
 
-def chart_annual_bars(exchanges, filename, title, footer_universe):
+def chart_annual_bars(exchanges, filename, title, footer_universe, src=None):
     """Generate annual returns bar chart."""
-    ex = data[exchanges[0]]
+    bench = "S&P 500" if src is None else benchmark_label(src, exchanges[0])
+    src = data if src is None else src
+    ex = src[exchanges[0]]
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
 
@@ -141,12 +159,12 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=bench, color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
-        if ex_key not in data:
+        if ex_key not in src:
             continue
-        returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
+        returns = [ar["portfolio"] for ar in src[ex_key]["annual_returns"]]
         ax.bar([o + (idx + 1) * width for o in offsets], returns, width,
                label=EXCHANGE_LABELS.get(ex_key, ex_key),
                color=COLORS.get(ex_key, "#95a5a6"), alpha=0.85)
@@ -277,17 +295,17 @@ chart_annual_bars(
 )
 
 # India charts (if available)
-if "NSE" in data:
+if "NSE" in local:
     print("\nIndia charts...")
     chart_cumulative(
         ["NSE"], "1_india_cumulative_growth.png",
         "Growth of $10,000: Defensive Quality India vs Sensex (2000-2025)",
-        "NSE (returns in INR)"
+        "NSE (returns in INR)", src=local
     )
     chart_annual_bars(
         ["NSE"], "2_india_annual_returns.png",
         "Defensive Quality India: Year-by-Year Returns (2000-2024)",
-        "NSE (returns in INR)"
+        "NSE (returns in INR)", src=local
     )
 
 # China charts (if available)
@@ -305,17 +323,17 @@ if "SHZ_SHH" in data:
     )
 
 # UK charts (if available)
-if "LSE" in data:
+if "LSE" in local:
     print("\nUK charts...")
     chart_cumulative(
         ["LSE"], "1_uk_cumulative_growth.png",
         "Growth of $10,000: Defensive Quality UK vs FTSE 100 (2000-2025)",
-        "LSE (returns in GBP)"
+        "LSE (returns in GBP)", src=local
     )
     chart_annual_bars(
         ["LSE"], "2_uk_annual_returns.png",
         "Defensive Quality UK: Year-by-Year Returns (2000-2024)",
-        "LSE (returns in GBP)"
+        "LSE (returns in GBP)", src=local
     )
 
 print("\nComparison charts...")

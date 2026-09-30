@@ -14,7 +14,7 @@ Usage:
 import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 import json
 import os
 import sys
@@ -64,7 +64,7 @@ def load_results(results_dir):
     return results
 
 
-def cumulative_growth_chart(annual_returns, exchange, out_path):
+def cumulative_growth_chart(annual_returns, exchange, out_path, bench="S&P 500"):
     """Cumulative growth of $10,000."""
     years = [ar["year"] for ar in annual_returns]
     port_vals = [10000]
@@ -77,7 +77,7 @@ def cumulative_growth_chart(annual_returns, exchange, out_path):
     fig, ax = plt.subplots(figsize=(10, 6))
     x = [years[0] - 1] + years
     ax.plot(x, port_vals, color=STRATEGY_COLOR, linewidth=2, label="FCF Conversion Quality")
-    ax.plot(x, spy_vals, color=BENCHMARK_COLOR, linewidth=2, label="S&P 500")
+    ax.plot(x, spy_vals, color=BENCHMARK_COLOR, linewidth=2, label=bench)
 
     ax.set_title(localize_money_title(f"Cumulative Growth of $10,000 ({exchange})", exchange),
                  fontsize=14, fontweight="bold")
@@ -92,7 +92,7 @@ def cumulative_growth_chart(annual_returns, exchange, out_path):
     print(f"  Saved: {out_path}")
 
 
-def annual_returns_chart(annual_returns, exchange, out_path):
+def annual_returns_chart(annual_returns, exchange, out_path, bench="S&P 500"):
     """Annual returns bar chart."""
     years = [ar["year"] for ar in annual_returns]
     port = [ar["portfolio"] for ar in annual_returns]
@@ -105,7 +105,7 @@ def annual_returns_chart(annual_returns, exchange, out_path):
     ax.bar([p - width / 2 for p in x_pos], port, width, color=STRATEGY_COLOR,
            label="FCF Conversion Quality", alpha=0.85)
     ax.bar([p + width / 2 for p in x_pos], spy, width, color=BENCHMARK_COLOR,
-           label="S&P 500", alpha=0.85)
+           label=bench, alpha=0.85)
 
     ax.set_title(f"Annual Returns ({exchange})", fontsize=14, fontweight="bold")
     ax.set_xlabel("Year")
@@ -206,12 +206,16 @@ def main():
 
     print(f"Found results for {len(results)} exchanges: {', '.join(sorted(results.keys()))}")
 
+    us_spy = [ar["spy"] for ar in (results.get("NYSE_NASDAQ_AMEX") or {}).get("annual_returns", [])]
+
     # Per-exchange charts
     for exchange, data in results.items():
         if "error" in data or not data.get("annual_returns"):
             continue
 
         annual = data["annual_returns"]
+        # "spy" holds the local index, except where a stale run still carries the SPY series (BSE_NSE)
+        bench = "S&P 500" if [ar["spy"] for ar in annual] == us_spy else benchmark_label(results, exchange)
 
         # Region name mapping for filenames
         region = exchange.lower().replace("_", "")
@@ -225,9 +229,9 @@ def main():
             region = "taiwan"
 
         cumulative_growth_chart(annual, exchange,
-                                 os.path.join(args.output_dir, f"1_{region}_cumulative_growth.png"))
+                                 os.path.join(args.output_dir, f"1_{region}_cumulative_growth.png"), bench)
         annual_returns_chart(annual, exchange,
-                              os.path.join(args.output_dir, f"2_{region}_annual_returns.png"))
+                              os.path.join(args.output_dir, f"2_{region}_annual_returns.png"), bench)
 
     # Comparison charts (if multiple exchanges)
     if len(results) >= 3:

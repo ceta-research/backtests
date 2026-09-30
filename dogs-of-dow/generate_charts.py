@@ -17,7 +17,7 @@ with open(results_dir / "exchange_comparison.json") as f:
 # Color palette
 COLORS = {
     "US_MAJOR": "#1a5276",
-    "NSE": "#e67e22",
+    "BSE": "#e67e22",
     "NSE": "#f39c12",
     "STO": "#27ae60",
     "SAO": "#16a085",
@@ -36,7 +36,7 @@ COLORS = {
 
 EXCHANGE_LABELS = {
     "US_MAJOR": "Dogs of the Dow (US)",
-    "NSE": "High Yield Blue Chips (India NSE)",
+    "BSE": "High Yield Blue Chips (India BSE)",
     "NSE": "High Yield Blue Chips (India NSE)",
     "STO": "High Yield Blue Chips (Sweden)",
     "SAO": "High Yield Blue Chips (Brazil)",
@@ -323,6 +323,11 @@ REGIONAL_CHARTS = [
      "STO, top 30 by market cap, top 10 by yield"),
 ]
 
+# exchange_comparison.json predates the 04-12 rerun and Sweden's OMX30 switch; the blogs quote these files.
+REGIONAL_RESULTS = {"BSE": "returns_BSE.json", "STO": "sweden.json"}
+_aggregate = data
+data = {**_aggregate, **{k: json.load(open(results_dir / f)) for k, f in REGIONAL_RESULTS.items()}}
+
 for ex_key, slug, strategy_label, footer in REGIONAL_CHARTS:
     print(f"Generating charts for blog_{slug}.md...")
     bench = benchmark_name(ex_key)
@@ -336,6 +341,8 @@ for ex_key, slug, strategy_label, footer in REGIONAL_CHARTS:
         f"{strategy_label} vs {bench}: Year-by-Year Returns (2000-2024)",
         footer
     )
+
+data = _aggregate
 
 print("Generating charts for blog_comparison.md...")
 chart_comparison_cagr("global_cagr_comparison.png")

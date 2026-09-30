@@ -1,8 +1,13 @@
-"""Generate all QARP charts for blog posts from exchange_comparison.json."""
+"""Generate all QARP charts for blog posts.
+
+US and comparison charts read exchange_comparison.json. Regional charts read the
+per-exchange *_results.json, which carry the local index in "spy" and match the posts.
+"""
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_cumulative, benchmark_label, localize_money_title,
+                         money, money_axis_label, money_formatter)
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -14,12 +19,18 @@ charts_dir.mkdir(exist_ok=True)
 with open(results_dir / "exchange_comparison.json") as f:
     data = json.load(f)
 
+# Regional runs against the local index (these are the figures the regional posts quote)
+local = {}
+for _ex in ["BSE", "NSE", "XETRA", "SHH", "SHZ", "HKSE"]:
+    with open(results_dir / f"{_ex.lower()}_results.json") as f:
+        local[_ex] = json.load(f)
+
 # Color palette
 COLORS = {
     "US_MAJOR": "#1a5276",
     "NYSE": "#2980b9",
     "NASDAQ": "#7fb3d8",
-    "NSE": "#e67e22",
+    "BSE": "#e67e22",
     "NSE": "#f39c12",
     "XETRA": "#27ae60",
     "SHZ": "#c0392b",
@@ -35,7 +46,7 @@ EXCHANGE_LABELS = {
     "US_MAJOR": "QARP US (NYSE+NASDAQ+AMEX)",
     "NYSE": "QARP NYSE",
     "NASDAQ": "QARP NASDAQ",
-    "NSE": "QARP India (NSE)",
+    "BSE": "QARP BSE (India)",
     "NSE": "QARP NSE (India)",
     "XETRA": "QARP XETRA (Germany)",
     "SHZ": "QARP Shenzhen",
@@ -47,9 +58,9 @@ EXCHANGE_LABELS = {
 }
 
 
-def get_cumulative_growth(exchange_key, initial=10000):
+def get_cumulative_growth(exchange_key, initial=10000, src=None):
     """Compute cumulative growth from annual returns."""
-    ex = data[exchange_key]
+    ex = (src or data)[exchange_key]
     values = [initial]
     years = [ex["annual_returns"][0]["year"] - 1]  # start year
     for ar in ex["annual_returns"]:
@@ -58,30 +69,21 @@ def get_cumulative_growth(exchange_key, initial=10000):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative from any exchange (all have same SPY data)."""
-    ex = data["US_MAJOR"]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
-
-
-def chart_cumulative(exchanges, filename, title, footer_universe):
-    """Generate cumulative growth chart for given exchanges vs SPY."""
+def chart_cumulative(exchanges, filename, title, footer_universe, src=None, bench_key="US_MAJOR"):
+    """Generate cumulative growth chart for given exchanges vs bench_key's benchmark."""
+    src = src or data
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    spy_years, spy_vals = get_spy_cumulative()
+    spy_years, spy_vals = benchmark_cumulative(src, bench_key)
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"S&P 500 ({data['US_MAJOR']['spy']['cagr']}% CAGR)", linestyle="--")
+            label=f"{benchmark_label(src, bench_key)} ({src[bench_key]['spy']['cagr']:.2f}% CAGR)",
+            linestyle="--")
 
     for ex_key in exchanges:
-        ex = data[ex_key]
-        years, vals = get_cumulative_growth(ex_key)
+        ex = src[ex_key]
+        years, vals = get_cumulative_growth(ex_key, src=src)
         cagr = ex["portfolio"]["cagr"]
-        label = f"{EXCHANGE_LABELS[ex_key]} ({cagr}% CAGR)"
+        label = f"{EXCHANGE_LABELS[ex_key]} ({cagr:.2f}% CAGR)"
         ax.plot(years, vals, color=COLORS[ex_key], linewidth=2.2, label=label)
 
         # Final value annotation
@@ -117,9 +119,12 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     plt.close()
 
 
-def chart_annual_bars(exchanges, filename, title, footer_universe):
-    """Generate annual returns bar chart for given exchanges vs SPY."""
-    ex = data[exchanges[0]]
+def chart_annual_bars(exchanges, filename, title, footer_universe, src=None, bench_key=None,
+                      legend_loc="upper left"):
+    """Generate annual returns bar chart for given exchanges vs bench_key's benchmark."""
+    src = src or data
+    bench_key = bench_key or exchanges[0]
+    ex = src[bench_key]
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
 
@@ -132,10 +137,10 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     # SPY bars
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label="S&P 500", color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_label(src, bench_key), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ex_key in enumerate(exchanges):
-        returns = [ar["portfolio"] for ar in data[ex_key]["annual_returns"]]
+        returns = [ar["portfolio"] for ar in src[ex_key]["annual_returns"]]
         ax.bar([o + (idx + 1) * width for o in offsets], returns, width,
                label=EXCHANGE_LABELS[ex_key], color=COLORS[ex_key], alpha=0.85)
 
@@ -143,7 +148,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
     ax.set_xticks(x)
     ax.set_xticklabels(years, rotation=45, ha="right", fontsize=9)
-    ax.legend(fontsize=9, loc="upper left", ncol=min(n_series, 3))
+    ax.legend(fontsize=9, loc=legend_loc, ncol=min(n_series, 3))
     ax.axhline(y=0, color="black", linewidth=0.5)
     ax.grid(True, alpha=0.2, axis="y", linestyle="--")
     ax.set_axisbelow(True)
@@ -374,50 +379,52 @@ chart_annual_bars(
 
 print("Generating charts for blog_india.md...")
 chart_cumulative(
-    ["NSE"], "india_cumulative_growth.png",
-    "Growth of $10,000: QARP India vs S&P 500 (2000-2025)",
-    "NSE (returns in INR)"
+    ["BSE", "NSE"], "india_cumulative_growth.png",
+    "Growth of $10,000: QARP India vs Sensex (2000-2025)",
+    "BSE + NSE (returns in INR)", src=local, bench_key="BSE"
 )
 chart_annual_bars(
-    ["NSE"], "india_annual_returns.png",
-    "QARP India vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "NSE (returns in INR)"
+    ["BSE", "NSE"], "india_annual_returns.png",
+    "QARP India vs Sensex: Year-by-Year Returns (2000-2025)",
+    "BSE + NSE (returns in INR)", src=local, bench_key="BSE",
+    legend_loc="upper right"  # upper left hides the 2003 Sensex bar
 )
 
 print("Generating charts for blog_germany.md...")
 chart_cumulative(
     ["XETRA"], "germany_cumulative_growth.png",
-    "Growth of $10,000: QARP Germany vs S&P 500 (2000-2025)",
-    "XETRA (returns in EUR)"
+    "Growth of $10,000: QARP Germany vs DAX (2000-2025)",
+    "XETRA (returns in EUR)", src=local, bench_key="XETRA"
 )
 chart_annual_bars(
     ["XETRA"], "germany_annual_returns.png",
-    "QARP Germany vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "XETRA (returns in EUR)"
+    "QARP Germany vs DAX: Year-by-Year Returns (2000-2025)",
+    "XETRA (returns in EUR)", src=local, bench_key="XETRA"
 )
 
+# SSE Composite is Shanghai's benchmark; SHZ's "spy" is an S&P 500 fallback, so it is not plotted
 print("Generating charts for blog_china.md...")
 chart_cumulative(
-    ["SHZ", "SHH"], "china_cumulative_growth.png",
-    "Growth of $10,000: QARP China vs S&P 500 (2000-2025)",
-    "SHZ + SHH (returns in CNY)"
+    ["SHH", "SHZ"], "china_cumulative_growth.png",
+    "Growth of $10,000: QARP China vs SSE Composite (2000-2025)",
+    "SHH + SHZ (returns in CNY), no SZSE index in data for SHZ", src=local, bench_key="SHH"
 )
 chart_annual_bars(
-    ["SHZ", "SHH"], "china_annual_returns.png",
-    "QARP China vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "SHZ + SHH (returns in CNY)"
+    ["SHH"], "china_annual_returns.png",
+    "QARP Shanghai vs SSE Composite: Year-by-Year Returns (2000-2025)",
+    "SHH (returns in CNY)", src=local, bench_key="SHH"
 )
 
 print("Generating charts for blog_hongkong.md...")
 chart_cumulative(
     ["HKSE"], "hongkong_cumulative_growth.png",
-    "Growth of $10,000: QARP Hong Kong vs S&P 500 (2000-2025)",
-    "HKSE (HKD pegged to USD)"
+    "Growth of $10,000: QARP Hong Kong vs Hang Seng (2000-2025)",
+    "HKSE (returns in HKD)", src=local, bench_key="HKSE"
 )
 chart_annual_bars(
     ["HKSE"], "hongkong_annual_returns.png",
-    "QARP Hong Kong vs S&P 500: Year-by-Year Returns (2000-2024)",
-    "HKSE (HKD pegged to USD)"
+    "QARP Hong Kong vs Hang Seng: Year-by-Year Returns (2000-2025)",
+    "HKSE (returns in HKD)", src=local, bench_key="HKSE"
 )
 
 print("Generating charts for blog_comparison.md...")

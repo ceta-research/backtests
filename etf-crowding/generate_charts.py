@@ -3,7 +3,7 @@
 Generate charts for ETF Anti-Crowding backtest results.
 
 Reads JSON results from results/ directory and generates:
-- Cumulative growth charts (strategy vs SPY) per exchange
+- Cumulative growth charts (strategy vs the exchange's benchmark) per exchange
 - Annual returns bar charts per exchange
 - CAGR comparison chart across all exchanges
 - Max drawdown comparison chart
@@ -27,7 +27,8 @@ except ImportError:
 
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money_axis_label, money_formatter
+from chart_utils import (benchmark_label, localize_money_title, money_axis_label,
+                         money_formatter)
 
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 CHARTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
@@ -58,16 +59,17 @@ def cumulative_growth_chart(results, exchange_name, output_path):
         port_cum.append(port_cum[-1] * (1 + ar["portfolio"] / 100))
         spy_cum.append(spy_cum[-1] * (1 + ar["spy"] / 100))
 
+    ex_key = results.get("universe")
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(range(len(port_cum)), port_cum, color=STRATEGY_COLOR, linewidth=2,
             label=f"{STRATEGY_NAME}")
+    # "spy" holds the exchange's local index since the local-benchmark rerun.
     ax.plot(range(len(spy_cum)), spy_cum, color=SPY_COLOR, linewidth=2,
-            label="S&P 500")
+            label=benchmark_label({ex_key: results}, ex_key))
 
     x_labels = [str(years[0] - 1)] + [str(y) for y in years]
     ax.set_xticks(range(len(x_labels)))
     ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=8)
-    ex_key = results.get("universe")
     ax.yaxis.set_major_formatter(money_formatter(ex_key))
     ax.set_title(localize_money_title(
                      f"{STRATEGY_NAME}: Cumulative Growth of $10,000 ({exchange_name})",
@@ -98,8 +100,9 @@ def annual_returns_chart(results, exchange_name, output_path):
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.bar([i - width / 2 for i in x], port_rets, width, color=STRATEGY_COLOR,
            label=STRATEGY_NAME, alpha=0.85)
+    ex_key = results.get("universe")
     ax.bar([i + width / 2 for i in x], spy_rets, width, color=SPY_COLOR,
-           label="S&P 500", alpha=0.85)
+           label=benchmark_label({ex_key: results}, ex_key), alpha=0.85)
 
     ax.set_xticks(list(x))
     ax.set_xticklabels(years, rotation=45, ha="right", fontsize=8)

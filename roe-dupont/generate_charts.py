@@ -16,7 +16,7 @@ Usage:
 import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title
+from chart_utils import benchmark_label, money, money_axis_label, money_formatter, currency_prefix, localize_money_title
 import json
 import os
 import sys
@@ -69,7 +69,7 @@ def chart_cumulative(results, universe_name, output_prefix=""):
         ("quality_roe", "Quality ROE", COLORS["quality_roe"]),
         ("margin_driven", "Margin-Driven (Q1)", COLORS["margin_driven"]),
         ("leverage_driven", "Leverage-Driven (Q1)", COLORS["leverage_driven"]),
-        ("spy", "S&P 500", COLORS["spy"]),
+        ("spy", benchmark_label({universe_name: results}, universe_name), COLORS["spy"]),
     ]:
         vals = cumulative_growth(ar, track)
         ax.plot(x_labels, vals, label=label, color=color, linewidth=2)
@@ -104,7 +104,8 @@ def chart_annual_returns(results, universe_name, output_prefix=""):
     ax.bar([i - width/2 for i in x], quality, width,
            label="Quality ROE", color=COLORS["quality_roe"], alpha=0.8)
     ax.bar([i + width/2 for i in x], spy, width,
-           label="S&P 500", color=COLORS["spy"], alpha=0.8)
+           label=benchmark_label({universe_name: results}, universe_name),
+           color=COLORS["spy"], alpha=0.8)
 
     ax.set_title(f"DuPont Quality ROE: Annual Returns ({universe_name})",
                  fontsize=14, fontweight="bold")

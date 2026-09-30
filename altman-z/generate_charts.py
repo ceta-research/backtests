@@ -70,7 +70,7 @@ FOOTER = ("Data: Ceta Research | Altman Z-Score, annual rebalance (April), "
 
 
 def chart_cumulative_growth(exchange_key, filename):
-    """Cumulative $10k growth: Safe zone vs Distress zone vs SPY."""
+    """Cumulative 10k growth: Safe zone vs Distress zone vs the exchange's benchmark."""
     data = exchange_data[exchange_key]
     ar = data["annual_returns"]
 
@@ -85,7 +85,7 @@ def chart_cumulative_growth(exchange_key, filename):
     tracks = [
         ("Safe (Z>2.99)", "safe", COLORS["safe"], "-", 2.2),
         ("Distress (Z<1.81)", "distress", COLORS["distress"], "-", 2.2),
-        ("S&P 500", "spy", COLORS["spy"], "--", 1.8),
+        (benchmark_label(exchange_data, exchange_key), "spy", COLORS["spy"], "--", 1.8),
     ]
 
     fig, ax = plt.subplots(figsize=(12, 6))

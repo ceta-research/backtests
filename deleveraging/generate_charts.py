@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_cagr, benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -93,8 +93,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
 
     spy_years, spy_vals = get_spy_cumulative(exchanges[0])
     if spy_years:
-        us_key = next((k for k in data if "NYSE" in k or "MAJOR" in k), None)
-        spy_cagr = data[us_key]["spy"]["cagr"] if us_key else ""
+        # CAGR of the line actually plotted (the exchange's own benchmark), not the US SPY's.
+        spy_cagr = benchmark_cagr(data, exchanges[0])
         ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
                 label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
@@ -282,12 +282,12 @@ if india_key:
     print("Generating India charts...")
     chart_cumulative(
         [india_key], "1_india_cumulative_growth.png",
-        "Growth of $10,000: Deleveraging India vs S&P 500 (2001-2025)",
+        f"Growth of $10,000: Deleveraging India vs {benchmark_label(data, india_key)} (2001-2025)",
         "NSE, quarterly rebalance, equal weight (returns and benchmark in INR)"
     )
     chart_annual_bars(
         india_key, "2_india_annual_returns.png",
-        "Deleveraging India vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Deleveraging India vs {benchmark_label(data, india_key)}: Year-by-Year Returns (2001-2025)",
         "NSE (returns in INR)"
     )
 
@@ -297,12 +297,12 @@ if jpx_key:
     print("Generating Japan charts...")
     chart_cumulative(
         [jpx_key], "1_japan_cumulative_growth.png",
-        "Growth of $10,000: Deleveraging Japan vs S&P 500 (2001-2025)",
+        f"Growth of $10,000: Deleveraging Japan vs {benchmark_label(data, jpx_key)} (2001-2025)",
         "JPX, quarterly rebalance, equal weight (returns and benchmark in JPY)"
     )
     chart_annual_bars(
         jpx_key, "2_japan_annual_returns.png",
-        "Deleveraging Japan vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Deleveraging Japan vs {benchmark_label(data, jpx_key)}: Year-by-Year Returns (2001-2025)",
         "JPX (returns in JPY)"
     )
 
@@ -312,12 +312,12 @@ if lse_key:
     print("Generating UK charts...")
     chart_cumulative(
         [lse_key], "1_uk_cumulative_growth.png",
-        "Growth of $10,000: Deleveraging UK vs S&P 500 (2001-2025)",
+        f"Growth of $10,000: Deleveraging UK vs {benchmark_label(data, lse_key)} (2001-2025)",
         "LSE, quarterly rebalance, equal weight (returns and benchmark in GBP)"
     )
     chart_annual_bars(
         lse_key, "2_uk_annual_returns.png",
-        "Deleveraging UK vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Deleveraging UK vs {benchmark_label(data, lse_key)}: Year-by-Year Returns (2001-2025)",
         "LSE (returns in GBP)"
     )
 
@@ -327,12 +327,12 @@ if xetra_key:
     print("Generating Germany charts...")
     chart_cumulative(
         [xetra_key], "1_germany_cumulative_growth.png",
-        "Growth of $10,000: Deleveraging Germany vs S&P 500 (2001-2025)",
+        f"Growth of $10,000: Deleveraging Germany vs {benchmark_label(data, xetra_key)} (2001-2025)",
         "XETRA, quarterly rebalance, equal weight (returns and benchmark in EUR)"
     )
     chart_annual_bars(
         xetra_key, "2_germany_annual_returns.png",
-        "Deleveraging Germany vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Deleveraging Germany vs {benchmark_label(data, xetra_key)}: Year-by-Year Returns (2001-2025)",
         "XETRA (returns in EUR)"
     )
 
@@ -342,12 +342,12 @@ if tsx_key:
     print("Generating Canada charts...")
     chart_cumulative(
         [tsx_key], "1_canada_cumulative_growth.png",
-        "Growth of $10,000: Deleveraging Canada vs S&P 500 (2001-2025)",
+        f"Growth of $10,000: Deleveraging Canada vs {benchmark_label(data, tsx_key)} (2001-2025)",
         "TSX, quarterly rebalance, equal weight (returns and benchmark in CAD)"
     )
     chart_annual_bars(
         tsx_key, "2_canada_annual_returns.png",
-        "Deleveraging Canada vs S&P 500: Year-by-Year Returns (2001-2025)",
+        f"Deleveraging Canada vs {benchmark_label(data, tsx_key)}: Year-by-Year Returns (2001-2025)",
         "TSX (returns in CAD)"
     )
 

@@ -364,17 +364,17 @@ if us_key:
     )
 
 # India
-india_keys = [k for k in ["NSE", "NSE"] if k in data]
+india_keys = ["NSE"] if "NSE" in data else []
 if india_keys:
     print("\nGenerating India charts...")
     chart_cumulative(
         india_keys, "india_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency India vs S&P 500 (2000-2025)",
+        f"Growth of $10,000: Working Capital Efficiency India vs {benchmark_label(data, 'NSE')} (2000-2025)",
         "NSE (returns in INR)"
     )
     chart_annual_bars(
         india_keys, "india_annual_returns.png",
-        "Working Capital Efficiency India vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency India vs {benchmark_label(data, 'NSE')}: Year-by-Year Returns (2000-2024)",
         "NSE (returns in INR)"
     )
 
@@ -398,12 +398,12 @@ if china_keys:
     print("\nGenerating China charts...")
     chart_cumulative(
         china_keys, "china_cumulative_growth.png",
-        "Growth of $10,000: Working Capital Efficiency China vs S&P 500 (2000-2025)",
+        f"Growth of $10,000: Working Capital Efficiency China vs {benchmark_label(data, china_keys[0])} (2000-2025)",
         "SHZ + SHH (returns in CNY)"
     )
     chart_annual_bars(
         china_keys, "china_annual_returns.png",
-        "Working Capital Efficiency China vs S&P 500: Year-by-Year Returns (2000-2024)",
+        f"Working Capital Efficiency China vs {benchmark_label(data, china_keys[0])}: Year-by-Year Returns (2000-2024)",
         "SHZ + SHH (returns in CNY)"
     )
 

@@ -8,6 +8,7 @@ import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 from chart_utils import (benchmark_cumulative, benchmark_label, currency_prefix,
                          localize_money_title, money)
+from cli_utils import get_mktcap_threshold
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -67,6 +68,13 @@ EXCHANGE_LABELS = {
 FOOTER = "Data: Ceta Research | Net Debt/EBITDA <2x, ROE >10%, MCap >$1B, top 30 by lowest ratio, quarterly rebalance, equal weight, 2000-2025"
 
 
+def footer(exchange_key):
+    """Footer with the exchange's own local-currency market-cap floor (e.g. Rs20B, SEK 5B)."""
+    n = get_mktcap_threshold(exchange_key.split("_"))
+    div, unit = next((d, u) for d, u in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1, "")) if n >= d)
+    return FOOTER.replace("MCap >$1B", f"MCap >{currency_prefix(exchange_key)}{n / div:g}{unit}")
+
+
 def get_cumulative_growth(exchange_key, initial=10000):
     ex = data[exchange_key]
     values = [initial]
@@ -118,13 +126,14 @@ def chart_cumulative_single(exchange_key, filename, title_suffix=""):
     ax.set_xlabel("Year", fontsize=11)
     ax.set_ylabel(f"Portfolio Value ({money(10000, exchange_key)} initial)", fontsize=11)
     ax.set_title(localize_money_title(
-                     f"Net Debt/EBITDA Strategy vs S&P 500{title_suffix}\n$10,000 initial investment, 2000–2025",
+                     f"Net Debt/EBITDA Strategy vs {benchmark_label(data, exchange_key)}{title_suffix}"
+                     "\n$10,000 initial investment, 2000–2025",
                      exchange_key),
                  fontsize=13, fontweight="bold", pad=12)
     ax.legend(fontsize=10, loc="upper left")
     ax.grid(axis="y", alpha=0.3, color="#cccccc")
     ax.spines[["top", "right"]].set_visible(False)
-    plt.figtext(0.5, -0.02, FOOTER, ha="center", fontsize=8, color="#666666")
+    plt.figtext(0.5, -0.02, footer(exchange_key), ha="center", fontsize=8, color="#666666")
     plt.tight_layout()
     plt.savefig(charts_dir / filename, dpi=150, bbox_inches="tight")
     plt.close()
@@ -154,12 +163,12 @@ def chart_annual_returns(exchange_key, filename, title_suffix=""):
     ax.set_xticks(list(x))
     ax.set_xticklabels(years, rotation=45, ha="right", fontsize=8)
     ax.set_ylabel("Annual Return (%)", fontsize=11)
-    ax.set_title(f"Annual Returns: Net Debt/EBITDA Strategy vs S&P 500{title_suffix}",
+    ax.set_title(f"Annual Returns: Net Debt/EBITDA Strategy vs {benchmark_label(data, exchange_key)}{title_suffix}",
                  fontsize=13, fontweight="bold", pad=12)
     ax.legend(fontsize=10)
     ax.grid(axis="y", alpha=0.3, color="#cccccc")
     ax.spines[["top", "right"]].set_visible(False)
-    plt.figtext(0.5, -0.04, FOOTER, ha="center", fontsize=8, color="#666666")
+    plt.figtext(0.5, -0.04, footer(exchange_key), ha="center", fontsize=8, color="#666666")
     plt.tight_layout()
     plt.savefig(charts_dir / filename, dpi=150, bbox_inches="tight")
     plt.close()

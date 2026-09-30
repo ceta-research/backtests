@@ -2,31 +2,49 @@
 """
 Generate charts for DCF Discount backtest results.
 
-Reads result files from content/_current/value-06-dcf-discount/results/
-and generates PNG charts for each exchange.
+Reads dcf-discount/results/{region}.json and writes PNG charts to
+dcf-discount/charts/.
 
 Usage:
     python3 dcf-discount/generate_charts.py
+    python3 dcf-discount/generate_charts.py --exchange canada
     python3 dcf-discount/generate_charts.py --results-dir path/to/results --output-dir path/to/charts
 """
 
 import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_label, localize_money_title, money, money_axis_label,
+                         money_formatter)
 import json
 import os
 import sys
 
-CONTENT_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "..", "ts-content-creator", "content", "_current", "value-06-dcf-discount"
-)
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Region files are the May 2026 re-run the blogs quote. returns_*.json and
+# exchange_comparison*.json are the March run; read only when no region file exists.
+REGIONS = {
+    "us": "US", "canada": "Canada (TSX)", "germany": "Germany (XETRA)",
+    "india": "India (NSE)", "korea": "Korea (KSC)", "sweden": "Sweden (STO)",
+    "taiwan": "Taiwan (TAI+TWO)", "australia": "Australia (ASX)",
+    "brazil": "Brazil (SAO)", "china": "China (SHZ+SHH)",
+    "hongkong": "Hong Kong (HKSE)", "japan": "Japan (JPX)", "uk": "UK (LSE)",
+    "switzerland": "Switzerland (SIX)", "thailand": "Thailand (SET)",
+    "saudi": "Saudi Arabia (SAU)",
+}
 
 
 def load_results(results_dir):
-    """Load all exchange result JSON files from results dir."""
+    """Load exchange result JSON files from results dir."""
     results = {}
+    for region in REGIONS:
+        path = os.path.join(results_dir, f"{region}.json")
+        if os.path.exists(path):
+            with open(path) as f:
+                results[region] = json.load(f)
+    if results:
+        return results
     for fname in os.listdir(results_dir):
         if fname.startswith("returns_") and fname.endswith(".json"):
             exchange = fname[len("returns_"):-len(".json")]
@@ -60,22 +78,33 @@ def generate_cumulative_chart(exchange, result, output_dir, strategy_name="DCF D
     spy_ret = [a["spy"] / 100 for a in annual]
 
     # Cumulative
-    port_cum = [1.0]
-    spy_cum = [1.0]
+    port_cum = [10000.0]
+    spy_cum = [10000.0]
     for pr, sr in zip(port_ret, spy_ret):
         port_cum.append(port_cum[-1] * (1 + pr))
         spy_cum.append(spy_cum[-1] * (1 + sr))
     x_labels = [str(years[0] - 1)] + [str(y) for y in years]
 
+    # "spy" holds whichever benchmark the run used: the local index outside the US.
+    bench = benchmark_label({exchange: result}, exchange)
+    port_cagr = result.get("portfolio", {}).get("cagr")
+    bench_cagr = result.get("spy", {}).get("cagr")
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(range(len(port_cum)), port_cum, color="#1f77b4", linewidth=2, label=strategy_name)
-    ax.plot(range(len(spy_cum)), spy_cum, color="#ff7f0e", linewidth=2, linestyle="--", label="S&P 500 (SPY)")
+    ax.plot(range(len(port_cum)), port_cum, color="#1f77b4", linewidth=2,
+            label=f"{strategy_name} ({port_cagr:.2f}% CAGR)")
+    ax.plot(range(len(spy_cum)), spy_cum, color="#ff7f0e", linewidth=2, linestyle="--",
+            label=f"{bench} ({bench_cagr:.2f}% CAGR)")
+    for vals, color, dy in ((port_cum, "#1f77b4", 0), (spy_cum, "#ff7f0e", -12)):
+        ax.annotate(money(vals[-1] / 1000, exchange, suffix="K"), xy=(len(vals) - 1, vals[-1]),
+                    xytext=(6, dy), textcoords="offset points", fontsize=9,
+                    fontweight="bold", color=color)
 
     ax.set_xticks(range(len(x_labels)))
     ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=9)
-    ax.yaxis.set_major_formatter(money_formatter(exchange, decimals=1))
+    ax.yaxis.set_major_formatter(money_formatter(exchange))
     ax.set_title(localize_money_title(
-                     f"{strategy_name}: Cumulative Growth ({exchange})\n$1 invested", exchange),
+                     f"{strategy_name}, {REGIONS.get(exchange, exchange)}: Growth of $10,000",
+                     exchange),
                  fontsize=13, pad=12)
     ax.set_ylabel(money_axis_label(exchange))
     ax.legend()
@@ -110,13 +139,15 @@ def generate_annual_returns_chart(exchange, result, output_dir, strategy_name="D
     width = 0.4
     fig, ax = plt.subplots(figsize=(12, 5))
     bars1 = ax.bar([i - width/2 for i in x], port_ret, width, label=strategy_name, color="#1f77b4", alpha=0.85)
-    bars2 = ax.bar([i + width/2 for i in x], spy_ret, width, label="S&P 500 (SPY)", color="#ff7f0e", alpha=0.85)
+    bars2 = ax.bar([i + width/2 for i in x], spy_ret, width,
+                   label=benchmark_label({exchange: result}, exchange), color="#ff7f0e", alpha=0.85)
 
     ax.axhline(0, color="black", linewidth=0.5)
     ax.set_xticks(list(x))
     ax.set_xticklabels([str(y) for y in years], rotation=45, ha="right", fontsize=9)
     ax.yaxis.set_major_formatter(lambda x, _: f"{x:.0f}%")
-    ax.set_title(f"{strategy_name}: Annual Returns ({exchange})", fontsize=13, pad=12)
+    ax.set_title(f"{strategy_name}, {REGIONS.get(exchange, exchange)}: Annual Returns",
+                 fontsize=13, pad=12)
     ax.set_ylabel("Annual Return (%)")
     ax.legend()
     ax.grid(axis="y", alpha=0.3)
@@ -193,15 +224,15 @@ def generate_comparison_chart(all_results, output_dir):
 def main():
     parser = argparse.ArgumentParser(description="Generate DCF Discount backtest charts")
     parser.add_argument("--results-dir", default=None,
-                        help="Path to results directory (default: content/_current/value-06-dcf-discount/results/)")
+                        help="Path to results directory (default: dcf-discount/results/)")
     parser.add_argument("--output-dir", default=None,
-                        help="Output directory for charts (default: same as results)")
+                        help="Output directory for charts (default: dcf-discount/charts/)")
     parser.add_argument("--exchange", default=None,
                         help="Generate charts for specific exchange only")
     args = parser.parse_args()
 
-    results_dir = args.results_dir or os.path.join(CONTENT_DIR, "results")
-    output_dir = args.output_dir or results_dir
+    results_dir = args.results_dir or os.path.join(HERE, "results")
+    output_dir = args.output_dir or os.path.join(HERE, "charts")
 
     if not os.path.exists(results_dir):
         print(f"Results directory not found: {results_dir}")

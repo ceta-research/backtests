@@ -259,6 +259,9 @@ def main():
     # Per-exchange charts
     for exch_key, (region_slug, label) in EXCHANGE_LABELS.items():
         data = all_data.get(exch_key)
+        if not data and exch_key == "NSE" and all_data.get("BSE_NSE"):
+            # Current results predate the NSE-only rerun and key India as BSE_NSE
+            data, label = all_data["BSE_NSE"], "India (BSE+NSE)"
         if not data or "error" in data or not data.get("portfolio"):
             print(f"  Skipping {exch_key} (no results)")
             continue

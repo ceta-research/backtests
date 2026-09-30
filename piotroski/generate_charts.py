@@ -2,7 +2,7 @@
 """Generate Piotroski F-Score charts from per-exchange result JSONs.
 
 Generates:
-- Per-exchange: cumulative growth (Score 8-9 vs SPY), annual returns bar chart
+- Per-exchange: cumulative growth (Score 8-9 vs local benchmark), annual returns bar chart
 - Comparison: CAGR spread by exchange, max drawdown comparison
 
 Usage:
@@ -13,7 +13,7 @@ Usage:
 import json
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 import os
 from pathlib import Path
 
@@ -77,7 +77,8 @@ def chart_cumulative_piotroski(exchange_key, region_label, filename):
         "Score 8-9": ("high", COLORS["score_8_9"]),
         "All Value": ("all", COLORS["all_value"]),
         "Score 0-2": ("low", COLORS["score_0_2"]),
-        "S&P 500": ("spy", COLORS["spy"]),
+        # "spy" holds the exchange's local index after the benchmark reruns
+        benchmark_label(exchange_data, exchange_key): ("spy", COLORS["spy"]),
     }
 
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -133,8 +134,9 @@ def chart_cumulative_piotroski(exchange_key, region_label, filename):
 
 
 def chart_annual_bars_piotroski(exchange_key, region_label, filename):
-    """Annual returns bar chart: Score 8-9 vs SPY."""
+    """Annual returns bar chart: Score 8-9 vs the exchange's benchmark."""
     data = exchange_data[exchange_key]
+    bench = benchmark_label(exchange_data, exchange_key)
     ar = [y for y in data["annual_returns"]
           if y["spy"] is not None and y["year"] >= 2000]
 
@@ -151,7 +153,7 @@ def chart_annual_bars_piotroski(exchange_key, region_label, filename):
     x = list(range(len(years)))
 
     ax.bar([i - width/2 for i in x], spy_rets, width,
-           label="S&P 500", color=COLORS["spy"], alpha=0.7)
+           label=bench, color=COLORS["spy"], alpha=0.7)
     ax.bar([i + width/2 for i in x], high_rets, width,
            label="Score 8-9", color=COLORS["score_8_9"], alpha=0.85)
 
@@ -164,7 +166,7 @@ def chart_annual_bars_piotroski(exchange_key, region_label, filename):
                     ha="center", fontsize=7, color="#555", alpha=0.7)
 
     ax.set_ylabel("Annual Return (%)", fontsize=12, fontweight="bold")
-    ax.set_title(f"Piotroski Score 8-9 vs S&P 500: {region_label} ({years[0]}-{years[-1]})",
+    ax.set_title(f"Piotroski Score 8-9 vs {bench}: {region_label} ({years[0]}-{years[-1]})",
                  fontsize=13, fontweight="bold", pad=15)
     ax.set_xticks(x)
     ax.set_xticklabels(years, rotation=45, ha="right", fontsize=9)

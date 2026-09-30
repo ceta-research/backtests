@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use('Agg')
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
@@ -17,6 +17,7 @@ charts_dir.mkdir(exist_ok=True)
 REGION_MAP = {
     "US_MAJOR": "us",
     "India": "india",
+    "NSE": "india",
     "Canada": "canada",
     "XETRA": "germany",
     "China": "china",
@@ -33,6 +34,7 @@ REGION_MAP = {
 REGION_LABELS = {
     "US_MAJOR": "US (NYSE + NASDAQ + AMEX)",
     "India": "India (NSE)",
+    "NSE": "India (NSE)",
     "Canada": "Canada (TSX + TSXV)",
     "XETRA": "Germany (XETRA)",
     "China": "China (SHZ + SHH)",
@@ -78,6 +80,14 @@ def cumulative_growth(returns, initial=10000):
     return values
 
 
+def bench_name(data, universe):
+    """Name of the index the "spy"/"sp500" fields hold (local index after the rerun)."""
+    b = data[universe].get("benchmark")
+    if isinstance(b, dict) and b.get("name"):
+        return b["name"]
+    return benchmark_label(data, universe)
+
+
 def chart_cumulative_growth(data, universe, region):
     """Chart 1: Cumulative growth - Low CCC vs Mid CCC vs High CCC vs SPY."""
     d = data[universe]
@@ -98,6 +108,7 @@ def chart_cumulative_growth(data, universe, region):
     mid_cagr = d["portfolios"]["mid_ccc"]["cagr"]
     high_cagr = d["portfolios"]["high_ccc"]["cagr"]
     spy_cagr = d["portfolios"]["sp500"]["cagr"]
+    bench = bench_name(data, universe)
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
@@ -108,7 +119,7 @@ def chart_cumulative_growth(data, universe, region):
     ax.plot(years, high_cum, color=C_HIGH, linewidth=1.6, alpha=0.7,
             label=f"High CCC >90d ({high_cagr}% CAGR)")
     ax.plot(years, spy_cum, color=C_SPY, linewidth=1.8, linestyle="--",
-            label=f"S&P 500 ({spy_cagr}% CAGR)")
+            label=f"{bench} ({spy_cagr}% CAGR)")
 
     # Final value annotations
     for vals, color, offset_y in [
@@ -126,7 +137,7 @@ def chart_cumulative_growth(data, universe, region):
     label = REGION_LABELS.get(universe, universe)
     ax.set_ylabel(money_axis_label(universe), fontsize=12, fontweight="bold")
     ax.set_title(localize_money_title(
-                     f"Growth of $10,000: CCC Portfolios vs S&P 500 - {label}", universe),
+                     f"Growth of $10,000: CCC Portfolios vs {bench} - {label}", universe),
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
     ax.yaxis.set_major_formatter(money_formatter(universe))
@@ -152,6 +163,7 @@ def chart_annual_returns(data, universe, region):
     years = [row["year"] for row in ar]
     low_returns = [row["low"] for row in ar]
     spy_returns = [row["spy"] for row in ar]
+    bench = bench_name(data, universe)
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
@@ -162,11 +174,11 @@ def chart_annual_returns(data, universe, region):
     ax.bar([o for o in offsets], low_returns, width,
            label="Low CCC (<30d)", color=C_LOW, alpha=0.85)
     ax.bar([o + width for o in offsets], spy_returns, width,
-           label="S&P 500", color=C_SPY, alpha=0.4)
+           label=bench, color=C_SPY, alpha=0.4)
 
     label = REGION_LABELS.get(universe, universe)
     ax.set_ylabel("Annual Return (%)", fontsize=12, fontweight="bold")
-    ax.set_title(f"Low CCC vs S&P 500: Year-by-Year Returns - {label}",
+    ax.set_title(f"Low CCC vs {bench}: Year-by-Year Returns - {label}",
                  fontsize=13, fontweight="bold", pad=15)
     ax.set_xticks(x)
     ax.set_xticklabels(years, rotation=45, ha="right", fontsize=9)
