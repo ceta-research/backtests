@@ -15,7 +15,8 @@ its old chart while the run looks successful.
 So: try the exact filename first, then the stripped one, and report every
 unmatched blog image loudly.
 
-Dry-run by default, --apply to copy.
+Dry-run by default. Copy one topic with `<backtest-dir> --apply`; every topic
+needs `--apply --all`.
 """
 import os
 import shutil
@@ -59,6 +60,51 @@ TOPIC_DIRS = {
     "rd-efficiency": "growth-05-rd-efficiency",
     "yield-gap": "reversion-06-yield-gap",
     "volume-confirmed-momentum": "momentum-08-volume-confirmed",
+    "52-week-high": "momentum-02-52-week-high",
+    "asset-growth": "balance-04-asset-growth",
+    "asset-light": "quality-07-asset-light",
+    "capex-efficiency": "cashflow-03-capex-efficiency",
+    "cash-conversion": "quality-04-cash-conversion",
+    "cyclical-timing": "sector-05-cyclical-timing",
+    "dcf-discount": "value-06-dcf-discount",
+    "dcf-threshold": "timing-04-dcf-threshold",
+    "defensive-quality": "sector-04-defensive",
+    "deleveraging": "risk-03-deleveraging",
+    "dividend-coverage": "dividend-03-coverage",
+    "dividend-growth": "dividend-02-growth",
+    "dividend-sustainability": "dividend-07-sustainability",
+    "dogs-of-dow": "dividend-06-dogs-of-dow",
+    "earnings-consistency": "growth-02-earnings-consistency",
+    "earnings-yield": "value-08-earnings-yield",
+    "etf-concentration": "etf-05-concentration",
+    "etf-crowding": "etf-02-crowding",
+    "etf-rebalancing": "etf-04-rebalancing",
+    "etf-underowned": "etf-03-underowned",
+    "fcf-compounders": "cashflow-04-compounders",
+    "fcf-conversion": "cashflow-01-fcf-yield",
+    "fcf-yield": "value-04-fcf-yield",
+    "garp": "factor-08-garp",
+    # One backtest feeds two topics. ncav's README runs graham-net-net/backtest.py.
+    "graham-net-net": ["value-02-graham-net-net", "balance-01-ncav"],
+    "graham-number": "value-10-graham-number",
+    "graham-timing": "timing-03-graham-timing",
+    "income-quality": "quality-06-income-quality",
+    "industry-leader": "sector-03-industry-leader",
+    "low-pe": "value-01-classic-pe",
+    "low-vol-quality": "factor-06-low-vol-quality",
+    "magic-formula": "factor-01-magic-formula",
+    "market-share": "growth-06-market-share",
+    "net-debt-ebitda": "risk-04-net-debt-ebitda",
+    "ocf-growth": "cashflow-02-ocf-growth",
+    "owner-earnings": "cashflow-05-owner-earnings",
+    "pairs-fundamentals": ["pairs-01-fundamentals", "pairs-05-backtest"],
+    "piotroski": "quality-01-piotroski",
+    "quality-momentum": "factor-04-quality-momentum",
+    "relative-strength": "momentum-07-relative-strength",
+    "rising-yield": "dividend-05-rising-yield",
+    "roe-dupont": "quality-05-roe-dupont",
+    "sustained-roic": "quality-03-roic-sustained",
+    "tangible-book": "balance-02-tangible-book",
 }
 
 # Regions whose blog is not live; copying into them is harmless but noisy.
@@ -129,7 +175,9 @@ def run(apply=False, only=None):
         unknown = sorted(set(only) - set(TOPIC_DIRS))
         if unknown:
             print(f"  WARNING: not in TOPIC_DIRS, ignored: {unknown}")
-    for topic, cdir in sorted(items.items()):
+    pairs = [(t, c) for t, v in sorted(items.items())
+             for c in ([v] if isinstance(v, str) else v)]
+    for topic, cdir in pairs:
         charts = f"{ROOT}/{topic}/charts"
         blogs = f"{CONTENT}/{cdir}/blogs"
         if not os.path.isdir(charts):
@@ -170,4 +218,7 @@ def run(apply=False, only=None):
 
 if __name__ == "__main__":
     only = [a for a in sys.argv[1:] if not a.startswith("-")] or None
+    # A bare --apply once overwrote 90 PNGs across 16 unrelated topics (2026-09-30).
+    if "--apply" in sys.argv and not only and "--all" not in sys.argv:
+        sys.exit("refusing --apply without a topic: pass <backtest-dir> ... or --all")
     sys.exit(1 if run(apply="--apply" in sys.argv, only=only) and "--apply" in sys.argv else 0)
