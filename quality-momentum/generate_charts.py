@@ -16,7 +16,7 @@ Usage:
 import json
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title
+from chart_utils import money, money_axis_label, money_formatter, currency_code, currency_prefix, localize_money_title
 import os
 import sys
 
@@ -62,8 +62,11 @@ def plot_cumulative(data, label, output_path):
 
     ax.plot(x, port_curve, color=STRATEGY_COLOR, linewidth=2.5,
             label=f"Quality Momentum  (CAGR: {data['portfolio']['cagr']:.1f}%)")
+    # Every exchange in this topic ran against SPY. Off the US exchanges that is a
+    # local-currency portfolio against a dollar benchmark, so say so on the chart.
+    cross = currency_code(data.get("universe")) != "USD"
     ax.plot(x, spy_curve, color=BENCHMARK_COLOR, linewidth=1.8, linestyle="--",
-            label=f"S&P 500 (SPY)  (CAGR: {data['spy']['cagr']:.1f}%)")
+            label=f"S&P 500 (SPY{', USD' if cross else ''})  (CAGR: {data['spy']['cagr']:.1f}%)")
 
     ax.set_title(f"Quality Momentum vs S&P 500\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
@@ -84,10 +87,12 @@ def plot_cumulative(data, label, output_path):
     tr = data.get("total_rebalances") or n
     cash_pct = round(data.get("cash_periods", 0) * 100 / tr, 0) if tr > 0 else 0
 
+    gap_label = "CAGR gap vs SPY (local vs USD)" if cross else "Excess CAGR"
+    dc_label = "Down Capture (local vs USD)" if cross else "Down Capture"
     info_text = (
         f"Max Drawdown: {data['portfolio']['max_drawdown']:.1f}%\n"
-        f"Down Capture: {down_capture:.1f}%\n"
-        f"Excess CAGR: {excess:+.2f}%\n"
+        f"{dc_label}: {down_capture:.1f}%\n"
+        f"{gap_label}: {excess:+.2f}%\n"
         f"Cash periods: {cash_pct:.0f}%"
     )
     ax.text(0.02, 0.97, info_text,
