@@ -66,7 +66,7 @@ COMPARISON_UNIVERSES = {
 CROSS_CCY_UNIVERSES = {"JNB"}
 CROSS_CCY_COLOR = "#9E9E9E"
 COMPARISON_NOTE = ("Each exchange in local currency vs its own local index. JNB has no local index data, "
-                   "so its ZAR returns sit against the S&P 500 in USD (ZAR fell 4.2%/yr vs USD, 2000-2025).\n"
+                   "so its ZAR returns sit against the S&P 500 in USD (ZAR fell 4.8%/yr vs USD, 2005-2025).\n"
                    "*Norway: 12 periods (2013-2024). SAO and ASX excluded for data quality.")
 
 

@@ -1,6 +1,8 @@
 """Generate all Working Capital Efficiency charts for blog posts from results/exchange_comparison.json."""
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import json
 from pathlib import Path
 import os as _os, sys as _sys
@@ -16,6 +18,8 @@ with open(results_dir / "exchange_comparison.json") as f:
 
 # Not in the published comparison table: a stale BSE_NSE duplicate of NSE, and ASX.
 COMPARISON_EXCLUDE = {"BSE_NSE", "ASX"}
+# No local index data: measured against the S&P 500 in USD, a cross-currency gap.
+CROSS_CCY = {"SAU"}
 
 # Color palette
 COLORS = {
@@ -200,7 +204,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
 
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange."""
+    """CAGR by exchange, each against its own benchmark (marker)."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if k not in COMPARISON_EXCLUDE
@@ -212,32 +216,42 @@ def chart_comparison_cagr(filename):
 
     names = [k for k, v in exchanges_with_data]
     cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k in names]
+    benches = [v["spy"]["cagr"] for k, v in exchanges_with_data]
+    excesses = [v.get("comparison", {}).get("excess_cagr", c - b)
+                for (k, v), c, b in zip(exchanges_with_data, cagrs, benches)]
+    colors = ["#9E9E9E" if k in CROSS_CCY else "#27ae60" if c > b else "#c0392b"
+              for k, c, b in zip(names, cagrs, benches)]
 
-    spy_cagr = data[us_key].get("spy", {}).get("cagr", 7.83)
-
-    fig, ax = plt.subplots(figsize=(10, max(6, len(names) * 0.6)))
-    bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-
-    ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr}% CAGR)")
+    fig, ax = plt.subplots(figsize=(11, max(6, len(names) * 0.6)))
+    ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
+    ax.scatter(benches, range(len(names)), marker="|", s=500, linewidths=3, color="black", zorder=3)
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=11)
     ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title(f"{STRATEGY_NAME}: CAGR by Exchange (2000-2025)",
+    ax.set_xlabel("CAGR (%, local currency)", fontsize=12, fontweight="bold")
+    ax.set_xlim(right=max(max(cagrs), max(benches)) + 7)
+    ax.set_title(f"{STRATEGY_NAME}: CAGR vs Own Benchmark by Exchange (2000-2025)",
                  fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
+    ax.legend(handles=[
+        Patch(color="#27ae60", alpha=0.85, label="Beat its own benchmark"),
+        Patch(color="#c0392b", alpha=0.85, label="Trailed its own benchmark"),
+        Patch(color="#9E9E9E", alpha=0.85, label="No local index (vs S&P 500, USD)"),
+        Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+               markeredgewidth=3, label="Benchmark CAGR"),
+    ], fontsize=9, loc="lower right")
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
-    for i, (bar, cagr) in enumerate(zip(bars, cagrs)):
-        x_pos = max(cagr, 0) + 0.3
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
+    for i, (k, c, b, e) in enumerate(zip(names, cagrs, benches, excesses)):
+        ax.text(max(c, b, 0) + 0.3, i, f"{c:.2f}% ({e:+.2f} vs {benchmark_label(data, k)})",
+                va="center", fontsize=9)
 
+    beat = sum(c > b for k, c, b in zip(names, cagrs, benches) if k not in CROSS_CCY)
     fig.text(0.5, -0.02,
-             f"Data: Ceta Research | Same WC/Revenue screen, {REBALANCE_NOTE}, equal weight",
+             f"Data: Ceta Research | Same WC/Revenue screen, {REBALANCE_NOTE}, equal weight\n"
+             f"Returns in local currency, each against its own market's index; Saudi Arabia against the "
+             f"S&P 500 in USD. {beat} of {len(names)} beat their own benchmark.",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
