@@ -21,7 +21,7 @@ import numpy as np
 
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money_axis_label, money_formatter
+from chart_utils import benchmark_label, localize_money_title, money_axis_label, money_formatter
 
 CHART_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
 RESULTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -46,7 +46,7 @@ COLORS = {
 
 REGION_MAP = {
     'US_MAJOR': 'us',
-    'India': 'india',
+    'NSE': 'india',       # --global keys entries by preset name; the pre-2026-10 file used 'India'
     'XETRA': 'germany',
     'LSE': 'uk',
     'China': 'china',
@@ -56,7 +56,7 @@ REGION_MAP = {
     'KSC': 'korea',
     'STO': 'sweden',
     'Taiwan': 'taiwan',
-    'SGX': 'singapore',
+    'SES': 'singapore',
     'SAO': 'brazil',
     'JSE': 'southafrica',
 }
@@ -88,11 +88,13 @@ def plot_cumulative(data, exchange_name, region_key):
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.plot(x_labels, high_growth, color=COLORS['high'],
             linewidth=2.5, label=f'High IQ >1.2 ({data["portfolios"]["high"]["cagr"]}% CAGR)')
+    # The "sp500" bucket holds whichever benchmark this exchange ran against.
+    bench = benchmark_label({exchange_name: data}, exchange_name)
     ax.plot(x_labels, spy_growth, color=COLORS['spy'],
-            linewidth=2, linestyle='--', label=f'S&P 500 ({data["portfolios"]["sp500"]["cagr"]}% CAGR)')
+            linewidth=2, linestyle='--', label=f'{bench} ({data["portfolios"]["sp500"]["cagr"]}% CAGR)')
 
     ax.set_title(localize_money_title(
-                     f'Growth of $10,000: High Income Quality vs S&P 500 ({exchange_name})',
+                     f'Growth of $10,000: High Income Quality vs {bench} ({exchange_name})',
                      exchange_name),
                  fontsize=14, fontweight='bold')
     ax.set_xlabel('Year')
@@ -129,11 +131,12 @@ def plot_annual_returns(data, exchange_name, region_key):
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.bar(x - width/2, high_rets, width, color=COLORS['high'],
            label='High IQ (>1.2)', alpha=0.85)
+    bench = benchmark_label({exchange_name: data}, exchange_name)
     ax.bar(x + width/2, spy_rets, width, color=COLORS['spy'],
-           label='S&P 500', alpha=0.85)
+           label=bench, alpha=0.85)
 
     ax.axhline(y=0, color='black', linewidth=0.5)
-    ax.set_title(f'Annual Returns: High Income Quality vs S&P 500 ({exchange_name})',
+    ax.set_title(f'Annual Returns: High Income Quality vs {bench} ({exchange_name})',
                  fontsize=14, fontweight='bold')
     ax.set_xlabel('Year')
     ax.set_ylabel('Return (%)')
@@ -175,7 +178,7 @@ def plot_comparison_cagr(all_data):
     ax.barh(x - width/2, high_cagrs, width, color=COLORS['high'],
             label='High Income Quality', alpha=0.85)
     ax.barh(x + width/2, spy_cagrs, width, color=COLORS['spy'],
-            label='S&P 500 (benchmark)', alpha=0.85)
+            label='Local benchmark', alpha=0.85)
 
     ax.set_title('Income Quality CAGR by Exchange',
                  fontsize=14, fontweight='bold')
@@ -219,7 +222,7 @@ def plot_comparison_drawdown(all_data):
     ax.barh(x - width/2, high_dd, width, color=COLORS['high'],
             label='High Income Quality', alpha=0.85)
     ax.barh(x + width/2, spy_dd, width, color=COLORS['spy'],
-            label='S&P 500', alpha=0.85)
+            label='Local benchmark', alpha=0.85)
 
     ax.set_title('Maximum Drawdown by Exchange',
                  fontsize=14, fontweight='bold')

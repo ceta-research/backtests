@@ -49,7 +49,8 @@ def comparison_is_stale(topic):
     Returns (stale, n_local, n_identical). A topic can carry benchmark_name
     stamps that were backfilled by hand onto results whose series were never
     re-run (commit 9f4303f did exactly that to income-quality and
-    sustained-roic). On those, "S&P 500" is the TRUTHFUL label and relabelling
+    sustained-roic; both were re-run on 2026-10-08 and now carry genuine
+    local series). On those, "S&P 500" is the TRUTHFUL label and relabelling
     prints a local index over a genuine S&P 500 line, which is worse than
     leaving it alone. So the series decides, never the stamp.
 

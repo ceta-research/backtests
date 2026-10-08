@@ -141,9 +141,10 @@ def patch_topic(topic, apply=False):
 # plot_* function names or pass no exchange key, so the AST filter skips them
 # and they need hand edits. A "no change" here is not a clean bill of health.
 #
-# NEVER add a STALE_RESULTS topic to this list. 52-week-low, income-quality,
-# margin-expansion and sustained-roic read a pre-local-benchmark file where
-# "S&P 500" is the TRUE label; relabelling them creates a falsehood.
+# NEVER add a STALE_RESULTS topic to this list. 52-week-low and margin-expansion
+# read a pre-local-benchmark file where "S&P 500" is the TRUE label; relabelling
+# them creates a falsehood. (income-quality and sustained-roic were in this set
+# until their 2026-10-08 re-run; their generators now use benchmark_label.)
 TOPICS = ["small-value", "price-to-sales", "ev-ebitda", "equity-growth",
           "working-capital", "price-to-book", "altman-z"]
 
