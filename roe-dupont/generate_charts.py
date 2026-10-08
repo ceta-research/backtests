@@ -40,6 +40,36 @@ COLORS = {
     "spy": "#9E9E9E",             # Gray
 }
 
+# Result keys -> market names used in the blog tables.
+DISPLAY_NAMES = {
+    "SAO": "Brazil", "JSE": "South Africa", "NSE": "India NSE", "US_MAJOR": "US",
+    "SIX": "Switzerland", "LSE": "UK", "XETRA": "Germany", "STO": "Sweden",
+    "KSC": "Korea", "HKSE": "Hong Kong",
+}
+US_KEYS = {"US", "US_MAJOR"}
+# Proxy rows compare a local-currency CAGR with SPY in USD; say how much is FX.
+PROXY_FX_NOTES = {"JSE": "ZAR fell 4.2%/yr vs USD over 2000-2025, so South Africa's gap is currency, not alpha."}
+
+
+def _is_proxy(all_results, name):
+    """Non-US market measured against SPY because no local index was available."""
+    return name not in US_KEYS and benchmark_label(all_results, name) == "S&P 500"
+
+
+def _row_label(all_results, name):
+    star = "*" if _is_proxy(all_results, name) else ""
+    return f"{DISPLAY_NAMES.get(name, name)} ({benchmark_label(all_results, name)}{star})"
+
+
+def _comparison_footnote(all_results, names, metric, fx_notes=True):
+    note = f"{metric} in local currency. Grey bar = each market's own index."
+    proxies = [n for n in names if _is_proxy(all_results, n)]
+    if proxies:
+        note += "\n*No local index in the data; S&P 500 (USD) used as proxy. "
+        if fx_notes:
+            note += " ".join(PROXY_FX_NOTES[n] for n in proxies if n in PROXY_FX_NOTES)
+    return note.strip()
+
 
 def load_results(path):
     with open(path) as f:
@@ -164,9 +194,10 @@ def chart_comparison_cagr(all_results, output_prefix=""):
     leverage_cagrs = []
     spy_cagrs = []
 
-    for name, r in sorted(all_results.items()):
-        if "error" in r:
-            continue
+    # Ascending by Quality ROE so barh puts the leader on top, matching the blog table.
+    rows = sorted((kv for kv in all_results.items() if "error" not in kv[1]),
+                  key=lambda kv: kv[1]["portfolios"]["quality_roe"]["cagr"])
+    for name, r in rows:
         p = r["portfolios"]
         exchanges.append(name)
         quality_cagrs.append(p["quality_roe"]["cagr"])
@@ -188,17 +219,19 @@ def chart_comparison_cagr(all_results, output_prefix=""):
     ax.barh([i + 0.5*width for i in x], leverage_cagrs, width,
             label="Leverage-Driven", color=COLORS["leverage_driven"], alpha=0.8)
     ax.barh([i + 1.5*width for i in x], spy_cagrs, width,
-            label="S&P 500", color=COLORS["spy"], alpha=0.8)
+            label="Local benchmark", color=COLORS["spy"], alpha=0.8)
 
     ax.set_yticks(list(x))
-    ax.set_yticklabels(exchanges)
+    ax.set_yticklabels([_row_label(all_results, n) for n in exchanges])
     ax.set_xlabel("CAGR (%)")
     ax.set_title("DuPont ROE: CAGR Comparison Across Exchanges",
                  fontsize=14, fontweight="bold")
     ax.legend(loc="lower right")
     ax.grid(True, alpha=0.3, axis="x")
 
-    plt.tight_layout()
+    fig.text(0.01, 0.01, _comparison_footnote(all_results, exchanges, "CAGRs"),
+             fontsize=9, color="#555555", ha="left", va="bottom")
+    plt.tight_layout(rect=[0, 0.05, 1, 1])
     path = os.path.join(CHART_DIR, f"{output_prefix}1_comparison_cagr.png")
     fig.savefig(path, dpi=150)
     plt.close(fig)
@@ -229,17 +262,19 @@ def chart_comparison_drawdown(all_results, output_prefix=""):
     ax.barh([i - width/2 for i in x], quality_dd, width,
             label="Quality ROE", color=COLORS["quality_roe"], alpha=0.8)
     ax.barh([i + width/2 for i in x], spy_dd, width,
-            label="S&P 500", color=COLORS["spy"], alpha=0.8)
+            label="Local benchmark", color=COLORS["spy"], alpha=0.8)
 
     ax.set_yticks(list(x))
-    ax.set_yticklabels(exchanges)
+    ax.set_yticklabels([_row_label(all_results, n) for n in exchanges])
     ax.set_xlabel("Max Drawdown (%)")
     ax.set_title("DuPont Quality ROE: Max Drawdown Comparison",
                  fontsize=14, fontweight="bold")
     ax.legend()
     ax.grid(True, alpha=0.3, axis="x")
 
-    plt.tight_layout()
+    fig.text(0.01, 0.01, _comparison_footnote(all_results, exchanges, "Drawdowns", fx_notes=False),
+             fontsize=9, color="#555555", ha="left", va="bottom")
+    plt.tight_layout(rect=[0, 0.06, 1, 1])
     path = os.path.join(CHART_DIR, f"{output_prefix}2_comparison_drawdown.png")
     fig.savefig(path, dpi=150)
     plt.close(fig)

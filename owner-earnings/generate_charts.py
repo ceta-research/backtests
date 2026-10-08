@@ -90,7 +90,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
 
     spy_years, spy_vals = get_spy_cumulative(exchanges[0])
     if spy_years:
-        spy_cagr = data.get("US_MAJOR", {}).get("spy", {}).get("cagr", "?")
+        # Per-exchange, not US_MAJOR: the series and label are per-exchange
+        spy_cagr = data.get(exchanges[0], {}).get("spy", {}).get("cagr", "?")
         ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
                 label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 

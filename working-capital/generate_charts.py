@@ -14,6 +14,9 @@ charts_dir.mkdir(exist_ok=True)
 with open(results_dir / "exchange_comparison.json") as f:
     data = json.load(f)
 
+# Not in the published comparison table: a stale BSE_NSE duplicate of NSE, and ASX.
+COMPARISON_EXCLUDE = {"BSE_NSE", "ASX"}
+
 # Color palette
 COLORS = {
     "US_MAJOR": "#1a5276",
@@ -97,7 +100,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     """Generate cumulative growth chart for given exchanges vs SPY."""
     # Use first valid exchange's SPY series as benchmark
     ref_key = next((k for k in exchanges if k in data), "US_MAJOR")
-    spy_cagr_ref = data.get("US_MAJOR", data[ref_key]).get("spy", {}).get("cagr", "?")
+    spy_cagr_ref = data.get(ref_key, {}).get("spy", {}).get("cagr", "?")  # the plotted series' own CAGR
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -200,7 +203,8 @@ def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if not v.get("error") and v.get("invested_periods", 0) > 0
+        if k not in COMPARISON_EXCLUDE
+        and not v.get("error") and v.get("invested_periods", 0) > 0
         and not v.get("window_truncated", False)
         and v.get("portfolio", {}).get("cagr") is not None
     ]
@@ -210,7 +214,7 @@ def chart_comparison_cagr(filename):
     cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
     colors = [COLORS.get(k, "#95a5a6") for k in names]
 
-    spy_cagr = data.get("US_MAJOR", list(data.values())[0]).get("spy", {}).get("cagr", 7.83)
+    spy_cagr = data[us_key].get("spy", {}).get("cagr", 7.83)
 
     fig, ax = plt.subplots(figsize=(10, max(6, len(names) * 0.6)))
     bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
@@ -247,7 +251,8 @@ def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if not v.get("error") and v.get("invested_periods", 0) > 0
+        if k not in COMPARISON_EXCLUDE
+        and not v.get("error") and v.get("invested_periods", 0) > 0
         and not v.get("window_truncated", False)
         and v.get("portfolio", {}).get("max_drawdown") is not None
     ]
@@ -257,7 +262,7 @@ def chart_comparison_drawdown(filename):
     drawdowns = [v["portfolio"]["max_drawdown"] for k, v in exchanges_with_data]
     colors = [COLORS.get(k, "#95a5a6") for k in names]
 
-    spy_dd = data.get("US_MAJOR", list(data.values())[0]).get("spy", {}).get("max_drawdown", -36.0)
+    spy_dd = data[us_key].get("spy", {}).get("max_drawdown", -36.0)
 
     fig, ax = plt.subplots(figsize=(10, max(6, len(names) * 0.6)))
     bars = ax.barh(range(len(names)), drawdowns, color=colors, alpha=0.85, height=0.6)
@@ -294,7 +299,8 @@ def chart_comparison_sharpe(filename):
     """Horizontal bar chart: Sharpe ratio by exchange."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if not v.get("error") and v.get("invested_periods", 0) > 0
+        if k not in COMPARISON_EXCLUDE
+        and not v.get("error") and v.get("invested_periods", 0) > 0
         and not v.get("window_truncated", False)
         and v.get("portfolio", {}).get("sharpe_ratio") is not None
     ]
@@ -308,7 +314,7 @@ def chart_comparison_sharpe(filename):
     sharpes = [v["portfolio"]["sharpe_ratio"] for k, v in exchanges_with_data]
     colors = [COLORS.get(k, "#95a5a6") for k in names]
 
-    spy_sharpe = data.get("US_MAJOR", list(data.values())[0]).get("spy", {}).get("sharpe_ratio")
+    spy_sharpe = data[us_key].get("spy", {}).get("sharpe_ratio")
 
     fig, ax = plt.subplots(figsize=(10, max(6, len(names) * 0.6)))
     bars = ax.barh(range(len(names)), sharpes, color=colors, alpha=0.85, height=0.6)

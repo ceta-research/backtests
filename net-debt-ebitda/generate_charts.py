@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
-"""Generate all Net Debt/EBITDA charts for blog posts from exchange_comparison.json."""
+"""Generate all Net Debt/EBITDA charts for blog posts.
+
+Single-exchange charts read exchange_comparison.json. The comparison charts read
+the per-exchange files the comparison post's table was built from (see
+COMPARISON_FILES); exchange_comparison.json is an older run that disagrees with it.
+"""
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.patches import Patch
 import json
 from pathlib import Path
 import os as _os, sys as _sys
@@ -16,6 +22,32 @@ charts_dir.mkdir(exist_ok=True)
 
 with open(results_dir / "exchange_comparison.json") as f:
     data = json.load(f)
+
+# Comparison-chart sources, one per post-table row. returns_STO.json is a SPY-benchmarked
+# run, so Sweden comes from sweden.json (OMX30). OSL is left out: no file reproduces its row (B006).
+COMPARISON_FILES = {"NSE": "india.json", "STO": "sweden.json", "NYSE_NASDAQ_AMEX": "us.json"}
+COMPARISON_FILES.update({k: f"returns_{k}.json" for k in (
+    "SAO", "TSX", "MIL", "SHZ_SHH", "XETRA", "SIX", "KSC", "JPX", "TAI", "LSE",
+    "AMS", "HKSE", "ASX", "SAU", "SET", "BME", "SES", "TLV")})
+OMITTED_NOTE = "Oslo omitted: no reproducible run."
+
+
+def load_comparison():
+    out = {}
+    for key, fname in COMPARISON_FILES.items():
+        with open(results_dir / fname) as f:
+            out[key] = json.load(f)
+    return out
+
+
+comparison = load_comparison()
+
+
+def spy_benchmarked(entries):
+    """Keys whose benchmark series is the US entry's SPY series, in display form."""
+    spy_series = [a["spy"] for a in entries["NYSE_NASDAQ_AMEX"]["annual_returns"]]
+    keys = [k for k, v in entries.items() if [a["spy"] for a in v["annual_returns"]] == spy_series]
+    return sorted("US" if k == "NYSE_NASDAQ_AMEX" else k for k in keys)
 
 # Color palette
 COLORS = {
@@ -68,11 +100,24 @@ EXCHANGE_LABELS = {
 FOOTER = "Data: Ceta Research | Net Debt/EBITDA <2x, ROE >10%, MCap >$1B, top 30 by lowest ratio, quarterly rebalance, equal weight, 2000-2025"
 
 
-def footer(exchange_key):
-    """Footer with the exchange's own local-currency market-cap floor (e.g. Rs20B, SEK 5B)."""
+def mcap_floor(exchange_key):
+    """The exchange's own local-currency market-cap floor (e.g. Rs20B, SEK 5B)."""
     n = get_mktcap_threshold(exchange_key.split("_"))
     div, unit = next((d, u) for d, u in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1, "")) if n >= d)
-    return FOOTER.replace("MCap >$1B", f"MCap >{currency_prefix(exchange_key)}{n / div:g}{unit}")
+    return f"{currency_prefix(exchange_key)}{n / div:g}{unit}"
+
+
+def footer(exchange_key):
+    """Footer with the exchange's own market-cap floor."""
+    return FOOTER.replace("MCap >$1B", f"MCap >{mcap_floor(exchange_key)}")
+
+
+def comparison_footer():
+    """Multi-exchange footer: the floor differs per exchange, so name a few."""
+    eg = ", ".join(f"{mcap_floor(k)} {c}" for k, c in
+                   (("NYSE_NASDAQ_AMEX", "US"), ("NSE", "India"), ("STO", "Sweden")))
+    return (FOOTER.replace("MCap >$1B", f"MCap floor per exchange in local currency ({eg})")
+            + f"\nReturns in local currency. {OMITTED_NOTE}")
 
 
 def get_cumulative_growth(exchange_key, initial=10000):
@@ -176,43 +221,56 @@ def chart_annual_returns(exchange_key, filename, title_suffix=""):
 
 
 def chart_comparison_cagr():
-    """CAGR bar chart across all exchanges."""
+    """CAGR bar chart across all exchanges, each against its own benchmark."""
+    spy_keys = spy_benchmarked(comparison)
     exchange_data = []
-    for key, val in data.items():
+    for key, val in comparison.items():
         exchange_data.append({
             "key": key,
             "cagr": val["portfolio"]["cagr"],
+            "bench": val["spy"]["cagr"],
             "excess": val["comparison"]["excess_cagr"],
+            "is_spy": ("US" if key == "NYSE_NASDAQ_AMEX" else key) in spy_keys,
         })
     exchange_data.sort(key=lambda x: x["cagr"], reverse=True)
 
     labels = [e["key"].replace("_", "\n") for e in exchange_data]
     cagrs = [e["cagr"] for e in exchange_data]
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
+    x = range(len(labels))
 
+    # Colour = excess vs the exchange's OWN benchmark, which is the marker on each bar.
     colors = ["#27ae60" if e["excess"] > 0 else "#c0392b" for e in exchange_data]
 
     fig, ax = plt.subplots(figsize=(14, 7))
     fig.patch.set_facecolor("#f8f9fa")
     ax.set_facecolor("#f8f9fa")
 
-    bars = ax.bar(range(len(labels)), cagrs, color=colors, alpha=0.85, edgecolor="white", linewidth=0.5)
-    ax.axhline(spy_cagr, color="#1a5276", linewidth=2, linestyle="--",
-               label=f"S&P 500 CAGR ({spy_cagr}%)", zorder=5)
+    bars = ax.bar(x, cagrs, color=colors, alpha=0.85, edgecolor="white", linewidth=0.5)
+    for is_spy, color, label in ((False, "#1a1a1a", "Own benchmark: local index CAGR (local currency)"),
+                                 (True, "#1a5276", "Own benchmark: S&P 500 CAGR (USD)")):
+        pts = [(i, e["bench"]) for i, e in enumerate(exchange_data) if e["is_spy"] == is_spy]
+        ax.scatter([p[0] for p in pts], [p[1] for p in pts], marker="_", s=700, linewidths=3,
+                   color=color, zorder=6, label=label)
 
-    for i, (bar, cagr) in enumerate(zip(bars, cagrs)):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
-                f"{cagr}%", ha="center", va="bottom", fontsize=7.5, fontweight="bold")
+    for bar, e in zip(bars, exchange_data):
+        ax.text(bar.get_x() + bar.get_width()/2, max(e["cagr"], e["bench"]) + 0.25,
+                f"{e['cagr']:.2f}%", ha="center", va="bottom", fontsize=7.5, fontweight="bold")
 
-    ax.set_xticks(range(len(labels)))
+    ax.set_xticks(list(x))
     ax.set_xticklabels(labels, fontsize=8)
-    ax.set_ylabel("CAGR (%)", fontsize=11)
-    ax.set_title("Net Debt/EBITDA Strategy CAGR: 20 Exchanges (2000–2025)\nGreen = beats S&P 500 | Red = underperforms",
-                 fontsize=13, fontweight="bold", pad=12)
-    ax.legend(fontsize=10)
+    ax.set_ylabel("CAGR (%, local currency)", fontsize=11)
+    ax.set_title(f"Net Debt/EBITDA Strategy CAGR: {len(comparison)} Exchanges (2000–2025)",
+                 fontsize=13, fontweight="bold", pad=26)
+    ax.text(0.5, 1.015, f"Colour = CAGR vs own benchmark (marker): S&P 500 in USD for {', '.join(spy_keys)}; "
+            f"local index for the other {len(comparison) - len(spy_keys)}",
+            transform=ax.transAxes, ha="center", fontsize=10)
+    handles, _ = ax.get_legend_handles_labels()
+    ax.legend(handles=[Patch(color="#27ae60", alpha=0.85, label="Beats its own benchmark"),
+                       Patch(color="#c0392b", alpha=0.85, label="Trails its own benchmark")] + handles,
+              fontsize=10)
     ax.grid(axis="y", alpha=0.3, color="#cccccc")
     ax.spines[["top", "right"]].set_visible(False)
-    plt.figtext(0.5, -0.04, FOOTER, ha="center", fontsize=8, color="#666666")
+    plt.figtext(0.5, -0.04, comparison_footer(), ha="center", fontsize=8, color="#666666")
     plt.tight_layout()
     plt.savefig(charts_dir / "1_comparison_cagr.png", dpi=150, bbox_inches="tight")
     plt.close()
@@ -222,35 +280,38 @@ def chart_comparison_cagr():
 def chart_comparison_drawdown():
     """Max drawdown comparison across all exchanges."""
     exchange_data = []
-    for key, val in data.items():
+    for key, val in comparison.items():
         exchange_data.append({
             "key": key,
             "drawdown": val["portfolio"]["max_drawdown"],
-            "spy_dd": val["spy"]["max_drawdown"],
         })
     exchange_data.sort(key=lambda x: x["drawdown"])
 
     labels = [e["key"].replace("_", "\n") for e in exchange_data]
     dds = [e["drawdown"] for e in exchange_data]
-    spy_dd = exchange_data[0]["spy_dd"]  # SPY max drawdown (same for all)
+    spy_dd = comparison["NYSE_NASDAQ_AMEX"]["spy"]["max_drawdown"]  # US entry's SPY
 
     fig, ax = plt.subplots(figsize=(14, 7))
     fig.patch.set_facecolor("#f8f9fa")
     ax.set_facecolor("#f8f9fa")
 
-    ax.bar(range(len(labels)), dds, color="#c0392b", alpha=0.75, edgecolor="white", linewidth=0.5)
+    bars = ax.bar(range(len(labels)), dds, color="#c0392b", alpha=0.75, edgecolor="white", linewidth=0.5)
     ax.axhline(spy_dd, color="#1a5276", linewidth=2, linestyle="--",
-               label=f"S&P 500 Max Drawdown ({spy_dd}%)")
+               label=f"S&P 500 max drawdown in USD ({spy_dd:.2f}%), reference only")
+    for bar, dd in zip(bars, dds):
+        ax.text(bar.get_x() + bar.get_width()/2, dd - 0.8, f"{dd:.1f}%",
+                ha="center", va="top", fontsize=7.5, fontweight="bold")
 
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels(labels, fontsize=8)
     ax.set_ylabel("Max Drawdown (%)", fontsize=11)
-    ax.set_title("Max Drawdown: Net Debt/EBITDA Strategy vs S&P 500 Across 20 Exchanges",
+    ax.set_ylim(min(dds) - 6, 0)
+    ax.set_title(f"Max Drawdown of the Net Debt/EBITDA Strategy: {len(comparison)} Exchanges (2000–2025)",
                  fontsize=13, fontweight="bold", pad=12)
     ax.legend(fontsize=10)
     ax.grid(axis="y", alpha=0.3, color="#cccccc")
     ax.spines[["top", "right"]].set_visible(False)
-    plt.figtext(0.5, -0.04, FOOTER, ha="center", fontsize=8, color="#666666")
+    plt.figtext(0.5, -0.04, comparison_footer(), ha="center", fontsize=8, color="#666666")
     plt.tight_layout()
     plt.savefig(charts_dir / "2_comparison_drawdown.png", dpi=150, bbox_inches="tight")
     plt.close()

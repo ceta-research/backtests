@@ -53,6 +53,9 @@ REGION_MAP = {
     'HKSE': 'hongkong',
 }
 
+# Title display names for internal keys; unlisted keys show as-is.
+TITLE_NAME = {'US_MAJOR': 'US'}
+
 
 def cumulative_growth(returns):
     """Convert list of period returns to cumulative growth of $10,000."""
@@ -86,7 +89,7 @@ def plot_cumulative(data, exchange_name, region_key):
             linewidth=2, linestyle='--', label=f'{bench} ({data["portfolios"]["sp500"]["cagr"]}% CAGR)')
 
     ax.set_title(localize_money_title(
-                     f'Growth of $10,000: Sustained ROIC vs {bench} ({exchange_name})',
+                     f'Growth of $10,000: Sustained ROIC vs {bench} ({TITLE_NAME.get(exchange_name, exchange_name)})',
                      exchange_name),
                  fontsize=14, fontweight='bold')
     ax.set_xlabel('Year')
@@ -128,7 +131,7 @@ def plot_annual_returns(data, exchange_name, region_key):
                    label=bench, alpha=0.85)
 
     ax.axhline(y=0, color='black', linewidth=0.5)
-    ax.set_title(f'Annual Returns: Sustained ROIC vs {bench} ({exchange_name})',
+    ax.set_title(f'Annual Returns: Sustained ROIC vs {bench} ({TITLE_NAME.get(exchange_name, exchange_name)})',
                  fontsize=14, fontweight='bold')
     ax.set_xlabel('Year')
     ax.set_ylabel('Return (%)')

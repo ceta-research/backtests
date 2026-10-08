@@ -16,7 +16,7 @@ Usage:
 import json
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title
+from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title, benchmark_label, RESULT_KEY_TO_EXCHANGE
 import os
 import sys
 
@@ -137,13 +137,18 @@ def plot_comparison_cagr(all_data, output_path):
     exchanges = []
     port_cagrs = []
     spy_cagrs = []
+    has_proxy = False
 
     for uni, data in sorted(all_data.items(),
                              key=lambda x: (x[1].get("portfolio") or {}).get("cagr") or -999,
                              reverse=True):
         if "error" in data or not data.get("portfolio"):
             continue
-        exchanges.append(uni.replace("_", "/"))
+        # Name each bar's own benchmark; non-US markets on S&P 500 had no local index.
+        bench = benchmark_label(all_data, uni)
+        proxy = bench == "S&P 500" and RESULT_KEY_TO_EXCHANGE.get(uni) != "NYSE"
+        has_proxy = has_proxy or proxy
+        exchanges.append(f"{uni.replace('_', '/')} vs {bench}{'*' if proxy else ''}")
         port_cagrs.append(data["portfolio"].get("cagr") or 0)
         spy_cagrs.append(data["spy"].get("cagr") or 0)
 
@@ -156,18 +161,24 @@ def plot_comparison_cagr(all_data, output_path):
     fig, ax = plt.subplots(figsize=(max(12, len(exchanges) * 0.8), 7))
     bars = ax.bar(x - width / 2, port_cagrs, width, label="52W-High Proximity",
                   color=STRATEGY_COLOR, alpha=0.85)
-    ax.bar(x + width / 2, spy_cagrs, width, label="SPY (local benchmark)",
+    ax.bar(x + width / 2, spy_cagrs, width, label="Benchmark (named under each exchange)",
            color=BENCHMARK_COLOR, alpha=0.7)
 
     ax.axhline(0, color="black", linewidth=0.8)
-    ax.set_title("52-Week High Proximity: CAGR by Exchange vs SPY",
+    ax.set_title("52-Week High Proximity: CAGR by Exchange vs Local Benchmark",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Exchange", fontsize=12)
     ax.set_ylabel("CAGR (%)", fontsize=12)
     ax.set_xticks(x)
-    ax.set_xticklabels(exchanges, rotation=30, ha="right", fontsize=9)
+    ax.set_xticklabels(exchanges, rotation=45, ha="right", rotation_mode="anchor", fontsize=9)
     ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda v, _: f"{v:.0f}%"))
-    ax.legend(fontsize=11)
+    ax.legend(fontsize=11, loc="upper right")
+    if has_proxy:
+        ax.text(0.99, 0.84,
+                "* No local index in the data, so measured against the S&P 500 (SPY, USD).\n"
+                "A local-currency CAGR vs a USD index is a cross-currency gap, not alpha.",
+                transform=ax.transAxes, fontsize=9, color="#555555",
+                horizontalalignment="right", verticalalignment="top")
     ax.grid(True, alpha=0.3, linestyle=":", axis="y")
 
     plt.tight_layout()
@@ -230,10 +241,11 @@ EXCHANGE_LABELS = {
     "SIX": ("switzerland", "Switzerland (SIX)", "SMI"),
     "STO": ("sweden", "Sweden (STO)", "OMX Stockholm 30"),
     "SET": ("thailand", "Thailand (SET)", "SET Index"),
-    "JNB": ("southafrica", "South Africa (JNB)", "JSE All Share"),
+    # JNB/MIL/KLS have no local index in the data; their backtests ran against SPY.
+    "JNB": ("southafrica", "South Africa (JNB)", "S&P 500"),
     "OSL": ("norway", "Norway (OSL)", "OSEAX"),
-    "MIL": ("italy", "Italy (MIL)", "FTSE MIB"),
-    "KLS": ("malaysia", "Malaysia (KLS)", "KLCI"),
+    "MIL": ("italy", "Italy (MIL)", "S&P 500"),
+    "KLS": ("malaysia", "Malaysia (KLS)", "S&P 500"),
     "SES": ("singapore", "Singapore (SES)", "STI"),
 }
 

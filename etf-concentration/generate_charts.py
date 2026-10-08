@@ -27,7 +27,10 @@ except ImportError:
 
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money_axis_label, money_formatter
+from chart_utils import (localize_money_title, money_axis_label, money_formatter,
+                         benchmark_label, benchmark_cagr)
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 CHARTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
@@ -48,6 +51,23 @@ BENCHMARK_LABELS = {
     "canada": "TSX Composite", "taiwan": "TAIEX",
     "thailand": "SET Index", "singapore": "STI",
 }
+
+# Exchanges in the comparison post (current local-benchmark run). SAO/ASX excluded
+# for data quality; BSE_NSE is a stale SPY-benchmarked run superseded by NSE.
+COMPARISON_UNIVERSES = {
+    "OSL": "OSL (Norway)*", "STO": "STO (Sweden)", "SET": "SET (Thailand)",
+    "SIX": "SIX (Switzerland)", "SES": "SES (Singapore)", "TSX": "TSX (Canada)",
+    "JNB": "JNB (South Africa)", "SHZ_SHH": "SHZ+SHH (China)", "LSE": "LSE (UK)",
+    "KSC": "KSC (Korea)", "XETRA": "XETRA (Germany)", "NSE": "NSE (India)",
+    "HKSE": "HKSE (Hong Kong)", "TAI": "TAI (Taiwan)", "JPX": "JPX (Japan)",
+    "NYSE_NASDAQ": "NYSE+NASDAQ (US)",
+}
+# No local index data: measured against SPY in USD, so the gap is cross-currency
+CROSS_CCY_UNIVERSES = {"JNB"}
+CROSS_CCY_COLOR = "#9E9E9E"
+COMPARISON_NOTE = ("Each exchange in local currency vs its own local index. JNB has no local index data, "
+                   "so its ZAR returns sit against the S&P 500 in USD (ZAR fell 4.2%/yr vs USD, 2000-2025).\n"
+                   "*Norway: 12 periods (2013-2024). SAO and ASX excluded for data quality.")
 
 
 def load_results(filename):
@@ -128,39 +148,52 @@ def annual_returns_chart(results, exchange_name, output_path, bench_label="S&P 5
 
 
 def comparison_cagr_chart(all_results, output_path):
-    """CAGR comparison across all exchanges."""
+    """CAGR per exchange, with each exchange's own local benchmark CAGR as a marker."""
     data = []
     for uni, r in all_results.items():
         if "error" in r or not r.get("portfolio"):
             continue
         cagr = r["portfolio"].get("cagr")
         excess = r["comparison"].get("excess_cagr")
-        avg_wt = r.get("avg_weight_pct", 0)
-        if cagr is not None:
-            data.append((uni, cagr, excess or 0, avg_wt))
+        bench = benchmark_cagr(all_results, uni)
+        if cagr is not None and excess is not None and bench is not None:
+            data.append((uni, cagr, excess, bench, benchmark_label(all_results, uni)))
 
-    data.sort(key=lambda x: x[1], reverse=True)
-    names = [d[0] for d in data]
+    # Sorted by excess vs local index, as in the post's table
+    data.sort(key=lambda x: x[2], reverse=True)
+    names = [COMPARISON_UNIVERSES.get(d[0], d[0]) for d in data]
     cagrs = [d[1] for d in data]
-    colors = [EXCESS_POS_COLOR if d[2] > 0 else EXCESS_NEG_COLOR for d in data]
+    colors = [CROSS_CCY_COLOR if d[0] in CROSS_CCY_UNIVERSES
+              else EXCESS_POS_COLOR if d[2] > 0 else EXCESS_NEG_COLOR for d in data]
 
     fig, ax = plt.subplots(figsize=(12, 8))
     ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85)
+    ax.scatter([d[3] for d in data], range(len(data)), marker="|", s=500,
+               linewidths=3, color="black", zorder=3)
 
-    for i, (name, cagr, excess, avg_wt) in enumerate(data):
-        label = f" {cagr:.1f}% (wt={avg_wt:.3f}%)"
-        ax.text(max(cagr + 0.3, 0.5), i, label, va="center", fontsize=8)
+    for i, (uni, cagr, excess, bench, bname) in enumerate(data):
+        suffix = ", cross-currency" if uni in CROSS_CCY_UNIVERSES else ""
+        label = f"{cagr:.2f}% ({excess:+.2f}% vs {bname}{suffix})"
+        ax.text(max(cagr, bench, 0) + 0.4, i, label, va="center", fontsize=8)
 
-    ax.axvline(x=10.61, color=BENCH_COLOR, linewidth=2, linestyle="--", label="SPY (10.61%)")
+    ax.axvline(x=0, color="black", linewidth=0.5)
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=9)
-    ax.set_xlabel("CAGR (%)")
-    ax.set_title(f"{STRATEGY_NAME}: CAGR by Exchange (2005-2025)",
+    ax.set_xlabel("CAGR (%, local currency)")
+    ax.set_xlim(right=max(max(d[1], d[3]) for d in data) + 9)
+    ax.set_title(f"{STRATEGY_NAME}: CAGR vs Local Benchmark by Exchange (2005-2025)",
                  fontsize=13, fontweight="bold")
-    ax.legend(loc="lower right")
+    ax.legend(handles=[
+        Patch(color=EXCESS_POS_COLOR, alpha=0.85, label="Beat local index"),
+        Patch(color=EXCESS_NEG_COLOR, alpha=0.85, label="Trailed local index"),
+        Patch(color=CROSS_CCY_COLOR, alpha=0.85, label="No local index (vs S&P 500, USD)"),
+        Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+               markeredgewidth=3, label="Benchmark CAGR"),
+    ], loc="lower right")
     ax.grid(True, alpha=0.3, axis="x")
     ax.invert_yaxis()
-    fig.tight_layout()
+    fig.text(0.01, 0.005, COMPARISON_NOTE, fontsize=7.5, color="#555555", ha="left")
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved: {output_path}")
@@ -173,20 +206,22 @@ def comparison_drawdown_chart(all_results, output_path):
         if "error" in r or not r.get("portfolio"):
             continue
         maxdd = r["portfolio"].get("max_drawdown")
+        bench_dd = (r.get("spy") or {}).get("max_drawdown")
         if maxdd is not None:
-            data.append((uni, maxdd))
+            data.append((uni, maxdd, bench_dd))
 
     data.sort(key=lambda x: x[1])  # Most negative first
-    names = [d[0] for d in data]
+    names = [COMPARISON_UNIVERSES.get(d[0], d[0]) for d in data]
     drawdowns = [d[1] for d in data]
 
     fig, ax = plt.subplots(figsize=(12, 8))
     ax.barh(range(len(names)), drawdowns, color="#E53935", alpha=0.75)
-    ax.axvline(x=-36.27, color=BENCH_COLOR, linewidth=2, linestyle="--",
-               label="SPY (-36.27%)")
+    bench_rows = [(i, d[2]) for i, d in enumerate(data) if d[2] is not None]
+    ax.scatter([b for _, b in bench_rows], [i for i, _ in bench_rows], marker="|", s=500,
+               linewidths=3, color="black", zorder=3, label="Benchmark max drawdown (local index; S&P 500 for US, JNB)")
 
-    for i, (name, dd) in enumerate(data):
-        ax.text(dd - 1, i, f"{dd:.1f}%", va="center", ha="right", fontsize=8, color="white")
+    for i, (name, dd, _) in enumerate(data):
+        ax.text(dd + 0.5, i, f"{dd:.1f}%", va="center", ha="left", fontsize=8, color="white")
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=9)
@@ -233,16 +268,15 @@ def main():
             os.path.join(CHARTS_DIR, f"2_{short_name}_annual_returns.png"),
             bench_label=bench_label)
 
-    # Comparison charts - build from individual results files
+    # Comparison charts - only the exchanges the comparison post covers
     print("\nGenerating comparison charts...")
     all_results = {}
-    for fname in os.listdir(RESULTS_DIR):
-        if fname.startswith("returns_") and fname.endswith(".json"):
-            uni = fname.replace("returns_", "").replace(".json", "")
-            try:
-                all_results[uni] = load_results(fname)
-            except Exception:
-                pass
+    for uni in COMPARISON_UNIVERSES:
+        fname = f"returns_{uni}.json"
+        if not os.path.exists(os.path.join(RESULTS_DIR, fname)):
+            print(f"  WARNING: {fname} missing, dropped from comparison charts")
+            continue
+        all_results[uni] = load_results(fname)
     if all_results:
         comparison_cagr_chart(
             all_results,
