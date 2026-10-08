@@ -168,16 +168,18 @@ def plot_comparison_cagr(all_data, output_path):
 
     if spy_cagr:
         ax.axvline(spy_cagr, color=BENCHMARK_COLOR, linewidth=2, linestyle="--",
-                   label=f"S&P 500 ({spy_cagr:.1f}%)")
+                   label=f"S&P 500, USD ({spy_cagr:.1f}%)")
         ax.legend(fontsize=11)
 
     for bar, val in zip(bars, cagrs):
         ax.text(val + 0.1, bar.get_y() + bar.get_height() / 2,
                 f"{val:.1f}%", va="center", fontsize=9)
 
-    ax.set_title("Quality Momentum: CAGR by Exchange (2001–2024)",
+    # Bars are each exchange's own currency; the SPY line is dollars. Say so,
+    # or the chart reads as a like-for-like ranking against the S&P 500.
+    ax.set_title("Quality Momentum: CAGR by Exchange, Local Currency (2000–2025)",
                  fontsize=14, fontweight="bold", pad=12)
-    ax.set_xlabel("CAGR (%)", fontsize=12)
+    ax.set_xlabel("CAGR in each exchange's local currency (%)", fontsize=12)
     ax.xaxis.set_major_formatter(mtick.PercentFormatter())
     ax.grid(True, alpha=0.3, linestyle=":", axis="x")
     ax.invert_yaxis()
@@ -208,7 +210,7 @@ def plot_comparison_drawdown(all_data, output_path):
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.barh(exchanges, drawdowns, color=NEGATIVE_COLOR, alpha=0.75)
 
-    ax.set_title("Quality Momentum: Max Drawdown by Exchange (2001–2024)",
+    ax.set_title("Quality Momentum: Max Drawdown by Exchange (2000–2025)",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Max Drawdown (%)", fontsize=12)
     ax.xaxis.set_major_formatter(mtick.PercentFormatter())
