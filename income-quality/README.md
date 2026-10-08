@@ -31,7 +31,7 @@ python3 income-quality/generate_charts.py
 - **Rebalancing**: Annual (April 1), 45-day filing lag for point-in-time data
 - **Universe**: Full exchange (not index-constrained), market cap thresholds per exchange
 - **Costs**: Size-tiered (0.1% large-cap, 0.3% mid, 0.5% small)
-- **Benchmark**: S&P 500 (SPY)
+- **Benchmark**: each market's local index (S&P 500 for the US; South Africa has no local index in the data, so the S&P 500 in USD)
 - **Period**: 2000-2025
 
 ## Files
@@ -41,5 +41,5 @@ python3 income-quality/generate_charts.py
 | `backtest.py` | Full historical backtest |
 | `screen.py` | Current stock screen |
 | `generate_charts.py` | Chart generation from results |
-| `results/` | JSON output per exchange |
+| `results/` | `exchange_comparison.json`: every market in one file |
 | `charts/` | Generated PNG charts |

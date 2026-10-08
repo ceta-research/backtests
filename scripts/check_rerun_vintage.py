@@ -44,6 +44,8 @@ for f in glob.glob(f"{BT}/{topic}/results/*_*.json"):
             april[os.path.basename(f)] = d
     except Exception:
         pass
+if not april:
+    print("NOTE: no per-region baseline files in results/; check 4 (new vs old headline figures) is skipped.\n")
 
 bad = 0
 print(f"{'key':10} {'name':18} {'symbol':9} {'series':15} {'in REGION_MAP':13} {'hi cagr new/apr':>16} {'bench cagr new/apr':>19}")

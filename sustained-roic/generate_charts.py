@@ -56,6 +56,20 @@ REGION_MAP = {
 # Title display names for internal keys; unlisted keys show as-is.
 TITLE_NAME = {'US_MAJOR': 'US'}
 
+# Comparison-chart rows: country names, not exchange codes.
+COUNTRY = {'US_MAJOR': 'US', 'NSE': 'India', 'XETRA': 'Germany', 'LSE': 'UK', 'HKSE': 'Hong Kong',
+           'SIX': 'Switzerland', 'KSC': 'Korea', 'STO': 'Sweden', 'SES': 'Singapore',
+           'SAO': 'Brazil', 'JSE': 'South Africa', 'PAR': 'France'}
+USD_NOTE = '* No local index in the data: benchmark is the S&P 500 (USD)'
+# '{x:.0f}' printed a 7.5 tick as "8%"; 'g' keeps the half.
+PCT = mticker.FuncFormatter(lambda x, p: f'{x:g}%')
+
+
+def country_labels(all_data, keys):
+    """Row labels; '*' marks a non-US market benchmarked to the S&P 500."""
+    usd = {k for k in keys if k != 'US_MAJOR' and all_data[k].get('benchmark_name') == 'S&P 500'}
+    return [COUNTRY.get(k, k) + ('*' if k in usd else '') for k in keys], bool(usd)
+
 
 def cumulative_growth(returns):
     """Convert list of period returns to cumulative growth of $10,000."""
@@ -138,7 +152,7 @@ def plot_annual_returns(data, exchange_name, region_key):
     ax.set_xticks(x)
     ax.set_xticklabels(years, rotation=45, ha='right', fontsize=9)
     ax.legend(loc='upper left', fontsize=11)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f'{x:.0f}%'))
+    ax.yaxis.set_major_formatter(PCT)
 
     plt.tight_layout()
     fname = f'2_{region_key}_annual_returns.png'
@@ -179,10 +193,13 @@ def plot_comparison_cagr(all_data):
                  fontsize=14, fontweight='bold')
     ax.set_xlabel('CAGR (%)')
     ax.set_yticks(x)
-    ax.set_yticklabels(exchanges, fontsize=11)
-    ax.legend(loc='lower right', fontsize=11)
+    labels, usd = country_labels(all_data, exchanges)
+    ax.set_yticklabels(labels, fontsize=11)
+    ax.legend(loc='upper right', fontsize=11)  # lower right covered the longest bar
     ax.axvline(x=0, color='black', linewidth=0.5)
-    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f'{x:.0f}%'))
+    ax.xaxis.set_major_formatter(PCT)
+    if usd:
+        fig.text(0.99, 0.01, USD_NOTE, ha='right', fontsize=9, color=COLORS['spy'])
 
     plt.tight_layout()
     fname = '1_comparison_cagr.png'
@@ -223,9 +240,12 @@ def plot_comparison_drawdown(all_data):
                  fontsize=14, fontweight='bold')
     ax.set_xlabel('Max Drawdown (%)')
     ax.set_yticks(x)
-    ax.set_yticklabels(exchanges, fontsize=11)
+    labels, usd = country_labels(all_data, exchanges)
+    ax.set_yticklabels(labels, fontsize=11)
     ax.legend(loc='lower left', fontsize=11)
-    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f'{x:.0f}%'))
+    ax.xaxis.set_major_formatter(PCT)
+    if usd:
+        fig.text(0.99, 0.01, USD_NOTE, ha='right', fontsize=9, color=COLORS['spy'])
 
     plt.tight_layout()
     fname = '2_comparison_drawdown.png'
