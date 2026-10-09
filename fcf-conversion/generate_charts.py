@@ -14,7 +14,7 @@ Usage:
 import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_label, is_usd_benchmark_proxy, localize_money_title, money, money_axis_label, money_formatter
 import json
 import os
 import sys
@@ -24,6 +24,8 @@ try:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mticker
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
 except ImportError:
     print("matplotlib required: pip install matplotlib")
     sys.exit(1)
@@ -122,15 +124,19 @@ def annual_returns_chart(annual_returns, exchange, out_path, bench="S&P 500"):
 
 
 def comparison_cagr_chart(results, out_path):
-    """CAGR comparison across exchanges."""
-    data = []
+    """CAGR by exchange, each against its own benchmark (marker)."""
+    data, excluded = [], []
     for ex, r in results.items():
-        if "error" in r or not r.get("portfolio"):
+        if "error" in r or not r.get("portfolio") or r["portfolio"].get("cagr") is None:
             continue
-        cagr = r["portfolio"].get("cagr")
-        spy_cagr = r.get("spy", {}).get("cagr")
-        if cagr is not None:
-            data.append((ex, cagr, spy_cagr or 0))
+        if r.get("window_truncated"):
+            excluded.append(f"{ex} (window truncated)")
+        elif r.get("invested_periods", 0) <= 0:
+            excluded.append(f"{ex} (never invested)")
+        elif r.get("spy", {}).get("cagr") is None:
+            excluded.append(f"{ex} (no benchmark CAGR)")
+        else:
+            data.append((ex, r["portfolio"]["cagr"], r["spy"]["cagr"]))
 
     if not data:
         return
@@ -138,19 +144,46 @@ def comparison_cagr_chart(results, out_path):
     data.sort(key=lambda x: x[1], reverse=True)
     exchanges = [d[0] for d in data]
     cagrs = [d[1] for d in data]
-    spy_cagrs = [d[2] for d in data]
+    benches = [d[2] for d in data]
+    excesses = [results[k].get("comparison", {}).get("excess_cagr", c - b) for k, c, b in data]
+    # No local index: measured against the S&P 500 in USD, a cross-currency gap.
+    proxy = {k for k in exchanges if is_usd_benchmark_proxy(results, k)}
+    colors = ["#9E9E9E" if k in proxy else "#27ae60" if c > b else "#c0392b" for k, c, b in data]
 
-    fig, ax = plt.subplots(figsize=(12, max(6, len(data) * 0.5)))
-    y_pos = range(len(exchanges))
-    ax.barh(y_pos, cagrs, 0.4, color=STRATEGY_COLOR, label="FCF Conversion Quality", alpha=0.85)
-    ax.barh([p + 0.4 for p in y_pos], spy_cagrs, 0.4, color=BENCHMARK_COLOR, label="S&P 500", alpha=0.85)
+    fig, ax = plt.subplots(figsize=(11, max(6, len(data) * 0.6)))
+    ax.barh(range(len(exchanges)), cagrs, color=colors, alpha=0.85, height=0.6)
+    ax.scatter(benches, range(len(exchanges)), marker="|", s=500, linewidths=3, color="black", zorder=3)
 
-    ax.set_yticks([p + 0.2 for p in y_pos])
+    ax.set_yticks(range(len(exchanges)))
     ax.set_yticklabels(exchanges)
-    ax.set_xlabel("CAGR (%)")
-    ax.set_title("FCF Conversion Quality: CAGR by Exchange", fontsize=14, fontweight="bold")
-    ax.legend(loc="lower right")
+    ax.invert_yaxis()
+    ax.set_xlabel("CAGR (%, local currency)")
+    ax.set_xlim(right=max(max(cagrs), max(benches)) + 7)
+    ax.set_title("FCF Conversion Quality: CAGR vs Own Benchmark by Exchange (2000-2025)",
+                 fontsize=14, fontweight="bold")
+    ax.legend(handles=[
+        Patch(color="#27ae60", alpha=0.85, label="Beat its own benchmark"),
+        Patch(color="#c0392b", alpha=0.85, label="Trailed its own benchmark"),
+        Patch(color="#9E9E9E", alpha=0.85, label="No local index (vs S&P 500, USD)"),
+        Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+               markeredgewidth=3, label="Benchmark CAGR"),
+    ], fontsize=9, loc="lower right")
     ax.axvline(x=0, color="black", linewidth=0.5)
+
+    for i, (k, c, b) in enumerate(data):
+        ax.text(max(c, b, 0) + 0.3, i, f"{c:.2f}% ({excesses[i]:+.2f} vs {benchmark_label(results, k)})",
+                va="center", fontsize=9)
+
+    counted = [(c, b) for k, c, b in data if k not in proxy]
+    note = f"{sum(c > b for c, b in counted)} of {len(counted)} beat their own benchmark."
+    if proxy:
+        note += f" {', '.join(sorted(proxy))} (grey): S&P 500 in USD, not counted."
+    if excluded:
+        note += f" Excluded: {', '.join(excluded)}."
+    fig.text(0.5, -0.02,
+             "Data: Ceta Research | Same FCF conversion screen, annual rebalance, equal weight\n"
+             f"Returns in local currency, each against its own market's index. {note}",
+             ha="center", fontsize=8, color="#7f8c8d")
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=200, bbox_inches="tight")

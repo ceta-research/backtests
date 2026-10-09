@@ -1,6 +1,6 @@
 # Cash Conversion Cycle (CCC)
 
-Backtest sorting stocks by Cash Conversion Cycle efficiency across 13 exchanges from 2000-2025.
+Backtest sorting stocks by Cash Conversion Cycle efficiency across 15 exchanges from 2000-2025.
 
 ## Signal
 
@@ -15,11 +15,11 @@ CCC = Days Sales Outstanding + Days Inventory Outstanding - Days Payables Outsta
 
 **Universe:** Non-financial stocks above exchange-specific market cap threshold.
 **Rebalancing:** Annual (April 1), equal weight.
-**Benchmark:** S&P 500 (SPY).
+**Benchmark:** Each exchange's local index, in local currency (S&P 500 via SPY for the US). Where no local index data exists (South Africa), it falls back to the S&P 500 in USD.
 
 ## Key Finding
 
-CCC does not reliably generate alpha as a standalone signal. Across most exchanges, Low CCC portfolios underperform or roughly match the S&P 500. Mid CCC (30-90 days) often outperforms Low CCC, suggesting the relationship between working capital efficiency and stock returns is not monotonic. The signal may work better as a secondary filter combined with quality or value factors.
+CCC doesn't reliably generate alpha as a standalone signal. Low CCC minus High CCC was positive on 7 of 15 exchanges and negative on 8. In the US, Low CCC returned 5.94% CAGR against 7.33% for the S&P 500, with a -0.29% spread over High CCC. Low CCC beat its local index in 8 of the 14 markets that have one, but in seven of those eight, Mid and High CCC beat it too, so much of that excess comes from equal weighting rather than CCC. Mid CCC (30-90 days) beat Low CCC on 10 of 15 exchanges, suggesting the relationship between working capital efficiency and stock returns isn't monotonic. The signal may work better as a secondary filter combined with quality or value factors.
 
 ## Usage
 

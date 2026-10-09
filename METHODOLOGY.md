@@ -71,9 +71,13 @@ To be included in a backtest at a given rebalance date, a stock must have:
 2. **Price data** for return calculation:
    - Daily EOD prices in `historical_price_full` table
    - Adjusted for splits and dividends (`adjClose` field)
-   - Must have a price on or within 10 days of each rebalance date (uses first available price in window)
+   - Must have a price in a 10-day forward window from each rebalance date (15 days in pairs-fundamentals), taking the first available price. Under the default next-day execution the window starts the day after the rebalance date. The exit price at the end of the period uses the same forward-only window.
 
-**Survivorship bias:** Mitigated by including delisted stocks. FMP maintains historical financial data for companies that were acquired, went bankrupt, or otherwise stopped trading. Backtest portfolios include companies that "didn't survive," capturing the full distribution of outcomes.
+3. **Price sanity filters** (applied per holding, per period, in the periodic-rebalance portfolio topics; pairs topics and event studies use their own rules):
+   - **Minimum entry price** (`min_entry_price`, 1.0 in most topics, 0.50 in a few; qarp, low-pe and the topics that don't use `filter_returns` apply none). It's compared to `adjClose` in the exchange's own price units, sub-units included: most LSE lines quote in pence (GBp), JNB in cents (ZAc), TLV in agorot. It's meant as a guard against zero, near-zero and broken prices, not a US$1 rule. Company size is handled by the market-cap filter above, and price spikes by the oscillation filter ([Price Data Quality](#price-data-quality-fmp-eod-anomalies)) and the return cap below. A US$1-equivalent floor was rejected because it would remove large caps in years when their shares traded below US$1, which ICBC, PetroChina and Lloyds all have. One side effect in early years: `adjClose` is back-adjusted for later splits and dividends. On 2003-01-02 the dividend part alone puts the median NYSE and NASDAQ name at 0.52-0.56x its split-adjusted close, and names that split heavily afterwards sit far lower (AAPL 0.22, NVDA 0.09, AMZN 0.98), so a 1.0 floor drops them from early rebalances. Whether a name clears the floor then depends on splits after the rebalance date, which is a look-ahead element.
+   - **Maximum single return** (`max_single_return`, 200% per rebalance period in most topics, 300% in small-cap, small-value and trending-value; qarp, low-pe and sector-correlation apply none). A holding whose period return exceeds it is dropped as a likely price artifact. It's upside-only: large losses are kept.
+
+**Survivorship bias:** Partly mitigated. In most topics delisted companies stay in the data, so a company that was later acquired or went bankrupt can still be *selected* at any rebalance date before it stopped trading. The exceptions are dcf-discount, defensive-quality and the three pairs topics (pairs-zscore, pairs-multi-pair, pairs-fundamentals): they build their universe from currently active listings (`isActivelyTrading = true`), so delisted names can't be selected at all. Exits aren't handled the same way as selection. A holding with no price in the 10-day window after the exit date is dropped from that period, so the period return is the average of the names that still trade. A delisting to zero therefore counts as nothing rather than -100%, and an acquisition premium counts as nothing too. pairs-zscore and pairs-multi-pair instead close open positions at the last common trading bar, within their currently-listed universe. Details under [Limitations: Survivorship Bias](#survivorship-bias). Open issue, tracked in DATA_QUALITY_ISSUES.md (Exit-side survivorship).
 
 **Look-ahead bias:** Mitigated by using `filing_date` (when the financial statement was filed with regulators) rather than `period_end_date` (when the fiscal period ended). For US companies, 10-K/10-Q filings occur 60-90 days after period end. Using `filing_date` ensures we only use information publicly available to investors at the rebalance date. Screening queries filter `WHERE filing_date <= rebalance_date - 45 days`.
 
@@ -596,13 +600,17 @@ python3 qarp/backtest.py --risk-free-rate 0.04
 
 ### Survivorship Bias
 
-**Status:** Mitigated (but not eliminated)
+**Status:** Mitigated for selection in most topics, not for exits
 
-FMP data includes delisted stocks with historical financial statements. When a company is acquired, goes bankrupt, or otherwise stops trading, its historical data remains in the warehouse. Backtest portfolios include companies that "didn't survive," capturing the full distribution of outcomes (winners and losers).
+**Selection:** FMP data includes delisted stocks with historical financial statements. When a company is acquired, goes bankrupt, or otherwise stops trading, its history stays in the warehouse, so in most topics it can be picked at any rebalance date before it stopped trading. dcf-discount, defensive-quality, pairs-zscore, pairs-multi-pair and pairs-fundamentals are the exceptions: they filter the universe to currently active listings (`isActivelyTrading = true`), which excludes delisted names entirely and carries full survivorship bias on the selection side.
+
+**Exits:** The exit price is the first price in the 10-day forward window after the exit date. Nothing looks backward. A holding with no price in that window (delisted, acquired, or a coverage gap) is dropped from the period, and the period return is the average of the holdings that still trade. This applies to the periodic-rebalance portfolio backtests (around 80 topics). pairs-zscore and pairs-multi-pair are different: they close open positions at the last common trading bar, within a universe that's already limited to currently listed names. Event studies use their own return windows and aren't covered here. Two related rules:
+- Holdings with a period return above `max_single_return` are dropped (200% in most topics, 300% in small-cap, small-value and trending-value; qarp, low-pe and sector-correlation apply no cap), while losses of any size are kept. This can remove genuine acquisition premiums.
+- If every holding in a period loses its exit price or trips the return cap, the period records 0% and is counted as a cash period.
+
+**Direction:** Mixed and not yet measured on published results. Dropping a bankrupt holding flatters returns; dropping an acquired one (and the return cap) understates them. Open issue, tracked in DATA_QUALITY_ISSUES.md (Exit-side survivorship).
 
 **Limitation:** Very old delistings (pre-1990) may have incomplete financial statement history. The earlier the backtest start date, the higher the potential survivorship bias.
-
-**Impact:** Minimal for backtests starting 2000+. Moderate for 1985+ backtests.
 
 ### Look-Ahead Bias
 
@@ -666,7 +674,7 @@ Returns are denominated in the local currency of the exchange:
 
 **Dividends:** Included via `adjClose` field in `historical_price_full`. Dividends are assumed reinvested at the ex-dividend date closing price (implicitly captured by the adjustment factor).
 
-**Corporate actions:** Splits, reverse splits, spinoffs, mergers handled automatically via `adjClose` price adjustments. Assumes continuity of ownership through corporate actions.
+**Corporate actions:** Splits, reverse splits, spinoffs handled via `adjClose` price adjustments, assuming continuity of ownership. A holding that's acquired or delisted mid-period isn't carried through: it's dropped from that period (see [Survivorship Bias](#survivorship-bias)).
 
 ### Financial Statement Timing
 
@@ -687,7 +695,7 @@ FMP's EOD price data contains phantom rows on non-trading days (exchange holiday
 **Root cause:** FMP inserts rows for dates when the exchange was closed (holidays, special closures). These rows carry unadjusted prices rather than the correctly adjusted values used on actual trading days. Confirmed by querying FMP's `/stable/eod-bulk` API directly.
 
 **Impact on backtests:**
-- US (2000+): Minimal. Most US flips are outside typical backtest windows. The 200% quarterly return cap provides additional protection.
+- US (2000+): Minimal. Most US flips are outside typical backtest windows. The 200% per-period return cap provides additional protection.
 - LSE/UK: Moderate. ~100 FTSE constituents have affected days in 2004-2005.
 - JNB/South Africa: Severe. Thin universe + widespread errors. SA excluded from published content.
 

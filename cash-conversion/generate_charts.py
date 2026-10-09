@@ -3,9 +3,12 @@ import matplotlib
 matplotlib.use('Agg')
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_label, is_usd_benchmark_proxy, localize_money_title, money,
+                         money_axis_label, money_formatter)
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import json
 from pathlib import Path
 
@@ -46,6 +49,8 @@ REGION_LABELS = {
     "SAO": "Brazil (SAO)",
     "Taiwan": "Taiwan (TAI + TWO)",
     "JSE": "South Africa (JSE)",
+    "SES": "Singapore (SES)",
+    "JPX": "Japan (JPX)",
 }
 
 # Colors
@@ -53,6 +58,7 @@ C_LOW = "#2563eb"     # blue - Low CCC
 C_MID = "#6b7280"     # gray - Mid CCC
 C_HIGH = "#ea580c"    # orange - High CCC
 C_SPY = "#111827"     # black - SPY
+C_BEAT, C_TRAIL, C_PROXY = "#27ae60", "#c0392b", "#9E9E9E"  # vs own benchmark; grey = S&P 500 (USD) proxy
 
 
 def load_all_results():
@@ -198,44 +204,75 @@ def chart_annual_returns(data, universe, region):
     plt.close()
 
 
-def chart_comparison_cagr(data):
-    """Chart 3: CAGR comparison across all exchanges (horizontal bar)."""
-    items = []
+def comparison_legs(data, metric):
+    """(universe, low_ccc metric, own-benchmark metric, is USD proxy) per market, plus exclusions."""
+    legs, excluded = [], []
     for universe, d in data.items():
-        cagr = d["portfolios"]["low_ccc"]["cagr"]
-        items.append((universe, cagr))
-    items.sort(key=lambda x: x[1], reverse=True)
+        invested = len(d.get("annual_returns", [])) - d.get("cash_periods", {}).get("low", 0)
+        if d.get("window_truncated", False) or invested <= 0:
+            excluded.append(REGION_LABELS.get(universe, universe))
+            continue
+        legs.append((universe, d["portfolios"]["low_ccc"][metric],
+                     d["portfolios"]["sp500"][metric], is_usd_benchmark_proxy(data, universe)))
+    return legs, excluded
 
-    names = [REGION_LABELS.get(u, u) for u, _ in items]
-    cagrs = [c for _, c in items]
 
-    # SPY reference (same across all)
-    spy_cagr = list(data.values())[0]["portfolios"]["sp500"]["cagr"]
+def comparison_footer(legs, excluded, n_beat, verb):
+    """Two-line footer: method, benchmark basis, beat count (proxies excluded), exclusions."""
+    proxies = [REGION_LABELS.get(u, u) for u, _, _, p in legs if p]
+    note = "Returns in local currency, each against its own market's index"
+    note += f"; {', '.join(proxies)} against the S&P 500 in USD." if proxies else "."
+    note += f" {n_beat} of {len(legs) - len(proxies)} {verb} their own benchmark."
+    if excluded:
+        note += f" Excluded (truncated window or never invested): {', '.join(excluded)}."
+    return "Data: Ceta Research | Low CCC (<30 days), annual rebalance, equal weight\n" + note
+
+
+def comparison_legend(any_proxy, beat, trail, marker):
+    handles = [Patch(color=C_BEAT, alpha=0.85, label=beat),
+               Patch(color=C_TRAIL, alpha=0.85, label=trail)]
+    if any_proxy:
+        handles.append(Patch(color=C_PROXY, alpha=0.85, label="No local index (vs S&P 500, USD)"))
+    handles.append(Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+                          markeredgewidth=3, label=marker))
+    return handles
+
+
+def chart_comparison_cagr(data):
+    """Chart 3: Low CCC CAGR by exchange, each against its own benchmark (marker)."""
+    legs, excluded = comparison_legs(data, "cagr")
+    legs.sort(key=lambda x: x[1], reverse=True)
+
+    names = [REGION_LABELS.get(u, u) for u, _, _, _ in legs]
+    cagrs = [c for _, c, _, _ in legs]
+    benches = [b for _, _, b, _ in legs]
+    colors = [C_PROXY if p else C_BEAT if c > b else C_TRAIL for _, c, b, p in legs]
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
-    colors = [C_LOW if c > spy_cagr else "#94a3b8" for c in cagrs]
-    bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-
-    ax.axvline(x=spy_cagr, color="#dc2626", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr}% CAGR)")
+    ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
+    ax.scatter(benches, range(len(names)), marker="|", s=500, linewidths=3, color="black", zorder=3)
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=10)
     ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Low CCC Portfolio CAGR by Exchange (2000-2025)",
+    ax.set_xlabel("CAGR (%, local currency)", fontsize=12, fontweight="bold")
+    ax.set_xlim(right=max(max(cagrs), max(benches)) + 7)
+    ax.set_title("Low CCC Portfolio CAGR vs Own Benchmark by Exchange (2000-2025)",
                  fontsize=13, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
+    ax.legend(handles=comparison_legend(any(p for *_, p in legs), "Beat its own benchmark",
+                                        "Trailed its own benchmark", "Benchmark CAGR"),
+              fontsize=9, loc="lower right")
     ax.grid(True, alpha=0.2, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
-    for i, (bar, cagr) in enumerate(zip(bars, cagrs)):
-        x_pos = max(cagr, 0) + 0.2
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
+    for i, (u, c, b, _) in enumerate(legs):
+        e = data[u].get("low_vs_spy", c - b)
+        ax.text(max(c, b, 0) + 0.3, i, f"{c:.2f}% ({e:+.2f} vs {bench_name(data, u)})",
+                va="center", fontsize=9)
 
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Low CCC (<30 days), annual rebalance, equal weight",
+    beat = sum(c > b for _, c, b, p in legs if not p)
+    fig.text(0.5, -0.04, comparison_footer(legs, excluded, beat, "beat"),
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
@@ -246,43 +283,41 @@ def chart_comparison_cagr(data):
 
 
 def chart_comparison_drawdown(data):
-    """Chart 4: Max drawdown comparison across all exchanges (horizontal bar)."""
-    items = []
-    for universe, d in data.items():
-        dd = d["portfolios"]["low_ccc"]["max_drawdown"]
-        items.append((universe, dd))
+    """Chart 4: Low CCC max drawdown by exchange, each against its own benchmark (marker)."""
+    legs, excluded = comparison_legs(data, "max_drawdown")
     # Sort by drawdown: least negative (best) at top
-    items.sort(key=lambda x: x[1], reverse=True)
+    legs.sort(key=lambda x: x[1], reverse=True)
 
-    names = [REGION_LABELS.get(u, u) for u, _ in items]
-    drawdowns = [dd for _, dd in items]
-
-    spy_dd = list(data.values())[0]["portfolios"]["sp500"]["max_drawdown"]
+    names = [REGION_LABELS.get(u, u) for u, _, _, _ in legs]
+    drawdowns = [dd for _, dd, _, _ in legs]
+    bench_dds = [b for _, _, b, _ in legs]
+    colors = [C_PROXY if p else C_BEAT if dd > b else C_TRAIL for _, dd, b, p in legs]
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
-    colors = [C_LOW if abs(dd) < abs(spy_dd) else "#94a3b8" for dd in drawdowns]
-    bars = ax.barh(range(len(names)), drawdowns, color=colors, alpha=0.85, height=0.6)
-
-    ax.axvline(x=spy_dd, color="#dc2626", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_dd:.1f}%)")
+    ax.barh(range(len(names)), drawdowns, color=colors, alpha=0.85, height=0.6)
+    ax.scatter(bench_dds, range(len(names)), marker="|", s=500, linewidths=3, color="black", zorder=3)
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=10)
     ax.invert_yaxis()
     ax.set_xlabel("Max Drawdown (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Low CCC Portfolio Max Drawdown by Exchange (2000-2025)",
+    ax.set_xlim(left=min(min(drawdowns), min(bench_dds)) - 8)
+    ax.set_title("Low CCC Portfolio Max Drawdown vs Own Benchmark by Exchange (2000-2025)",
                  fontsize=13, fontweight="bold", pad=15)
-    ax.legend(fontsize=10, loc="lower left")
+    ax.legend(handles=comparison_legend(any(p for *_, p in legs), "Shallower than its own benchmark",
+                                        "Deeper than its own benchmark", "Benchmark max drawdown"),
+              fontsize=9, loc="upper left")
     ax.grid(True, alpha=0.2, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
-    for i, (bar, dd) in enumerate(zip(bars, drawdowns)):
-        x_pos = dd - 1.5
-        ax.text(x_pos, i, f"{dd:.1f}%", va="center", fontsize=10, fontweight="bold")
+    for i, (dd, b) in enumerate(zip(drawdowns, bench_dds)):
+        # left of the bar end; also clear of the marker when it sits just past the bar
+        x_pos = (b if 0 < dd - b < 6 else dd) - 0.5
+        ax.text(x_pos, i, f"{dd:.1f}%", va="center", ha="right", fontsize=10, fontweight="bold")
 
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Low CCC (<30 days), annual rebalance, equal weight",
+    beat = sum(dd > b for _, dd, b, p in legs if not p)
+    fig.text(0.5, -0.04, comparison_footer(legs, excluded, beat, "fell less than"),
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
