@@ -2,8 +2,10 @@
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_label, is_usd_benchmark_proxy, localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import json
 from pathlib import Path
 
@@ -54,6 +56,11 @@ FOOTER = (
     "Data: Ceta Research (FMP) | Earnings Yield (EY>0%, ROE>12%, D/E<1.5, IC>3x), "
     "quarterly rebalance, equal weight, 2000-2025"
 )
+
+# SAU is excluded from the posts (40% cash periods, thin data)
+COMPARISON_EXCLUDE = {"SAU"}
+# Annual rise of USD/local, 2000-01-03 to 2025-10-01 (FMP forex), for cross-currency rows
+FX_RISE_PCT = {"JNB": 4.09}
 
 
 def get_cumulative_growth(exchange_key, initial=10000):
@@ -181,45 +188,64 @@ def chart_annual_bars(exchanges, filename, title, footer_universe, bench_label="
 
 
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange."""
+    """CAGR by exchange in local currency, each against its own benchmark (marker)."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
-        if not v.get("error") and v.get("invested_periods", 0) > 0
+        if k not in COMPARISON_EXCLUDE
+        and not v.get("error") and v.get("invested_periods", 0) > 0
         and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
     names = [k for k, _ in exchanges_with_data]
     cagrs = [v["portfolio"]["cagr"] for _, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k in names]
+    benches = [v["spy"]["cagr"] for _, v in exchanges_with_data]
+    excesses = [v.get("comparison", {}).get("excess_cagr", c - b)
+                for (_, v), c, b in zip(exchanges_with_data, cagrs, benches)]
+    cross = {k for k in names if is_usd_benchmark_proxy(data, k)}
+    colors = ["#9E9E9E" if k in cross else "#27ae60" if e > 0 else "#c0392b"
+              for k, e in zip(names, excesses)]
 
-    fig, ax = plt.subplots(figsize=(10, max(5, len(names) * 0.8)))
-    bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-
-    spy_cagr = None
-    for k in ["NYSE_NASDAQ_AMEX", "LSE"]:
-        if k in data:
-            spy_cagr = data[k].get("spy", {}).get("cagr")
-            break
-    if spy_cagr is not None:
-        ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-                   label=f"S&P 500 ({spy_cagr}% CAGR)")
+    fig, ax = plt.subplots(figsize=(12, max(6, len(names) * 0.6)))
+    ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
+    ax.scatter(benches, range(len(names)), marker="|", s=500, linewidths=3, color="black", zorder=3)
 
     ax.set_yticks(range(len(names)))
-    ax.set_yticklabels([EXCHANGE_LABELS.get(n, n) for n in names], fontsize=10)
+    ax.set_yticklabels([EXCHANGE_LABELS.get(n, n).replace("Earnings Yield ", "") for n in names],
+                       fontsize=10)
     ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Earnings Yield CAGR by Exchange (2000-2025)", fontsize=14, fontweight="bold", pad=15)
-    if spy_cagr is not None:
-        ax.legend(fontsize=10)
+    ax.set_xlabel("CAGR (%, local currency)", fontsize=12, fontweight="bold")
+    ax.set_xlim(0, max(max(cagrs), max(benches)) + 9)
+    ax.set_title("Earnings Yield: CAGR vs Own Benchmark by Exchange (2000-2025)",
+                 fontsize=14, fontweight="bold", pad=15)
+    handles = [Patch(color="#27ae60", alpha=0.85, label="Beat its own benchmark")]
+    if "#c0392b" in colors:
+        handles.append(Patch(color="#c0392b", alpha=0.85, label="Trailed its own benchmark"))
+    handles += [
+        Patch(color="#9E9E9E", alpha=0.85, label="No local index (vs S&P 500, USD)"),
+        Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+               markeredgewidth=3, label="Benchmark CAGR"),
+    ]
+    ax.legend(handles=handles, fontsize=9, loc="lower right")
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
-    for i, (bar, cagr) in enumerate(zip(bars, cagrs)):
-        x_pos = max(cagr, 0) + 0.3
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
+    for i, (k, c, b, e) in enumerate(zip(names, cagrs, benches, excesses)):
+        if k in cross:
+            r = FX_RISE_PCT.get(k)
+            usd = f"; ~{((1 + c / 100) / (1 + r / 100) - 1) * 100:.1f}% in USD" if r is not None else ""
+            label = f"{c:.2f}% (vs S&P 500 in USD, cross-currency{usd})"
+        else:
+            label = f"{c:.2f}% ({e:+.2f} vs {benchmark_label(data, k)})"
+        ax.text(max(c, b, 0) + 0.3, i, label, va="center", fontsize=9)
 
-    fig.text(0.5, -0.02, FOOTER, ha="center", fontsize=8, color="#7f8c8d")
+    local = [(k, e) for k, e in zip(names, excesses) if k not in cross]
+    beat = sum(e > 0 for _, e in local)
+    fig.text(0.5, -0.06,
+             f"{FOOTER}\nReturns in local currency, each against its own market's index; South Africa has no "
+             f"local index and is set against the S&P 500 in USD.\n{beat} of {len(local)} with a local index "
+             f"beat it. Saudi Arabia excluded (thin data).",
+             ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / filename

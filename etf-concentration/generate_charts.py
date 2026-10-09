@@ -29,6 +29,7 @@ import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 from chart_utils import (localize_money_title, money_axis_label, money_formatter,
                          benchmark_label, benchmark_cagr, benchmark_legend,
+                         benchmark_money, currency_code, money,
                          is_usd_benchmark_proxy)
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
@@ -77,8 +78,9 @@ def load_results(filename):
         return json.load(f)
 
 
-def cumulative_growth_chart(results, exchange_name, output_path, bench_label="S&P 500"):
-    """Cumulative growth of $10,000."""
+def cumulative_growth_chart(results, exchange_name, output_path, bench_label="S&P 500",
+                            data=None, data_key=None):
+    """Cumulative growth of $10,000. `data`/`data_key` enable the S&P 500 (USD) proxy test."""
     annual = results.get("annual_returns", [])
     if not annual:
         return
@@ -100,12 +102,31 @@ def cumulative_growth_chart(results, exchange_name, output_path, bench_label="S&
     ax.set_xticks(range(len(x_labels)))
     ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=8)
     ex_key = results.get("universe")
-    ax.yaxis.set_major_formatter(money_formatter(ex_key))
-    ax.set_title(localize_money_title(
-                     f"{STRATEGY_NAME}: Cumulative Growth of $10,000 ({exchange_name})",
-                     ex_key),
-                 fontsize=13, fontweight="bold")
-    ax.set_ylabel(money_axis_label(ex_key))
+    usd_proxy = data is not None and is_usd_benchmark_proxy(data, data_key)
+    if usd_proxy:
+        # Strategy in local currency, S&P 500 in USD: no single currency fits the axis
+        ccy = currency_code(ex_key)
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:,.0f}"))
+        ax.set_title(f"{STRATEGY_NAME}: Growth of {ccy} 10,000 vs US\\$10,000 ({exchange_name})",
+                     fontsize=13, fontweight="bold")
+        ax.set_ylabel(f"Value (strategy in {ccy}, S&P 500 in USD)")
+        # higher end label above its point, lower one below, so close endpoints don't collide
+        port_dy, spy_dy = (4, -12) if port_cum[-1] >= spy_cum[-1] else (-12, 4)
+        ax.annotate(money(port_cum[-1] / 1000, ex_key, suffix="K"),
+                    (len(port_cum) - 1, port_cum[-1]), xytext=(6, port_dy), textcoords="offset points",
+                    color=STRATEGY_COLOR, fontsize=9, fontweight="bold")
+        ax.annotate(benchmark_money(spy_cum[-1] / 1000, data, data_key, suffix="K"),
+                    (len(spy_cum) - 1, spy_cum[-1]), xytext=(6, spy_dy), textcoords="offset points",
+                    color=BENCH_COLOR, fontsize=9, fontweight="bold")
+        fig.text(0.5, -0.02, "S&P 500 in USD (no local index in the data)",
+                 ha="center", fontsize=8, color="gray")
+    else:
+        ax.yaxis.set_major_formatter(money_formatter(ex_key))
+        ax.set_title(localize_money_title(
+                         f"{STRATEGY_NAME}: Cumulative Growth of $10,000 ({exchange_name})",
+                         ex_key),
+                     fontsize=13, fontweight="bold")
+        ax.set_ylabel(money_axis_label(ex_key))
     ax.legend(loc="upper left")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -270,7 +291,7 @@ def main():
         cumulative_growth_chart(
             results, display_name,
             os.path.join(CHARTS_DIR, f"1_{short_name}_cumulative_growth.png"),
-            bench_label=cum_label)
+            bench_label=cum_label, data=loaded, data_key=key)
         annual_returns_chart(
             results, display_name,
             os.path.join(CHARTS_DIR, f"2_{short_name}_annual_returns.png"),
