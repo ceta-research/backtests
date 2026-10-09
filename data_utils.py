@@ -392,7 +392,9 @@ def entry_usable(entry_price, min_entry_price=1.0):
     """True when a name could be BOUGHT on the ENTRY leg of the period.
 
     This is exactly filter_returns' entry-side test and nothing else: an entry
-    price that exists, is positive, and clears the floor. It says nothing about
+    price that exists, is positive, and clears the floor. The floor is compared
+    to LOCAL-currency adjClose (GBp, ZAc, agorot included) and is a bad-price
+    guard, not a size rule; see METHODOLOGY.md. It says nothing about
     the exit price or the realised return, because neither is knowable on the
     entry date. That is the whole point -- a cash decision may only read this.
 
@@ -523,7 +525,8 @@ def filter_returns(symbol_returns, min_entry_price=1.0, max_single_return=2.0, v
     ENTRY-KNOWABLE (true on the rebalance date -- see entry_usable()):
     - entry price missing
     - entry price <= 0
-    - entry price below min_entry_price (bad adjClose, penny-stock artifacts)
+    - entry price below min_entry_price (artifact guard on LOCAL-currency
+      adjClose, sub-units included: GBp, ZAc, agorot; not a size or US$ rule)
 
     EXIT-CONDITIONED (not knowable until the period ends):
     - exit price missing (delisting, acquisition, coverage gap)
@@ -537,7 +540,8 @@ def filter_returns(symbol_returns, min_entry_price=1.0, max_single_return=2.0, v
 
     Args:
         symbol_returns: list of (symbol, entry_price, exit_price, market_cap) tuples
-        min_entry_price: float - minimum entry price to include (default $1.00)
+        min_entry_price: float - minimum entry price to include, in the
+            exchange's own price units (default 1.0)
         max_single_return: float - maximum return to include (default 2.0 = 200%)
         verbose: bool - print skipped stocks
 
