@@ -17,7 +17,7 @@ Companies that convert a high percentage of reported earnings into actual free c
 | Market Cap | > exchange threshold | Liquid stocks only |
 
 **Selection:** Top 30 by highest FCF conversion, equal weight.
-**Rebalancing:** Annual (July). Cash if fewer than 10 stocks qualify.
+**Rebalancing:** Annual (July). Cash if fewer than 10 stocks qualify, or fewer than 10 of them have a usable entry price.
 
 ## Academic Basis
 

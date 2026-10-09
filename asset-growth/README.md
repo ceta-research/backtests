@@ -23,7 +23,7 @@ Cooper, Gulen & Schill (2008), "Asset Growth and the Cross-Section of Stock Retu
 ## Parameters
 
 - **Rebalancing:** Annual (July)
-- **Min stocks:** 10 (holds cash if fewer qualify)
+- **Min stocks:** 10 (holds cash if fewer qualify, or if fewer than 10 have a usable entry price)
 - **Max stocks:** 30
 - **Weighting:** Equal weight
 - **Transaction costs:** Size-tiered (0.1% mega-cap to 0.5% mid-cap, round-trip)
@@ -36,7 +36,7 @@ Cooper, Gulen & Schill (2008), "Asset Growth and the Cross-Section of Stock Retu
 python3 asset-growth/backtest.py --verbose
 
 # India
-python3 asset-growth/backtest.py --preset india --output results/returns_BSE_NSE.json
+python3 asset-growth/backtest.py --preset india --output results/returns_NSE.json
 
 # All exchanges
 python3 asset-growth/backtest.py --global --output results/exchange_comparison.json --verbose
