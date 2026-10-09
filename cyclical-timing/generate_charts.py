@@ -14,7 +14,8 @@ Usage:
 import json
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title, benchmark_label
+from chart_utils import (money, money_axis_label, money_formatter, currency_prefix, localize_money_title,
+                         benchmark_label, benchmark_legend, is_usd_benchmark_proxy)
 import os
 import sys
 
@@ -24,6 +25,8 @@ try:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mtick
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
     import numpy as np
 except ImportError:
     print("Error: matplotlib not installed. Run: pip install matplotlib")
@@ -148,48 +151,78 @@ def plot_annual_returns(data, label, output_path, bench, title_suffix=""):
     print(f"  Saved: {output_path}")
 
 
-def plot_comparison_cagr(all_data, output_path):
-    """Plot CAGR comparison across all eligible exchanges."""
-    exchanges = []
-    cagrs = []
-    spy_cagr = None
-
-    # Only include exchanges with positive avg stocks
-    for exch, data in sorted(all_data.items(),
-                              key=lambda x: (x[1].get("portfolio") or {}).get("cagr") or -999,
-                              reverse=True):
-        if "error" in data or not data.get("portfolio"):
+def comparable_legs(all_data, metric):
+    """(exch, data) legs fit to compare, plus names dropped for a truncated window or no investing."""
+    legs, dropped = [], []
+    for exch, data in all_data.items():
+        if "error" in data or (data.get("portfolio") or {}).get(metric) is None:
             continue
-        cagr = data["portfolio"].get("cagr")
-        if cagr is not None:
-            exchanges.append(exch.replace("_", "+"))
-            cagrs.append(cagr)
-            if spy_cagr is None:
-                spy_cagr = data["spy"].get("cagr")
+        if data.get("window_truncated") or not data.get("invested_periods"):
+            dropped.append(exch.replace("_", "+"))
+        else:
+            legs.append((exch, data))
+    return legs, dropped
 
-    if not exchanges:
+
+def window_of(legs):
+    """Measured window from the results, e.g. '2001-2025'."""
+    return " / ".join(sorted({d.get("window_label", "?") for _, d in legs}))
+
+
+def plot_comparison_cagr(all_data, output_path):
+    """Plot CAGR by exchange, each against its own benchmark (marker)."""
+    legs, dropped = comparable_legs(all_data, "cagr")
+    if not legs:
         return
+    legs.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    colors = [POSITIVE_COLOR if c >= (spy_cagr or 0) else NEGATIVE_COLOR for c in cagrs]
-    bars = ax.barh(exchanges, cagrs, color=colors, alpha=0.85)
+    exchanges = [exch.replace("_", "+") for exch, _ in legs]
+    cagrs = [d["portfolio"]["cagr"] for _, d in legs]
+    benches = [d["spy"]["cagr"] for _, d in legs]
+    excesses = [d.get("comparison", {}).get("excess_cagr", c - b)
+                for (_, d), c, b in zip(legs, cagrs, benches)]
+    # No local index: benchmark is the S&P 500 in USD, a cross-currency gap
+    proxy = [is_usd_benchmark_proxy(all_data, exch) for exch, _ in legs]
+    colors = [BENCHMARK_COLOR if p else POSITIVE_COLOR if c > b else NEGATIVE_COLOR
+              for p, c, b in zip(proxy, cagrs, benches)]
 
-    if spy_cagr:
-        ax.axvline(spy_cagr, color=BENCHMARK_COLOR, linewidth=2, linestyle="--",
-                   label=f"S&P 500 ({spy_cagr:.1f}%)")
-        ax.legend(fontsize=11)
+    fig, ax = plt.subplots(figsize=(12, max(6, len(legs) * 0.6)))
+    y = list(range(len(legs)))
+    ax.barh(y, cagrs, color=colors, alpha=0.85, height=0.6)
+    ax.scatter(benches, y, marker="|", s=500, linewidths=3, color="black", zorder=3)
 
     # Label bars
-    for bar, val in zip(bars, cagrs):
-        ax.text(val + 0.1, bar.get_y() + bar.get_height() / 2,
-                f"{val:.1f}%", va="center", fontsize=9)
+    for i, ((exch, _), c, b, e) in enumerate(zip(legs, cagrs, benches, excesses)):
+        ax.text(max(c, b, 0) + 0.3, i, f"{c:.2f}% ({e:+.2f} vs {benchmark_legend(all_data, exch)})",
+                va="center", fontsize=9)
 
-    ax.set_title("Cyclical Sector Timing: CAGR by Exchange (2001–2024)",
+    ax.set_yticks(y)
+    ax.set_yticklabels(exchanges)
+    ax.set_title(f"Cyclical Sector Timing: CAGR vs Own Benchmark by Exchange ({window_of(legs)})",
                  fontsize=14, fontweight="bold", pad=12)
-    ax.set_xlabel("CAGR (%)", fontsize=12)
+    ax.set_xlabel("CAGR (%, local currency)", fontsize=12)
+    ax.set_xlim(right=max(cagrs + benches) + 9)
     ax.xaxis.set_major_formatter(mtick.PercentFormatter())
+    ax.legend(handles=[
+        Patch(color=POSITIVE_COLOR, alpha=0.85, label="Beat its own benchmark"),
+        Patch(color=NEGATIVE_COLOR, alpha=0.85, label="Trailed its own benchmark"),
+        Patch(color=BENCHMARK_COLOR, alpha=0.85, label="No local index (vs S&P 500, USD)"),
+        Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+               markeredgewidth=3, label="Benchmark CAGR"),
+    ], fontsize=9, loc="lower right")
     ax.grid(True, alpha=0.3, linestyle=":", axis="x")
     ax.invert_yaxis()
+
+    beat = sum(c > b for p, c, b in zip(proxy, cagrs, benches) if not p)
+    note = f"{beat} of {proxy.count(False)} beat their own benchmark."
+    grey = [x for x, p in zip(exchanges, proxy) if p]
+    if grey:
+        note += f" {', '.join(grey)}: no local index, measured against the S&P 500 in USD, not counted."
+    if dropped:
+        note += f" Excluded (truncated window or never invested): {', '.join(dropped)}."
+    fig.text(0.5, -0.02,
+             "Data: Ceta Research | Returns in local currency, each against its own market's index\n" + note,
+             ha="center", fontsize=8, color="gray")
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -198,28 +231,21 @@ def plot_comparison_cagr(all_data, output_path):
 
 
 def plot_comparison_drawdown(all_data, output_path):
-    """Plot max drawdown comparison across exchanges."""
-    exchanges = []
-    drawdowns = []
-
-    for exch, data in sorted(all_data.items(),
-                              key=lambda x: (x[1].get("portfolio") or {}).get("max_drawdown") or 0):
-        if "error" in data or not data.get("portfolio"):
-            continue
-        mdd = data["portfolio"].get("max_drawdown")
-        if mdd is not None:
-            exchanges.append(exch.replace("_", "+"))
-            drawdowns.append(mdd)
-
-    if not exchanges:
+    """Plot max drawdown comparison across exchanges (no benchmark line: each has its own)."""
+    legs, _ = comparable_legs(all_data, "max_drawdown")
+    if not legs:
         return
+    legs.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"])
+    exchanges = [exch.replace("_", "+") for exch, _ in legs]
+    drawdowns = [d["portfolio"]["max_drawdown"] for _, d in legs]
 
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.barh(exchanges, drawdowns, color=NEGATIVE_COLOR, alpha=0.75)
 
-    ax.set_title("Cyclical Sector Timing: Max Drawdown by Exchange (2001–2024)",
+    ax.set_title(f"Cyclical Sector Timing: Max Drawdown by Exchange ({window_of(legs)})",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Max Drawdown (%)", fontsize=12)
+    ax.set_xlim(left=min(drawdowns) - 8)  # room for the deepest bar's label
     ax.xaxis.set_major_formatter(mtick.PercentFormatter())
     ax.grid(True, alpha=0.3, linestyle=":", axis="x")
     ax.invert_yaxis()
@@ -267,8 +293,8 @@ def main():
 
     print("Generating charts...")
 
-    # Per-exchange charts come from returns_{key}.json: the local-benchmark
-    # rerun the blogs quote. exchange_comparison.json predates it (S&P 500 for all).
+    # Per-exchange charts come from returns_{key}.json; exchange_comparison.json
+    # is rebuilt from them, so both carry each market's own benchmark.
     for exch_key, (region_slug, label) in EXCHANGE_LABELS.items():
         path = os.path.join(RESULTS_DIR, f"returns_{exch_key}.json")
         data = None

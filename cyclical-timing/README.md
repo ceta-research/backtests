@@ -8,7 +8,7 @@ Buy quality cyclicals only when corporate revenues confirm economic expansion.
 **Signal (timing):** ≥50% of cyclical stocks with positive YoY revenue growth (FY data)
 **Selection (when signal is on):** Top 30 by ROE, with positive revenue growth
 **Rebalancing:** Annual (July), using FY data with 45-day lag
-**Period:** 2001–2024
+**Period:** 2001–2025 (24 annual periods, July 2001 to July 2025)
 
 ## Academic Basis
 
@@ -28,7 +28,7 @@ When invested, select top 30 by ROE (return on equity) among stocks with positiv
 
 | File | Purpose |
 |------|---------|
-| `backtest.py` | Full historical backtest (2001–2024) |
+| `backtest.py` | Full historical backtest (2001–2025) |
 | `screen.py` | Current qualifying stocks |
 | `generate_charts.py` | Charts from results JSON |
 | `results/exchange_comparison.json` | Multi-exchange results |
@@ -52,31 +52,33 @@ python3 cyclical-timing/screen.py --preset us
 python3 cyclical-timing/generate_charts.py
 ```
 
-## Key Results (US, 2001–2024)
+## Key Results (US, 2001–2025)
 
 | Metric | Cyclical Timing | S&P 500 |
 |--------|----------------|---------|
-| CAGR | 8.04% | 8.89% |
-| Excess CAGR | -0.86% | — |
-| Max Drawdown | -33.0% | -36.3% |
-| Down Capture | 34.3% | 100% |
-| Sharpe Ratio | 0.304 | 0.437 |
-| Cash Periods | 3/24 (12%) | — |
+| CAGR | 9.43% | 8.91% |
+| Excess CAGR | +0.52% | — |
+| Max Drawdown | -32.63% | -38.01% |
+| Down Capture | 39.03% | 100% |
+| Sharpe Ratio | 0.36 | 0.427 |
+| Cash Periods | 3/24 (12.5%) | — |
 
-**Key finding:** Near-market returns with only 34% down capture. The strategy sat in cash during 2010 (post-recession contraction), 2016 (energy downturn), and 2021 (COVID revenue impact), correctly avoiding two of three subsequent down markets.
+**Key finding:** A small edge over the S&P 500 (+0.52 points a year) with 39% down capture, but higher volatility (20.67% vs 16.2%), so the Sharpe ratio trails the index. The strategy sat in cash in 2010, 2016 and 2021, each time because the expansion signal read below 50%. Only 2021 avoided a down market (S&P 500 -10.68%). The 2010 and 2016 cash years missed rallies of +33.55% and +18.58%.
 
-**Split story:** 2001–2009 (+8 outperformance years, commodity supercycle tailwind). 2010–2024 (more mixed, fewer outperformance years as China/commodity cycle unwound).
+**Split story:** 2001–2009: beat the S&P 500 in all 9 years. 2010–2024: beat it in 5 of 15. The strategy holds no Technology or Communication Services stocks.
 
 ## Signal History (US)
 
 | Year | Signal | Expansion % | Action |
 |------|--------|------------|--------|
-| 2001 | ON | 83.9% | Invested (outperformed) |
-| 2009 | ON | 78.5% | Invested (outperformed) |
-| 2010 | **OFF** | 24.4% | **Cash** (missed +33% rally) |
-| 2016 | **OFF** | 48.1% | **Cash** (missed +18% rally) |
-| 2021 | **OFF** | 40.3% | **Cash** (avoided -10% drop) |
-| 2022–2024 | ON | 85–90% | Invested (mixed) |
+| 2001 | ON | 82.0% | Invested (outperformed: +5.69% vs -22.45%) |
+| 2009 | ON | 79.0% | Invested (outperformed) |
+| 2010 | **OFF** | 24.0% | **Cash** (missed +33.55% rally) |
+| 2016 | **OFF** | 48.2% | **Cash** (missed +18.58% rally) |
+| 2021 | **OFF** | 39.8% | **Cash** (avoided -10.68% drop) |
+| 2022–2024 | ON | 60.6–89.9% | Invested (trailed the S&P 500 all three years) |
+
+Across all 16 exchanges in `results/exchange_comparison.json`, 7 of the 14 markets with a local index beat it. South Africa and Saudi Arabia have no local index in the data and are measured against the S&P 500 in USD.
 
 ## Data Source
 
