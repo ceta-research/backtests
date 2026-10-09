@@ -28,7 +28,7 @@ except ImportError:
     sys.exit(1)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from chart_utils import benchmark_label, currency_prefix, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_label, benchmark_legend, currency_prefix, localize_money_title, money, money_axis_label, money_formatter
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 CHARTS_DIR = os.path.join(os.path.dirname(__file__), "charts")
@@ -49,11 +49,12 @@ def cumulative_growth(returns):
     return curve
 
 
-def plot_cumulative(data, label, bench_label, output_path):
+def plot_cumulative(data, label, bench_label, output_path, legend_label=None):
     """Cumulative growth chart: Value-Momentum vs its exchange's benchmark.
 
     `bench_label` must be resolved by the caller with the FULL results dict
     (benchmark_label(all_data, exch_key)); `data` here is one exchange entry.
+    `legend_label` (benchmark_legend) marks an S&P 500 proxy as USD.
     """
     annual = data["annual_returns"]
     years = [ar["year"] for ar in annual]
@@ -69,7 +70,7 @@ def plot_cumulative(data, label, bench_label, output_path):
     ax.plot(x, port_curve, color=STRATEGY_COLOR, linewidth=2.5,
             label=f"Value-Momentum  (CAGR: {data['portfolio']['cagr']:.1f}%)")
     ax.plot(x, spy_curve, color=BENCHMARK_COLOR, linewidth=1.8, linestyle="--",
-            label=f"{bench_label}  (CAGR: {data['spy']['cagr']:.1f}%)")
+            label=f"{legend_label or bench_label}  (CAGR: {data['spy']['cagr']:.1f}%)")
 
     ax.set_title(f"Value-Momentum vs {bench_label}\n{label}",
                  fontsize=14, fontweight="bold", pad=12)
@@ -280,7 +281,8 @@ def main():
         print(f"\n  {label}  [benchmark: {bench_label}]")
         plot_cumulative(
             data, label, bench_label,
-            os.path.join(CHARTS_DIR, f"1_{region_slug}_cumulative_growth.png")
+            os.path.join(CHARTS_DIR, f"1_{region_slug}_cumulative_growth.png"),
+            legend_label=benchmark_legend(all_data, exch_key),
         )
         plot_annual_returns(
             data, label, bench_label,

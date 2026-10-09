@@ -1,11 +1,14 @@
 """Generate all Industry Leader charts for blog posts from exchange_comparison.json."""
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import json
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_cumulative, benchmark_label, is_usd_benchmark_proxy, localize_money_title,
+                         money, money_axis_label, money_formatter)
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -160,7 +163,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
 
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange (clean exchanges only)."""
+    """CAGR by exchange (clean exchanges only), each against its own benchmark (marker)."""
     # Exclude documented problematic exchanges
     exclude = {"ASX", "SAO", "JNB", "SES"}
     exchanges_with_data = [
@@ -174,8 +177,12 @@ def chart_comparison_cagr(filename):
 
     names = [k for k, v in exchanges_with_data]
     cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
+    benches = [v["spy"]["cagr"] for k, v in exchanges_with_data]
     excess = [v["comparison"]["excess_cagr"] for k, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k in names]
+    # Grey = benchmark is the S&P 500 in USD against a local-currency bar (cross-currency)
+    proxy = {k for k in names if is_usd_benchmark_proxy(data, k)}
+    colors = ["#9E9E9E" if k in proxy else "#27ae60" if c > b else "#c0392b"
+              for k, c, b in zip(names, cagrs, benches)]
 
     display_names = {
         "NYSE_NASDAQ_AMEX": "US (NYSE+NASDAQ+AMEX)",
@@ -194,28 +201,38 @@ def chart_comparison_cagr(filename):
     }
     labels = [display_names.get(k, k) for k in names]
 
-    fig, ax = plt.subplots(figsize=(10, 8))
-    bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
-    ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr}% CAGR)")
+    fig, ax = plt.subplots(figsize=(11, 8))
+    ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
+    ax.scatter(benches, range(len(names)), marker="|", s=500, linewidths=3, color="black", zorder=3)
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(labels, fontsize=10)
     ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Industry Leaders CAGR by Exchange (2001-2025)", fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
+    ax.set_xlabel("CAGR (%, local currency)", fontsize=12, fontweight="bold")
+    ax.set_xlim(0, max(cagrs + benches) + 7)
+    ax.set_title("Industry Leaders: CAGR vs Own Benchmark by Exchange (2001-2025)",
+                 fontsize=14, fontweight="bold", pad=15)
+    handles = [
+        Patch(color="#27ae60", alpha=0.85, label="Beat its own benchmark"),
+        Patch(color="#c0392b", alpha=0.85, label="Trailed its own benchmark"),
+    ]
+    if proxy:
+        handles.append(Patch(color="#9E9E9E", alpha=0.85, label="No local index (vs S&P 500, USD)"))
+    handles.append(Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+                          markeredgewidth=3, label="Benchmark CAGR"))
+    ax.legend(handles=handles, fontsize=9, loc="lower right")
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
+    ax.set_axisbelow(True)
 
-    for i, (cagr, ex_val) in enumerate(zip(cagrs, excess)):
-        x_pos = max(cagr, 0) + 0.2
-        ex_str = f" ({ex_val:+.1f}%)" if ex_val is not None else ""
-        ax.text(x_pos, i, f"{cagr:.1f}%{ex_str}", va="center", fontsize=9, fontweight="bold")
+    for i, (k, c, b, e) in enumerate(zip(names, cagrs, benches, excess)):
+        ax.text(max(c, b, 0) + 0.3, i, f"{c:.2f}% ({e:+.2f} vs {benchmark_label(data, k)})",
+                va="center", fontsize=9)
 
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Top 3 by revenue per growing industry, annual rebalance",
+    beat = sum(c > b for k, c, b in zip(names, cagrs, benches) if k not in proxy)
+    fig.text(0.5, -0.04,
+             "Data: Ceta Research | Top 3 by revenue per growing industry, annual July rebalance, equal weight\n"
+             "Returns in local currency, each against its own market's index (S&P 500 for the US). "
+             f"{beat} of {len(names)} beat their own benchmark.",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()

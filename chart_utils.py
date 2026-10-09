@@ -126,6 +126,133 @@ def benchmark_cagr(data, exchange_key):
 
 
 # ---------------------------------------------------------------------------
+# S&P 500 (USD) standing in for a missing local index.
+#
+# Exchanges with no local index (JNB, JKT, MIL, KLS, SAU, TLV, ...) ran against
+# SPY, and so did some stale runs on exchanges that do have one. That line is
+# in USD while the strategy line is local, so money() would print "ZAR 66K" for
+# a US$66K value. Use benchmark_money() / benchmark_legend() for the benchmark.
+# ---------------------------------------------------------------------------
+
+_US_RESULT_KEYS = ("US_MAJOR", "NYSE_NASDAQ_AMEX", "NYSE_NASDAQ", "US")
+
+
+def _benchmark_series(entry):
+    """{year: benchmark return in percent} from an entry's annual_returns."""
+    series = {}
+    for ar in (entry or {}).get("annual_returns") or []:
+        if not isinstance(ar, dict):
+            continue
+        v = ar.get("spy", ar.get("benchmark"))
+        try:
+            year = int(ar.get("year"))
+        except (TypeError, ValueError):
+            continue
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            series[year] = float(v)
+    if series and max(abs(v) for v in series.values()) < 1.5:  # fractions
+        series = {y: v * 100 for y, v in series.items()}
+    return series
+
+
+def _series_matches_us(data, exchange_key, tol=0.02, min_years=5):
+    """True/False if the entry's benchmark series is/isn't the US entry's, else None.
+
+    Year-aligned and scale-aware (as scripts/check_rerun_vintage.py): windows
+    differ across entries, and some topics store fractions. Only the first and
+    last shared years may differ (partial periods: net-debt-ebitda's 2025 is
+    15.34 on every non-US entry vs 15.47 on the US one); a local index misses
+    nearly every year.
+    """
+    series = _benchmark_series((data or {}).get(exchange_key))
+    if not series:
+        return None
+    verdict = None
+    for us_key in _US_RESULT_KEYS:
+        if us_key == exchange_key:
+            continue
+        us = _benchmark_series((data or {}).get(us_key))
+        shared = sorted(set(series) & set(us))
+        if len(shared) < min_years:
+            continue
+        misses = {y for y in shared if abs(series[y] - us[y]) > tol}
+        if (misses <= {shared[0], shared[-1]}
+                and len(shared) - len(misses) >= min_years):
+            return True
+        verdict = False
+    return verdict
+
+
+def _recorded_benchmark_is_spy(entry):
+    """True if the recorded benchmark is SPY/S&P 500, False if it names another, None if none."""
+    names = [
+        (entry or {}).get(f)
+        for f in ("benchmark_symbol", "benchmark_name", "benchmark")
+    ]
+    names = [n for n in names if isinstance(n, str) and n.strip()]
+    if not names:
+        return None
+    return any(_clean_benchmark_name(n) == "S&P 500" for n in names)
+
+
+def _has_local_index(exchange_key):
+    """Whether LOCAL_INDEX_BENCHMARKS maps the key (resolved like currency_code)."""
+    key = str(exchange_key)
+    if key.endswith("_dom"):
+        key = key[:-4]
+    ex = RESULT_KEY_TO_EXCHANGE.get(key)
+    if ex is not None:
+        return LOCAL_INDEX_BENCHMARKS.get(ex) is not None
+    parts = [p for p in key.replace("+", "_").split("_") if p]
+    return any(
+        LOCAL_INDEX_BENCHMARKS.get(RESULT_KEY_TO_EXCHANGE.get(p, p)) for p in parts
+    )
+
+
+def is_usd_benchmark_proxy(data, exchange_key):
+    """True when a non-USD exchange's benchmark line is the S&P 500 (so in USD).
+
+    Evidence order: (a) a recorded SPY/S&P 500 benchmark; (b) the series test
+    against the US entry in `data`: a match beats a recorded local name (those
+    were hand-stamped over SPY series), a mismatch counts only where a local
+    index exists or was recorded; (c) no local index for the key. A recorded
+    local name with no per-year series to test means False.
+    """
+    code = currency_code(exchange_key)
+    if code is None or code == "USD":
+        return False
+    recorded = _recorded_benchmark_is_spy((data or {}).get(exchange_key))
+    if recorded:
+        return True
+    matched = _series_matches_us(data, exchange_key)
+    if matched is True:
+        return True
+    # A mismatch can be a different US-file vintage; it rules out a proxy only
+    # where a local index exists or was recorded.
+    if matched is False and (recorded is False or _has_local_index(exchange_key)):
+        return False
+    if recorded is False:
+        return False
+    return not _has_local_index(exchange_key)
+
+
+def benchmark_money(value, data, exchange_key, suffix="", decimals=0):
+    """Benchmark end label: 'US$66K' for an S&P 500 proxy, else money()."""
+    if is_usd_benchmark_proxy(data, exchange_key):
+        return f"US${value:,.{decimals}f}{suffix}"
+    return money(value, exchange_key, decimals=decimals, suffix=suffix)
+
+
+def benchmark_legend(data, exchange_key):
+    """Benchmark legend name: 'S&P 500, USD' for an S&P 500 proxy, else benchmark_label()."""
+    if is_usd_benchmark_proxy(data, exchange_key):
+        # not benchmark_label(): it guesses the local index ("OMX Stockholm 30")
+        # for SPY runs on exchanges that have one
+        return "S&P 500, USD"
+    return benchmark_label(data, exchange_key)
+
+
+# ---------------------------------------------------------------------------
 # Currency on money-denominated axes.
 #
 # Backtest returns are in the exchange's LOCAL currency, so a cumulative-growth

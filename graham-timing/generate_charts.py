@@ -10,6 +10,8 @@ import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
 from chart_utils import benchmark_label, localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import json
 from pathlib import Path
 
@@ -27,6 +29,9 @@ with open(results_file) as f:
     data = json.load(f)
 
 print(f"Loaded {len(data)} exchanges from {results_file}\n")
+
+# No local index data: measured against the S&P 500 in USD, a cross-currency gap.
+CROSS_CCY = {"JKT"}
 
 
 def get_cumulative_growth(exchange_key, initial=10000):
@@ -142,33 +147,46 @@ def chart_annual_bars(exchange_key, color="#1a5276"):
 
 
 def chart_comparison_cagr():
-    """Generate CAGR comparison bar chart across all exchanges."""
+    """CAGR by exchange, each against its own benchmark (marker)."""
     exchanges = sorted(data.keys(), key=lambda k: data[k]["portfolio"]["cagr"], reverse=True)
+    # Stored as fractions; plot in percent
     cagrs = [data[ex]["portfolio"]["cagr"] * 100 for ex in exchanges]
-    spy_cagrs = [data[ex]["spy"]["cagr"] * 100 for ex in exchanges]
+    benches = [data[ex]["spy"]["cagr"] * 100 for ex in exchanges]
+    excesses = [data[ex]["comparison"]["excess_cagr"] * 100 for ex in exchanges]
+    colors = ["#9E9E9E" if ex in CROSS_CCY else "#27ae60" if c > b else "#c0392b"
+              for ex, c, b in zip(exchanges, cagrs, benches)]
 
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(11, max(6, len(exchanges) * 0.6)))
+    ax.barh(range(len(exchanges)), cagrs, color=colors, alpha=0.85, height=0.6)
+    ax.scatter(benches, range(len(exchanges)), marker="|", s=500, linewidths=3, color="black", zorder=3)
 
-    y_pos = list(range(len(exchanges)))
-
-    ax.barh(y_pos, cagrs, height=0.7, color="#1a5276", alpha=0.8, label="Graham Timing")
-
-    # SPY reference line (average across exchanges)
-    avg_spy_cagr = sum(spy_cagrs) / len(spy_cagrs)
-    ax.axvline(x=avg_spy_cagr, color="#95a5a6", linestyle="--", linewidth=2,
-               label=f"S&P 500 Avg ({avg_spy_cagr:.2f}%)")
-
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(exchanges, fontsize=10)
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Graham Number Timing: CAGR by Exchange (2000-2025)",
+    ax.set_yticks(range(len(exchanges)))
+    ax.set_yticklabels(exchanges, fontsize=11)
+    ax.invert_yaxis()
+    ax.set_xlabel("CAGR (%, local currency)", fontsize=12, fontweight="bold")
+    ax.set_xlim(right=max(max(cagrs), max(benches)) + 8)
+    ax.set_title("Graham Number Timing: CAGR vs Own Benchmark by Exchange (2000-2025)",
                  fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
+    # Legend lists only the colours actually drawn
+    swatches = [("#27ae60", "Beat its own benchmark"), ("#c0392b", "Trailed its own benchmark"),
+                ("#9E9E9E", "No local index (vs S&P 500, USD)")]
+    ax.legend(handles=[Patch(color=c, alpha=0.85, label=l) for c, l in swatches if c in colors] + [
+        Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+               markeredgewidth=3, label="Benchmark CAGR"),
+    ], fontsize=9, loc="lower right")
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
+    for i, (ex, c, b, e) in enumerate(zip(exchanges, cagrs, benches, excesses)):
+        bench_name = benchmark_label(data, ex) + (" in USD" if ex in CROSS_CCY else "")
+        ax.text(max(c, b, 0) + 0.3, i, f"{c:.2f}% ({e:+.2f} vs {bench_name})",
+                va="center", fontsize=9)
+
+    beat = sum(c > b for ex, c, b in zip(exchanges, cagrs, benches) if ex not in CROSS_CCY)
     fig.text(0.5, -0.02,
-             "Data: Ceta Research | Graham Number timing, quarterly rebalance, 2000-2025",
+             "Data: Ceta Research | Graham Number timing, quarterly rebalance, 2000-2025\n"
+             "Returns in local currency, each against its own market's index; Indonesia against the "
+             f"S&P 500 in USD. {beat} of {len(exchanges)} beat their own benchmark.",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
@@ -186,10 +204,9 @@ def chart_comparison_drawdown():
     fig, ax = plt.subplots(figsize=(12, 8))
 
     y_pos = list(range(len(exchanges)))
-    colors = ["#27ae60" if dd > -20 else "#e67e22" if dd > -30 else "#c0392b"
-              for dd in drawdowns]
 
-    ax.barh(y_pos, drawdowns, height=0.7, color=colors, alpha=0.8)
+    # Single colour: every value is below -43%, so severity bands added nothing
+    ax.barh(y_pos, drawdowns, height=0.7, color="#c0392b", alpha=0.8)
 
     ax.set_yticks(y_pos)
     ax.set_yticklabels(exchanges, fontsize=10)
@@ -198,15 +215,6 @@ def chart_comparison_drawdown():
                  fontsize=14, fontweight="bold", pad=15)
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
     ax.set_axisbelow(True)
-
-    # Color legend
-    from matplotlib.patches import Patch
-    legend_elements = [
-        Patch(facecolor="#27ae60", alpha=0.8, label="Low (<-20%)"),
-        Patch(facecolor="#e67e22", alpha=0.8, label="Moderate (-20% to -30%)"),
-        Patch(facecolor="#c0392b", alpha=0.8, label="High (>-30%)")
-    ]
-    ax.legend(handles=legend_elements, fontsize=9, loc="lower right")
 
     fig.text(0.5, -0.02,
              "Data: Ceta Research | Graham Number timing, quarterly rebalance, 2000-2025",

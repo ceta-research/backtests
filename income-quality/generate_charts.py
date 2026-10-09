@@ -21,7 +21,8 @@ import numpy as np
 
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, localize_money_title, money_axis_label, money_formatter
+from chart_utils import (benchmark_label, benchmark_legend, currency_code, is_usd_benchmark_proxy,
+                         localize_money_title, money_axis_label, money_formatter)
 
 CHART_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
 RESULTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -108,8 +109,12 @@ def plot_cumulative(data, exchange_name, region_key):
             linewidth=2.5, label=f'High IQ >1.2 ({data["portfolios"]["high"]["cagr"]}% CAGR)')
     # The "sp500" bucket holds whichever benchmark this exchange ran against.
     bench = benchmark_label({exchange_name: data}, exchange_name)
+    # An S&P 500 proxy line is USD on a local-currency axis: say so.
+    usd_proxy = is_usd_benchmark_proxy({exchange_name: data}, exchange_name)
     ax.plot(x_labels, spy_growth, color=COLORS['spy'],
-            linewidth=2, linestyle='--', label=f'{bench} ({data["portfolios"]["sp500"]["cagr"]}% CAGR)')
+            linewidth=2, linestyle='--',
+            label=f'{benchmark_legend({exchange_name: data}, exchange_name)} '
+                  f'({data["portfolios"]["sp500"]["cagr"]}% CAGR)')
 
     ax.set_title(localize_money_title(
                      f'Growth of $10,000: High Income Quality vs {bench} ({TITLE_NAME.get(exchange_name, exchange_name)})',
@@ -122,7 +127,10 @@ def plot_cumulative(data, exchange_name, region_key):
 
     start_yr = years[0]
     end_yr = years[-1] + 1
-    ax.annotate(f'{start_yr}-{end_yr}, Annual Rebalance, Equal Weight, Size-Tiered Costs',
+    footer = f'{start_yr}-{end_yr}, Annual Rebalance, Equal Weight, Size-Tiered Costs'
+    if usd_proxy:
+        footer += f'. Portfolio in {currency_code(exchange_name)}; S&P 500 line in USD'
+    ax.annotate(footer,
                 xy=(0.5, -0.12), xycoords='axes fraction', ha='center',
                 fontsize=9, color='gray')
 

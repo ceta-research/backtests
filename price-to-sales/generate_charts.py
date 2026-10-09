@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_cumulative, benchmark_label, benchmark_legend, benchmark_money, localize_money_title, money, money_axis_label, money_formatter
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -88,7 +88,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
     spy_years, spy_vals = get_spy_cumulative(ref_key)
     spy_cagr = data[ref_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_legend(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         ex = data[ex_key]
@@ -104,7 +104,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
                     fontsize=9, fontweight="bold", color=COLORS.get(ex_key, "#95a5a6"))
 
     spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(money(spy_final_k, exchanges[0], suffix="K"),
+    # S&P proxy line is USD, not the local currency
+    ax.annotate(benchmark_money(spy_final_k, data, exchanges[0], suffix="K"),
                 xy=(spy_years[-1], spy_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])

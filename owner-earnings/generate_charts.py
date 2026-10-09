@@ -1,11 +1,14 @@
 """Generate all Owner Earnings Yield charts for blog posts from exchange_comparison.json."""
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import json
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_cagr, benchmark_cumulative, benchmark_label, localize_money_title, money,
+                         money_axis_label, money_formatter)
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -62,6 +65,34 @@ EXCHANGE_LABELS = {
 }
 
 FOOTER = "Data: Ceta Research | OE Yield >5%, ROE >10%, OPM >10%, annual rebalance, equal weight, 2000-2025"
+
+# Excluded from the comparison post (EXCLUDED_PRESETS in backtest.py) but still in exchange_comparison.json
+COMPARISON_EXCLUDED = {"XETRA"}
+# No local index data: measured against SPY in USD, so the gap is cross-currency
+CROSS_CCY_EXCHANGES = {"JSE", "TLV", "SAU"}
+EXCESS_POS_COLOR = "#4CAF50"
+EXCESS_NEG_COLOR = "#F44336"
+CROSS_CCY_COLOR = "#9E9E9E"
+COMPARISON_NAMES = {
+    "US_MAJOR": "US (NYSE+NASDAQ+AMEX)", "India": "India (NSE)", "STO": "Sweden (STO)", "LSE": "UK (LSE)",
+    "JSE": "South Africa (JSE)", "China": "China (SHH+SHZ)", "TLV": "Israel (TLV)", "JPX": "Japan (JPX)",
+    "HKSE": "Hong Kong (HKSE)", "Taiwan": "Taiwan (TAI+TWO)", "SET": "Thailand (SET)", "KSC": "Korea (KSC)",
+    "SIX": "Switzerland (SIX)", "SAU": "Saudi (SAU)",
+}
+# USD conversions over the backtest window (USDZAR 6.8055 -> 17.5786, USDILS 4.063 -> 3.3765, Jul 2000-Jul 2025)
+COMPARISON_NOTE = ("Each exchange in local currency vs its own local index. JSE, TLV and SAU have no local index data, "
+                   "so their local returns sit against the S&P 500 in USD.\n"
+                   "Converted to USD (Jul 2000-Jul 2025): JSE roughly 4.6% (USD/ZAR +3.9%/yr), TLV roughly 7.0%, "
+                   "SAU 3.6% (riyal pegged). All three trail the S&P 500's 7.85%.")
+
+
+def comparison_exchanges(extra=lambda v: True):
+    """Exchanges in the comparison post: invested, full window, not excluded."""
+    return [
+        (k, v) for k, v in data.items()
+        if k not in COMPARISON_EXCLUDED and v.get("invested_periods", 0) > 0
+        and not v.get("window_truncated", False) and extra(v)
+    ]
 
 
 def get_cumulative_growth(exchange_key, initial=10000):
@@ -181,39 +212,48 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
 
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
-    ]
+    """CAGR per exchange, coloured by result vs its own local index, with the benchmark CAGR as a marker."""
+    exchanges_with_data = comparison_exchanges()
+    # Sorted by CAGR, as in the post's table
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
-    names = [k for k, _ in exchanges_with_data]
+    keys = [k for k, _ in exchanges_with_data]
+    names = [COMPARISON_NAMES.get(k, k) for k in keys]
     cagrs = [v["portfolio"]["cagr"] for _, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k in names]
+    excess = [v["excess_cagr"] for _, v in exchanges_with_data]
+    benches = [benchmark_cagr(data, k) for k in keys]
+    colors = [CROSS_CCY_COLOR if k in CROSS_CCY_EXCHANGES
+              else EXCESS_POS_COLOR if e > 0 else EXCESS_NEG_COLOR for k, e in zip(keys, excess)]
 
-    fig, ax = plt.subplots(figsize=(10, max(5, len(names) * 0.8)))
-    bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
+    ax.scatter(benches, range(len(keys)), marker="|", s=500, linewidths=3, color="black", zorder=3)
 
-    spy_cagr = data.get("US_MAJOR", {}).get("spy", {}).get("cagr")
-    if spy_cagr:
-        ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-                   label=f"S&P 500 ({spy_cagr}% CAGR)")
+    for i, (k, cagr, ex, bench) in enumerate(zip(keys, cagrs, excess, benches)):
+        # Cross-currency rows get no excess figure: local CAGR vs a USD index isn't alpha
+        label = (f"{cagr:.2f}% (no local index; S&P 500 in USD)" if k in CROSS_CCY_EXCHANGES
+                 else f"{cagr:.2f}% ({ex:+.2f}% vs {benchmark_label(data, k)})")
+        ax.text(max(cagr, bench, 0) + 0.4, i, label, va="center", fontsize=9)
 
     ax.set_yticks(range(len(names)))
-    ax.set_yticklabels(names, fontsize=11)
+    ax.set_yticklabels(names, fontsize=10)
     ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Owner Earnings Yield CAGR by Exchange (2000-2025)", fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
+    ax.set_xlabel("CAGR (%, local currency)", fontsize=12, fontweight="bold")
+    ax.set_xlim(0, max(max(c, b) for c, b in zip(cagrs, benches)) + 10)
+    ax.set_title("Owner Earnings Yield CAGR vs Local Benchmark by Exchange (2000-2025)",
+                 fontsize=14, fontweight="bold", pad=15)
+    ax.legend(handles=[
+        Patch(color=EXCESS_POS_COLOR, alpha=0.85, label="Beat local index"),
+        Patch(color=EXCESS_NEG_COLOR, alpha=0.85, label="Trailed local index"),
+        Patch(color=CROSS_CCY_COLOR, alpha=0.85, label="No local index (vs S&P 500, USD)"),
+        Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+               markeredgewidth=3, label="Benchmark CAGR"),
+    ], fontsize=10, loc="lower right")
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
-    for i, (bar, cagr) in enumerate(zip(bars, cagrs)):
-        x_pos = max(cagr, 0) + 0.3
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
-
-    fig.text(0.5, -0.02, FOOTER, ha="center", fontsize=8, color="#7f8c8d")
+    fig.text(0.01, -0.02, COMPARISON_NOTE, fontsize=8, color="#555555", ha="left")
+    fig.text(0.5, -0.06, FOOTER, ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / filename
@@ -224,10 +264,7 @@ def chart_comparison_cagr(filename):
 
 def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
-    ]
+    exchanges_with_data = comparison_exchanges()
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
 
     names = [k for k, _ in exchanges_with_data]
@@ -266,11 +303,7 @@ def chart_comparison_drawdown(filename):
 
 def chart_comparison_sharpe(filename):
     """Horizontal bar chart: Sharpe ratio by exchange."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
-        and v["portfolio"].get("sharpe_ratio") is not None
-    ]
+    exchanges_with_data = comparison_exchanges(lambda v: v["portfolio"].get("sharpe_ratio") is not None)
     if not exchanges_with_data:
         print(f"  Skipping {filename}: no sharpe_ratio data")
         return

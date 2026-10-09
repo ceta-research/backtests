@@ -2,7 +2,8 @@
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (localize_money_title, money, money_axis_label, money_formatter,
+                         is_usd_benchmark_proxy, benchmark_money, benchmark_legend, currency_code)
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -117,7 +118,10 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
         ref_key = exchanges[0]
     bench_years, bench_vals = get_benchmark_cumulative(ref_key)
     bench_cagr = data[ref_key]["spy"]["cagr"]
-    bench_name = BENCHMARK_NAMES.get(ref_key, "Benchmark")
+    # S&P 500 standing in for a missing local index is in USD, not local currency
+    usd_proxy = is_usd_benchmark_proxy(data, ref_key)
+    bench_name = (benchmark_legend(data, ref_key) if usd_proxy
+                  else BENCHMARK_NAMES.get(ref_key, "Benchmark"))
     ax.plot(bench_years, bench_vals, color=COLORS["SPY"], linewidth=1.8,
             label=f"{bench_name} ({bench_cagr}% CAGR)", linestyle="--")
 
@@ -125,22 +129,25 @@ def chart_cumulative(exchanges, filename, title, footer_universe, ref_key=None):
         ex = data[ex_key]
         years, vals = get_cumulative_growth(ex_key)
         cagr = ex["portfolio"]["cagr"]
-        label = f"{EXCHANGE_LABELS.get(ex_key, ex_key)} ({cagr}% CAGR)"
+        ccy = f", {currency_code(ex_key)}" if usd_proxy else ""
+        label = f"{EXCHANGE_LABELS.get(ex_key, ex_key)} ({cagr}% CAGR{ccy})"
         ax.plot(years, vals, color=COLORS.get(ex_key, "#95a5a6"), linewidth=2.2, label=label)
 
         final_k = vals[-1] / 1000
-        ax.annotate(f"{final_k:,.0f}K",
+        ax.annotate(money(final_k, ex_key, suffix="K"),
                     xy=(years[-1], vals[-1]),
                     xytext=(8, 0), textcoords="offset points",
                     fontsize=9, fontweight="bold", color=COLORS.get(ex_key, "#95a5a6"))
 
     bench_final_k = bench_vals[-1] / 1000
-    ax.annotate(f"{bench_final_k:,.0f}K",
+    ax.annotate(benchmark_money(bench_final_k, data, ref_key, suffix="K"),
                 xy=(bench_years[-1], bench_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
 
-    ax.set_ylabel("Portfolio Value", fontsize=12, fontweight="bold")
+    # one currency per axis only when strategy and benchmark share it
+    ylabel = "Portfolio Value" if usd_proxy else money_axis_label(exchanges[0])
+    ax.set_ylabel(ylabel, fontsize=12, fontweight="bold")
     ax.set_title(localize_money_title(title, exchanges[0]), fontsize=14, fontweight="bold", pad=15)
     ax.legend(fontsize=10, loc="upper left")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: f"{x:,.0f}"))

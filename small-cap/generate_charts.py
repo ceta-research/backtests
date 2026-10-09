@@ -1,11 +1,15 @@
 """Generate all Small-Cap Growth charts for blog posts from exchange_comparison.json."""
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import json
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_cumulative, benchmark_label, benchmark_legend, benchmark_money,
+                         is_usd_benchmark_proxy, localize_money_title, money, money_axis_label,
+                         money_formatter)
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -99,7 +103,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     ref_key = exchanges[0] if exchanges[0] in data else list(data.keys())[0]
     spy_cagr = data[ref_key]["spy"]["cagr"]
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
-            label=f"{benchmark_label(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
+            label=f"{benchmark_legend(data, exchanges[0])} ({spy_cagr}% CAGR)", linestyle="--")
 
     for ex_key in exchanges:
         if ex_key not in data:
@@ -117,7 +121,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
                     fontsize=9, fontweight="bold", color=COLORS.get(ex_key, "#95a5a6"))
 
     spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(money(spy_final_k, exchanges[0], suffix="K"),
+    ax.annotate(benchmark_money(spy_final_k, data, exchanges[0], suffix="K"),
                 xy=(spy_years[-1], spy_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
@@ -160,7 +164,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
     offsets = [i - (n_series - 1) * width / 2 for i in x]
     ax.bar([o + 0 * width for o in offsets], spy_returns, width,
-           label=benchmark_label(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
+           label=benchmark_legend(data, exchanges[0]), color=COLORS["SPY"], alpha=0.7)
 
     for idx, ek in enumerate(exchanges):
         if ek not in data:
@@ -189,7 +193,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
 
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange."""
+    """CAGR by exchange, each against its own benchmark (marker)."""
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if v.get("invested_periods", 0) > 0 and v.get("portfolio", {}).get("cagr") is not None
@@ -197,33 +201,52 @@ def chart_comparison_cagr(filename):
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
-    names = [EXCHANGE_DISPLAY_NAMES.get(k, k) for k, v in exchanges_with_data]
-    cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
     raw_keys = [k for k, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k in raw_keys]
+    names = [EXCHANGE_DISPLAY_NAMES.get(k, k) for k in raw_keys]
+    cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
+    benches = [v["spy"]["cagr"] for k, v in exchanges_with_data]
+    # recorded excess (unrounded inputs) so labels match the post: India +0.41, not 12.46-12.06
+    excesses = [v.get("comparison", {}).get("excess_cagr", c - b)
+                for (k, v), c, b in zip(exchanges_with_data, cagrs, benches)]
+    # Local CAGR vs the S&P 500 in USD is a currency gap, not a beat: grey, not counted.
+    cross = [is_usd_benchmark_proxy(data, k) for k in raw_keys]
+    colors = ["#9E9E9E" if x else "#27ae60" if c > b else "#c0392b"
+              for x, c, b in zip(cross, cagrs, benches)]
 
-    fig, ax = plt.subplots(figsize=(10, max(6, len(names) * 0.5 + 1)))
+    fig, ax = plt.subplots(figsize=(11, max(6, len(names) * 0.6)))
     ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-
-    spy_cagr = data.get("NYSE_NASDAQ_AMEX", data[list(data.keys())[0]])["spy"]["cagr"]
-    ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr}% CAGR)")
+    ax.scatter(benches, range(len(names)), marker="|", s=500, linewidths=3, color="black", zorder=3)
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=11)
     ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Small-Cap Growth: CAGR by Exchange (2000-2025)",
+    ax.set_xlabel("CAGR (%, local currency)", fontsize=12, fontweight="bold")
+    ax.set_xlim(right=max(max(cagrs), max(benches)) + 9)
+    ax.set_title("Small-Cap Growth: CAGR vs Own Benchmark by Exchange (2000-2025)",
                  fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
+    ax.legend(handles=[
+        Patch(color="#27ae60", alpha=0.85, label="Beat its own index"),
+        Patch(color="#c0392b", alpha=0.85, label="Trailed its own index"),
+        Patch(color="#9E9E9E", alpha=0.85, label="No local index (vs S&P 500, USD)"),
+        Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+               markeredgewidth=3, label="Benchmark CAGR"),
+    ], fontsize=9, loc="lower right")
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
+    ax.set_axisbelow(True)
 
-    for i, cagr in enumerate(cagrs):
-        x_pos = max(cagr, 0) + 0.3
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
+    for i, (k, x, c, b, e) in enumerate(zip(raw_keys, cross, cagrs, benches, excesses)):
+        note = (f"S&P 500 {b:.2f}% in USD" if x
+                else f"{e:+.2f} vs {benchmark_label(data, k)}")
+        ax.text(max(c, b, 0) + 0.3, i, f"{c:.2f}% ({note})", va="center", fontsize=9)
 
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Rev growth >15%, netIncome >0, D/E <2.0, annual rebalance",
+    scored = [(c, b) for x, c, b in zip(cross, cagrs, benches) if not x]
+    beat = sum(c > b for c, b in scored)
+    proxies = [EXCHANGE_DISPLAY_NAMES.get(k, k).split(" (")[0] for k, x in zip(raw_keys, cross) if x]
+    proxy_note = f"; {', '.join(proxies)} against the S&P 500 in USD" if proxies else ""
+    fig.text(0.5, -0.03,
+             "Data: Ceta Research | Rev growth >15%, netIncome >0, D/E <2.0, annual rebalance (July)\n"
+             f"Returns in local currency, each against its own market's index{proxy_note}. "
+             f"{beat} of {len(scored)} beat their own index.",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
@@ -284,7 +307,7 @@ MARKETS = [
     ("NYSE_NASDAQ_AMEX", "us",           "US",           "NYSE + NASDAQ + AMEX"),
     ("NSE",              "india",        "India",        "NSE (returns in INR)"),
     ("SHZ_SHH",          "china",        "China",        "China (SHZ+SHH, returns in CNY)"),
-    ("JNB",              "southafrica",  "South Africa", "South Africa (JNB, returns in ZAR)"),
+    ("JNB",              "southafrica",  "South Africa", "South Africa (JNB, strategy in ZAR, S&P 500 in USD)"),
     ("TSX",              "canada",       "Canada",       "Canada (TSX, returns in CAD)"),
     ("SIX",              "switzerland",  "Switzerland",  "Switzerland (SIX, returns in CHF)"),
     ("STO",              "sweden",       "Sweden",       "Sweden (STO, returns in SEK)"),

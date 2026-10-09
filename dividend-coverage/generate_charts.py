@@ -4,6 +4,8 @@ import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
 from chart_utils import localize_money_title, money, money_axis_label, money_formatter
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import json
 from pathlib import Path
 
@@ -174,40 +176,72 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     plt.close()
 
 
+# Annualised rise of USD/local (% a year) over the backtest window, 2000-07-03 to
+# 2025-07-01, from the warehouse forex series. HKD is pegged: no adjustment, as the post does.
+FX_RISE_PCT = {
+    "NYSE_NASDAQ_AMEX": 0.0, "NSE": 2.64, "XETRA": -0.86, "LSE": 0.39, "STO": 0.29,
+    "TSX": -0.33, "JPX": 1.23, "HKSE": 0.0, "TAI": -0.19, "SHZ_SHH": -0.57,
+    "KSC": 0.79, "SIX": -2.87,
+}
+
+
+def usd_cagr(exchange_key, local_cagr):
+    """Rough USD CAGR = (1 + local) / (1 + USD/local rise) - 1. KeyError if no FX entry."""
+    return ((1 + local_cagr / 100) / (1 + FX_RISE_PCT[exchange_key] / 100) - 1) * 100
+
+
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange."""
+    """Local-currency CAGR bars with a rough USD estimate each, against the S&P 500 in USD.
+
+    Bar colour is the USD verdict: a local bar crossing the USD line is not a beat.
+    """
     exchanges_with_data = [
         (k, v) for k, v in data.items()
         if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
-    names = [k for k, v in exchanges_with_data]
+    keys = [k for k, v in exchanges_with_data]
+    names = [EXCHANGE_LABELS[k].replace("Coverage ", "", 1) for k in keys]
     cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k in names]
-
-    fig, ax = plt.subplots(figsize=(10, 7))
-    bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-
     spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
-    ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr}% CAGR)")
+    usds = [usd_cagr(k, c) for k, c in zip(keys, cagrs)]
+    beats = [u > spy_cagr for u in usds]
+    colors = ["#27ae60" if b else "#95a5a6" for b in beats]
+
+    fig, ax = plt.subplots(figsize=(11, 7))
+    ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
+    fx_rows = [i for i, k in enumerate(keys) if k != "NYSE_NASDAQ_AMEX"]
+    ax.scatter([usds[i] for i in fx_rows], fx_rows, marker="D", s=40, color="black", zorder=3)
+    ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--")
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=11)
     ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
+    ax.set_xlabel("CAGR (%, local currency)", fontsize=12, fontweight="bold")
+    ax.set_xlim(0, max(cagrs + usds) + 6)
     ax.set_title("Dividend Coverage CAGR by Exchange (2000-2025)", fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
+    ax.legend(handles=[
+        Patch(color="#27ae60", alpha=0.85, label="Clears S&P 500 in USD (est.)"),
+        Patch(color="#95a5a6", alpha=0.85, label="Trails S&P 500 in USD (est.)"),
+        Line2D([], [], color="black", marker="D", linestyle="none", markersize=6, label="Est. USD CAGR"),
+        Line2D([], [], color="#e74c3c", linewidth=1.5, linestyle="--", label=f"S&P 500 ({spy_cagr}%, USD)"),
+    ], fontsize=9, loc="lower right")
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
-    for i, (bar, cagr) in enumerate(zip(bars, cagrs)):
-        x_pos = max(cagr, 0) + 0.3
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
+    for i, (k, c, u) in enumerate(zip(keys, cagrs, usds)):
+        label = f"{c:.1f}%" if k == "NYSE_NASDAQ_AMEX" else f"{c:.1f}%  (USD ~{u:.1f}%)"
+        ax.text(max(c, u, 0) + 0.45, i, label, va="center", fontsize=9.5, fontweight="bold",
+                bbox=dict(facecolor="white", edgecolor="none", pad=1, alpha=0.85))
 
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Coverage screen, annual rebalance (July), equal weight, 2000-2025",
+    winners = sorted((u, n.split(" (")[0]) for u, n, b in zip(usds, names, beats) if b)[::-1]
+    fig.text(0.5, -0.05,
+             "Data: Ceta Research | Coverage screen, annual rebalance (July), equal weight, 2000-2025\n"
+             "Bars: CAGR in local currency. Diamonds: rough USD CAGR at each currency's move vs the dollar, "
+             "July 2000 to July 2025.\n"
+             f"Dashed line: S&P 500 total return (SPY) in USD. In USD, {len(winners)} of {len(keys)} clear it: "
+             f"{', '.join(n for u, n in winners)}.",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()

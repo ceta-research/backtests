@@ -28,7 +28,8 @@ except ImportError:
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 from chart_utils import (localize_money_title, money_axis_label, money_formatter,
-                         benchmark_label, benchmark_cagr)
+                         benchmark_label, benchmark_cagr, benchmark_legend,
+                         is_usd_benchmark_proxy)
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -249,20 +250,27 @@ def main():
         "returns_JNB.json": ("South Africa (JNB)", "southafrica"),
     }
 
+    # Keyed like the results files, US included, so the USD-proxy series test can run
+    loaded = {f[len("returns_"):-len(".json")]: load_results(f) for f in exchange_map
+              if os.path.exists(os.path.join(RESULTS_DIR, f))}
+
     for filename, (display_name, short_name) in exchange_map.items():
-        path = os.path.join(RESULTS_DIR, filename)
-        if not os.path.exists(path):
+        key = filename[len("returns_"):-len(".json")]
+        if key not in loaded:
             print(f"  Skipping {filename} (not found)")
             continue
 
-        results = load_results(filename)
+        results = loaded[key]
         bench_label = BENCHMARK_LABELS.get(short_name, "S&P 500")
+        # S&P 500 on a local-currency axis (JNB): say it's USD
+        cum_label = (benchmark_legend(loaded, key)
+                     if is_usd_benchmark_proxy(loaded, key) else bench_label)
         print(f"\nGenerating charts for {display_name}...")
 
         cumulative_growth_chart(
             results, display_name,
             os.path.join(CHARTS_DIR, f"1_{short_name}_cumulative_growth.png"),
-            bench_label=bench_label)
+            bench_label=cum_label)
         annual_returns_chart(
             results, display_name,
             os.path.join(CHARTS_DIR, f"2_{short_name}_annual_returns.png"),
