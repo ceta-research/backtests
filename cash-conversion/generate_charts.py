@@ -50,6 +50,7 @@ REGION_LABELS = {
     "Taiwan": "Taiwan (TAI + TWO)",
     "JSE": "South Africa (JSE)",
     "SES": "Singapore (SES)",
+    "JPX": "Japan (JPX)",
 }
 
 # Colors
