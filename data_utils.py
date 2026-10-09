@@ -651,7 +651,7 @@ def get_prices(con, symbols, target_date, window_days=10, offset_days=0, with_ep
 
 
 EXIT_METHODS = ("drop", "ltp", "both")
-# US delistings 2001+: 3,498/4,969 last bars fall within 7d of delistedDate; most later bars to day 30 are zero-volume repeats, past day 30 they mostly trade (OTC / ticker reuse).
+# US delistings 2001+: 3,498/4,969 last bars fall on/before delistedDate + 7d; most later bars to day 30 are zero-volume repeats, past day 30 they mostly trade (OTC / ticker reuse).
 LTP_DELIST_GRACE_DAYS = 7
 
 
