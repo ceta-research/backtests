@@ -36,7 +36,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return,
                         LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -280,12 +280,13 @@ def get_price(con, symbol, target_date, offset_days=1):
 
 
 def compute_portfolio_return(con, portfolio, entry_date, exit_date,
-                             use_costs=True, verbose=False, offset_days=1):
+                             use_costs=True, verbose=False, offset_days=1, priced=None):
     """Compute equal-weighted return for a portfolio of stocks.
 
     Args:
         portfolio: dict {symbol: (z_score, zone, market_cap)}
         offset_days: int - MOC execution offset (1 = next-day close)
+        priced: (entry_prices, exit_prices) maps, set only under --exit-method ltp/both
 
     Returns:
         tuple (mean_return, count, skipped_count)
@@ -295,8 +296,11 @@ def compute_portfolio_return(con, portfolio, entry_date, exit_date,
 
     symbol_returns = []
     for sym, (z, zone, mcap) in portfolio.items():
-        ep = get_price(con, sym, entry_date, offset_days=offset_days)
-        xp = get_price(con, sym, exit_date, offset_days=offset_days)
+        if priced is not None:
+            ep, xp = priced[0][sym], priced[1][sym]
+        else:
+            ep = get_price(con, sym, entry_date, offset_days=offset_days)
+            xp = get_price(con, sym, exit_date, offset_days=offset_days)
         symbol_returns.append((sym, ep, xp, mcap))
 
     clean, skipped = filter_returns(symbol_returns, verbose=verbose)
@@ -318,7 +322,7 @@ def compute_portfolio_return(con, portfolio, entry_date, exit_date,
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY"):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run the full Altman Z-Score backtest with four portfolio tracks."""
     print(f"Phase 2: Running annual backtest "
           f"({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
@@ -340,6 +344,16 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         distress = {s: v for s, v in scored.items() if v[1] == "distress"}
         all_ex_distress = {s: v for s, v in scored.items() if v[1] != "distress"}
 
+        if ltp:
+            ltp_fields, audit = {}, {}
+            # The zones partition scored: price once, ONE LTP query per period for all four tracks.
+            eps = {s: get_price(con, s, entry_date, offset_days=offset_days) for s in scored}
+            xps = {s: get_price(con, s, exit_date, offset_days=offset_days) for s in scored}
+            # No MIN_STOCKS / cash guard in this topic; 1.0 is filter_returns' default entry floor.
+            ltp_fill = ltp.fill(list(scored), eps, xps, entry_date, exit_date,
+                                offset_days=offset_days, min_entry_price=1.0)
+            xps_ltp = {**xps, **ltp_fill}
+
         # Compute returns for each track
         track_data = {}
         for name, portfolio in [("safe", safe), ("gray", gray),
@@ -347,9 +361,20 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                 ("all_ex_distress", all_ex_distress)]:
             ret, cnt, skip = compute_portfolio_return(
                 con, portfolio, entry_date, exit_date,
-                use_costs=use_costs, verbose=verbose, offset_days=offset_days
+                use_costs=use_costs, verbose=verbose, offset_days=offset_days,
+                priced=(eps, xps_ltp if exit_method == "ltp" else xps) if ltp else None
             )
             track_data[name] = {"return": ret, "count": cnt, "skipped": skip}
+            if ltp:
+                buyable = [s for s in portfolio if entry_usable(eps[s], 1.0)]
+                miss = [s for s in buyable if xps[s] is None]
+                audit[name] = {"missing": len(miss), "filled": [s for s in miss if s in ltp_fill]}
+                if exit_method == "both" and buyable:  # nothing buyable at entry: 0.0 under either method
+                    r_ltp, c_ltp, _ = compute_portfolio_return(
+                        con, portfolio, entry_date, exit_date,
+                        use_costs=use_costs, offset_days=offset_days, priced=(eps, xps_ltp)
+                    )
+                    ltp_fields.update({f"{name}_return_ltp": r_ltp, f"{name}_count_ltp": c_ltp})
 
         # Benchmark (local index or SPY)
         spy_ret = get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
@@ -371,6 +396,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 track_data[t]["count"] for t in ["safe", "gray", "distress"]
             ),
         })
+        if ltp:
+            periods[-1].update({**ltp_fields, "ltp_audit": audit})
 
         if verbose:
             s = track_data
@@ -670,15 +697,40 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
 
     # Phase 2: Run backtest
     t1 = time.time()
+    # prices_cache only holds 12-day windows at each rebalance date, so LTP reads remote stock_eod.
+    ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     periods = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=args.verbose,
-                           offset_days=offset_days, benchmark_symbol=benchmark_symbol)
+                           offset_days=offset_days, benchmark_symbol=benchmark_symbol,
+                           ltp=ltp, exit_method=args.exit_method)
     bt_time = time.time() - t1
 
     # Phase 3: Compute and display metrics
     output = build_output(periods, universe_name, risk_free_rate, periods_per_year,
                           benchmark_name=benchmark_name)
     print_summary(output)
+    if ltp and "error" not in output:
+        # ltp = safe-zone metrics + run-wide provenance; <track>_track = the other three published books.
+        valid = [p for p in periods if p["spy_return"] is not None]
+        if args.exit_method == "both":
+            print("\n  Exit methods by track: safe, gray, distress, all_ex_distress")
+        block = ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate, key="safe_return")
+        block["safe_track_missing"] = sum(p["ltp_audit"]["safe"]["missing"] for p in periods)
+        block["safe_track_filled"] = sum(len(p["ltp_audit"]["safe"]["filled"]) for p in periods)
+        for t in ("gray", "distress", "all_ex_distress"):
+            block[f"{t}_track"] = {"missing_exits": sum(p["ltp_audit"][t]["missing"] for p in periods),
+                                   "ltp_filled": sum(len(p["ltp_audit"][t]["filled"]) for p in periods)}
+            if args.exit_method == "both":
+                sub = ltp.results_block("both", valid, periods_per_year, risk_free_rate, key=f"{t}_return")
+                block[f"{t}_track"].update({k: sub[k] for k in ("drop_portfolio", "ltp_portfolio")})
+        if args.exit_method == "both":
+            # cash_periods counts zero-survivor years too; this is the same count on the LTP book.
+            block["cash_periods_ltp"] = {
+                t: sum(1 for p in valid if p.get(f"{t}_count_ltp", p[f"{t}_count"]) == 0)
+                for t in ("safe", "distress")}
+        output.update({"exit_method": args.exit_method, "ltp": block, "period_ltp_audit": [
+            {"year": p["year"], **{k: v for k, v in p.items() if k.endswith("_ltp")}, **p["ltp_audit"]}
+            for p in periods]})
 
     total_time = time.time() - t0
     print(f"\nTotal time: {total_time:.0f}s "
@@ -693,6 +745,7 @@ def main():
         description="Altman Z-Score Safety backtest"
     )
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute")
     args = parser.parse_args()
