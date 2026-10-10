@@ -37,7 +37,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -171,12 +171,13 @@ def screen_stocks(con, target_date, mktcap_min):
 
     Returns list of (symbol, market_cap) tuples, ordered by combined rank.
     """
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH m AS (
             SELECT symbol, earningsYield, returnOnCapitalEmployed, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST,
+                    earningsYield DESC NULLS LAST, returnOnCapitalEmployed DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
@@ -196,7 +197,7 @@ def screen_stocks(con, target_date, mktcap_min):
         )
         SELECT symbol, marketCap, (ey_rank + roce_rank) AS combined_rank
         FROM ranked
-        ORDER BY combined_rank ASC
+        ORDER BY combined_rank ASC, symbol
         LIMIT ?
     """, [cutoff_epoch, mktcap_min, MAX_STOCKS]).fetchall()
 

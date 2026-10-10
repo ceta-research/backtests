@@ -126,7 +126,8 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False, domicile=False):
                 action,
                 ROW_NUMBER() OVER (
                     PARTITION BY symbol, CAST(date AS DATE), gradingCompany
-                    ORDER BY dateEpoch DESC
+                    ORDER BY dateEpoch DESC, previousGrade DESC NULLS LAST,
+                             newGrade DESC NULLS LAST, action DESC NULLS LAST
                 ) AS rn
             FROM stock_grade
             WHERE CAST(date AS DATE) >= '{START_YEAR}-01-01'
@@ -279,6 +280,7 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False, domicile=False):
     print(f"    -> {mcap_count} market cap rows")
 
     # Apply market cap filter: keep events where most recent FY mcap > threshold
+    # (one row per symbol-day; the e.* tie-breaks fix which analyst's event survives)
     con.execute(f"""
         CREATE TABLE events_filtered AS
         WITH matched AS (
@@ -287,7 +289,13 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False, domicile=False):
                    m.reportedCurrency, m.listing_currency,
                    ROW_NUMBER() OVER (
                        PARTITION BY e.symbol, e.event_date
-                       ORDER BY m.filing_epoch DESC
+                       ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST,
+                                m.reportedCurrency DESC NULLS LAST,
+                                m.listing_currency DESC NULLS LAST,
+                                e.action DESC NULLS LAST, e.magnitude DESC NULLS LAST,
+                                e.mag_label DESC NULLS LAST,
+                                e.cluster_status DESC NULLS LAST,
+                                e.category DESC NULLS LAST
                    ) AS rn
             FROM final_events e
             LEFT JOIN mcap_cache m ON e.symbol = m.symbol
@@ -472,7 +480,7 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
         FROM event_base eb
         {' '.join(join_clauses)}
         WHERE w1.abnormal_ret IS NOT NULL
-        ORDER BY eb.event_date
+        ORDER BY eb.event_date, eb.symbol
     """
     rows = con.execute(result_sql).fetchall()
 

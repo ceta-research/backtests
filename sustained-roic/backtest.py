@@ -36,7 +36,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
                         get_prices, get_local_benchmark, get_benchmark_return,
                         LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg)
+                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -178,10 +178,7 @@ def classify_stocks(con, target_date, mktcap_min):
     Returns dict: {symbol: (current_roic, years_above, group, market_cap)}
     where group is 'sustained', 'single_year', or 'low'
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS),
-        datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
     rows = con.execute("""
         WITH
@@ -192,7 +189,9 @@ def classify_stocks(con, target_date, mktcap_min):
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS yr_rank
             FROM (
                 SELECT *, ROW_NUMBER() OVER (
-                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC
+                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC,
+                        operatingIncome DESC NULLS LAST, incomeTaxExpense DESC NULLS LAST,
+                        incomeBeforeTax DESC NULLS LAST
                 ) AS dedup_rn
                 FROM income_cache WHERE filing_epoch <= ?
             ) WHERE dedup_rn = 1
@@ -203,7 +202,9 @@ def classify_stocks(con, target_date, mktcap_min):
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS yr_rank
             FROM (
                 SELECT *, ROW_NUMBER() OVER (
-                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC
+                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC,
+                        totalAssets DESC NULLS LAST, totalCurrentLiabilities DESC NULLS LAST,
+                        cashAndCashEquivalents DESC NULLS LAST
                 ) AS dedup_rn
                 FROM balance_cache WHERE filing_epoch <= ?
             ) WHERE dedup_rn = 1
@@ -213,7 +214,8 @@ def classify_stocks(con, target_date, mktcap_min):
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
             FROM (
                 SELECT *, ROW_NUMBER() OVER (
-                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC
+                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC,
+                        marketCap DESC NULLS LAST
                 ) AS dedup_rn
                 FROM metrics_cache WHERE filing_epoch <= ?
             ) WHERE dedup_rn = 1
@@ -259,6 +261,7 @@ def classify_stocks(con, target_date, mktcap_min):
         JOIN met m ON rs.symbol = m.symbol AND m.rn = 1
         JOIN universe u ON rs.symbol = u.symbol
         WHERE m.marketCap > ?
+        ORDER BY rs.symbol  -- fixed row order: track dicts and return sums follow it
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch,
           LOOKBACK_YEARS, ROIC_THRESHOLD, mktcap_min]).fetchall()
 

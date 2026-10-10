@@ -36,7 +36,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, remove_price_oscillations, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, remove_price_oscillations, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics as _compute_metrics, compute_annual_returns,
                      format_metrics, period_accounting)
 from costs import tiered_cost
@@ -172,14 +172,12 @@ def screen_stocks(con, target_date, mktcap_min):
 
     Returns list of (symbol, price_to_graham_ratio, market_cap) sorted by ratio ASC.
     """
-    # Convert date to datetime for timestamp() method
-    target_dt = datetime.combine(target_date, datetime.min.time())
-    cutoff_epoch = int((target_dt - timedelta(days=45)).timestamp())
-    prev_year_epoch = int((target_dt - timedelta(days=445)).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    prev_year_epoch = utc_epoch(target_date - timedelta(days=445))
 
     # Price window epochs
-    price_start_epoch = int(target_dt.timestamp())
-    price_end_epoch = int((target_dt + timedelta(days=10)).timestamp())
+    price_start_epoch = utc_epoch(target_date)
+    price_end_epoch = utc_epoch(target_date + timedelta(days=10))
 
     # CRITICAL: Each table uses its own ROW_NUMBER() independently.
     # Do NOT join by filing_epoch across tables — income_statement uses
@@ -188,19 +186,21 @@ def screen_stocks(con, target_date, mktcap_min):
     rows = con.execute("""
         WITH inc AS (
             SELECT symbol, netIncome, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, netIncome DESC NULLS LAST) AS rn
             FROM income_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         bal AS (
             SELECT symbol, totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         met AS (
             SELECT symbol, marketCap, returnOnEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST,
+                    returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
@@ -260,7 +260,7 @@ def screen_stocks(con, target_date, mktcap_min):
             results.append((symbol, price_to_graham, mkt_cap))
 
     # Sort by price-to-graham ASC (most undervalued first)
-    results.sort(key=lambda x: x[1])
+    results.sort(key=lambda x: (x[1], x[0]))
     return results[:MAX_STOCKS]  # Top 30
 
 

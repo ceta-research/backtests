@@ -26,7 +26,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates, filter_returns, remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, generate_rebalance_dates, filter_returns, remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 
@@ -145,7 +145,7 @@ def reconstruct_sp500_at_date(con, target_date):
     For each symbol, the latest event determines membership.
     Current members with no historical events assumed "always in" (epoch 0).
     """
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(target_date)
 
     members = con.execute("""
         WITH events AS (
@@ -185,10 +185,7 @@ def screen_low_pe(con, target_date, universe_symbols):
     if not universe_symbols:
         return []
 
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS),
-        datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
     # Insert universe into temp table for efficient joining
     con.execute("DROP TABLE IF EXISTS _screen_universe")
@@ -202,7 +199,7 @@ def screen_low_pe(con, target_date, universe_symbols):
             SELECT r.symbol, r.priceToEarningsRatio AS pe,
                    r.filing_epoch,
                    ROW_NUMBER() OVER (
-                       PARTITION BY r.symbol ORDER BY r.filing_epoch DESC
+                       PARTITION BY r.symbol ORDER BY r.filing_epoch DESC, r.priceToEarningsRatio DESC NULLS LAST
                    ) AS rn
             FROM ratios_cache r
             JOIN _screen_universe u ON r.symbol = u.symbol
@@ -211,7 +208,7 @@ def screen_low_pe(con, target_date, universe_symbols):
         latest_mcap AS (
             SELECT m.symbol, m.marketCap,
                    ROW_NUMBER() OVER (
-                       PARTITION BY m.symbol ORDER BY m.filing_epoch DESC
+                       PARTITION BY m.symbol ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST
                    ) AS rn
             FROM metrics_cache m
             JOIN _screen_universe u ON m.symbol = u.symbol
@@ -223,7 +220,7 @@ def screen_low_pe(con, target_date, universe_symbols):
         WHERE p.rn = 1
           AND p.pe > {PE_MIN}
           AND p.pe < {PE_MAX}
-        ORDER BY p.pe ASC
+        ORDER BY p.pe ASC, p.symbol
         LIMIT {TOP_N}
     """, [cutoff_epoch, cutoff_epoch]).fetchall()
 
@@ -238,10 +235,8 @@ def get_price(con, symbol, target_date, offset_days=1):
     offset_days=0: same-day close (legacy)
     """
     start = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(start, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(
-        start + timedelta(days=10), datetime.min.time()
-    ).timestamp())
+    target_epoch = utc_epoch(start)
+    end_epoch = utc_epoch(start + timedelta(days=10))
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?

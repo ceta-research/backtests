@@ -33,7 +33,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -187,33 +187,33 @@ def screen_quality(con, target_date, mktcap_min):
       - Gross margin > 20% (capital efficiency proxy)
       - Market cap > exchange threshold
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH
         met AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         rat AS (
             SELECT symbol, debtToEquityRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         ),
         inc AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache
             WHERE filing_epoch <= ?
         ),
         cf AS (
             SELECT symbol, operatingCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, operatingCashFlow DESC NULLS LAST) AS rn
             FROM cashflow_cache
             WHERE filing_epoch <= ?
         )
@@ -291,7 +291,7 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False):
     ]
 
     # Sort by momentum descending, take top MAX_STOCKS
-    candidates.sort(key=lambda x: x[2], reverse=True)
+    candidates.sort(key=lambda x: (-x[2], x[0]))
     result = candidates[:MAX_STOCKS]
 
     if verbose and result:

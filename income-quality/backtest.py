@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg)
+                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -166,10 +166,7 @@ def classify_stocks(con, target_date, mktcap_min):
     Returns dict: {symbol: (income_quality, group, market_cap)}
     where group is 'high', 'medium', or 'low'
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS),
-        datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
     rows = con.execute("""
         WITH
@@ -179,7 +176,8 @@ def classify_stocks(con, target_date, mktcap_min):
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
             FROM (
                 SELECT *, ROW_NUMBER() OVER (
-                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC
+                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC,
+                        marketCap DESC NULLS LAST, incomeQuality DESC NULLS LAST
                 ) AS dedup_rn
                 FROM metrics_cache WHERE filing_epoch <= ?
             ) WHERE dedup_rn = 1
@@ -190,7 +188,8 @@ def classify_stocks(con, target_date, mktcap_min):
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
             FROM (
                 SELECT *, ROW_NUMBER() OVER (
-                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC
+                    PARTITION BY symbol, filing_epoch ORDER BY filing_epoch DESC,
+                        netIncome DESC NULLS LAST
                 ) AS dedup_rn
                 FROM income_cache WHERE filing_epoch <= ?
             ) WHERE dedup_rn = 1
@@ -205,6 +204,7 @@ def classify_stocks(con, target_date, mktcap_min):
         WHERE m.rn = 1
           AND m.marketCap > ?
           AND i.netIncome > 0  -- Only positive net income (avoid misleading IQ ratios)
+        ORDER BY m.symbol  -- fixed row order: portfolio dicts and return sums follow it
     """, [cutoff_epoch, cutoff_epoch, mktcap_min]).fetchall()
 
     result = {}

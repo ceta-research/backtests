@@ -45,7 +45,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         remove_price_oscillations, get_local_benchmark, get_benchmark_return,
-                        LOCAL_INDEX_BENCHMARKS)
+                        LOCAL_INDEX_BENCHMARKS, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -199,20 +199,16 @@ def screen_stocks(con, target_date, mktcap_min):
     Returns list of (symbol, market_cap) tuples.
     """
     # 45-day lag for point-in-time accuracy
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
     # Max 5-year lookback to avoid very stale data
-    stale_cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45 + 5 * 365), datetime.min.time()
-    ).timestamp())
+    stale_cutoff_epoch = utc_epoch(target_date - timedelta(days=45 + 5 * 365))
 
     rows = con.execute("""
         WITH
         -- All FY revenue filings in the valid window
         inc AS (
             SELECT symbol, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, revenue DESC NULLS LAST) AS rn
             FROM income_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
@@ -231,13 +227,14 @@ def screen_stocks(con, target_date, mktcap_min):
         -- Most recent quality metrics (no prior-year requirement)
         met AS (
             SELECT symbol, returnOnEquity, marketCap,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         rat AS (
             SELECT symbol, debtToEquityRatio,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         )
@@ -251,7 +248,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND rat.debtToEquityRatio >= 0                 -- Must have positive equity
           AND rat.debtToEquityRatio < ?                  -- Quality: D/E filter
           AND met.marketCap > ?                          -- MCap filter
-        ORDER BY rc.acceleration DESC
+        ORDER BY rc.acceleration DESC, rc.symbol
         LIMIT ?
     """, [
         cutoff_epoch, stale_cutoff_epoch,   # inc

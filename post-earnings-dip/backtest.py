@@ -129,7 +129,7 @@ def fetch_data(client, exchanges, mktcap_min, min_dip=MIN_DIP, verbose=False):
             SELECT b.symbol, b.event_date, b.surprise_pct,
                 m.marketCap,
                 ROW_NUMBER() OVER (PARTITION BY b.symbol, b.event_date
-                                   ORDER BY m.filing_epoch DESC) AS rn
+                                   ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST) AS rn
             FROM beats b
             LEFT JOIN mcap_cache m ON b.symbol = m.symbol
                 AND m.filing_epoch <= EPOCH(b.event_date)
@@ -340,7 +340,7 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
         FROM event_base eb
         {' '.join(join_clauses)}
         WHERE w{windows[0]}.abnormal_ret IS NOT NULL
-        ORDER BY eb.event_date
+        ORDER BY eb.event_date, eb.symbol
     """
     rows = con.execute(result_sql).fetchall()
 

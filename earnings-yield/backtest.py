@@ -46,7 +46,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                          get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -173,17 +173,19 @@ def screen_stocks(con, target_date, mktcap_min):
     Uses most recent FY filing available at least 45 days before target date.
     Returns list of (symbol, market_cap) tuples sorted by earningsYield DESC.
     """
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH m AS (
             SELECT symbol, earningsYield, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST,
+                    earningsYield DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         r AS (
             SELECT symbol, debtToEquityRatio, interestCoverageRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    debtToEquityRatio DESC NULLS LAST, interestCoverageRatio DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         )
         SELECT m.symbol, m.marketCap
@@ -196,7 +198,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND r.debtToEquityRatio < ?
           AND r.interestCoverageRatio > ?
           AND m.marketCap > ?
-        ORDER BY m.earningsYield DESC
+        ORDER BY m.earningsYield DESC, m.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
           EY_MIN, ROE_MIN, DE_MAX, IC_MIN, mktcap_min, MAX_STOCKS]).fetchall()

@@ -34,7 +34,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -119,7 +119,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
             WITH ni_dedup AS (
                 SELECT symbol, fiscalYear, netIncome, dateEpoch,
                     ROW_NUMBER() OVER (PARTITION BY symbol, fiscalYear
-                                       ORDER BY dateEpoch DESC) AS rn
+                                       ORDER BY dateEpoch DESC, netIncome DESC NULLS LAST) AS rn
                 FROM income_statement
                 WHERE period = 'FY'
                   AND netIncome IS NOT NULL
@@ -204,27 +204,27 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 def screen_stocks(con, target_date, mktcap_min):
     """Screen for OCF momentum stocks with positive divergence.
     Returns list of (symbol, market_cap, divergence) tuples."""
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH ocf AS (
             SELECT symbol, growthOCF, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, growthOCF DESC NULLS LAST) AS rn
             FROM ocf_growth_cache WHERE filing_epoch <= ?
         ),
         ni AS (
             SELECT symbol, growthNI, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, growthNI DESC NULLS LAST) AS rn
             FROM ni_growth_cache WHERE filing_epoch <= ?
         ),
         m AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         r AS (
             SELECT symbol, operatingProfitMargin, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, operatingProfitMargin DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         )
         SELECT ocf.symbol, m.marketCap, (ocf.growthOCF - ni.growthNI) as divergence
@@ -239,7 +239,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND m.returnOnEquity > ?
           AND r.operatingProfitMargin > ?
           AND m.marketCap > ?
-        ORDER BY (ocf.growthOCF - ni.growthNI) DESC
+        ORDER BY (ocf.growthOCF - ni.growthNI) DESC, ocf.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch, cutoff_epoch,
           OCF_GROWTH_MIN, OCF_GROWTH_MAX, ROE_MIN, OPM_MIN, mktcap_min, MAX_STOCKS]).fetchall()

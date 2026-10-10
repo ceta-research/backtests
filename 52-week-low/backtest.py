@@ -45,7 +45,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -205,39 +205,51 @@ def compute_piotroski_scores(con, cutoff_epoch, prev_year_epoch):
         WITH
         inc_curr AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST,
+                    revenue DESC NULLS LAST) AS rn
             FROM income_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         inc_prev AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST,
+                    revenue DESC NULLS LAST) AS rn
             FROM income_cache
             WHERE filing_epoch <= ?
         ),
         bal_curr AS (
             SELECT symbol, totalAssets, totalCurrentAssets, totalCurrentLiabilities,
                 longTermDebt, totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalCurrentAssets DESC NULLS LAST,
+                    totalCurrentLiabilities DESC NULLS LAST, longTermDebt DESC NULLS LAST,
+                    totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         bal_prev AS (
             SELECT symbol, totalAssets, longTermDebt, totalCurrentAssets,
                 totalCurrentLiabilities, totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalCurrentAssets DESC NULLS LAST,
+                    totalCurrentLiabilities DESC NULLS LAST, longTermDebt DESC NULLS LAST,
+                    totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache
             WHERE filing_epoch <= ?
         ),
         cf_curr AS (
             SELECT symbol, operatingCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    operatingCashFlow DESC NULLS LAST) AS rn
             FROM cashflow_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         met AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
@@ -310,26 +322,16 @@ def screen_stocks(con, target_date, mktcap_min):
     Returns list of (symbol, market_cap, pct_above_low) sorted by pct_above_low ASC.
     """
     # 45-day filing lag for annual data
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS), datetime.min.time()
-    ).timestamp())
-    prev_year_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS + 400), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
+    prev_year_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS + 400))
 
     # Entry date range: first available price at/near target_date
-    entry_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    entry_end_epoch = int(datetime.combine(
-        target_date + timedelta(days=10), datetime.min.time()
-    ).timestamp())
+    entry_epoch = utc_epoch(target_date)
+    entry_end_epoch = utc_epoch(target_date + timedelta(days=10))
 
     # 52-week lookback: prices from LOOKBACK_DAYS before target to day before entry
-    lookback_start_epoch = int(datetime.combine(
-        target_date - timedelta(days=LOOKBACK_DAYS), datetime.min.time()
-    ).timestamp())
-    lookback_end_epoch = int(datetime.combine(
-        target_date - timedelta(days=1), datetime.min.time()
-    ).timestamp())
+    lookback_start_epoch = utc_epoch(target_date - timedelta(days=LOOKBACK_DAYS))
+    lookback_end_epoch = utc_epoch(target_date - timedelta(days=1))
 
     # 1. Compute Piotroski scores for all symbols with data
     piotroski = compute_piotroski_scores(con, cutoff_epoch, prev_year_epoch)
@@ -377,7 +379,7 @@ def screen_stocks(con, target_date, mktcap_min):
         WHERE l.low_52w > 0
           AND (cp.current_price - l.low_52w) / l.low_52w <= {PROXIMITY_THRESHOLD}
           AND cp.current_price >= {MIN_ENTRY_PRICE}
-        ORDER BY pct_above_low ASC
+        ORDER BY pct_above_low ASC, cp.symbol ASC
         LIMIT {MAX_STOCKS}
     """).fetchall()
 

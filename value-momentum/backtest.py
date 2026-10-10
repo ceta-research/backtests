@@ -39,7 +39,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -192,21 +192,21 @@ def screen_value(con, target_date, mktcap_min):
       - D/E >= 0 AND D/E < 1.0 (not over-levered)
       - Market cap > exchange threshold
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH
         met AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         rat AS (
             SELECT symbol, priceToEarningsRatio, debtToEquityRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    priceToEarningsRatio DESC NULLS LAST, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         )
@@ -276,11 +276,11 @@ def rank_composite(value_stocks, momentum, n_select=MAX_STOCKS):
         return []
 
     # Value rank: lower P/E → higher rank (rank 1 = lowest P/E = best value)
-    sorted_by_pe = sorted(candidates, key=lambda x: x[1])
+    sorted_by_pe = sorted(candidates, key=lambda x: (x[1], x[0]))
     value_rank = {sym: (i + 1) for i, (sym, pe, mcap, mom) in enumerate(sorted_by_pe)}
 
     # Momentum rank: higher momentum → higher rank (rank 1 = highest momentum = best)
-    sorted_by_mom = sorted(candidates, key=lambda x: x[3], reverse=True)
+    sorted_by_mom = sorted(candidates, key=lambda x: (-x[3], x[0]))
     mom_rank = {sym: (i + 1) for i, (sym, pe, mcap, mom) in enumerate(sorted_by_mom)}
 
     # Composite percentile (1.0 = best rank, 0.0 = worst)
@@ -292,7 +292,7 @@ def rank_composite(value_stocks, momentum, n_select=MAX_STOCKS):
         scored.append((sym, pe, mcap, mom, composite))
 
     # Sort by composite descending, take top n_select
-    scored.sort(key=lambda x: x[4], reverse=True)
+    scored.sort(key=lambda x: (-x[4], x[0]))
     return scored[:n_select]
 
 

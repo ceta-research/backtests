@@ -45,7 +45,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                        domicile_sql_condition, remove_price_oscillations)
+                        domicile_sql_condition, remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -198,9 +198,7 @@ def screen_stocks(con, target_date, mktcap_min):
     - Apply quality filters: ROE > 10%, D/E < 2.0, market cap threshold
     - Uses 45-day lag for point-in-time data integrity
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH pe_history AS (
@@ -210,24 +208,30 @@ def screen_stocks(con, target_date, mktcap_min):
                 priceToEarningsRatio AS pe,
                 debtToEquityRatio,
                 filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn,
+                rn,
                 AVG(priceToEarningsRatio) OVER (
                     PARTITION BY symbol
-                    ORDER BY filing_epoch
+                    ORDER BY filing_epoch, rn
                     ROWS BETWEEN ? PRECEDING AND 1 PRECEDING
                 ) AS avg_pe_prior,
                 COUNT(priceToEarningsRatio) OVER (
                     PARTITION BY symbol
-                    ORDER BY filing_epoch
+                    ORDER BY filing_epoch, rn
                     ROWS BETWEEN ? PRECEDING AND 1 PRECEDING
                 ) AS n_prior
-            FROM ratios_cache
-            WHERE filing_epoch <= ?
+            FROM (
+                -- rn breaks same-epoch ties by value; frames order by (filing_epoch, rn), so rn = 1's frame holds only earlier filings.
+                SELECT *, ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    priceToEarningsRatio DESC NULLS LAST, debtToEquityRatio DESC NULLS LAST) AS rn
+                FROM ratios_cache
+                WHERE filing_epoch <= ?
+            )
         ),
         m AS (
             -- Most recent quality metrics (ROE, market cap) as of cutoff
             SELECT symbol, returnOnEquity, marketCap,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         )
@@ -247,7 +251,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND (ph.debtToEquityRatio IS NULL
                OR (ph.debtToEquityRatio >= 0 AND ph.debtToEquityRatio < ?))
           AND m.marketCap > ?
-        ORDER BY ph.pe / ph.avg_pe_prior ASC
+        ORDER BY ph.pe / ph.avg_pe_prior ASC, ph.symbol
         LIMIT ?
     """, [N_PRIOR_WINDOW, N_PRIOR_WINDOW,
           cutoff_epoch,

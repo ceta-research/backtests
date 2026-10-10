@@ -38,7 +38,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -150,13 +150,14 @@ def screen_stocks(con, target_date, mktcap_min):
 
     Returns list of (symbol, market_cap) tuples, sorted by deepest discount.
     """
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     # Get latest FY filing before cutoff
     rows = con.execute("""
         WITH m AS (
             SELECT symbol, grahamNumber, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, grahamNumber DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         )
         SELECT m.symbol, m.grahamNumber, m.marketCap
@@ -184,7 +185,7 @@ def screen_stocks(con, target_date, mktcap_min):
             candidates.append((sym, mcap, discount_ratio))
 
     # Sort by deepest discount (ascending ratio)
-    candidates.sort(key=lambda x: x[2])
+    candidates.sort(key=lambda x: (x[2], x[0]))
     return [(sym, mcap) for sym, mcap, _ in candidates[:MAX_STOCKS]]
 
 

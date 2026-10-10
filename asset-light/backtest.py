@@ -38,7 +38,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg)
+                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -195,31 +195,28 @@ def compute_asset_light_scores(con, target_date, mktcap_min):
     Returns dict: {symbol: (composite_score, classification, market_cap)}
     where classification is "asset_light", "asset_heavy", or "middle".
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS),
-        datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
     rows = con.execute("""
         WITH
         inc AS (
             SELECT symbol, revenue, grossProfit, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, revenue DESC NULLS LAST, grossProfit DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         bs AS (
             SELECT symbol, totalAssets, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, totalAssets DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ?
         ),
         cf AS (
             SELECT symbol, capitalExpenditure, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, capitalExpenditure DESC NULLS LAST) AS rn
             FROM cashflow_cache WHERE filing_epoch <= ?
         ),
         met AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         base AS (
@@ -257,6 +254,7 @@ def compute_asset_light_scores(con, target_date, mktcap_min):
             (turnover_rank + capex_rank + margin_rank) / 3.0 AS composite_score,
             marketCap
         FROM ranked
+        ORDER BY symbol  -- fixed row order: portfolio dicts and return sums follow it
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch, cutoff_epoch, mktcap_min]).fetchall()
 
     result = {}
@@ -278,8 +276,8 @@ def get_price(con, symbol, target_date, offset_days=1):
     execute at next trading day's close. offset_days=0 = same-day (biased).
     """
     effective_date = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(effective_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(effective_date + timedelta(days=10), datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(effective_date)
+    end_epoch = utc_epoch(effective_date + timedelta(days=10))
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
@@ -346,10 +344,10 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         # Cap portfolio size (take top/bottom by score)
         if len(light) > MAX_STOCKS:
-            sorted_light = sorted(light.items(), key=lambda x: x[1][0], reverse=True)
+            sorted_light = sorted(light.items(), key=lambda x: (-x[1][0], x[0]))
             light = dict(sorted_light[:MAX_STOCKS])
         if len(heavy) > MAX_STOCKS:
-            sorted_heavy = sorted(heavy.items(), key=lambda x: x[1][0])
+            sorted_heavy = sorted(heavy.items(), key=lambda x: (x[1][0], x[0]))
             heavy = dict(sorted_heavy[:MAX_STOCKS])
 
         # light and heavy are disjoint: price once, ONE LTP query per period for both tracks.

@@ -189,7 +189,8 @@ def screen_sectors(con, target_date, n_worst=N_WORST_SECTORS):
             JOIN prices_cache pc ON sm.symbol = pc.symbol
             WHERE EXTRACT(YEAR FROM pc.trade_date) = {yr}
               AND EXTRACT(MONTH FROM pc.trade_date) = {mo}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY sm.symbol ORDER BY pc.trade_date ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY sm.symbol ORDER BY pc.trade_date ASC,
+                pc.adjClose DESC NULLS LAST, sm.sector DESC NULLS LAST, sm.market_cap DESC NULLS LAST) = 1
         ),
         year_ago AS (
             -- First available price in the same month one year prior
@@ -197,7 +198,7 @@ def screen_sectors(con, target_date, n_worst=N_WORST_SECTORS):
             FROM prices_cache
             WHERE EXTRACT(YEAR FROM trade_date) = {yr_ago}
               AND EXTRACT(MONTH FROM trade_date) = {mo}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC, adjClose DESC NULLS LAST) = 1
         ),
         stock_returns AS (
             SELECT r.symbol, r.sector, r.recent_price, r.market_cap,
@@ -218,7 +219,7 @@ def screen_sectors(con, target_date, n_worst=N_WORST_SECTORS):
         ),
         ranked AS (
             SELECT sector, avg_sector_return,
-                   ROW_NUMBER() OVER (ORDER BY avg_sector_return ASC) AS rank_worst,
+                   ROW_NUMBER() OVER (ORDER BY avg_sector_return ASC, sector) AS rank_worst,
                    COUNT(*) OVER () AS n_qualifying
             FROM sector_stats
         )
@@ -255,7 +256,7 @@ def get_prices_at(con, symbols, year, month, offset_days=0):
         WHERE symbol IN ({sym_list})
           AND trade_date >= '{start.isoformat()}'
           AND trade_date <= '{end.isoformat()}'
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = 1
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC, adjClose DESC NULLS LAST) = 1
     """).fetchall()
     return {r[0]: r[1] for r in result}
 

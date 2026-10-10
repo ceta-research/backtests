@@ -52,7 +52,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -101,12 +101,13 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         where_clause = f"WHERE p.exchange IN ({ex_filter}) AND {weight_filter}"
     else:
         where_clause = f"WHERE {weight_filter}"
+    # avg_weight is the ranking key: DECIMAL sums exactly, so parallel add order can't flip its 4-dp rounding.
     concentration_sql = f"""
         SELECT
             eh.asset as symbol,
             COUNT(DISTINCT eh.symbol) as etf_count,
             ROUND(SUM(eh.weightPercentage), 4) as total_weight,
-            ROUND(AVG(eh.weightPercentage), 4) as avg_weight,
+            ROUND(AVG(CAST(eh.weightPercentage AS DECIMAL(38,18))), 4) as avg_weight,
             ROUND(MAX(eh.weightPercentage), 4) as max_weight
         FROM etf_holder eh
         JOIN profile p ON eh.asset = p.symbol
@@ -220,20 +221,19 @@ def screen_stocks(con, target_date, mktcap_min):
 
     Returns list of (symbol, market_cap, avg_weight) sorted by avg_weight ASC.
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH km AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         fr AS (
             SELECT symbol, priceToEarningsRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, priceToEarningsRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         )
@@ -246,7 +246,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND fr.priceToEarningsRatio > ?
           AND fr.priceToEarningsRatio < ?
           AND km.marketCap > ?
-        ORDER BY cc.avg_weight ASC
+        ORDER BY cc.avg_weight ASC, km.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
           ROE_MIN, PE_MIN, PE_MAX,

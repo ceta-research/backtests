@@ -40,7 +40,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, save_results,
@@ -180,18 +180,22 @@ def screen_stocks(con, target_date, mktcap_min):
     """Screen for capital-efficient stocks with high ROIC.
     Returns list of (symbol, market_cap, roic) tuples."""
     # 45-day lag: use filings available at least 45 days before rebalance date
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH m AS (
             SELECT symbol, capexToRevenue, capexToOperatingCashFlow, capexToDepreciation,
                    returnOnInvestedCapital, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    capexToRevenue DESC NULLS LAST, capexToOperatingCashFlow DESC NULLS LAST,
+                    capexToDepreciation DESC NULLS LAST, returnOnInvestedCapital DESC NULLS LAST,
+                    marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         r AS (
             SELECT symbol, operatingProfitMargin, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    operatingProfitMargin DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         )
         SELECT m.symbol, m.marketCap, m.returnOnInvestedCapital
@@ -205,7 +209,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND m.returnOnInvestedCapital > ?
           AND r.operatingProfitMargin > ?
           AND m.marketCap > ?
-        ORDER BY m.returnOnInvestedCapital DESC
+        ORDER BY m.returnOnInvestedCapital DESC, m.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
           CAPEX_TO_REV_MAX, CAPEX_TO_OCF_MAX, ROIC_MIN, OPM_MIN, mktcap_min, MAX_STOCKS]).fetchall()

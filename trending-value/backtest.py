@@ -47,7 +47,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -190,12 +190,8 @@ def compute_momentum(con, symbol, target_date):
 
     Returns float momentum or None if insufficient data.
     """
-    end_epoch = int(datetime.combine(
-        target_date - timedelta(days=MOMENTUM_SKIP_DAYS), datetime.min.time()
-    ).timestamp())
-    start_epoch = int(datetime.combine(
-        target_date - timedelta(days=MOMENTUM_DAYS), datetime.min.time()
-    ).timestamp())
+    end_epoch = utc_epoch(target_date - timedelta(days=MOMENTUM_SKIP_DAYS))
+    start_epoch = utc_epoch(target_date - timedelta(days=MOMENTUM_DAYS))
 
     rows = con.execute("""
         SELECT trade_epoch, adjClose FROM prices_cache
@@ -230,25 +226,27 @@ def screen_stocks(con, target_date, cap_min, cap_max):
 
     Returns list of (symbol, market_cap, composite_value_rank, momentum) tuples.
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     # Step 1: Fundamental screen — value + quality
     rows = con.execute("""
         WITH r AS (
             SELECT symbol, priceToEarningsRatio, priceToBookRatio, debtToEquityRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    priceToEarningsRatio DESC NULLS LAST, priceToBookRatio DESC NULLS LAST,
+                    debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         ),
         m AS (
             SELECT symbol, evToEBITDA, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, evToEBITDA DESC NULLS LAST,
+                    returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         cf AS (
             SELECT symbol, operatingCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, operatingCashFlow DESC NULLS LAST) AS rn
             FROM cf_cache WHERE filing_epoch <= ?
         )
         SELECT r.symbol, m.marketCap,
@@ -271,6 +269,7 @@ def screen_stocks(con, target_date, cap_min, cap_max):
           -- Size filter
           AND m.marketCap >= ?
           AND m.marketCap <= ?
+        ORDER BY r.symbol
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch,
           EV_EBITDA_MAX, PE_MAX, ROE_MIN, DE_MAX,
           cap_min, cap_max]).fetchall()
@@ -295,7 +294,7 @@ def screen_stocks(con, target_date, cap_min, cap_max):
 
     # Percentile rank each value metric (lower = cheaper = better rank)
     for metric in ["ev_ebitda", "pe", "pb"]:
-        sorted_by = sorted(stocks, key=lambda x: x[metric])
+        sorted_by = sorted(stocks, key=lambda x: (x[metric], x["symbol"]))
         for i, s in enumerate(sorted_by):
             s[f"{metric}_pctile"] = i / max(n - 1, 1)
 
@@ -306,7 +305,7 @@ def screen_stocks(con, target_date, cap_min, cap_max):
         ) / 3.0
 
     # Step 3: Take cheapest VALUE_DECILE_PCT by composite value
-    stocks.sort(key=lambda x: x["composite_value"])
+    stocks.sort(key=lambda x: (x["composite_value"], x["symbol"]))
     value_cutoff = max(MIN_STOCKS, int(n * VALUE_DECILE_PCT))
     value_stocks = stocks[:value_cutoff]
 
@@ -318,7 +317,7 @@ def screen_stocks(con, target_date, cap_min, cap_max):
     with_momentum = [s for s in value_stocks if s["momentum"] is not None]
 
     # Sort by momentum descending (trending stocks first)
-    with_momentum.sort(key=lambda x: x["momentum"], reverse=True)
+    with_momentum.sort(key=lambda x: (-x["momentum"], x["symbol"]))
 
     # Take top MAX_STOCKS
     selected = with_momentum[:MAX_STOCKS]

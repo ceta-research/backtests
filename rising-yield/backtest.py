@@ -35,7 +35,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -112,7 +112,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                    EXTRACT(YEAR FROM CAST(date AS DATE))::INTEGER AS fiscal_year,
                    ROW_NUMBER() OVER (
                        PARTITION BY symbol, EXTRACT(YEAR FROM CAST(date AS DATE))::INTEGER
-                       ORDER BY filing_epoch DESC
+                       ORDER BY filing_epoch DESC, dividendYield DESC NULLS LAST,
+                           dividendPerShare DESC NULLS LAST, dividendPayoutRatio DESC NULLS LAST
                    ) AS rn
             FROM ratios_cache
         ),
@@ -207,9 +208,7 @@ def screen_stocks(con, target_date, mktcap_min):
     Returns list of (symbol, market_cap) sorted by yield_change_2yr DESC.
     """
     max_year = target_date.year - 1  # Last complete FY before rebalance
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH latest_rising AS (
@@ -225,7 +224,8 @@ def screen_stocks(con, target_date, mktcap_min):
         ),
         km AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         )
@@ -236,7 +236,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND km.returnOnEquity > ?
           AND km.marketCap > ?
           AND (lr.dividendPayoutRatio >= ? AND lr.dividendPayoutRatio <= ?)
-        ORDER BY lr.yield_change_2yr DESC
+        ORDER BY lr.yield_change_2yr DESC, lr.symbol
         LIMIT ?
     """, [max_year, cutoff_epoch, cutoff_epoch,
           ROE_MIN, mktcap_min, PAYOUT_MIN, PAYOUT_MAX, MAX_STOCKS]).fetchall()

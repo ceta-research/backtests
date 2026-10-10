@@ -40,7 +40,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        entry_buyable, LtpExits, add_exit_method_arg,
+                        entry_buyable, LtpExits, add_exit_method_arg, utc_epoch,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
@@ -174,30 +174,27 @@ def screen_stocks(con, target_date, mktcap_min):
     Returns list of (symbol, market_cap) tuples sorted by deleveraging magnitude DESC.
     """
     # 45-day lag for point-in-time (annual filings typically published 45+ days after FY end)
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
     # Prior year: ~410 days back (45 + 365) ensures we get the PREVIOUS fiscal year
-    prior_cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=PRIOR_LOOKBACK_DAYS), datetime.min.time()
-    ).timestamp())
+    prior_cutoff_epoch = utc_epoch(target_date - timedelta(days=PRIOR_LOOKBACK_DAYS))
 
     rows = con.execute("""
         WITH current_fy AS (
             SELECT symbol, debtToEquityRatio AS de_current, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         ),
         prior_fy AS (
             SELECT symbol, debtToEquityRatio AS de_prior, filing_epoch AS prior_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         ),
         km AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST,
+                    returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         )
@@ -213,7 +210,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND (cf.de_current - pf.de_prior) / pf.de_prior < ?
           AND km.returnOnEquity > ?
           AND km.marketCap > ?
-        ORDER BY de_change ASC
+        ORDER BY de_change ASC, cf.symbol
         LIMIT ?
     """, [cutoff_epoch, prior_cutoff_epoch, cutoff_epoch,
           DE_PRIOR_MIN, DE_CURRENT_MIN, DE_CHANGE_THRESHOLD,

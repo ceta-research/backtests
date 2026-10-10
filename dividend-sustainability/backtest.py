@@ -41,7 +41,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -193,63 +193,71 @@ def screen_stocks(con, target_date, mktcap_min):
     Filters: score >= MIN_SCORE, yield >= YIELD_MIN, mktcap > mktcap_min
     Returns list of (symbol, market_cap, score) sorted by score DESC, yield DESC.
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
-    prev_year_epoch = int(datetime.combine(
-        target_date - timedelta(days=445), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    prev_year_epoch = utc_epoch(target_date - timedelta(days=445))
 
     rows = con.execute("""
         WITH
         -- Latest financial ratios before cutoff
         fr AS (
             SELECT symbol, dividendPayoutRatio, debtToEquityRatio, dividendYield, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    dividendPayoutRatio DESC NULLS LAST, debtToEquityRatio DESC NULLS LAST,
+                    dividendYield DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         ),
         -- Latest cash flow before cutoff (for FCF coverage component)
         cf AS (
             SELECT symbol, freeCashFlow, commonDividendsPaid, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    freeCashFlow DESC NULLS LAST, commonDividendsPaid DESC NULLS LAST) AS rn
             FROM cashflow_cache WHERE filing_epoch <= ?
         ),
         -- Current-year cash flow (for Piotroski OCF signals)
         cf_curr AS (
             SELECT symbol, operatingCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, operatingCashFlow DESC NULLS LAST) AS rn
             FROM cashflow_cache WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         -- Latest key metrics before cutoff
         km AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         -- Current-year income (for Piotroski)
         inc_curr AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         -- Previous-year income (for Piotroski YoY comparisons)
         inc_prev AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         -- Current-year balance sheet (for Piotroski)
         bal_curr AS (
             SELECT symbol, totalAssets, totalCurrentAssets, totalCurrentLiabilities,
                    longTermDebt, totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalCurrentAssets DESC NULLS LAST,
+                    totalCurrentLiabilities DESC NULLS LAST, longTermDebt DESC NULLS LAST,
+                    totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         -- Previous-year balance sheet (for Piotroski YoY comparisons)
         bal_prev AS (
             SELECT symbol, totalAssets, totalCurrentAssets, totalCurrentLiabilities,
                    longTermDebt, totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalCurrentAssets DESC NULLS LAST,
+                    totalCurrentLiabilities DESC NULLS LAST, longTermDebt DESC NULLS LAST,
+                    totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ?
         ),
         -- Piotroski F-Score computed from historical financial statements (0-9)
@@ -337,7 +345,7 @@ def screen_stocks(con, target_date, mktcap_min):
             dividendYield
         FROM scored
         WHERE c_payout + c_debt + c_fcf + c_roe + COALESCE(c_piotroski, 0) >= ?
-        ORDER BY sustainability_score DESC, dividendYield DESC
+        ORDER BY sustainability_score DESC, dividendYield DESC, symbol
         LIMIT ?
     """, [
         cutoff_epoch,                   # fr: filing_epoch <= ?

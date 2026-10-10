@@ -36,7 +36,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, filter_returns, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, filter_returns, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
@@ -176,46 +176,54 @@ def screen_and_score(con, target_date, mktcap_min):
 
     Returns dict: {symbol: (score, market_cap)}
     """
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
-    prev_year_epoch = int(datetime.combine(target_date - timedelta(days=445), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    prev_year_epoch = utc_epoch(target_date - timedelta(days=445))
 
     rows = con.execute("""
         WITH
         inc_curr AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         inc_prev AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         bal_curr AS (
             SELECT symbol, totalAssets, totalCurrentAssets, totalCurrentLiabilities,
                 longTermDebt, totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalCurrentAssets DESC NULLS LAST,
+                    totalCurrentLiabilities DESC NULLS LAST, longTermDebt DESC NULLS LAST,
+                    totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         bal_prev AS (
             SELECT symbol, totalAssets, longTermDebt, totalCurrentAssets, totalCurrentLiabilities,
                 totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalCurrentAssets DESC NULLS LAST,
+                    totalCurrentLiabilities DESC NULLS LAST, longTermDebt DESC NULLS LAST,
+                    totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ?
         ),
         cf_curr AS (
             SELECT symbol, operatingCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, operatingCashFlow DESC NULLS LAST) AS rn
             FROM cashflow_cache WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         met AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         rat AS (
             SELECT symbol, priceToBookRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, priceToBookRatio DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         ),
         pb_universe AS (
@@ -262,6 +270,7 @@ def screen_and_score(con, target_date, mktcap_min):
              + f7_no_dilution + f8_turnover + f9_margin) AS f_score,
             marketCap
         FROM scored
+        ORDER BY symbol
     """, [
         cutoff_epoch, prev_year_epoch,
         prev_year_epoch,
@@ -280,8 +289,8 @@ def screen_and_score(con, target_date, mktcap_min):
 def get_price(con, symbol, target_date, offset_days=0):
     """Get adjusted close price on or just after target_date + offset_days."""
     shifted_date = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(shifted_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(shifted_date + timedelta(days=10), datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(shifted_date)
+    end_epoch = utc_epoch(shifted_date + timedelta(days=10))
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?

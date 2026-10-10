@@ -38,7 +38,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -176,14 +176,12 @@ def get_eligible_symbols(con, target_date, mktcap_min):
     Uses 45-day filing lag for point-in-time integrity.
     Returns dict: {symbol: market_cap}
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH met AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         )
@@ -209,12 +207,8 @@ def compute_proximity(con, symbols, target_date):
     if not symbols:
         return []
 
-    start_epoch = int(datetime.combine(
-        target_date - timedelta(days=HIGH_WINDOW_FETCH), datetime.min.time()
-    ).timestamp())
-    target_epoch = int(datetime.combine(
-        target_date + timedelta(days=5), datetime.min.time()
-    ).timestamp())
+    start_epoch = utc_epoch(target_date - timedelta(days=HIGH_WINDOW_FETCH))
+    target_epoch = utc_epoch(target_date + timedelta(days=5))
 
     sym_list = ",".join(f"'{s}'" for s in symbols)
 
@@ -251,7 +245,7 @@ def compute_proximity(con, symbols, target_date):
           AND adjClose > 0
           AND row_count >= {MIN_HISTORY_ROWS}
           AND adjClose / high_52w <= {MAX_PROXIMITY}
-        ORDER BY proximity_ratio DESC
+        ORDER BY proximity_ratio DESC, symbol
         LIMIT {MAX_STOCKS}
     """).fetchall()
 

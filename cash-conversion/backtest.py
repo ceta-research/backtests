@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg)
+                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -167,10 +167,7 @@ def screen_stocks(con, target_date, mktcap_min):
                              "ccc_change": float|None, "bucket": str,
                              "direction": str, "mcap": float}}
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS),
-        datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
     rows = con.execute("""
         WITH ranked AS (
@@ -178,7 +175,8 @@ def screen_stocks(con, target_date, mktcap_min):
                 cashConversionCycle AS ccc,
                 marketCap,
                 filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, cashConversionCycle DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
@@ -198,6 +196,7 @@ def screen_stocks(con, target_date, mktcap_min):
         SELECT symbol, ccc, ccc_prior, ccc_change, marketCap
         FROM current_and_prior
         WHERE ccc IS NOT NULL
+        ORDER BY symbol
     """, [cutoff_epoch, mktcap_min]).fetchall()
 
     result = {}
@@ -229,8 +228,8 @@ def screen_stocks(con, target_date, mktcap_min):
 def get_price(con, symbol, target_date, offset_days=0):
     """Get adjusted close on or just after target_date + offset_days."""
     shifted = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(shifted, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(shifted + timedelta(days=10), datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(shifted)
+    end_epoch = utc_epoch(shifted + timedelta(days=10))
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?

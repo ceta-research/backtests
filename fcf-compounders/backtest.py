@@ -36,7 +36,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -180,14 +180,12 @@ def screen_stocks(con, target_date, mktcap_min):
     Returns list of (symbol, market_cap) tuples sorted by ROIC DESC.
     """
     # 45-day lag for point-in-time
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH ranked_fcf AS (
             SELECT symbol, freeCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, freeCashFlow DESC NULLS LAST) AS rn
             FROM cashflow_cache
             WHERE filing_epoch <= ?
         ),
@@ -222,13 +220,14 @@ def screen_stocks(con, target_date, mktcap_min):
         -- Quality filters from latest filings
         km AS (
             SELECT symbol, returnOnInvestedCapital, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnInvestedCapital DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         fr AS (
             SELECT symbol, operatingProfitMargin, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, operatingProfitMargin DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         )
@@ -243,7 +242,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND km.returnOnInvestedCapital > ?
           AND fr.operatingProfitMargin > ?
           AND km.marketCap > ?
-        ORDER BY km.returnOnInvestedCapital DESC
+        ORDER BY km.returnOnInvestedCapital DESC, fs.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch,
           FCF_GROWTH_YEARS_MIN, ROIC_MIN, OPM_MIN, mktcap_min, MAX_STOCKS]).fetchall()

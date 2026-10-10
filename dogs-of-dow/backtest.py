@@ -33,7 +33,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -175,21 +175,21 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
 
     Returns list of (symbol, market_cap) tuples.
     """
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     if use_dow:
         # Dogs of the Dow: rank Dow 30 by yield, pick top 10
         rows = con.execute("""
             WITH latest_ratios AS (
                 SELECT symbol, dividendYield, filing_epoch,
-                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, dividendYield DESC NULLS LAST) AS rn
                 FROM ratios_cache
                 WHERE filing_epoch <= ?
                   AND dividendYield IS NOT NULL AND dividendYield > 0
             ),
             latest_metrics AS (
                 SELECT symbol, marketCap,
-                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
                 FROM metrics_cache WHERE filing_epoch <= ?
             )
             SELECT r.symbol, COALESCE(m.marketCap, 100000000000) as marketCap
@@ -197,7 +197,7 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
             JOIN universe u ON r.symbol = u.symbol
             LEFT JOIN latest_metrics m ON r.symbol = m.symbol AND m.rn = 1
             WHERE r.rn = 1
-            ORDER BY r.dividendYield DESC
+            ORDER BY r.dividendYield DESC, r.symbol
             LIMIT ?
         """, [cutoff_epoch, cutoff_epoch, DOGS_COUNT]).fetchall()
     else:
@@ -205,7 +205,7 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
         rows = con.execute("""
             WITH latest_metrics AS (
                 SELECT symbol, marketCap,
-                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
                 FROM metrics_cache
                 WHERE filing_epoch <= ? AND marketCap IS NOT NULL
             ),
@@ -214,12 +214,12 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
                 FROM latest_metrics m
                 JOIN universe u ON m.symbol = u.symbol
                 WHERE m.rn = 1 AND m.marketCap >= ?
-                ORDER BY m.marketCap DESC
+                ORDER BY m.marketCap DESC, m.symbol
                 LIMIT ?
             ),
             latest_ratios AS (
                 SELECT symbol, dividendYield,
-                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, dividendYield DESC NULLS LAST) AS rn
                 FROM ratios_cache
                 WHERE filing_epoch <= ?
                   AND dividendYield IS NOT NULL AND dividendYield > 0
@@ -227,7 +227,7 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
             SELECT b.symbol, b.marketCap
             FROM bluechips b
             JOIN latest_ratios r ON b.symbol = r.symbol AND r.rn = 1
-            ORDER BY r.dividendYield DESC
+            ORDER BY r.dividendYield DESC, b.symbol
             LIMIT ?
         """, [cutoff_epoch, mktcap_min, BLUECHIP_COUNT, cutoff_epoch, DOGS_COUNT]).fetchall()
 

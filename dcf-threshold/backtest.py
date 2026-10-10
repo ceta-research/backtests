@@ -46,7 +46,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -185,29 +185,28 @@ def screen_stocks(con, target_date, mktcap_min):
 
     Returns list of (symbol, market_cap) sorted by FCF yield DESC (deepest discount first).
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
-    earliest_epoch = int(datetime.combine(
-        target_date - timedelta(days=540), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    earliest_epoch = utc_epoch(target_date - timedelta(days=540))
 
     rows = con.execute("""
         WITH cf AS (
             SELECT symbol, freeCashFlow, operatingCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    freeCashFlow DESC NULLS LAST, operatingCashFlow DESC NULLS LAST) AS rn
             FROM cashflow_cache
             WHERE filing_epoch <= ? AND filing_epoch >= ?
         ),
         km AS (
             SELECT symbol, marketCap, returnOnEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ? AND filing_epoch >= ?
         ),
         ra AS (
             SELECT symbol, debtToEquityRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ? AND filing_epoch >= ?
         )
@@ -223,7 +222,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND km.returnOnEquity >= ?
           AND (ra.debtToEquityRatio IS NULL
                OR (ra.debtToEquityRatio >= 0 AND ra.debtToEquityRatio < ?))
-        ORDER BY fcf_yield DESC
+        ORDER BY fcf_yield DESC, cf.symbol
         LIMIT ?
     """, [cutoff_epoch, earliest_epoch,
           cutoff_epoch, earliest_epoch,

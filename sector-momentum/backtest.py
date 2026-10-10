@@ -193,7 +193,8 @@ def screen_sectors(con, target_date, n_best=N_BEST_SECTORS):
             JOIN prices_cache pc ON sm.symbol = pc.symbol
             WHERE EXTRACT(YEAR FROM pc.trade_date) = {yr}
               AND EXTRACT(MONTH FROM pc.trade_date) = {mo}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY sm.symbol ORDER BY pc.trade_date ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY sm.symbol ORDER BY pc.trade_date ASC,
+                pc.adjClose DESC NULLS LAST, sm.sector DESC NULLS LAST, sm.market_cap DESC NULLS LAST) = 1
         ),
         year_ago AS (
             -- First available price in the same month one year prior
@@ -201,7 +202,7 @@ def screen_sectors(con, target_date, n_best=N_BEST_SECTORS):
             FROM prices_cache
             WHERE EXTRACT(YEAR FROM trade_date) = {yr_ago}
               AND EXTRACT(MONTH FROM trade_date) = {mo}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC, adjClose DESC NULLS LAST) = 1
         ),
         stock_returns AS (
             SELECT r.symbol, r.sector, r.recent_price, r.market_cap,
@@ -213,7 +214,7 @@ def screen_sectors(con, target_date, n_best=N_BEST_SECTORS):
         ),
         sector_stats AS (
             SELECT sector,
-                   AVG(return_12m) AS avg_sector_return,
+                   AVG(return_12m ORDER BY symbol) AS avg_sector_return,
                    COUNT(*) AS n_stocks
             FROM stock_returns
             WHERE return_12m BETWEEN -0.99 AND {SECTOR_RETURN_MAX}
@@ -222,7 +223,7 @@ def screen_sectors(con, target_date, n_best=N_BEST_SECTORS):
         ),
         ranked AS (
             SELECT sector, avg_sector_return,
-                   ROW_NUMBER() OVER (ORDER BY avg_sector_return DESC) AS rank_best,
+                   ROW_NUMBER() OVER (ORDER BY avg_sector_return DESC, sector) AS rank_best,
                    COUNT(*) OVER () AS n_qualifying
             FROM sector_stats
         )
@@ -253,7 +254,7 @@ def get_prices_at(con, symbols, year, month, offset_days=0):
         WHERE symbol IN ({sym_list})
           AND EXTRACT(YEAR FROM trade_date) = {year}
           AND EXTRACT(MONTH FROM trade_date) = {month}
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = {row_num}
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC, adjClose DESC NULLS LAST) = {row_num}
     """).fetchall()
     if offset_days > 0:
         # Fall back to row 1 for symbols with only one price available in the window

@@ -37,7 +37,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
+                        entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
@@ -185,19 +185,15 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False):
 
     Uses 45-day filing lag for point-in-time integrity.
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
-    stale_cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45 + STALE_YEARS * 365), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    stale_cutoff_epoch = utc_epoch(target_date - timedelta(days=45 + STALE_YEARS * 365))
 
     rows = con.execute("""
         WITH
         -- All FY netIncome filings within the valid point-in-time window
         inc AS (
             SELECT symbol, netIncome, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, netIncome DESC NULLS LAST) AS rn
             FROM income_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
@@ -217,14 +213,15 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False):
         -- Most recent ROE and MCap
         met AS (
             SELECT symbol, returnOnEquity, marketCap,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST,
+                    returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         -- Most recent D/E
         rat AS (
             SELECT symbol, debtToEquityRatio,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         )
@@ -236,7 +233,7 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False):
           AND rat.debtToEquityRatio >= 0
           AND rat.debtToEquityRatio < ?
           AND met.marketCap > ?
-        ORDER BY met.returnOnEquity DESC
+        ORDER BY met.returnOnEquity DESC, s.symbol
         LIMIT ?
     """, [
         cutoff_epoch, stale_cutoff_epoch,   # inc window

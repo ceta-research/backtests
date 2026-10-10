@@ -34,7 +34,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -100,11 +100,12 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         return None
 
     # Precompute annual dividends
+    # Ordered SUM: an unordered double SUM differs in the last bit run to run, and div_yoy compares with a strict >.
     con.execute("""
         CREATE TABLE div_annual AS
         SELECT symbol,
             EXTRACT(YEAR FROM CAST(date AS DATE))::INTEGER AS yr,
-            SUM(adjDividend) AS total_div
+            SUM(adjDividend ORDER BY adjDividend) AS total_div
         FROM div_calendar
         GROUP BY symbol, EXTRACT(YEAR FROM CAST(date AS DATE))::INTEGER
     """)
@@ -205,9 +206,7 @@ def screen_stocks(con, target_date, mktcap_min):
     Returns list of (symbol, market_cap) tuples sorted by streak length DESC.
     """
     max_year = target_date.year - 1  # Last complete year before rebalance
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH last_break AS (
@@ -228,19 +227,19 @@ def screen_stocks(con, target_date, mktcap_min):
         ),
         fr AS (
             SELECT symbol, dividendPayoutRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, dividendPayoutRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         ),
         km AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         cf AS (
             SELECT symbol, freeCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, freeCashFlow DESC NULLS LAST) AS rn
             FROM cashflow_cache
             WHERE filing_epoch <= ?
         )
@@ -252,7 +251,7 @@ def screen_stocks(con, target_date, mktcap_min):
         WHERE (fr.dividendPayoutRatio >= ? AND fr.dividendPayoutRatio <= ?)
           AND cf.freeCashFlow > ?
           AND km.marketCap > ?
-        ORDER BY s.consecutive_years DESC, km.marketCap DESC
+        ORDER BY s.consecutive_years DESC, km.marketCap DESC, s.symbol
         LIMIT ?
     """, [max_year, max_year, MIN_STREAK,
           cutoff_epoch, cutoff_epoch, cutoff_epoch,

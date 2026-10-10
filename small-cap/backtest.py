@@ -47,7 +47,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, remove_price_oscillations,
-                        domicile_sql_condition)
+                        domicile_sql_condition, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -233,21 +233,20 @@ def screen_stocks(con, target_date, small_cap_min, small_cap_max):
     Returns list of (symbol, market_cap) tuples sorted by revenue growth DESC.
     Uses 45-day lag for point-in-time data integrity.
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH -- Current FY income (most recent before cutoff)
         inc_curr AS (
             SELECT symbol, revenue, netIncome, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, revenue DESC NULLS LAST,
+                    netIncome DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         -- Prior FY income (second-most-recent before cutoff)
         inc_prev AS (
             SELECT symbol, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         rev_growth AS (
@@ -260,12 +259,12 @@ def screen_stocks(con, target_date, small_cap_min, small_cap_max):
         ),
         km AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         fr AS (
             SELECT symbol, debtToEquityRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         )
         SELECT rg.symbol, km.marketCap
@@ -279,7 +278,7 @@ def screen_stocks(con, target_date, small_cap_min, small_cap_max):
           AND km.marketCap < ?
           AND fr.debtToEquityRatio >= 0
           AND fr.debtToEquityRatio < ?
-        ORDER BY rg.rev_growth DESC
+        ORDER BY rg.rev_growth DESC, rg.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch, cutoff_epoch,
           REV_GROWTH_MIN, REV_GROWTH_MAX,

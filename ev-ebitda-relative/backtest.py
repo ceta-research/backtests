@@ -58,7 +58,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                        remove_price_oscillations, domicile_sql_condition)
+                        remove_price_oscillations, domicile_sql_condition, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -235,9 +235,7 @@ def screen_stocks(con, target_date, mktcap_min):
     - Apply quality filters: ROE > 8%, D/E < 2.0, market cap threshold
     - Uses 45-day lag for point-in-time data integrity
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH latest_metrics AS (
@@ -247,7 +245,9 @@ def screen_stocks(con, target_date, mktcap_min):
                 m.evToEBITDA AS ev_ebitda,
                 m.returnOnEquity,
                 m.marketCap,
-                ROW_NUMBER() OVER (PARTITION BY m.symbol ORDER BY m.filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY m.symbol ORDER BY m.filing_epoch DESC,
+                    m.marketCap DESC NULLS LAST, m.evToEBITDA DESC NULLS LAST,
+                    m.returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache m
             WHERE m.filing_epoch <= ?
               AND m.evToEBITDA BETWEEN ? AND ?
@@ -256,7 +256,8 @@ def screen_stocks(con, target_date, mktcap_min):
             -- Most recent FY D/E per symbol as of cutoff
             SELECT
                 symbol, debtToEquityRatio,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         ),
@@ -295,7 +296,7 @@ def screen_stocks(con, target_date, mktcap_min):
         FROM current_stocks cs
         JOIN sector_medians sm ON cs.sector = sm.sector
         WHERE cs.ev_ebitda / sm.median_ev_ebitda < ?
-        ORDER BY cs.ev_ebitda / sm.median_ev_ebitda ASC
+        ORDER BY cs.ev_ebitda / sm.median_ev_ebitda ASC, cs.symbol
         LIMIT ?
     """, [cutoff_epoch,
           EV_EBITDA_MIN, EV_EBITDA_MAX,

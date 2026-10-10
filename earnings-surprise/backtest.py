@@ -114,7 +114,7 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
         FROM (
             SELECT *,
                 ROW_NUMBER() OVER (PARTITION BY symbol, CAST(date AS DATE)
-                                   ORDER BY epsActual DESC) AS rn
+                                   ORDER BY epsActual DESC, epsEstimated DESC NULLS LAST) AS rn
             FROM raw_surprises
         ) WHERE rn = 1
           AND ABS((epsActual - epsEstimated) / ABS(epsEstimated)) <= {MAX_SURPRISE}
@@ -147,7 +147,7 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
             SELECT s.symbol, s.event_date, s.surprise_raw, s.category,
                 m.marketCap,
                 ROW_NUMBER() OVER (PARTITION BY s.symbol, s.event_date
-                                   ORDER BY m.filing_epoch DESC) AS rn
+                                   ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST) AS rn
             FROM surprises s
             LEFT JOIN mcap_cache m ON s.symbol = m.symbol
                 AND m.filing_epoch <= EPOCH(s.event_date)
@@ -182,7 +182,7 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     con.execute("""
         CREATE TABLE unique_events AS
         SELECT symbol, event_date, surprise_raw, category,
-            'Q' || CAST(NTILE(5) OVER (ORDER BY surprise_raw ASC) AS VARCHAR) AS quintile
+            'Q' || CAST(NTILE(5) OVER (ORDER BY surprise_raw ASC, symbol, event_date) AS VARCHAR) AS quintile
         FROM pre_events
     """)
 
@@ -335,7 +335,7 @@ def compute_event_returns(con, windows=WINDOWS, offset_days=ENTRY_OFFSET_DAYS, v
         FROM event_base eb
         {' '.join(join_clauses)}
         WHERE w1.abnormal_ret IS NOT NULL
-        ORDER BY eb.event_date
+        ORDER BY eb.event_date, eb.symbol
     """
     rows = con.execute(result_sql).fetchall()
 

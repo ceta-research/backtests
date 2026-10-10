@@ -47,7 +47,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
+                        entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch,
                         get_local_benchmark, get_local_currency, get_benchmark_return,
                         LOCAL_INDEX_BENCHMARKS, remove_price_oscillations)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
@@ -199,24 +199,22 @@ def screen_stocks(con, target_date, mktcap_min):
     Returns list of (symbol, market_cap) tuples sorted by FCF yield DESC (deepest discount first).
     """
     # 45-day lag for point-in-time (most FY filings available 6 weeks after fiscal year end)
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
     # Staleness: only use filings within last 18 months
-    earliest_epoch = int(datetime.combine(
-        target_date - timedelta(days=540), datetime.min.time()
-    ).timestamp())
+    earliest_epoch = utc_epoch(target_date - timedelta(days=540))
 
     rows = con.execute("""
         WITH fcf AS (
             SELECT symbol, freeCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    freeCashFlow DESC NULLS LAST) AS rn
             FROM fcf_cache
             WHERE filing_epoch <= ? AND filing_epoch >= ?
         ),
         km AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ? AND filing_epoch >= ?
         )
@@ -227,7 +225,7 @@ def screen_stocks(con, target_date, mktcap_min):
         WHERE f.rn = 1
           AND km.marketCap >= ?
           AND f.freeCashFlow / km.marketCap >= ?
-        ORDER BY fcf_yield DESC
+        ORDER BY fcf_yield DESC, f.symbol
         LIMIT ?
     """, [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,
           mktcap_min, FCF_YIELD_MIN, MAX_STOCKS]).fetchall()

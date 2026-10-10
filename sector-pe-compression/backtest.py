@@ -29,7 +29,7 @@ from math import isnan, sqrt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates
+from data_utils import query_parquet, generate_rebalance_dates, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from cli_utils import get_risk_free_rate
@@ -184,8 +184,8 @@ def get_etf_price(con, symbol, target_date, offset_days=0):
     offset_days=1: next-day close (MOC execution)
     """
     base = target_date + timedelta(days=offset_days)
-    start_epoch = int(datetime.combine(base, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(base + timedelta(days=12), datetime.min.time()).timestamp())
+    start_epoch = utc_epoch(base)
+    end_epoch = utc_epoch(base + timedelta(days=12))
 
     row = con.execute("""
         SELECT adjClose FROM etf_prices
@@ -214,7 +214,8 @@ def compute_sector_pe(con, as_of_epoch, lookback_years=5, data_lag_days=45):
             -- Most recent FY filing per symbol, before cutoff
             SELECT
                 sector, symbol, priceToEarningsRatio, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    priceToEarningsRatio DESC NULLS LAST, marketCap DESC NULLS LAST, sector DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         ),
@@ -241,7 +242,8 @@ def compute_sector_pe(con, as_of_epoch, lookback_years=5, data_lag_days=45):
             FROM (
                 SELECT sector, symbol, priceToEarningsRatio, marketCap, filing_epoch,
                     ROW_NUMBER() OVER (PARTITION BY symbol, CAST(ROUND(filing_epoch / (365.25 * 86400) + 1970) AS INT)
-                                       ORDER BY filing_epoch DESC) AS rn_yr
+                                       ORDER BY filing_epoch DESC,
+                                       priceToEarningsRatio DESC NULLS LAST, marketCap DESC NULLS LAST, sector DESC NULLS LAST) AS rn_yr
                 FROM ratios_cache
                 WHERE filing_epoch > ? AND filing_epoch < ?
                   AND priceToEarningsRatio > 0
@@ -273,6 +275,7 @@ def compute_sector_pe(con, as_of_epoch, lookback_years=5, data_lag_days=45):
             END AS z_score
         FROM current_sector_pe c
         JOIN sector_stats s ON c.sector = s.sector
+        ORDER BY c.sector
     """, [cutoff, window_start, cutoff]).fetchall()
 
     result = {}
@@ -297,7 +300,7 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, offset_day
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        entry_epoch = int(datetime.combine(entry_date, datetime.min.time()).timestamp())
+        entry_epoch = utc_epoch(entry_date)
 
         # Compute sector P/E z-scores as of entry_date
         sector_data = compute_sector_pe(con, entry_epoch)

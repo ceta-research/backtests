@@ -60,7 +60,7 @@ from data_utils import (query_parquet, get_prices, generate_rebalance_dates, fil
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         domicile_sql_condition,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -220,20 +220,19 @@ def screen_stocks(con, target_date, mktcap_min, ey_threshold):
     - Market cap > exchange-specific threshold
     - Rank: highest earnings yield first (widest gap)
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH km AS (
             SELECT symbol, earningsYield, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST,
+                    earningsYield DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         fr AS (
             SELECT symbol, debtToEquityRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         )
@@ -247,7 +246,7 @@ def screen_stocks(con, target_date, mktcap_min, ey_threshold):
           AND (fr.debtToEquityRatio IS NULL
                OR (fr.debtToEquityRatio >= 0 AND fr.debtToEquityRatio < ?))
           AND km.marketCap > ?
-        ORDER BY km.earningsYield DESC
+        ORDER BY km.earningsYield DESC, km.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
           ey_threshold, EARNINGS_YIELD_MAX,

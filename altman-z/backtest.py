@@ -36,7 +36,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return,
                         LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg)
+                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -200,27 +200,28 @@ def compute_z_scores(con, target_date, mktcap_min):
 
     Returns dict: {symbol: (z_score, zone, market_cap)}
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS),
-        datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
     rows = con.execute("""
         WITH
         bs AS (
             SELECT symbol, totalCurrentAssets, totalCurrentLiabilities,
                    totalAssets, retainedEarnings, totalLiabilities, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalCurrentAssets DESC NULLS LAST, totalCurrentLiabilities DESC NULLS LAST,
+                    totalAssets DESC NULLS LAST, retainedEarnings DESC NULLS LAST,
+                    totalLiabilities DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ?
         ),
         inc AS (
             SELECT symbol, ebitda, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    ebitda DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         met AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         z_raw AS (
@@ -248,6 +249,7 @@ def compute_z_scores(con, target_date, mktcap_min):
         SELECT symbol, z_score, marketCap
         FROM z_raw
         WHERE z_score IS NOT NULL
+        ORDER BY symbol
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch, mktcap_min]).fetchall()
 
     result = {}
@@ -269,8 +271,8 @@ def get_price(con, symbol, target_date, offset_days=1):
     executed at the close of the next trading day.
     """
     shifted_date = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(shifted_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(shifted_date + timedelta(days=10), datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(shifted_date)
+    end_epoch = utc_epoch(shifted_date + timedelta(days=10))
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?

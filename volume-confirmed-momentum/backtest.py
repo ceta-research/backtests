@@ -47,7 +47,7 @@ from data_utils import (query_parquet, get_prices, generate_rebalance_dates, fil
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         domicile_sql_condition,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -213,27 +213,25 @@ def screen_quality(con, target_date, mktcap_min):
       - operatingCashFlow > 0  (real cash generation, not just accounting earnings)
       - marketCap > threshold  (exchange-specific mid-to-large cap filter)
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH
         inc AS (
             SELECT symbol, netIncome, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, netIncome DESC NULLS LAST) AS rn
             FROM income_cache
             WHERE filing_epoch <= ?
         ),
         cf AS (
             SELECT symbol, operatingCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, operatingCashFlow DESC NULLS LAST) AS rn
             FROM cashflow_cache
             WHERE filing_epoch <= ?
         ),
         met AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         )
@@ -292,13 +290,9 @@ def compute_volume_ratio(con, symbols, target_date):
     if not symbols:
         return {}
 
-    cutoff_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    start_epoch_12m = int(datetime.combine(
-        target_date - timedelta(days=MOMENTUM_LOOKBACK_FETCH), datetime.min.time()
-    ).timestamp())
-    cutoff_3m_epoch = int(datetime.combine(
-        target_date - timedelta(days=VOLUME_LOOKBACK_3M_DAYS), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date)
+    start_epoch_12m = utc_epoch(target_date - timedelta(days=MOMENTUM_LOOKBACK_FETCH))
+    cutoff_3m_epoch = utc_epoch(target_date - timedelta(days=VOLUME_LOOKBACK_3M_DAYS))
 
     sym_list = ", ".join(f"'{s}'" for s in symbols)
 
@@ -377,7 +371,7 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False):
         candidates.append((sym, quality_stocks[sym], mom, vol_ratio))
 
     # Step 5: Sort by momentum descending, take top MAX_STOCKS
-    candidates.sort(key=lambda x: x[2], reverse=True)
+    candidates.sort(key=lambda x: (-x[2], x[0]))
     result = candidates[:MAX_STOCKS]
 
     if verbose and result:

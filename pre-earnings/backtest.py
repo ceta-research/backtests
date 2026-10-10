@@ -112,7 +112,9 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
     con.execute("""
         CREATE TABLE events_deduped AS
         SELECT symbol, event_date, epsActual, epsEstimated,
-            ROW_NUMBER() OVER (PARTITION BY symbol, event_date ORDER BY event_date DESC) AS rn
+            ROW_NUMBER() OVER (PARTITION BY symbol, event_date
+                               ORDER BY event_date DESC, dateEpoch DESC NULLS LAST,
+                                        epsActual DESC NULLS LAST, epsEstimated DESC NULLS LAST) AS rn
         FROM all_events
     """)
     con.execute("DELETE FROM events_deduped WHERE rn > 1")
@@ -200,7 +202,7 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
             SELECT be.symbol, be.event_date, be.beat_rate, be.beat_category,
                 m.marketCap,
                 ROW_NUMBER() OVER (PARTITION BY be.symbol, be.event_date
-                                   ORDER BY m.filing_epoch DESC) AS rn
+                                   ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST) AS rn
             FROM backtest_events be
             LEFT JOIN mcap_cache m ON be.symbol = m.symbol
                 AND m.filing_epoch <= EPOCH(be.event_date)
@@ -391,7 +393,7 @@ def compute_event_returns(con, verbose=False):
         FROM event_base eb
         {' '.join(join_clauses)}
         WHERE pre10.abnormal_ret IS NOT NULL
-        ORDER BY eb.event_date
+        ORDER BY eb.event_date, eb.symbol
     """
     rows = con.execute(result_sql).fetchall()
 
@@ -516,7 +518,7 @@ def compute_metrics(results):
 def compute_beat_rate_quintiles(results):
     """Stratify events by beat rate quintile and compute CARs."""
     with_rate = [r for r in results if r.get("beat_rate") is not None]
-    with_rate.sort(key=lambda r: r["beat_rate"])
+    with_rate.sort(key=lambda r: (r["beat_rate"], r["event_date"], r["symbol"]))
     n = len(with_rate)
     if n < 50:
         return {}

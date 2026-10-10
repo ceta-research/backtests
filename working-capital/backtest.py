@@ -40,7 +40,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
+                        entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
@@ -193,42 +193,39 @@ def screen_stocks(con, target_date, mktcap_min):
     Requires positive revenue growth (current vs prior FY) and quality filters.
     """
     # 45-day lag for point-in-time (June rebalance = filings through ~April 16)
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
     # Prior year: need at least ~410 days back (45 + 365)
-    prior_cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=410), datetime.min.time()
-    ).timestamp())
+    prior_cutoff_epoch = utc_epoch(target_date - timedelta(days=410))
 
     rows = con.execute("""
         WITH bs AS (
             SELECT symbol, workingCapital, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, workingCapital DESC NULLS LAST) AS rn
             FROM bs_cache
             WHERE filing_epoch <= ?
         ),
         inc_current AS (
             SELECT symbol, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, revenue DESC NULLS LAST) AS rn
             FROM inc_cache
             WHERE filing_epoch <= ?
         ),
         inc_prior AS (
             SELECT symbol, revenue AS revenue_prior,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, revenue DESC NULLS LAST) AS rn
             FROM inc_cache
             WHERE filing_epoch <= ?
         ),
         km AS (
             SELECT symbol, returnOnEquity, returnOnAssets, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         fr AS (
             SELECT symbol, operatingProfitMargin, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, operatingProfitMargin DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         )
@@ -247,7 +244,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND km.returnOnEquity > ?
           AND fr.operatingProfitMargin > ?
           AND km.marketCap > ?
-        ORDER BY wc_ratio ASC
+        ORDER BY wc_ratio ASC, bs.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch, prior_cutoff_epoch, cutoff_epoch, cutoff_epoch,
           WC_RATIO_MAX, ROE_MIN, OPM_MIN, mktcap_min, MAX_STOCKS]).fetchall()

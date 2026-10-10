@@ -49,7 +49,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -217,19 +217,19 @@ def screen_stocks(con, target_date, small_cap_min, small_cap_max):
         - D/E: < 2.5 (leverage guard; NULL D/E accepted for unlevered firms)
         - Market cap: within small-cap bounds for the exchange
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH r AS (
             SELECT symbol, priceToBookRatio, debtToEquityRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    priceToBookRatio DESC NULLS LAST, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         ),
         m AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         )
         SELECT r.symbol, m.marketCap
@@ -242,7 +242,7 @@ def screen_stocks(con, target_date, small_cap_min, small_cap_max):
           AND (r.debtToEquityRatio IS NULL OR (r.debtToEquityRatio >= 0 AND r.debtToEquityRatio < ?))
           AND m.marketCap >= ?
           AND m.marketCap <= ?
-        ORDER BY r.priceToBookRatio ASC
+        ORDER BY r.priceToBookRatio ASC, r.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
           PB_MIN, PB_MAX, ROE_MIN, DE_MAX,

@@ -37,7 +37,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, remove_price_oscillations,
-                        LOCAL_INDEX_BENCHMARKS)
+                        LOCAL_INDEX_BENCHMARKS, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -249,22 +249,22 @@ def screen_stocks(con, target_date, mktcap_min):
 
     Returns list of (symbol, market_cap, ann_vol) tuples.
     """
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    target_epoch = utc_epoch(target_date)
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
     vol_start_epoch = target_epoch - VOL_LOOKBACK_SECONDS
 
     rows = con.execute("""
         WITH km AS (
             SELECT symbol, returnOnEquity, marketCap,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
         ),
         fr AS (
             SELECT symbol, operatingProfitMargin,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    operatingProfitMargin DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ?
         ),
@@ -279,7 +279,8 @@ def screen_stocks(con, target_date, mktcap_min):
         ),
         vol AS (
             SELECT symbol,
-                STDDEV(log_return) * SQRT(252) AS ann_vol,
+                -- ordered so twins tie exactly: an unordered parallel STDDEV varies in its last bits run to run
+                STDDEV(log_return ORDER BY trade_epoch) * SQRT(252) AS ann_vol,
                 COUNT(*) AS trading_days
             FROM daily_returns
             WHERE trade_epoch <= ?
@@ -291,7 +292,7 @@ def screen_stocks(con, target_date, mktcap_min):
         FROM quality q
         JOIN vol v ON q.symbol = v.symbol
         WHERE v.ann_vol IS NOT NULL AND v.ann_vol > 0
-        ORDER BY v.ann_vol ASC
+        ORDER BY v.ann_vol ASC, q.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch, ROE_MIN, OPM_MIN, mktcap_min,
           target_epoch, vol_start_epoch, MIN_TRADING_DAYS, MAX_STOCKS]).fetchall()

@@ -50,7 +50,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                         remove_price_oscillations, filter_returns,
-                        entry_buyable_prices, LtpExits, add_exit_method_arg)
+                        entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -214,27 +214,31 @@ def screen_stocks(con, target_date, mktcap_min):
     Returns list of (symbol, market_cap) tuples.
     """
     # 45-day lag: use filings available at least 45 days before rebalance date
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH inc AS (
             SELECT symbol, netIncome, depreciationAndAmortization, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, depreciationAndAmortization DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         cf AS (
             SELECT symbol, capitalExpenditure, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    capitalExpenditure DESC NULLS LAST) AS rn
             FROM cashflow_cache WHERE filing_epoch <= ?
         ),
         m AS (
             SELECT symbol, marketCap, returnOnEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         r AS (
             SELECT symbol, operatingProfitMargin, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    operatingProfitMargin DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         ),
         calculated AS (
@@ -259,7 +263,7 @@ def screen_stocks(con, target_date, mktcap_min):
         WHERE owner_earnings > 0
           AND owner_earnings / marketCap > ?
           AND owner_earnings / marketCap < ?
-        ORDER BY owner_earnings / marketCap DESC
+        ORDER BY owner_earnings / marketCap DESC, symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch, cutoff_epoch,
           ROE_MIN, OPM_MIN, mktcap_min,

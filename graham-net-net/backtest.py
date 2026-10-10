@@ -43,7 +43,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -202,16 +202,15 @@ def screen_stocks(con, target_date, mktcap_min):
 
     Returns list of (symbol, market_cap) tuples.
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=DATA_LAG_DAYS), datetime.min.time()
-    ).timestamp())
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(target_date + timedelta(days=10), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=DATA_LAG_DAYS))
+    target_epoch = utc_epoch(target_date)
+    end_epoch = utc_epoch(target_date + timedelta(days=10))
 
     rows = con.execute("""
         WITH km AS (
             SELECT symbol, grahamNetNet, marketCap,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    grahamNetNet DESC NULLS LAST, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
               AND grahamNetNet > 0
@@ -229,7 +228,7 @@ def screen_stocks(con, target_date, mktcap_min):
         WHERE km.rn = 1
           AND prices.adjClose > 0.50
           AND prices.adjClose < km.grahamNetNet
-        ORDER BY prices.adjClose / km.grahamNetNet ASC
+        ORDER BY prices.adjClose / km.grahamNetNet ASC, km.symbol
         LIMIT ?
     """, [cutoff_epoch, mktcap_min, target_epoch, end_epoch, MAX_STOCKS]).fetchall()
 

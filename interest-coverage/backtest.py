@@ -35,7 +35,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, filter_returns, entry_buyable_prices, LtpExits, add_exit_method_arg
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, filter_returns, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -151,17 +151,19 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
 def screen_stocks(con, target_date, mktcap_min):
     """Screen for high interest coverage stocks. Returns list of (symbol, market_cap) tuples."""
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH m AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         r AS (
             SELECT symbol, interestCoverageRatio, debtToEquityRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    interestCoverageRatio DESC NULLS LAST, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         )
         SELECT m.symbol, m.marketCap
@@ -173,7 +175,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND r.debtToEquityRatio < ?
           AND m.returnOnEquity > ?
           AND m.marketCap > ?
-        ORDER BY r.interestCoverageRatio DESC
+        ORDER BY r.interestCoverageRatio DESC, m.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
           COVERAGE_MIN, DE_MIN, DE_MAX, ROE_MIN, mktcap_min, MAX_STOCKS]).fetchall()

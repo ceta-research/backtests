@@ -41,7 +41,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return,
                         LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg)
+                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg,
+                         utc_epoch)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -208,27 +209,27 @@ def compute_dupont(con, target_date, mktcap_min):
       leverage_driven: Top quartile equity multiplier (within ROE > 15%)
       mixed:           Everything else with ROE > 15%
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS),
-        datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
     rows = con.execute("""
         WITH
         inc AS (
             SELECT symbol, netIncome, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         bs AS (
             SELECT symbol, totalAssets, totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ?
               AND totalStockholdersEquity > 0
         ),
         met AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         dupont_raw AS (
@@ -259,13 +260,15 @@ def compute_dupont(con, target_date, mktcap_min):
         ),
         ranked AS (
             SELECT *,
-                NTILE(4) OVER (ORDER BY net_margin DESC) AS margin_quartile,
-                NTILE(4) OVER (ORDER BY equity_multiplier DESC) AS leverage_quartile
+                NTILE(4) OVER (ORDER BY net_margin DESC, symbol) AS margin_quartile,
+                NTILE(4) OVER (ORDER BY equity_multiplier DESC, symbol) AS leverage_quartile
             FROM roe_filtered
         )
         SELECT symbol, net_margin, asset_turnover, equity_multiplier,
-               roe_dupont, marketCap, margin_quartile, leverage_quartile
+               roe_dupont, marketCap, MAX(margin_quartile), MAX(leverage_quartile)
         FROM ranked
+        GROUP BY ALL  -- a symbol repeated in universe collapses to one row, its later quartile
+        ORDER BY symbol
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch, mktcap_min, ROE_MIN]).fetchall()
 
     result = {}
@@ -291,8 +294,8 @@ def compute_dupont(con, target_date, mktcap_min):
 def get_price(con, symbol, target_date, offset_days=0):
     """Get adjusted close price on or just after target_date + offset_days."""
     shifted_date = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(shifted_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(shifted_date + timedelta(days=10), datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(shifted_date)
+    end_epoch = utc_epoch(shifted_date + timedelta(days=10))
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?

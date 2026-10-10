@@ -38,7 +38,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        entry_buyable, LtpExits, add_exit_method_arg,
+                        entry_buyable, LtpExits, add_exit_method_arg, utc_epoch,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
@@ -180,14 +180,15 @@ def screen_stocks(con, target_date, mktcap_min):
     45-day lag for point-in-time: annual filings available ~2-3 months after FY end.
     Returns list of (symbol, market_cap) tuples sorted by Net Debt/EBITDA ASC.
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=45), datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH m AS (
             SELECT symbol, netDebtToEBITDA, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                -- same-epoch FY rows: fixed tie-break over every column read below
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, netDebtToEBITDA DESC NULLS LAST,
+                    returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         )
         SELECT m.symbol, m.marketCap
@@ -197,7 +198,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND m.netDebtToEBITDA > ?
           AND m.returnOnEquity > ?
           AND m.marketCap > ?
-        ORDER BY m.netDebtToEBITDA ASC
+        ORDER BY m.netDebtToEBITDA ASC, m.symbol
         LIMIT ?
     """, [cutoff_epoch,
           NET_DEBT_EBITDA_MAX, NET_DEBT_EBITDA_MIN, ROE_MIN, mktcap_min,
