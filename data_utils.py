@@ -267,6 +267,20 @@ def get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
     return None
 
 
+def utc_epoch(d):
+    """UTC-midnight epoch of a date. Bar epochs (stock_eod.dateEpoch) are UTC midnight, so every
+    epoch bound must be built with this, never with a naive datetime (which moves with the
+    machine's timezone and daylight saving)."""
+    from datetime import datetime, timezone
+    return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp())
+
+
+def utc_date(epoch):
+    """Date of a UTC epoch."""
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(int(epoch), tz=timezone.utc).date()
+
+
 def filter_by_liquidity(con, symbols, target_date, lookback_days=90,
                         min_avg_turnover=0):
     """Filter symbols by average daily turnover.
@@ -290,16 +304,13 @@ def filter_by_liquidity(con, symbols, target_date, lookback_days=90,
         return list(symbols), []
 
     # Check if volume column exists
-    from datetime import datetime
     try:
         con.execute("SELECT volume FROM prices_cache LIMIT 0")
     except Exception:
         return list(symbols), []
 
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    start_epoch = int(datetime.combine(
-        target_date - timedelta(days=lookback_days), datetime.min.time()
-    ).timestamp())
+    target_epoch = utc_epoch(target_date)
+    start_epoch = utc_epoch(target_date - timedelta(days=lookback_days))
     sym_list = ",".join(f"'{s}'" for s in symbols)
 
     try:
@@ -618,10 +629,9 @@ def get_prices(con, symbols, target_date, window_days=10, offset_days=0, with_ep
     if not symbols:
         return {}
 
-    from datetime import datetime
     shifted_date = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(shifted_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(shifted_date + timedelta(days=window_days), datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(shifted_date)
+    end_epoch = utc_epoch(shifted_date + timedelta(days=window_days))
     sym_list = ",".join(f"'{s}'" for s in symbols)
 
     # Try epoch-based schema first (used by most backtests)
@@ -651,7 +661,7 @@ def get_prices(con, symbols, target_date, window_days=10, offset_days=0, with_ep
             QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = 1
         """).fetchall()
         if with_epochs:
-            return {r[0]: (r[2], _utc_epoch(date.fromisoformat(str(r[1])[:10]))) for r in rows}
+            return {r[0]: (r[2], utc_epoch(date.fromisoformat(str(r[1])[:10]))) for r in rows}
         return {r[0]: r[2] for r in rows}
     except Exception:
         return {}
@@ -663,16 +673,6 @@ LTP_DELIST_GRACE_DAYS = 7
 LTP_TAIL_BARS = 16          # last bars fetched per name for the remote path (filter needs +-2 neighbours)
 LTP_TAIL_CONTEXT_DAYS = 10  # calendar days after the upper bound, context for the filter only
 
-
-def _utc_epoch(d):
-    """UTC-midnight epoch of a date (stock_eod.dateEpoch is UTC midnight for every row)."""
-    from datetime import datetime, timezone
-    return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp())
-
-
-def _utc_date(epoch):
-    from datetime import datetime, timezone
-    return datetime.fromtimestamp(int(epoch), tz=timezone.utc).date()
 
 
 def add_exit_method_arg(parser):
@@ -725,7 +725,7 @@ class LtpExits:
             e = bars.get(s, (None, None))[1]
             if e is None:
                 continue
-            lo = _utc_date(e)
+            lo = utc_date(e)
             hi, dd = exit_date, self.delisted.get(s)
             if dd is None:
                 bound_kind[s] = "none"
@@ -740,7 +740,7 @@ class LtpExits:
         out = {}
         for s, (bar_epoch, px) in got.items():
             lo_epoch, lo, hi = bounds[s]
-            bar = _utc_date(bar_epoch)
+            bar = utc_date(bar_epoch)
             assert lo_epoch < bar_epoch and lo <= bar <= hi <= exit_date, (s, lo, bar, hi)
             out[s] = px
             self.fills.append({"symbol": s, "entry_date": entry_date.isoformat(),
@@ -761,7 +761,7 @@ class LtpExits:
         holding period). Remote: ONE stock_eod query for each name's last bars, cleaned with the
         same oscillation filter before the last one is taken.
         """
-        hi_end = lambda d: _utc_epoch(d + timedelta(days=1))   # exclusive end of the hi day
+        hi_end = lambda d: utc_epoch(d + timedelta(days=1))   # exclusive end of the hi day
         if self.local:
             vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), lo_e, hi_end(hi))
                             for s, (lo_e, _, hi) in bounds.items())
