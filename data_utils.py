@@ -360,8 +360,16 @@ def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, ti
     """
     # Retry loop for handling corrupted parquet downloads (transient FMP download errors)
     for attempt in range(max_retries):
-        parquet_bytes = client.query(sql, format="parquet", limit=limit, timeout=timeout,
-                                     verbose=verbose, memory_mb=memory_mb, threads=threads)
+        try:
+            parquet_bytes = client.query(sql, format="parquet", limit=limit, timeout=timeout,
+                                         verbose=verbose, memory_mb=memory_mb, threads=threads)
+        except Exception as e:
+            # cr_client rejects a truncated download ("invalid end magic bytes") before DuckDB sees it
+            if "magic bytes" in str(e) and attempt < max_retries - 1:
+                import time
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise
         if not parquet_bytes:
             con.execute(f"CREATE TABLE {table_name}(dummy INTEGER)")
             con.execute(f"DELETE FROM {table_name}")
