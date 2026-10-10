@@ -74,28 +74,74 @@ ltp = LtpExits(FakeClient(), con, local=True)
 out = ltp.fill(["X", "Y"], {"X": 10.0, "Y": 10.0}, {}, date(2010, 1, 1), date(2010, 4, 1), offset_days=1)
 assert out == {"Y": 12.0}, out
 
-# ---- 3. remote path: tail query + the same oscillation filter the caches get ----
-con = cache([("SPIKE", ep(date(2010, 1, 4)), 10.0), ("CLEAN", ep(date(2010, 1, 4)), 10.0),
-             ("GONE", ep(date(2010, 1, 4)), 10.0)])
-tail = [
-    # SPIKE: 10 -> 10.2 -> 31 (phantom, reverts next day, after the exit date) -> 10.1
-    {"symbol": "SPIKE", "dateEpoch": ep(date(2010, 1, 4)), "adjClose": 10.0},
-    {"symbol": "SPIKE", "dateEpoch": ep(date(2010, 3, 30)), "adjClose": 10.2},
-    {"symbol": "SPIKE", "dateEpoch": ep(date(2010, 3, 31)), "adjClose": 31.0},
-    {"symbol": "SPIKE", "dateEpoch": ep(date(2010, 4, 5)), "adjClose": 10.1},   # context only (after hi)
-    {"symbol": "CLEAN", "dateEpoch": ep(date(2010, 1, 4)), "adjClose": 10.0},
-    {"symbol": "CLEAN", "dateEpoch": ep(date(2010, 2, 26)), "adjClose": 9.0},
-    {"symbol": "CLEAN", "dateEpoch": ep(date(2010, 4, 6)), "adjClose": 77.0},   # context only, never a price
-    {"symbol": "GONE", "dateEpoch": ep(date(2010, 1, 4)), "adjClose": 10.0},    # entry bar only
-]
-client = FakeClient(tail)
-ltp = LtpExits(client, con)
-out = ltp.fill(["SPIKE", "CLEAN", "GONE"], {"SPIKE": 10.0, "CLEAN": 10.0, "GONE": 10.0}, {},
-               date(2010, 1, 1), date(2010, 4, 1), offset_days=1)
-assert out == {"SPIKE": 10.2, "CLEAN": 9.0}, out
-assert ltp.osc_removed == 1 and ltp.provenance()["oscillation_rows_removed"] == 1
-assert "stock_eod" in client.last_sql and "rn <=" in client.last_sql
+# ---- 3. remote path: the real query against a local stock_eod, then the oscillation filter ----
+class SqlClient(FakeClient):
+    """Runs the remote SQL against a local fake stock_eod, so the query itself is tested."""
+
+    def __init__(self, rows, delisted=None, date_type="VARCHAR"):
+        super().__init__()
+        self.delisted = delisted if delisted is not None else DELISTED
+        self.db = duckdb.connect()
+        self.db.execute(f"CREATE TABLE stock_eod(symbol VARCHAR, date {date_type}, dateEpoch BIGINT, adjClose DOUBLE)")
+        self.db.executemany("INSERT INTO stock_eod VALUES (?, ?, ?, ?)", [(s, d.isoformat(), ep(d), p) for s, d, p in rows])
+
+    def query(self, sql, **kw):
+        self.calls += 1
+        if "delisted_companies" in sql:
+            return self.delisted
+        cur = self.db.execute(sql)
+        cols = [c[0] for c in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
+def bdays(a, b):
+    d = a
+    while d <= b:
+        if d.weekday() < 5:
+            yield d
+        d = date.fromordinal(d.toordinal() + 1)
+
+
+E, X = date(2010, 1, 1), date(2010, 4, 1)
+eod = [("SPIKE", date(2010, 1, 4), 10.0), ("SPIKE", date(2010, 3, 30), 10.2),
+       ("SPIKE", date(2010, 3, 31), 31.0),                       # phantom, reverts after the exit date
+       ("SPIKE", date(2010, 4, 5), 10.1),                        # context only (after hi)
+       ("CLEAN", date(2010, 1, 4), 10.0), ("CLEAN", date(2010, 2, 26), 9.0),
+       ("CLEAN", date(2010, 4, 6), 77.0),                        # context only, never a price
+       ("GONE", date(2010, 1, 4), 10.0)]                         # entry bar only
+con = cache([(s, ep(d), p) for s, d, p in eod if d == date(2010, 1, 4)])
+for dt in ("VARCHAR", "DATE"):
+    ltp = LtpExits(SqlClient(eod, delisted=[], date_type=dt), con)
+    out = ltp.fill(["SPIKE", "CLEAN", "GONE"], {"SPIKE": 10.0, "CLEAN": 10.0, "GONE": 10.0}, {}, E, X, offset_days=1)
+    assert out == {"SPIKE": 10.2, "CLEAN": 9.0}, (dt, out)
+    assert ltp.osc_removed == 1 and ltp.provenance()["oscillation_rows_removed"] == 1
 assert not con.execute("SELECT 1 FROM information_schema.tables WHERE table_name = '_ltp_tail'").fetchall()
+
+# ---- 3b. a genuine final crash survives: no bars past a delisting bound reach the filter ----
+crash = [("CRASH", d, 10.0) for d in bdays(date(2010, 1, 4), date(2010, 1, 28))] + [("CRASH", date(2010, 1, 29), 3.0)]
+reuse = [("CRASH", d, 10.0) for d in bdays(date(2010, 2, 9), date(2010, 2, 12))]   # ticker reused near the old level
+con = cache([("CRASH", ep(date(2010, 1, 4)), 10.0)])
+ltp = LtpExits(SqlClient(crash + reuse, delisted=[{"symbol": "CRASH", "delistedDate": "2010-02-01"}]), con)
+assert ltp.fill(["CRASH"], {"CRASH": 10.0}, {}, E, X, offset_days=1) == {"CRASH": 3.0}
+
+# ---- 3c. tier 2 works on the remote path: it fetches the holding period, not a few bars ----
+osc = [("OSC", d, 13.5 if (i % 15 == 7 or d == date(2010, 3, 30)) else 10.0)
+       for i, d in enumerate(bdays(date(2009, 6, 1), date(2010, 3, 30)))] + [("OSC", date(2010, 4, 2), 10.0)]
+con = cache([("OSC", ep(d), p) for s, d, p in osc if d >= date(2010, 1, 4)])
+ltp = LtpExits(SqlClient(osc, delisted=[]), con)
+assert ltp.fill(["OSC"], {"OSC": 10.0}, {}, E, X, offset_days=1) == {"OSC": 10.0}   # not the 13.5 phantom
+
+# ---- 3d. delisted a few days before the entry bar: the bound still applies, no reused-ticker exit ----
+con = cache([("REUSE", ep(date(2010, 1, 4)), 0.50), ("REUSE", ep(date(2010, 1, 5)), 0.50),
+             ("REUSE", ep(date(2010, 3, 15)), 1.20), ("REUSE", ep(date(2010, 3, 31)), 1.20)])
+ltp = LtpExits(FakeClient(), con, local=True)
+ltp.delisted = {"REUSE": date(2010, 1, 1)}
+assert ltp.fill(["REUSE"], {"REUSE": 0.50}, {}, E, X, offset_days=1) == {"REUSE": 0.50}
+assert ltp.fills[0]["delisting_bound"] == "applied"
+
+# ---- 3e. a second print on the entry day is never the exit ----
+con = cache([("DUP", ep(date(2010, 1, 4)), 10.0), ("DUP", ep(date(2010, 1, 4), 14), 10.4)])
+assert LtpExits(FakeClient(), con, local=True).fill(["DUP"], {"DUP": 10.0}, {}, E, X, offset_days=1) == {}
 
 # ---- 4. date-schema cache: get_prices(with_epochs) still yields an entry bar ----
 con = duckdb.connect()
