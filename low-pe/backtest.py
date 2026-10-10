@@ -221,7 +221,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, symbols, exit_date)
         # LTP fills only for periods that clear the entry-side cash guard below.
-        ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date, offset_days=offset_days)
+        ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
+                             offset_days=offset_days, min_entry_price=0.0)
                     if ltp and entry_buyable_prices(symbols, entry_prices, min_entry_price=0.0) >= MIN_STOCKS else {})
 
         def book(xmap):

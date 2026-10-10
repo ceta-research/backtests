@@ -47,7 +47,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        entry_buyable,
+                        entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
@@ -254,7 +254,7 @@ def screen_stocks(con, target_date, small_cap_min, small_cap_max):
 
 def run_backtest(con, rebalance_dates, small_cap_min, small_cap_max,
                  use_costs=True, verbose=False, offset_days=1,
-                 benchmark_symbol="SPY"):
+                 benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run Small-Cap Value backtest. Returns list of period result dicts."""
     results = []
 
@@ -292,10 +292,29 @@ def run_backtest(con, rebalance_dates, small_cap_min, small_cap_max,
 
         symbol_data = [(sym, entry_prices.get(sym), exit_prices.get(sym), mcaps.get(sym))
                        for sym in symbols]
-        clean, skipped = filter_returns(symbol_data,
-                                        min_entry_price=MIN_ENTRY_PRICE,
-                                        max_single_return=MAX_SINGLE_RETURN,
-                                        verbose=verbose)
+        # LTP fills only for periods that clear the entry-side cash guard below.
+        ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
+                             offset_days=offset_days, min_entry_price=MIN_ENTRY_PRICE)
+                    if ltp and entry_buyable(symbol_data, min_entry_price=MIN_ENTRY_PRICE) >= MIN_STOCKS else {})
+        exit_ltp = {**exit_prices, **ltp_fill}
+
+        def book(xmap, verbose=verbose):
+            # symbol_data with the exit slot taken from xmap
+            clean, skipped = filter_returns([(sym, ep, xmap.get(sym), mcap) for sym, ep, _, mcap in symbol_data],
+                                            min_entry_price=MIN_ENTRY_PRICE,
+                                            max_single_return=MAX_SINGLE_RETURN,
+                                            verbose=verbose)
+            returns = []
+            for sym, raw_ret, mcap in clean:
+                if use_costs:
+                    cost = tiered_cost(mcap)
+                    net_ret = apply_costs(raw_ret, cost)
+                else:
+                    net_ret = raw_ret
+                returns.append(net_ret)
+            return clean, returns
+
+        clean, returns = book(exit_ltp if exit_method == "ltp" else exit_prices)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
         # Screening can pass 30 names while only a handful of them have a usable
@@ -334,15 +353,6 @@ def run_backtest(con, rebalance_dates, small_cap_min, small_cap_max,
                       f"names were buyable at entry (< {MIN_STOCKS}), CASH")
             continue
 
-        returns = []
-        for sym, raw_ret, mcap in clean:
-            if use_costs:
-                cost = tiered_cost(mcap)
-                net_ret = apply_costs(raw_ret, cost)
-            else:
-                net_ret = raw_ret
-            returns.append(net_ret)
-
         port_return = sum(returns) / len(returns) if returns else 0.0
 
         bench_return = get_benchmark_return(
@@ -360,6 +370,10 @@ def run_backtest(con, rebalance_dates, small_cap_min, small_cap_max,
             "min_stocks": MIN_STOCKS,
             "holdings": ",".join(sym for sym, _, _ in clean[:10]) + ("..." if len(clean) > 10 else ""),
         })
+        if exit_method == "both":
+            c_ltp, r_ltp = book(exit_ltp, verbose=False)
+            results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
+                                "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
 
         if verbose:
             excess = ""
@@ -437,7 +451,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, verbose, output_path=None, offset_days=1,
-               benchmark_symbol="SPY", benchmark_name="S&P 500"):
+               benchmark_symbol="SPY", benchmark_name="S&P 500", exit_method="drop"):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
@@ -469,10 +483,13 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000–2025)...")
     t1 = time.time()
+    # prices_cache holds rebalance-date windows only, so LTP reads remote stock_eod.
+    ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, small_cap_min, small_cap_max,
                            use_costs=use_costs, verbose=verbose,
                            offset_days=offset_days,
-                           benchmark_symbol=benchmark_symbol)
+                           benchmark_symbol=benchmark_symbol,
+                           ltp=ltp, exit_method=exit_method)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -489,6 +506,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     metrics = compute_metrics(port_returns, spy_returns, periods_per_year,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Small-Cap Value", benchmark_name))
+    ltp_block = ltp.results_block(exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
 
     # B006: count over `executed` (every rebalance the strategy actually ran),
     # not `valid` (only those the benchmark can also price). Keeps the honest
@@ -515,6 +533,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
+    if ltp_block:
+        output.update({"exit_method": exit_method, "ltp": ltp_block})
 
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
@@ -529,6 +549,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 def main():
     parser = argparse.ArgumentParser(description="Small-Cap Value backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -593,7 +614,8 @@ def main():
                                     use_costs, rfr, args.verbose, output_path,
                                     offset_days=offset_days,
                                     benchmark_symbol=benchmark_symbol,
-                                    benchmark_name=benchmark_name)
+                                    benchmark_name=benchmark_name,
+                                    exit_method=args.exit_method)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -657,7 +679,8 @@ def main():
                         risk_free_rate, args.verbose, output_path,
                         offset_days=offset_days,
                         benchmark_symbol=benchmark_symbol,
-                        benchmark_name=benchmark_name)
+                        benchmark_name=benchmark_name,
+                        exit_method=args.exit_method)
     if result is None:
         sys.exit(1)
 

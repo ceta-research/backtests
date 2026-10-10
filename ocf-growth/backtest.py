@@ -34,7 +34,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, LtpExits, add_exit_method_arg
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -248,7 +248,7 @@ def screen_stocks(con, target_date, mktcap_min):
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY"):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run OCF growth backtest. Returns list of period result dicts."""
     results = []
 
@@ -282,16 +282,24 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
+        # LTP fills only for periods that clear the entry-side cash guard below (1.0 = filter_returns' default floor).
+        ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
+                             offset_days=offset_days, min_entry_price=1.0)
+                    if ltp and entry_buyable_prices(symbols, entry_prices) >= MIN_STOCKS else {})
+        exit_ltp = {**exit_prices, **ltp_fill}
 
-        # Collect raw data for filter_returns (caps artifacts at 200%)
-        raw_data = []
-        for sym in symbols:
-            ep = entry_prices.get(sym)
-            xp = exit_prices.get(sym)
-            if ep and xp and ep > 0:
-                raw_data.append((sym, ep, xp, mcaps.get(sym)))
+        def book(xmap):
+            # Collect raw data for filter_returns (caps artifacts at 200%)
+            raw_data = []
+            for sym in symbols:
+                ep = entry_prices.get(sym)
+                xp = xmap.get(sym)
+                if ep and xp and ep > 0:
+                    raw_data.append((sym, ep, xp, mcaps.get(sym)))
 
-        clean, skipped = filter_returns(raw_data, verbose=verbose)
+            return filter_returns(raw_data, verbose=verbose)
+
+        clean, skipped = book(exit_ltp if exit_method == "ltp" else exit_prices)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
         # Screening can pass 30 names while only a handful of them have a usable
@@ -360,6 +368,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "min_stocks": MIN_STOCKS,
             "holdings": ",".join(sym for sym, _, _ in clean[:10]) + ("..." if len(clean) > 10 else ""),
         })
+        if exit_method == "both":
+            c_ltp, _ = book(exit_ltp)
+            r_ltp = [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in c_ltp]
+            results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
+                                "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
 
         if verbose:
             excess = ""
@@ -374,6 +387,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 def main():
     parser = argparse.ArgumentParser(description="OCF Growth / Cash Flow Momentum backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -466,9 +480,12 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
 
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
+    exit_method = getattr(args, 'exit_method', 'drop')
+    # prices_cache is rebalance-date windows only, so LTP reads remote stock_eod.
+    ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
                            verbose=verbose, offset_days=offset_days,
-                           benchmark_symbol=benchmark_symbol)
+                           benchmark_symbol=benchmark_symbol, ltp=ltp, exit_method=exit_method)
     bt_time = time.time() - t1
     print(f"  Backtest completed in {bt_time:.0f}s")
 
@@ -485,6 +502,7 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
 
     print(format_metrics(metrics, "OCF Growth", benchmark_name))
+    ltp_block = ltp.results_block(exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
 
     # B006: count over `executed` (every rebalance the strategy actually ran),
     # not `valid` (only those the benchmark can also price). Keeps the honest
@@ -549,6 +567,7 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
         "frequency": frequency,
         "avg_stocks_when_invested": round(avg_stocks, 1),
         "period_data": results,
+        **({"exit_method": exit_method, "ltp": ltp_block} if ltp_block else {}),
         "portfolio": format_series(p),
         "spy": format_series(b),
         "comparison": {

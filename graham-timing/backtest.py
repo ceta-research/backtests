@@ -36,7 +36,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, remove_price_oscillations
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, remove_price_oscillations, LtpExits, add_exit_method_arg
 from metrics import (compute_metrics as _compute_metrics, compute_annual_returns,
                      format_metrics, period_accounting)
 from costs import tiered_cost
@@ -266,7 +266,8 @@ def screen_stocks(con, target_date, mktcap_min):
 
 def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FREQUENCY,
                  apply_costs=True, risk_free_rate=None, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500"):
+                 offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500",
+                 exit_method="drop"):
     """Run Graham Number timing backtest on specified exchanges."""
 
     exec_model = "same-day close" if offset_days == 0 else "next-day close (MOC)"
@@ -291,6 +292,8 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
     con = fetch_data_via_api(client, exchanges, rebalance_dates, benchmark_symbol=benchmark_symbol, verbose=verbose)
     if not con:
         return None
+    # Remote: prices_cache holds only 11-day windows around rebalance dates.
+    ltp = LtpExits(client, con, verbose=verbose) if exit_method != "drop" else None
 
     print(f"\n{'='*70}")
     print(f"Running backtest ({len(rebalance_dates)} periods)...")
@@ -299,6 +302,7 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
     portfolio_returns = []
     spy_returns = []
     period_data = []
+    ltp_returns = {}  # period index -> LTP-book return (fraction), both mode only
 
     for i, target_date in enumerate(rebalance_dates[:-1]):
         exit_date = rebalance_dates[i + 1]
@@ -329,18 +333,27 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
             symbols = [s[0] for s in stocks]
             entry_prices = get_prices(con, symbols, target_date, offset_days=offset_days)
             exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
+            # LTP fills only for periods that clear the entry-side cash guard below.
+            ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, target_date, exit_date,
+                                 offset_days=offset_days, min_entry_price=1.0)
+                        if ltp and entry_buyable_prices(symbols, entry_prices) >= MIN_STOCKS else {})
+            exit_ltp = {**exit_prices, **ltp_fill}
 
-            # Compute raw returns: (symbol, entry_price, exit_price, market_cap)
-            raw_returns = []
-            for symbol, _, mkt_cap in stocks:
-                entry = entry_prices.get(symbol)
-                exit_ = exit_prices.get(symbol)
-                if entry and exit_ and entry > 0:
-                    raw_returns.append((symbol, entry, exit_, mkt_cap))
+            def book(xmap):
+                # Compute raw returns: (symbol, entry_price, exit_price, market_cap)
+                raw_returns = []
+                for symbol, _, mkt_cap in stocks:
+                    entry = entry_prices.get(symbol)
+                    exit_ = xmap.get(symbol)
+                    if entry and exit_ and entry > 0:
+                        raw_returns.append((symbol, entry, exit_, mkt_cap))
 
-            # filter_returns returns (clean_list, skipped_list)
-            # clean_list contains (symbol, raw_return_fraction, market_cap)
-            clean_returns, _ = filter_returns(raw_returns, verbose=verbose)
+                # filter_returns returns (clean_list, skipped_list)
+                # clean_list contains (symbol, raw_return_fraction, market_cap)
+                clean_returns, _ = filter_returns(raw_returns, verbose=verbose)
+                return clean_returns
+
+            clean_returns = book(exit_ltp if exit_method == "ltp" else exit_prices)
 
             # Checked on `buyable`, NOT on len(clean_returns). filter_returns
             # drops a name for a missing EXIT price and for a realised return
@@ -359,25 +372,28 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
             # which takes the $1.00 default.
             buyable = entry_buyable_prices(symbols, entry_prices)
             if buyable >= MIN_STOCKS:
-                # Apply transaction costs and average
-                total_return = 0.0
-                for symbol, raw_return, mkt_cap in clean_returns:
-                    if apply_costs:
-                        cost_rate = tiered_cost(mkt_cap)
-                        net_return = raw_return - (2 * cost_rate)  # Round-trip
-                    else:
-                        net_return = raw_return
-                    total_return += net_return
+                def net(clean_returns):
+                    # Apply transaction costs and average
+                    total_return = 0.0
+                    for symbol, raw_return, mkt_cap in clean_returns:
+                        if apply_costs:
+                            cost_rate = tiered_cost(mkt_cap)
+                            net_return = raw_return - (2 * cost_rate)  # Round-trip
+                        else:
+                            net_return = raw_return
+                        total_return += net_return
 
-                # `if clean_returns else 0.0` is load-bearing, not defensive
-                # noise. The cash rule above is decided on `buyable`, so this
-                # branch is now reachable with an EMPTY clean_returns: every
-                # name buyable at entry, none surviving to the exit side
-                # (coverage ending mid-period, a halt, a mass delisting, or
-                # every survivor tripping max_single_return). Under the old
-                # exit-conditioned guard that case took the else branch.
-                period_return = (total_return / len(clean_returns)
-                                 if clean_returns else 0.0)
+                    # `if clean_returns else 0.0` is load-bearing, not defensive
+                    # noise. The cash rule above is decided on `buyable`, so this
+                    # branch is now reachable with an EMPTY clean_returns: every
+                    # name buyable at entry, none surviving to the exit side
+                    # (coverage ending mid-period, a halt, a mass delisting, or
+                    # every survivor tripping max_single_return). Under the old
+                    # exit-conditioned guard that case took the else branch.
+                    return (total_return / len(clean_returns)
+                            if clean_returns else 0.0)
+
+                period_return = net(clean_returns)
                 portfolio_returns.append(period_return)
 
                 period_data.append({
@@ -390,6 +406,13 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
                     "holdings": ",".join([s[0] for s in clean_returns[:10]]) + ("..." if len(clean_returns) > 10 else ""),
                     "portfolio_return": round(period_return * 100, 2),
                 })
+                if exit_method == "both":
+                    c_ltp = book(exit_ltp)
+                    ltp_returns[i] = net(c_ltp)
+                    # Percent at 2dp, like portfolio_return in this record.
+                    period_data[-1].update({"portfolio_return_ltp": round(ltp_returns[i] * 100, 2),
+                                            "stocks_held_ltp": len(c_ltp),
+                                            "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
 
                 if verbose:
                     print(f"    -> {len(clean_returns)} stocks, return: {period_return*100:+.2f}%")
@@ -447,6 +470,11 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
         periods_per_year=periods_per_year,
         risk_free_rate=risk_free_rate
     )
+    # results_block reads fraction records; period_data is percent with no benchmark, so feed the metrics lists.
+    ltp_block = ltp.results_block(exit_method, [
+        {"portfolio_return": p, "spy_return": s, "portfolio_return_ltp": ltp_returns.get(j, p)}
+        for j, (p, s) in enumerate(zip(portfolio_returns, spy_returns))
+    ], periods_per_year, risk_free_rate) if ltp else None
 
     # Convert dates to ISO strings for compute_annual_returns
     period_dates = [d.isoformat() for d in rebalance_dates[:-1]]
@@ -469,6 +497,7 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
         "comparison": metrics["comparison"],
         "annual_returns": annual_returns,
         "period_data": period_data,
+        **({"exit_method": exit_method, "ltp": ltp_block} if ltp_block else {}),
     }
 
     return result
@@ -477,6 +506,7 @@ def run_backtest(exchanges, start_year=2000, end_year=2025, frequency=DEFAULT_FR
 def main():
     parser = argparse.ArgumentParser(description="Graham Number Timing Backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--start-year", type=int, default=2000)
     parser.add_argument("--end-year", type=int, default=2025)
     args = parser.parse_args()
@@ -503,6 +533,7 @@ def main():
                 offset_days=offset_days,
                 benchmark_symbol=bsym,
                 benchmark_name=bname,
+                exit_method=args.exit_method,
             )
 
             if result:
@@ -537,6 +568,7 @@ def main():
             offset_days=offset_days,
             benchmark_symbol=bsym,
             benchmark_name=bname,
+            exit_method=args.exit_method,
         )
 
         if result:

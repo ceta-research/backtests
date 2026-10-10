@@ -656,7 +656,7 @@ def main():
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, mktcap_threshold, args.verbose, output_path,
-                                    offset_days=offset_days)
+                                    offset_days=offset_days, exit_method=args.exit_method)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:

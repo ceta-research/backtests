@@ -44,7 +44,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        entry_buyable,
+                        entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                         domicile_sql_condition, remove_price_oscillations)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
@@ -273,7 +273,7 @@ def screen_stocks(con, target_date, mktcap_min):
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY"):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run Revenue Surprise backtest. Returns list of period result dicts."""
     results = []
 
@@ -307,10 +307,20 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
+        # LTP fills only for periods that clear the entry-side cash guard below.
+        ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
+                             offset_days=offset_days, min_entry_price=MIN_ENTRY_PRICE)
+                    if ltp and entry_buyable_prices(symbols, entry_prices, MIN_ENTRY_PRICE) >= MIN_STOCKS else {})
+        exit_ltp = {**exit_prices, **ltp_fill}
 
         symbol_data = [(sym, entry_prices.get(sym), exit_prices.get(sym), mcaps.get(sym))
                        for sym in symbols]
-        clean, skipped = filter_returns(symbol_data,
+
+        def book(xmap):
+            # symbol_data with exits from xmap; symbol_data itself stays the DROP book for the cash guard.
+            return [(sym, ep, xmap.get(sym), mcap) for sym, ep, _, mcap in symbol_data]
+
+        clean, skipped = filter_returns(book(exit_ltp) if exit_method == "ltp" else symbol_data,
                                         min_entry_price=MIN_ENTRY_PRICE,
                                         max_single_return=MAX_SINGLE_RETURN,
                                         verbose=verbose)
@@ -376,6 +386,12 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "min_stocks": MIN_STOCKS,
             "holdings": ",".join(sym for sym, _, _ in clean),
         })
+        if exit_method == "both":
+            c_ltp, _ = filter_returns(book(exit_ltp), min_entry_price=MIN_ENTRY_PRICE,
+                                      max_single_return=MAX_SINGLE_RETURN)
+            r_ltp = [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in c_ltp]
+            results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
+                                "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
 
         if verbose:
             excess = ""
@@ -464,7 +480,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, verbose, output_path=None,
                offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500",
-               domicile=False, exclude_funds=False):
+               domicile=False, exclude_funds=False, exit_method="drop"):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
@@ -507,8 +523,11 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2024)...")
     t1 = time.time()
+    # prices_cache only holds 10-day windows at each rebalance date, so LTP reads remote stock_eod.
+    ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs, verbose=verbose,
-                           offset_days=offset_days, benchmark_symbol=benchmark_symbol)
+                           offset_days=offset_days, benchmark_symbol=benchmark_symbol,
+                           ltp=ltp, exit_method=exit_method)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -525,6 +544,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     metrics = compute_metrics(port_returns, spy_returns, periods_per_year,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Revenue Surprise", benchmark_name))
+    ltp_block = ltp.results_block(exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
 
     # B006: count over `executed` (every rebalance the strategy actually ran),
     # not `valid` (only those the benchmark can also price). Keeps the honest
@@ -553,6 +573,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                           frequency, periods_per_year, cash_periods, avg_stocks,
                           benchmark_symbol=benchmark_symbol,
                           benchmark_name=benchmark_name)
+    if ltp_block:
+        output.update({"exit_method": exit_method, "ltp": ltp_block})
 
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
@@ -574,6 +596,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 def main():
     parser = argparse.ArgumentParser(description="Revenue Surprise Momentum backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     parser.add_argument("--exclude-funds", action="store_true",
@@ -643,7 +666,7 @@ def main():
                                     use_costs, rfr, args.verbose, output_path,
                                     offset_days=b_offset, benchmark_symbol=b_sym,
                                     benchmark_name=b_name, domicile=domicile,
-                                    exclude_funds=exclude_funds)
+                                    exclude_funds=exclude_funds, exit_method=args.exit_method)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -708,7 +731,7 @@ def main():
                risk_free_rate, args.verbose, args.output,
                offset_days=offset_days, benchmark_symbol=benchmark_symbol,
                benchmark_name=benchmark_name, domicile=domicile,
-               exclude_funds=exclude_funds)
+               exclude_funds=exclude_funds, exit_method=args.exit_method)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, LtpExits, add_exit_method_arg
 from metrics import compute_metrics, compute_annual_returns, period_accounting
 from costs import tiered_cost, apply_costs
 from cli_utils import get_risk_free_rate, get_mktcap_threshold, REGIONAL_RISK_FREE_RATES
@@ -61,6 +61,7 @@ def main():
     parser.add_argument("--base-url", type=str)
     parser.add_argument("--no-costs", action="store_true")
     parser.add_argument("--frequency", type=str, default=DEFAULT_FREQUENCY)
+    add_exit_method_arg(parser)
     args = parser.parse_args()
 
     freq_map = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}
@@ -98,11 +99,13 @@ def main():
                 all_results[name] = {"status": "no_data"}
                 continue
 
+            ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
             results = run_backtest(con, rebalance_dates, use_dow=use_dow,
                                     use_costs=use_costs, verbose=args.verbose,
                                     mktcap_min=mktcap_threshold,
                                     offset_days=1,
-                                    benchmark_symbol=benchmark_symbol)
+                                    benchmark_symbol=benchmark_symbol,
+                                    ltp=ltp, exit_method=args.exit_method)
 
             valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
             if not valid:
@@ -170,6 +173,8 @@ def main():
                 "years": round(len(valid) / periods_per_year, 1),
                 "frequency": args.frequency,
                 "avg_stocks_when_invested": round(avg_stocks, 1),
+                **({"exit_method": args.exit_method,
+                    "ltp": ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate)} if ltp else {}),
                 "portfolio": format_series(p),
                 "spy": format_series(b),
                 "comparison": {
