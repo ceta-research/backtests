@@ -61,6 +61,9 @@ SCOPE_ALLOW = {
     # has to be passed through or multi-exchange runs silently stay on drop exits.
     "piotroski/run_all_exchanges.py",
     "qarp/run_all_exchanges.py",
+    "graham-net-net/run_all_exchanges.py",
+    "graham-number/run_all_exchanges.py",
+    "low-pe/run_all_exchanges.py",
     # Carries period_data through to the combined comparison so one glob covers
     # every topic's per-period book size.
     "magic-formula/run_all_exchanges.py",

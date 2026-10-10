@@ -26,7 +26,7 @@ if not results_file.exists():
     exit(1)
 
 with open(results_file) as f:
-    data = json.load(f)
+    data = {k: v for k, v in json.load(f).items() if "error" not in v}   # --global records failed markets
 
 print(f"Loaded {len(data)} exchanges from {results_file}\n")
 

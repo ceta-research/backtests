@@ -557,7 +557,9 @@ def main():
             print(f"\n{'='*70}")
             print(f"SUMMARY: {len(all_results)} exchanges tested")
             print(f"{'='*70}\n")
-            print(format_metrics(all_results))
+            for name, r in all_results.items():   # format_metrics takes one metrics dict, not a results map
+                cagr = (r.get("portfolio") or {}).get("cagr")
+                print(f"  {name:<20} " + (f"{cagr * 100:.2f}% CAGR" if cagr is not None else r.get("error", "no data")))
     else:
         # Single exchange run
         exchanges, universe_name = resolve_exchanges(args)

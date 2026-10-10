@@ -8,6 +8,7 @@ Usage:
     python3 qarp/run_all_exchanges.py --exit-method ltp
 """
 
+import argparse
 import json
 import os
 import subprocess
@@ -39,7 +40,9 @@ EXCHANGES = [
 
 SCRIPT = str(Path(__file__).parent / "backtest.py")
 PYTHON = sys.executable
-EXIT_METHOD = sys.argv[sys.argv.index("--exit-method") + 1] if "--exit-method" in sys.argv else "drop"
+_ap = argparse.ArgumentParser(add_help=False)
+_ap.add_argument("--exit-method", choices=("drop", "ltp", "both"), default="drop")
+EXIT_METHOD = _ap.parse_known_args()[0].exit_method
 
 
 def run_exchange(name, args):

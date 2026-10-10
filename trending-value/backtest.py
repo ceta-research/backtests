@@ -196,7 +196,7 @@ def compute_momentum(con, symbol, target_date):
     rows = con.execute("""
         SELECT trade_epoch, adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
-        ORDER BY trade_epoch
+        ORDER BY trade_epoch, adjClose DESC NULLS LAST
     """, [symbol, start_epoch, end_epoch]).fetchall()
 
     if len(rows) < 20:  # Need at least 20 trading days

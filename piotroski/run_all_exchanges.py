@@ -11,6 +11,7 @@ Usage:
     python3 piotroski/run_all_exchanges.py --exit-method ltp
 """
 
+import argparse
 import json
 import os
 import subprocess
@@ -43,7 +44,9 @@ EXCHANGES_TO_TEST = [
 
 def main():
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
-    exit_method = sys.argv[sys.argv.index("--exit-method") + 1] if "--exit-method" in sys.argv else "drop"
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument("--exit-method", choices=("drop", "ltp", "both"), default="drop")
+    exit_method = ap.parse_known_args()[0].exit_method
 
     results_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(results_dir, exist_ok=True)

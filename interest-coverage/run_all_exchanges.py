@@ -88,7 +88,8 @@ def main():
         benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
 
         # Skip if already completed in resume mode
-        if args.resume and all_results.get(name, {}).get("status") == "completed":
+        if (args.resume and all_results.get(name, {}).get("status") == "completed"
+                and all_results[name].get("exit_method", "drop") == args.exit_method):
             print(f"\n  SKIPPING {name} (already completed)")
             continue
 
