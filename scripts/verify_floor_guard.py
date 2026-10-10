@@ -57,6 +57,10 @@ SCOPE_ALLOW = {
     # same-day duplicate rows compare against; the note records that and the prod
     # check to run before publishing.
     "upgrade-cluster/RESULTS_PROVENANCE.md",
+    # B005 stage A: these runners build the backtest command by hand, so --exit-method
+    # has to be passed through or multi-exchange runs silently stay on drop exits.
+    "piotroski/run_all_exchanges.py",
+    "qarp/run_all_exchanges.py",
     # Carries period_data through to the combined comparison so one glob covers
     # every topic's per-period book size.
     "magic-formula/run_all_exchanges.py",
