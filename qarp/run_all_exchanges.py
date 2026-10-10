@@ -5,6 +5,7 @@ Usage:
     source /Users/swas/Desktop/Swas/Kite/ATO_SUITE/.venv/bin/activate
     cd /Users/swas/Desktop/Swas/Kite/ATO_SUITE/backtests
     python3 qarp/run_all_exchanges.py
+    python3 qarp/run_all_exchanges.py --exit-method ltp
 """
 
 import json
@@ -38,6 +39,7 @@ EXCHANGES = [
 
 SCRIPT = str(Path(__file__).parent / "backtest.py")
 PYTHON = sys.executable
+EXIT_METHOD = sys.argv[sys.argv.index("--exit-method") + 1] if "--exit-method" in sys.argv else "drop"
 
 
 def run_exchange(name, args):
@@ -46,7 +48,7 @@ def run_exchange(name, args):
     cmd = [PYTHON, SCRIPT] + args + [
         "--output", str(output_file),
         "--verbose",
-    ]
+    ] + (["--exit-method", EXIT_METHOD] if EXIT_METHOD != "drop" else [])
 
     print(f"\n{'='*65}")
     print(f"  Running: {name}")

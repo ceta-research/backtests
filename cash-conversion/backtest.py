@@ -668,7 +668,7 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     output["benchmark"] = {"symbol": benchmark_symbol, "name": benchmark_name}
     output["execution"] = exec_model
     print_summary(output)
-    if ltp:
+    if ltp and "error" not in output:
         # Headline block = low_ccc with run-wide counts; one sub-block per track with its own counts.
         valid = [p for p in periods if p["spy_return"] is not None]
         block = ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate, key="low_return")

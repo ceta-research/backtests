@@ -8,6 +8,7 @@ Usage:
     cd backtests
     python3 piotroski/run_all_exchanges.py
     python3 piotroski/run_all_exchanges.py --verbose
+    python3 piotroski/run_all_exchanges.py --exit-method ltp
 """
 
 import json
@@ -42,6 +43,7 @@ EXCHANGES_TO_TEST = [
 
 def main():
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
+    exit_method = sys.argv[sys.argv.index("--exit-method") + 1] if "--exit-method" in sys.argv else "drop"
 
     results_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(results_dir, exist_ok=True)
@@ -65,6 +67,8 @@ def main():
         ]
         if verbose:
             cmd.append("--verbose")
+        if exit_method != "drop":
+            cmd += ["--exit-method", exit_method]
 
         start = time.time()
         try:

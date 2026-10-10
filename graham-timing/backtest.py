@@ -522,19 +522,24 @@ def main():
             print(f"{'#'*70}")
 
             bsym, bname = get_local_benchmark(preset_exchanges)
-            result = run_backtest(
-                preset_exchanges,
-                start_year=args.start_year,
-                end_year=args.end_year,
-                frequency=args.frequency or DEFAULT_FREQUENCY,
-                apply_costs=not args.no_costs,
-                risk_free_rate=args.risk_free_rate,
-                verbose=args.verbose,
-                offset_days=offset_days,
-                benchmark_symbol=bsym,
-                benchmark_name=bname,
-                exit_method=args.exit_method,
-            )
+            try:
+                result = run_backtest(
+                    preset_exchanges,
+                    start_year=args.start_year,
+                    end_year=args.end_year,
+                    frequency=args.frequency or DEFAULT_FREQUENCY,
+                    apply_costs=not args.no_costs,
+                    risk_free_rate=args.risk_free_rate,
+                    verbose=args.verbose,
+                    offset_days=offset_days,
+                    benchmark_symbol=bsym,
+                    benchmark_name=bname,
+                    exit_method=args.exit_method,
+                )
+            except Exception as e:   # one market failing must not lose the others (output is written at the end)
+                print(f"\nERROR on {preset_name}: {e}")
+                all_results["+".join(sorted(set(preset_exchanges)))] = {"error": str(e)}
+                continue
 
             if result:
                 all_results[result["universe"]] = result
