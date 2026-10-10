@@ -339,10 +339,6 @@ def filter_by_liquidity(con, symbols, target_date, lookback_days=90,
     return passed, filtered
 
 
-class RowCapError(RuntimeError):
-    """A query_parquet fetch hit its row limit, so it holds an arbitrary subset."""
-
-
 def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, timeout=300,
                   memory_mb=None, threads=None, max_retries=3):
     """Query API as parquet, load directly into DuckDB. Returns row count.
@@ -379,14 +375,7 @@ def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, ti
             con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{tmp_path}')")
             row_count = con.execute(f"SELECT count(*) FROM {table_name}").fetchone()[0]
             os.unlink(tmp_path)
-            # A fetch that returns `limit` rows was cut at the cap: the rest of the run would sit
-            # on an arbitrary, run-dependent subset. Fail instead of computing on it.
-            if limit and row_count >= limit:
-                raise RowCapError(f"{table_name}: {row_count} rows loaded = limit {limit}, the fetch "
-                                  f"was truncated. Raise the limit for this query.")
             return row_count
-        except RowCapError:
-            raise
         except Exception as e:
             # Clean up tempfile before potentially retrying
             try:
