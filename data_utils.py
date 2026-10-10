@@ -681,7 +681,6 @@ LTP_DELIST_GRACE_DAYS = 7
 # A delisting more than this many days before the entry bar belongs to an earlier holder of the
 # ticker; a closer one still bounds the window (zero-volume repeats run to about day 30).
 LTP_EARLIER_HOLDER_DAYS = 30
-LTP_TAIL_CONTEXT_DAYS = 10  # calendar days after the upper bound, filter context only (never a price)
 
 
 
@@ -707,7 +706,7 @@ class LtpExits:
         rows = self._query("SELECT symbol, delistedDate FROM delisted_companies WHERE delistedDate IS NOT NULL",
                            limit=100000)
         self.delisted = {r["symbol"]: date.fromisoformat(str(r["delistedDate"])[:10]) for r in rows or []}
-        self.missing = self.filled = self.osc_removed = 0
+        self.missing = self.filled = self.closed = 0
         self.fills = []
 
     def _query(self, sql, **kw):
@@ -718,7 +717,7 @@ class LtpExits:
                 return self.client.query(sql, **kw)
             except Exception as e:
                 # A bad query fails the same way every time: don't sleep on it.
-                if attempt == 3 or any(k in str(e) for k in ("Binder Error", "Parser Error", "Catalog Error")):
+                if attempt == 3 or any(k in str(e) for k in ("[SYNTAX_ERROR]", "Binder Error", "Parser Error", "Catalog Error")):
                     raise
                 time.sleep(5 * (attempt + 1))
 
@@ -748,6 +747,8 @@ class LtpExits:
                 kind = "ignored_predates_entry"
             if hi > lo:
                 bounds[s] = (lo, hi, kind)
+            else:
+                self.closed += 1   # the delisting bound closes the window before it opens: stays dropped
         got = self._last_bars(bounds) if bounds else {}
         out = {}
         for s in bounds:   # caller's order, not the query's: the fills list is reproducible
@@ -774,53 +775,40 @@ class LtpExits:
         """{symbol: (last_bar_epoch, adjClose)} with entry_bar_date < bar date <= hi.
 
         Local: the topic's prices_cache (already through remove_price_oscillations, must span the
-        holding period). Remote: ONE stock_eod query for each name's whole holding period, cleaned
-        with the same oscillation filter before the last bar is taken.
+        holding period), except names whose delisting bound applies. The topic's filter ran over its
+        whole cache, where a reused ticker trading after the delisting can delete a genuine final
+        crash, so those names go remote. Remote: ONE stock_eod query, the last bar per name.
+
+        No oscillation filter on the remote bar: a name is only here because it has no bar in the
+        exit window, so its last bar has no later neighbour and the filter could never remove it.
         """
         day_end = lambda d: utc_epoch(d + timedelta(days=1))   # exclusive end of a day
-        if self.local:
-            vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), day_end(lo), day_end(hi))
-                            for s, (lo, hi, _) in bounds.items())
+        esc = lambda s: s.replace("'", "''")
+        local = {s: b for s, b in bounds.items() if self.local and b[2] != "applied"}
+        remote = {s: b for s, b in bounds.items() if s not in local}
+        out = {}
+        if local:
+            vals = ",".join("('{}', {}, {})".format(esc(s), day_end(lo), day_end(hi)) for s, (lo, hi, _) in local.items())
             rows = self.con.execute(f"""
                 WITH m(symbol, lo, hi) AS (VALUES {vals})
                 SELECT p.symbol, p.trade_epoch, p.adjClose FROM prices_cache p JOIN m ON p.symbol = m.symbol
                 WHERE p.trade_epoch >= m.lo AND p.trade_epoch < m.hi AND p.adjClose > 0
                 QUALIFY ROW_NUMBER() OVER (PARTITION BY p.symbol ORDER BY p.trade_epoch DESC, p.adjClose DESC) = 1
             """).fetchall()
-            return {r[0]: (int(r[1]), r[2]) for r in rows}
-        # The whole holding period, so the filter sees what the topic's own cache would (tier 2 needs
-        # history). Bars after hi only let it see a spike that reverts, and are never a price; they are
-        # not fetched past a delisting bound, where a reused ticker could delete a genuine final crash.
-        ctx = {s: (hi if kind == "applied" else hi + timedelta(days=LTP_TAIL_CONTEXT_DAYS))
-               for s, (lo, hi, kind) in bounds.items()}
-        vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), utc_epoch(lo), day_end(ctx[s]))
-                        for s, (lo, _, _) in bounds.items())
-        min_lo = min(lo for lo, _, _ in bounds.values()).isoformat()
-        max_ctx = max(ctx.values()).isoformat()
-        sql = f"""
-            WITH m(symbol, lo, ctx) AS (VALUES {vals})
-            SELECT e.symbol, e.dateEpoch, e.adjClose
-            FROM stock_eod e JOIN m ON e.symbol = m.symbol
-            WHERE e.date >= '{min_lo}' AND e.date <= '{max_ctx}'
-              AND e.dateEpoch >= m.lo AND e.dateEpoch < m.ctx AND e.adjClose > 0
-        """
-        rows = self._query(sql, limit=10000000, timeout=600, memory_mb=16384, threads=6) or []
-        try:
-            self.con.execute("CREATE OR REPLACE TEMPORARY TABLE _ltp_tail(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
-            if rows:
-                self.con.executemany("INSERT INTO _ltp_tail VALUES (?, ?, ?)",
-                                     [(r["symbol"], int(r["dateEpoch"]), float(r["adjClose"])) for r in rows])
-            self.osc_removed += remove_price_oscillations(self.con, table_name="_ltp_tail", verbose=False)["rows_removed"]
-            out = {}
-            for s, (lo, hi, _) in bounds.items():
-                r = self.con.execute(
-                    "SELECT trade_epoch, adjClose FROM _ltp_tail WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch < ? "
-                    "ORDER BY trade_epoch DESC, adjClose DESC LIMIT 1", [s, day_end(lo), day_end(hi)]).fetchone()
-                if r:
-                    out[s] = (int(r[0]), r[1])
-            return out
-        finally:
-            self.con.execute("DROP TABLE IF EXISTS _ltp_tail")
+            out.update({r[0]: (int(r[1]), r[2]) for r in rows})
+        if remote:
+            vals = ",".join("('{}', {}, {})".format(esc(s), day_end(lo), day_end(hi)) for s, (lo, hi, _) in remote.items())
+            first = (min(lo for lo, _, _ in remote.values()) + timedelta(days=1)).isoformat()
+            after = (max(hi for _, hi, _ in remote.values()) + timedelta(days=1)).isoformat()
+            rows = self._query(f"""
+                WITH m(symbol, lo, hi) AS (VALUES {vals})
+                SELECT e.symbol, e.dateEpoch, e.adjClose FROM stock_eod e JOIN m ON e.symbol = m.symbol
+                WHERE e.date >= '{first}' AND e.date < '{after}'
+                  AND e.dateEpoch >= m.lo AND e.dateEpoch < m.hi AND e.adjClose > 0
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY e.symbol ORDER BY e.dateEpoch DESC, e.adjClose DESC) = 1
+            """, limit=100000, timeout=600, memory_mb=16384, threads=6) or []
+            out.update({r["symbol"]: (int(r["dateEpoch"]), r["adjClose"]) for r in rows})
+        return out
 
     def results_block(self, exit_method, valid, periods_per_year, risk_free_rate,
                       key="portfolio_return", spy_key="spy_return"):
@@ -848,10 +836,10 @@ class LtpExits:
         return {"source": "local prices_cache" if self.local else "remote stock_eod",
                 "delist_grace_days": LTP_DELIST_GRACE_DAYS, "missing_exits": self.missing,
                 "ltp_filled": self.filled, "still_missing": self.missing - self.filled,
+                "closed_by_delisting": self.closed,
                 "filled_without_delisting_row": sum(1 for f in self.fills if f["delisted_date"] is None),
                 "filled_ignoring_delisting_row": sum(1 for f in self.fills
                                                      if f["delisting_bound"] == "ignored_predates_entry"),
-                "oscillation_rows_removed": self.osc_removed,
                 "fills": self.fills}
 
 
