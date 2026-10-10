@@ -53,6 +53,10 @@ IMPORT_EXEMPT = {
 }
 # Files outside */backtest.py and scripts/ that this change is allowed to touch.
 SCOPE_ALLOW = {
+    # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
+    # same-day duplicate rows compare against; the note records that and the prod
+    # check to run before publishing.
+    "upgrade-cluster/RESULTS_PROVENANCE.md",
     # Carries period_data through to the combined comparison so one glob covers
     # every topic's per-period book size.
     "magic-formula/run_all_exchanges.py",

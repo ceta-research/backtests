@@ -339,6 +339,10 @@ def filter_by_liquidity(con, symbols, target_date, lookback_days=90,
     return passed, filtered
 
 
+class RowCapError(RuntimeError):
+    """A query_parquet fetch hit its row limit, so it holds an arbitrary subset."""
+
+
 def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, timeout=300,
                   memory_mb=None, threads=None, max_retries=3):
     """Query API as parquet, load directly into DuckDB. Returns row count.
@@ -375,7 +379,14 @@ def query_parquet(client, sql, con, table_name, verbose=False, limit=1000000, ti
             con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{tmp_path}')")
             row_count = con.execute(f"SELECT count(*) FROM {table_name}").fetchone()[0]
             os.unlink(tmp_path)
+            # A fetch that returns `limit` rows was cut at the cap: the rest of the run would sit
+            # on an arbitrary, run-dependent subset. Fail instead of computing on it.
+            if limit and row_count >= limit:
+                raise RowCapError(f"{table_name}: {row_count} rows loaded = limit {limit}, the fetch "
+                                  f"was truncated. Raise the limit for this query.")
             return row_count
+        except RowCapError:
+            raise
         except Exception as e:
             # Clean up tempfile before potentially retrying
             try:
@@ -642,7 +653,7 @@ def get_prices(con, symbols, target_date, window_days=10, offset_days=0, with_ep
             WHERE symbol IN ({sym_list})
               AND trade_epoch >= {target_epoch}
               AND trade_epoch <= {end_epoch}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST) = 1
         """).fetchall()
         return {r[0]: ((r[2], r[1]) if with_epochs else r[2]) for r in rows}
     except Exception:
@@ -658,7 +669,7 @@ def get_prices(con, symbols, target_date, window_days=10, offset_days=0, with_ep
             WHERE symbol IN ({sym_list})
               AND trade_date >= '{target_str}'
               AND trade_date <= '{end_str}'
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC, adjClose DESC NULLS LAST) = 1
         """).fetchall()
         if with_epochs:
             return {r[0]: (r[2], utc_epoch(date.fromisoformat(str(r[1])[:10]))) for r in rows}
@@ -738,7 +749,10 @@ class LtpExits:
                 bounds[s] = (int(e), lo, hi)
         got = self._last_bars(bounds) if bounds else {}
         out = {}
-        for s, (bar_epoch, px) in got.items():
+        for s in bounds:   # caller's order, not the query's: the fills list is reproducible
+            if s not in got:
+                continue
+            bar_epoch, px = got[s]
             lo_epoch, lo, hi = bounds[s]
             bar = utc_date(bar_epoch)
             assert lo_epoch < bar_epoch and lo <= bar <= hi <= exit_date, (s, lo, bar, hi)
@@ -769,7 +783,7 @@ class LtpExits:
                 WITH m(symbol, lo, hi) AS (VALUES {vals})
                 SELECT p.symbol, p.trade_epoch, p.adjClose FROM prices_cache p JOIN m ON p.symbol = m.symbol
                 WHERE p.trade_epoch > m.lo AND p.trade_epoch < m.hi AND p.adjClose > 0
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY p.symbol ORDER BY p.trade_epoch DESC) = 1
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY p.symbol ORDER BY p.trade_epoch DESC, p.adjClose DESC) = 1
             """).fetchall()
             return {r[0]: (int(r[1]), r[2]) for r in rows}
         # Tail = each name's last bars from the entry bar to hi + context days. The bars after hi
@@ -783,7 +797,7 @@ class LtpExits:
             WITH m(symbol, lo, ctx) AS (VALUES {vals})
             SELECT symbol, dateEpoch, adjClose FROM (
                 SELECT e.symbol, e.dateEpoch, e.adjClose,
-                       ROW_NUMBER() OVER (PARTITION BY e.symbol ORDER BY e.date DESC) AS rn
+                       ROW_NUMBER() OVER (PARTITION BY e.symbol ORDER BY e.date DESC, e.adjClose DESC) AS rn
                 FROM stock_eod e JOIN m ON e.symbol = m.symbol
                 WHERE e.date >= '{min_lo}' AND e.date <= '{max_ctx}'
                   AND e.date >= m.lo AND e.date <= m.ctx AND e.adjClose > 0
@@ -799,7 +813,7 @@ class LtpExits:
         for s, (lo_e, _, hi) in bounds.items():
             r = self.con.execute(
                 "SELECT trade_epoch, adjClose FROM _ltp_tail WHERE symbol = ? AND trade_epoch > ? AND trade_epoch < ? "
-                "ORDER BY trade_epoch DESC LIMIT 1", [s, lo_e, hi_end(hi)]).fetchone()
+                "ORDER BY trade_epoch DESC, adjClose DESC LIMIT 1", [s, lo_e, hi_end(hi)]).fetchone()
             if r:
                 out[s] = (int(r[0]), r[1])
         self.con.execute("DROP TABLE IF EXISTS _ltp_tail")
@@ -987,18 +1001,20 @@ def remove_price_oscillations(con, table_name="prices_cache", verbose=True,
     gap1 = int(max_neighbor_gap_days) * 86400          # span across p1..n1
     gap2 = int(max_neighbor_gap_days) * 2 * 86400      # span across p2..n2
 
-    # Build neighbor table once (prices AND their timestamps)
+    # Build neighbor table once (prices AND their timestamps). adjClose breaks ties between
+    # duplicate bars, so the neighbours (and the rows removed) are the same every run.
+    w = f"PARTITION BY symbol ORDER BY {date_col}, adjClose"
     con.execute(f"""
         CREATE TEMPORARY TABLE _nb AS
         SELECT symbol, {date_col} AS dt, adjClose,
-            LAG(adjClose, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS p1,
-            LEAD(adjClose, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS n1,
-            LAG(adjClose, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS p2,
-            LEAD(adjClose, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS n2,
-            LAG({dt_secs}, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS pt1,
-            LEAD({dt_secs}, 1) OVER (PARTITION BY symbol ORDER BY {date_col}) AS nt1,
-            LAG({dt_secs}, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS pt2,
-            LEAD({dt_secs}, 2) OVER (PARTITION BY symbol ORDER BY {date_col}) AS nt2
+            LAG(adjClose, 1) OVER ({w}) AS p1,
+            LEAD(adjClose, 1) OVER ({w}) AS n1,
+            LAG(adjClose, 2) OVER ({w}) AS p2,
+            LEAD(adjClose, 2) OVER ({w}) AS n2,
+            LAG({dt_secs}, 1) OVER ({w}) AS pt1,
+            LEAD({dt_secs}, 1) OVER ({w}) AS nt1,
+            LAG({dt_secs}, 2) OVER ({w}) AS pt2,
+            LEAD({dt_secs}, 2) OVER ({w}) AS nt2
         FROM {table_name}
         WHERE adjClose > 0
     """)
