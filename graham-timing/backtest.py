@@ -206,7 +206,7 @@ def screen_stocks(con, target_date, mktcap_min):
         ),
         prices AS (
             SELECT symbol, adjClose AS price,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch DESC, adjClose DESC NULLS LAST) AS rn
             FROM prices_cache
             WHERE trade_epoch BETWEEN ? AND ?
         )

@@ -232,7 +232,7 @@ def compute_proximity(con, symbols, target_date):
             SELECT symbol, adjClose, high_52w, row_count
             FROM windowed
             WHERE trade_epoch <= {target_epoch}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch DESC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch DESC, adjClose DESC NULLS LAST) = 1
         )
         SELECT
             symbol,

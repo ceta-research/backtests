@@ -358,7 +358,7 @@ def screen_stocks(con, target_date, mktcap_min):
             WHERE symbol IN ({sym_list})
               AND trade_epoch >= {entry_epoch}
               AND trade_epoch <= {entry_end_epoch}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST) = 1
         ),
         low_52w AS (
             SELECT symbol,

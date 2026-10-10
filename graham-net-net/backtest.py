@@ -220,7 +220,7 @@ def screen_stocks(con, target_date, mktcap_min):
             SELECT symbol, adjClose
             FROM prices_cache
             WHERE trade_epoch >= ? AND trade_epoch <= ?
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST) = 1
         )
         SELECT km.symbol, km.marketCap
         FROM km

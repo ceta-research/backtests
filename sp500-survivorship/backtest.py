@@ -240,7 +240,7 @@ def get_price(con, symbol, target_date, offset_days=1):
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
-        ORDER BY trade_epoch ASC LIMIT 1
+        ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST LIMIT 1
     """, [symbol, target_epoch, end_epoch]).fetchone()
     return row[0] if row else None
 
