@@ -7,6 +7,7 @@ Usage:
     python3 graham-number/run_all_exchanges.py
 """
 
+import argparse
 import json
 import os
 import subprocess
@@ -41,6 +42,9 @@ EXCHANGES = [
 
 SCRIPT = str(Path(__file__).parent / "backtest.py")
 PYTHON = sys.executable
+_ap = argparse.ArgumentParser(add_help=False)
+_ap.add_argument("--exit-method", choices=("drop", "ltp", "both"), default="drop")
+EXIT_METHOD = _ap.parse_known_args()[0].exit_method
 
 
 def run_exchange(name, args):
@@ -49,7 +53,7 @@ def run_exchange(name, args):
     cmd = [PYTHON, SCRIPT] + args + [
         "--output", str(output_file),
         "--verbose",
-    ]
+    ] + (["--exit-method", EXIT_METHOD] if EXIT_METHOD != "drop" else [])
 
     print(f"\n{'='*65}")
     print(f"  Running: {name}")

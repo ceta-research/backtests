@@ -37,7 +37,7 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, filter_returns, entry_buyable_prices,
                         get_local_benchmark, get_benchmark_return,
                         LOCAL_INDEX_BENCHMARKS, domicile_sql_condition,
-                         remove_price_oscillations)
+                         remove_price_oscillations, LtpExits, add_exit_method_arg)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -189,7 +189,8 @@ def screen_sectors(con, target_date, n_worst=N_WORST_SECTORS):
             JOIN prices_cache pc ON sm.symbol = pc.symbol
             WHERE EXTRACT(YEAR FROM pc.trade_date) = {yr}
               AND EXTRACT(MONTH FROM pc.trade_date) = {mo}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY sm.symbol ORDER BY pc.trade_date ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY sm.symbol ORDER BY pc.trade_date ASC,
+                pc.adjClose DESC NULLS LAST, sm.sector DESC NULLS LAST, sm.market_cap DESC NULLS LAST) = 1
         ),
         year_ago AS (
             -- First available price in the same month one year prior
@@ -197,7 +198,7 @@ def screen_sectors(con, target_date, n_worst=N_WORST_SECTORS):
             FROM prices_cache
             WHERE EXTRACT(YEAR FROM trade_date) = {yr_ago}
               AND EXTRACT(MONTH FROM trade_date) = {mo}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC, adjClose DESC NULLS LAST) = 1
         ),
         stock_returns AS (
             SELECT r.symbol, r.sector, r.recent_price, r.market_cap,
@@ -218,7 +219,7 @@ def screen_sectors(con, target_date, n_worst=N_WORST_SECTORS):
         ),
         ranked AS (
             SELECT sector, avg_sector_return,
-                   ROW_NUMBER() OVER (ORDER BY avg_sector_return ASC) AS rank_worst,
+                   ROW_NUMBER() OVER (ORDER BY avg_sector_return ASC, sector) AS rank_worst,
                    COUNT(*) OVER () AS n_qualifying
             FROM sector_stats
         )
@@ -255,13 +256,13 @@ def get_prices_at(con, symbols, year, month, offset_days=0):
         WHERE symbol IN ({sym_list})
           AND trade_date >= '{start.isoformat()}'
           AND trade_date <= '{end.isoformat()}'
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC) = 1
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date ASC, adjClose DESC NULLS LAST) = 1
     """).fetchall()
     return {r[0]: r[1] for r in result}
 
 
 def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_worst=N_WORST_SECTORS,
-                 offset_days=1, benchmark_symbol="SPY"):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run sector rotation backtest. Returns list of period result dicts."""
     results = []
 
@@ -304,17 +305,28 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_worst=N_
         entry_prices_map = get_prices_at(con, symbols, entry_date.year, entry_date.month,
                                           offset_days=offset_days)
         exit_prices_map = get_prices_at(con, symbols, exit_date.year, exit_date.month)
+        # LTP fills only for periods that clear the entry-side cash guard below.
+        # Empty exit map = past the price cache (the 2026-01 -> 2026-04 stub), not a delisting: no fills.
+        ltp_fill = (ltp.fill(symbols, entry_prices_map, exit_prices_map, entry_date, exit_date,
+                             offset_days=offset_days, min_entry_price=MIN_ENTRY_PRICE)
+                    if ltp and exit_prices_map and entry_buyable_prices(
+                        symbols, entry_prices_map, min_entry_price=MIN_ENTRY_PRICE) >= MIN_PORTFOLIO_STOCKS
+                    else {})
+        exit_ltp = {**exit_prices_map, **ltp_fill}
 
-        # Build (symbol, entry_price, exit_price, market_cap) for filter_returns
-        symbol_data = [
-            (sym, entry_prices_map.get(sym), exit_prices_map.get(sym), mcaps.get(sym))
-            for sym in symbols
-            if entry_prices_map.get(sym) and exit_prices_map.get(sym)
-        ]
-        clean, skipped = filter_returns(symbol_data,
-                                        min_entry_price=MIN_ENTRY_PRICE,
-                                        max_single_return=MAX_SINGLE_RETURN,
-                                        verbose=verbose)
+        def book(xmap):
+            # Build (symbol, entry_price, exit_price, market_cap) for filter_returns
+            symbol_data = [
+                (sym, entry_prices_map.get(sym), xmap.get(sym), mcaps.get(sym))
+                for sym in symbols
+                if entry_prices_map.get(sym) and xmap.get(sym)
+            ]
+            return filter_returns(symbol_data,
+                                  min_entry_price=MIN_ENTRY_PRICE,
+                                  max_single_return=MAX_SINGLE_RETURN,
+                                  verbose=verbose)
+
+        clean, skipped = book(exit_ltp if exit_method == "ltp" else exit_prices_map)
 
         # Checked on `buyable`, NOT on len(clean). filter_returns drops a name
         # for a missing EXIT price and for a realised return over
@@ -380,6 +392,11 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, n_worst=N_
             "n_qualifying_sectors": n_qualifying,
             "holdings": ",".join(sym for sym, _, _ in clean),
         })
+        if exit_method == "both":
+            c_ltp, _ = book(exit_ltp)
+            r_ltp = [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in c_ltp]
+            results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
+                                "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
 
         if verbose:
             bench_str = f"{bench_return * 100:.1f}%" if bench_return is not None else "N/A"
@@ -468,7 +485,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, verbose, output_path=None, n_worst=N_WORST_SECTORS,
-               offset_days=1, domicile=False, exclude_funds=False):
+               offset_days=1, domicile=False, exclude_funds=False, exit_method="drop"):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
     mktcap_min = get_mktcap_threshold(exchanges)
@@ -506,9 +523,10 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest ({BACKTEST_START}-{BACKTEST_END})...")
     t1 = time.time()
+    ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, use_costs=use_costs, verbose=verbose,
                            n_worst=n_worst, offset_days=offset_days,
-                           benchmark_symbol=benchmark_symbol)
+                           benchmark_symbol=benchmark_symbol, ltp=ltp, exit_method=exit_method)
     bt_time = time.time() - t1
     print(f"  Backtest complete in {bt_time:.0f}s")
 
@@ -526,6 +544,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     metrics = compute_metrics(port_returns, spy_returns, periods_per_year,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Sector Rotation", benchmark_name))
+    ltp_block = ltp.results_block(exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
 
     # B006: count over `executed`, not `valid`. Using `valid` drops periods the
     # strategy DID run but the benchmark cannot price, understating the honest
@@ -580,6 +599,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                           n_worst=n_worst, benchmark_symbol=benchmark_symbol,
                           benchmark_name=benchmark_name, domicile=domicile)
     output["sector_frequency"] = sector_freq
+    if ltp_block:
+        output.update({"exit_method": exit_method, "ltp": ltp_block})
 
     if output_path:
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
@@ -594,6 +615,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 def main():
     parser = argparse.ArgumentParser(description="Sector Mean Reversion backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--n-worst", type=int, default=N_WORST_SECTORS,
                         help=f"Number of worst sectors to buy (default {N_WORST_SECTORS})")
     parser.add_argument("--cloud", action="store_true",
@@ -675,7 +697,8 @@ def main():
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, args.verbose, output_path,
                                     n_worst=n_worst, offset_days=offset_days,
-                                    domicile=domicile, exclude_funds=exclude_funds)
+                                    domicile=domicile, exclude_funds=exclude_funds,
+                                    exit_method=args.exit_method)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -736,7 +759,7 @@ def main():
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, args.verbose, args.output, n_worst=n_worst,
                offset_days=offset_days, domicile=domicile,
-               exclude_funds=exclude_funds)
+               exclude_funds=exclude_funds, exit_method=args.exit_method)
 
 
 if __name__ == "__main__":

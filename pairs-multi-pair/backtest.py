@@ -98,7 +98,7 @@ def fetch_data_via_api(cr, exchanges, verbose=False, benchmark_symbol="SPY"):
     sector_sql = f"""
         WITH dedup AS (
             SELECT symbol, sector,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY fetchedAtEpoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY fetchedAtEpoch DESC, sector DESC NULLS LAST) AS rn
             FROM profile
             WHERE {ex_where}
               AND sector IS NOT NULL AND sector != ''
@@ -127,7 +127,7 @@ def fetch_data_via_api(cr, exchanges, verbose=False, benchmark_symbol="SPY"):
         ),
         dedup AS (
             SELECT km.symbol, km.marketCap,
-                ROW_NUMBER() OVER (PARTITION BY km.symbol ORDER BY km.dateEpoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY km.symbol ORDER BY km.dateEpoch DESC, km.marketCap DESC NULLS LAST) AS rn
             FROM key_metrics km
             JOIN prof p ON km.symbol = p.symbol
             WHERE km.period = 'FY'
@@ -161,9 +161,9 @@ def fetch_data_via_api(cr, exchanges, verbose=False, benchmark_symbol="SPY"):
 
     candidates = []
     for sec, stocks in sector_buckets.items():
-        top = sorted(stocks, key=lambda x: x[1], reverse=True)[:TOP_N_PER_SECTOR]
+        top = sorted(stocks, key=lambda x: (-x[1], x[0]))[:TOP_N_PER_SECTOR]
         candidates.extend(s for s, _ in top)
-    candidates = list(set(candidates))
+    candidates = sorted(set(candidates))
 
     print(f"  Candidates: {len(candidates)} stocks "
           f"(top {TOP_N_PER_SECTOR}/sector × {len(sector_buckets)} sectors)")
@@ -250,7 +250,7 @@ def compute_pair_candidates(con, formation_start, formation_end):
         SELECT sym_a, sym_b, sector, correlation, common_days
         FROM pair_corr
         WHERE correlation >= {MIN_CORR}
-        ORDER BY correlation DESC
+        ORDER BY correlation DESC, sym_a, sym_b
         LIMIT {_MAX_CANDIDATES}
     """).fetchall()
 
@@ -651,13 +651,13 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
             SELECT adjClose FROM prices_cache
             WHERE symbol = '{benchmark_symbol}'
               AND trade_date >= '{trading_start.isoformat()}'
-            ORDER BY trade_date ASC LIMIT 1
+            ORDER BY trade_date ASC, adjClose DESC NULLS LAST LIMIT 1
         """).fetchone()
         bench_end_row = con.execute(f"""
             SELECT adjClose FROM prices_cache
             WHERE symbol = '{benchmark_symbol}'
               AND trade_date <= '{trading_end.isoformat()}'
-            ORDER BY trade_date DESC LIMIT 1
+            ORDER BY trade_date DESC, adjClose DESC NULLS LAST LIMIT 1
         """).fetchone()
         spy_ret = None  # key name kept for backward compat
         if bench_start_row and bench_end_row:
@@ -674,13 +674,13 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
                 SELECT adjClose FROM prices_cache
                 WHERE symbol = '{sym_a}'
                   AND trade_date >= '{trading_start.isoformat()}'
-                ORDER BY trade_date ASC LIMIT 1
+                ORDER BY trade_date ASC, adjClose DESC NULLS LAST LIMIT 1
             """).fetchone()
             pb_row = con.execute(f"""
                 SELECT adjClose FROM prices_cache
                 WHERE symbol = '{sym_b}'
                   AND trade_date >= '{trading_start.isoformat()}'
-                ORDER BY trade_date ASC LIMIT 1
+                ORDER BY trade_date ASC, adjClose DESC NULLS LAST LIMIT 1
             """).fetchone()
             if not pa_row or not pb_row:
                 continue

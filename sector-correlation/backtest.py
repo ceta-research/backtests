@@ -72,7 +72,7 @@ def fetch_prices(cr, verbose=False):
           AND CAST(date AS DATE) <= '2026-03-01'
           AND adjClose IS NOT NULL
           AND adjClose > 0
-        ORDER BY symbol, trade_date
+        ORDER BY symbol, trade_date, adjClose DESC NULLS LAST
     """
 
     rows = cr.query(price_sql, format="json", limit=200_000, timeout=120,
@@ -95,7 +95,7 @@ def fetch_prices(cr, verbose=False):
         prices[sym].append((dt, price))
 
     for sym in prices:
-        prices[sym].sort(key=lambda x: x[0])
+        prices[sym].sort(key=lambda x: (x[0], -x[1]))
 
     n_symbols = len(prices)
     total_rows = sum(len(v) for v in prices.values())

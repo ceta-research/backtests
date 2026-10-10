@@ -26,7 +26,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates, filter_returns, remove_price_oscillations
+from data_utils import query_parquet, generate_rebalance_dates, filter_returns, remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 
@@ -145,7 +145,7 @@ def reconstruct_sp500_at_date(con, target_date):
     For each symbol, the latest event determines membership.
     Current members with no historical events assumed "always in" (epoch 0).
     """
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(target_date)
 
     members = con.execute("""
         WITH events AS (
@@ -185,10 +185,7 @@ def screen_low_pe(con, target_date, universe_symbols):
     if not universe_symbols:
         return []
 
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS),
-        datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
     # Insert universe into temp table for efficient joining
     con.execute("DROP TABLE IF EXISTS _screen_universe")
@@ -202,7 +199,7 @@ def screen_low_pe(con, target_date, universe_symbols):
             SELECT r.symbol, r.priceToEarningsRatio AS pe,
                    r.filing_epoch,
                    ROW_NUMBER() OVER (
-                       PARTITION BY r.symbol ORDER BY r.filing_epoch DESC
+                       PARTITION BY r.symbol ORDER BY r.filing_epoch DESC, r.priceToEarningsRatio DESC NULLS LAST
                    ) AS rn
             FROM ratios_cache r
             JOIN _screen_universe u ON r.symbol = u.symbol
@@ -211,7 +208,7 @@ def screen_low_pe(con, target_date, universe_symbols):
         latest_mcap AS (
             SELECT m.symbol, m.marketCap,
                    ROW_NUMBER() OVER (
-                       PARTITION BY m.symbol ORDER BY m.filing_epoch DESC
+                       PARTITION BY m.symbol ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST
                    ) AS rn
             FROM metrics_cache m
             JOIN _screen_universe u ON m.symbol = u.symbol
@@ -223,7 +220,7 @@ def screen_low_pe(con, target_date, universe_symbols):
         WHERE p.rn = 1
           AND p.pe > {PE_MIN}
           AND p.pe < {PE_MAX}
-        ORDER BY p.pe ASC
+        ORDER BY p.pe ASC, p.symbol
         LIMIT {TOP_N}
     """, [cutoff_epoch, cutoff_epoch]).fetchall()
 
@@ -238,28 +235,25 @@ def get_price(con, symbol, target_date, offset_days=1):
     offset_days=0: same-day close (legacy)
     """
     start = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(start, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(
-        start + timedelta(days=10), datetime.min.time()
-    ).timestamp())
+    target_epoch = utc_epoch(start)
+    end_epoch = utc_epoch(start + timedelta(days=10))
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
-        ORDER BY trade_epoch ASC LIMIT 1
+        ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST LIMIT 1
     """, [symbol, target_epoch, end_epoch]).fetchone()
     return row[0] if row else None
 
 
-def compute_portfolio_return(con, stock_list, entry_date, exit_date,
-                              use_costs=True, offset_days=1):
-    """Compute equal-weighted return for a list of (symbol, pe, mcap)."""
+def compute_portfolio_return(stock_list, entry_prices, exit_prices, use_costs=True):
+    """Compute equal-weighted return for a list of (symbol, pe, mcap) from {symbol: price} maps."""
     if not stock_list:
         return 0.0, 0, 0
 
     symbol_returns = []
     for sym, pe, mcap in stock_list:
-        ep = get_price(con, sym, entry_date, offset_days=offset_days)
-        xp = get_price(con, sym, exit_date, offset_days=offset_days)
+        ep = entry_prices.get(sym)
+        xp = exit_prices.get(sym)
         symbol_returns.append((sym, ep, xp, mcap or 1e9))
 
     clean, skipped = filter_returns(symbol_returns)
@@ -280,7 +274,8 @@ def compute_portfolio_return(con, stock_list, entry_date, exit_date,
     return mean_ret, len(returns), len(symbol_returns) - len(clean)
 
 
-def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, offset_days=1):
+def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, offset_days=1,
+                 ltp=None, exit_method="drop"):
     """Run the biased vs unbiased backtest."""
     print(f"Phase 2: Running backtest "
           f"({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
@@ -304,13 +299,19 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, offset_day
         biased_stocks = screen_low_pe(con, entry_date, current_members)
         unbiased_stocks = screen_low_pe(con, entry_date, pit_members)
 
+        # Price the union once: ONE LTP fill per period serves both tracks (this topic has no cash guard).
+        syms = list(dict.fromkeys(s[0] for s in biased_stocks + unbiased_stocks))
+        eps = {s: get_price(con, s, entry_date, offset_days=offset_days) for s in syms}
+        xps = {s: get_price(con, s, exit_date, offset_days=offset_days) for s in syms}
+        # min_entry_price=1.0 is filter_returns' default floor, which the book below uses.
+        ltp_fill = (ltp.fill(syms, eps, xps, entry_date, exit_date, offset_days=offset_days,
+                             min_entry_price=1.0) if ltp else {})
+        xps_ltp = {**xps, **ltp_fill}
+        xmap = xps_ltp if exit_method == "ltp" else xps
+
         # Compute returns
-        b_ret, b_cnt, b_skip = compute_portfolio_return(
-            con, biased_stocks, entry_date, exit_date, use_costs,
-            offset_days=offset_days)
-        u_ret, u_cnt, u_skip = compute_portfolio_return(
-            con, unbiased_stocks, entry_date, exit_date, use_costs,
-            offset_days=offset_days)
+        b_ret, b_cnt, b_skip = compute_portfolio_return(biased_stocks, eps, xmap, use_costs)
+        u_ret, u_cnt, u_skip = compute_portfolio_return(unbiased_stocks, eps, xmap, use_costs)
 
         # SPY benchmark
         spy_ep = get_price(con, "SPY", entry_date, offset_days=offset_days)
@@ -336,6 +337,18 @@ def run_backtest(con, rebalance_dates, use_costs=True, verbose=False, offset_day
             "pit_member_count": len(pit_members),
             "survivorship_victims": len(victims),
         })
+        if exit_method == "both":
+            b_ltp, b_n, _ = compute_portfolio_return(biased_stocks, eps, xps_ltp, use_costs)
+            u_ltp, u_n, _ = compute_portfolio_return(unbiased_stocks, eps, xps_ltp, use_costs)
+            periods[-1].update({"biased_return_ltp": b_ltp, "unbiased_return_ltp": u_ltp,
+                                "biased_count_ltp": b_n, "unbiased_count_ltp": u_n})
+        if ltp:
+            # The union fill counts a name once: attribute missing/filled to each track.
+            audit = {}
+            for name, stocks in (("biased", biased_stocks), ("unbiased", unbiased_stocks)):
+                miss = [s[0] for s in stocks if xps[s[0]] is None and entry_usable(eps[s[0]], 1.0)]
+                audit[name] = {"missing": len(miss), "filled": [s for s in miss if s in ltp_fill]}
+            periods[-1]["ltp_audit"] = audit
 
         if verbose:
             spy_pct = spy_ret * 100 if spy_ret else 0
@@ -584,6 +597,7 @@ def main():
                         help="Use same-day close instead of next-day (legacy mode)")
     parser.add_argument("--api-key", help="CR API key")
     parser.add_argument("--base-url", help="Override API base URL")
+    add_exit_method_arg(parser)
     args = parser.parse_args()
 
     offset_days = 0 if args.no_next_day else 1
@@ -615,12 +629,31 @@ def main():
 
     t1 = time.time()
     use_costs = not args.no_costs
+    ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     periods = run_backtest(con, rebalance_dates, use_costs=use_costs,
-                            verbose=args.verbose, offset_days=offset_days)
+                            verbose=args.verbose, offset_days=offset_days,
+                            ltp=ltp, exit_method=args.exit_method)
     bt_time = time.time() - t1
 
     output = build_output(periods)
     print_summary(output)
+    if ltp and "error" not in output:
+        # Top-level block = point-in-time (unbiased) book; the biased book rides under biased_track.
+        valid = [p for p in periods if p["spy_return"] is not None]  # same list build_output uses
+        if args.exit_method == "both":
+            print("\nExit methods: unbiased (point-in-time) track first, then biased")
+        block = ltp.results_block(args.exit_method, valid, 4, RISK_FREE_RATE, key="unbiased_return")
+        if args.exit_method == "both":
+            sub = ltp.results_block("both", valid, 4, RISK_FREE_RATE, key="biased_return")
+            block["biased_track"] = {"drop_portfolio": sub["drop_portfolio"], "ltp_portfolio": sub["ltp_portfolio"]}
+            block["cagr_gap"] = {m: round(sub[f"{m}_portfolio"]["cagr"] - block[f"{m}_portfolio"]["cagr"], 2)
+                                 for m in ("drop", "ltp")}
+        for t in ("biased", "unbiased"):
+            block[f"{t}_track_missing"] = sum(p["ltp_audit"][t]["missing"] for p in periods)
+            block[f"{t}_track_filled"] = sum(len(p["ltp_audit"][t]["filled"]) for p in periods)
+        output.update({"exit_method": args.exit_method, "ltp": block, "period_ltp_audit": [
+            {"year": p["year"], "quarter": p["quarter"], **p["ltp_audit"],
+             **{k: v for k, v in p.items() if k.endswith("_ltp")}} for p in periods]})
 
     total_time = time.time() - t0
     print(f"\nTotal time: {total_time:.0f}s "

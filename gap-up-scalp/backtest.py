@@ -224,7 +224,7 @@ JOIN       gap_up      g   USING (symbol, trade_date)
 LEFT JOIN  first_exit  x   USING (symbol, trade_date)
 JOIN       eod_exit    eod USING (symbol, trade_date)
 JOIN       bench       b   USING (trade_date)
-ORDER BY   e.trade_date, e.entry_price DESC
+ORDER BY   e.trade_date, e.entry_price DESC, e.symbol
 """
 
 
@@ -259,7 +259,8 @@ def simulate(trades: list[dict], max_positions: int,
         day_trades = by_date[d]
 
         # Sort by gap_pct desc — biggest movers get priority (scanner ranking)
-        day_trades.sort(key=lambda t: t["gap_pct"] or 0, reverse=True)
+        # Ties: entry_price desc (the SQL row order the stable sort inherited), then symbol
+        day_trades.sort(key=lambda t: (-(t["gap_pct"] or 0), -t["entry_price"], t["symbol"]))
         selected = day_trades[:max_positions]
 
         day_pnl = sum(

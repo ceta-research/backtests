@@ -41,7 +41,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return,
                         LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg,
+                         utc_epoch)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -208,27 +209,27 @@ def compute_dupont(con, target_date, mktcap_min):
       leverage_driven: Top quartile equity multiplier (within ROE > 15%)
       mixed:           Everything else with ROE > 15%
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=FILING_LAG_DAYS),
-        datetime.min.time()
-    ).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
     rows = con.execute("""
         WITH
         inc AS (
             SELECT symbol, netIncome, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         bs AS (
             SELECT symbol, totalAssets, totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ?
               AND totalStockholdersEquity > 0
         ),
         met AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         dupont_raw AS (
@@ -259,13 +260,15 @@ def compute_dupont(con, target_date, mktcap_min):
         ),
         ranked AS (
             SELECT *,
-                NTILE(4) OVER (ORDER BY net_margin DESC) AS margin_quartile,
-                NTILE(4) OVER (ORDER BY equity_multiplier DESC) AS leverage_quartile
+                NTILE(4) OVER (ORDER BY net_margin DESC, symbol) AS margin_quartile,
+                NTILE(4) OVER (ORDER BY equity_multiplier DESC, symbol) AS leverage_quartile
             FROM roe_filtered
         )
         SELECT symbol, net_margin, asset_turnover, equity_multiplier,
-               roe_dupont, marketCap, margin_quartile, leverage_quartile
+               roe_dupont, marketCap, MAX(margin_quartile), MAX(leverage_quartile)
         FROM ranked
+        GROUP BY ALL  -- a symbol repeated in universe collapses to one row, its later quartile
+        ORDER BY symbol
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch, mktcap_min, ROE_MIN]).fetchall()
 
     result = {}
@@ -291,18 +294,18 @@ def compute_dupont(con, target_date, mktcap_min):
 def get_price(con, symbol, target_date, offset_days=0):
     """Get adjusted close price on or just after target_date + offset_days."""
     shifted_date = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(shifted_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(shifted_date + timedelta(days=10), datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(shifted_date)
+    end_epoch = utc_epoch(shifted_date + timedelta(days=10))
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
-        ORDER BY trade_epoch ASC LIMIT 1
+        ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST LIMIT 1
     """, [symbol, target_epoch, end_epoch]).fetchone()
     return row[0] if row else None
 
 
 def compute_portfolio_return(con, portfolio_symbols, scored, entry_date, exit_date,
-                             use_costs=True, verbose=False, offset_days=1):
+                             use_costs=True, verbose=False, offset_days=1, priced=None):
     """Compute equal-weighted return for a portfolio of stocks.
 
     Args:
@@ -318,8 +321,12 @@ def compute_portfolio_return(con, portfolio_symbols, scored, entry_date, exit_da
 
     symbol_returns = []
     for sym in portfolio_symbols:
-        ep = get_price(con, sym, entry_date, offset_days=offset_days)
-        xp = get_price(con, sym, exit_date, offset_days=offset_days)
+        if priced is not None:
+            # --exit-method ltp/both: (entry, exit) maps priced once per period.
+            ep, xp = priced[0].get(sym), priced[1].get(sym)
+        else:
+            ep = get_price(con, sym, entry_date, offset_days=offset_days)
+            xp = get_price(con, sym, exit_date, offset_days=offset_days)
         mcap = scored[sym]["market_cap"]
         symbol_returns.append((sym, ep, xp, mcap))
 
@@ -343,7 +350,7 @@ def compute_portfolio_return(con, portfolio_symbols, scored, entry_date, exit_da
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY"):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run the full DuPont ROE backtest with four portfolio tracks."""
     print(f"Phase 2: Running annual backtest "
           f"({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
@@ -365,6 +372,16 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         leverage = [s for s, v in scored.items() if v["is_leverage_driven"]]
         all_roe = list(scored.keys())
 
+        if ltp:
+            audit = {}
+            # All four tracks are subsets of scored: price once, ONE LTP query per period.
+            eps = {s: get_price(con, s, entry_date, offset_days=offset_days) for s in scored}
+            xps = {s: get_price(con, s, exit_date, offset_days=offset_days) for s in scored}
+            # No MIN_STOCKS / cash guard in this topic; 1.0 is the filter_returns default floor it runs with.
+            ltp_fill = ltp.fill(list(scored), eps, xps, entry_date, exit_date,
+                                offset_days=offset_days, min_entry_price=1.0)
+            xps_ltp = {**xps, **ltp_fill}
+
         # Compute returns for each track
         track_data = {}
         for name, syms in [("quality_roe", quality),
@@ -373,9 +390,20 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                            ("all_high_roe", all_roe)]:
             ret, cnt, skip = compute_portfolio_return(
                 con, syms, scored, entry_date, exit_date,
-                use_costs=use_costs, verbose=verbose, offset_days=offset_days
+                use_costs=use_costs, verbose=verbose, offset_days=offset_days,
+                priced=(eps, xps_ltp if exit_method == "ltp" else xps) if ltp else None
             )
             track_data[name] = {"return": ret, "count": cnt, "skipped": skip}
+            if ltp:
+                buyable = [s for s in syms if entry_usable(eps[s], 1.0)]
+                miss = [s for s in buyable if xps[s] is None]
+                audit[name] = {"missing": len(miss), "filled": [s for s in miss if s in ltp_fill]}
+                if exit_method == "both" and buyable:  # nothing buyable at entry: 0.0 under either method
+                    ret_ltp, cnt_ltp, _ = compute_portfolio_return(
+                        con, syms, scored, entry_date, exit_date,
+                        use_costs=use_costs, offset_days=offset_days, priced=(eps, xps_ltp)
+                    )
+                    track_data[name].update({"return_ltp": ret_ltp, "count_ltp": cnt_ltp})
 
         # Benchmark
         spy_ret = get_benchmark_return(
@@ -395,6 +423,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "leverage_driven_count": track_data["leverage_driven"]["count"],
             "all_high_roe_count": track_data["all_high_roe"]["count"],
         })
+        if exit_method == "both":
+            periods[-1].update({f"{t}_{k}": v for t, d in track_data.items()
+                                for k, v in d.items() if k.endswith("_ltp")})
+        if ltp:
+            periods[-1]["ltp_audit"] = audit
 
         if verbose:
             s = track_data
@@ -712,15 +745,47 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
 
     # Phase 2: Run backtest
     t1 = time.time()
+    # prices_cache holds only [d, d+11] per rebalance date, so LTP reads remote stock_eod.
+    ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     periods = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=args.verbose,
-                           offset_days=offset_days, benchmark_symbol=benchmark_symbol)
+                           offset_days=offset_days, benchmark_symbol=benchmark_symbol,
+                           ltp=ltp, exit_method=args.exit_method)
     bt_time = time.time() - t1
 
     # Phase 3: Compute and display metrics
     output = build_output(periods, universe_name, risk_free_rate, periods_per_year,
                           benchmark_name=benchmark_name, benchmark_symbol=benchmark_symbol)
     print_summary(output)
+    if ltp and "error" not in output:
+        # Headline block = quality_roe with run-wide counts; one sub-block per track with its own counts.
+        valid = [p for p in periods if p["spy_return"] is not None]
+        tracks = ("quality_roe", "margin_driven", "leverage_driven", "all_high_roe")
+        if args.exit_method == "both":
+            print("\n  Exit methods by track: " + ", ".join(tracks))
+        block = ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate,
+                                  key="quality_roe_return")
+        for t in tracks:
+            fills = [{"year": p["year"], "symbol": s} for p in periods for s in p["ltp_audit"][t]["filled"]]
+            missing = sum(p["ltp_audit"][t]["missing"] for p in periods)
+            sub = {"missing_exits": missing, "ltp_filled": len(fills),
+                   "still_missing": missing - len(fills), "fills": fills}
+            if args.exit_method == "both":
+                m = block if t == "quality_roe" else ltp.results_block(
+                    "both", valid, periods_per_year, risk_free_rate, key=f"{t}_return")
+                sub.update({"drop_portfolio": m["drop_portfolio"], "ltp_portfolio": m["ltp_portfolio"]})
+            block[f"{t}_track"] = sub
+        if args.exit_method == "both":
+            block["margin_leverage_spread_ltp"] = round(
+                block["margin_driven_track"]["ltp_portfolio"]["cagr"]
+                - block["leverage_driven_track"]["ltp_portfolio"]["cagr"], 2)
+            # cash_periods counts zero-survivor years; this is the same count on the LTP book.
+            block["cash_periods_ltp"] = {
+                t: sum(1 for p in valid if p.get(f"{t}_count_ltp", p[f"{t}_count"]) == 0)
+                for t in ("quality_roe", "margin_driven")}
+        output.update({"exit_method": args.exit_method, "ltp": block, "period_ltp_audit": [
+            {"year": p["year"], **{k: v for k, v in p.items() if k.endswith("_ltp")}, **p["ltp_audit"]}
+            for p in periods]})
 
     total_time = time.time() - t0
     print(f"\nTotal time: {total_time:.0f}s "
@@ -735,6 +800,7 @@ def main():
         description="DuPont ROE Decomposition backtest"
     )
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute")
     args = parser.parse_args()

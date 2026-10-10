@@ -81,7 +81,7 @@ def fetch_data_via_api(cr, exchanges, verbose=False):
     sector_sql = f"""
         WITH dedup AS (
             SELECT symbol, sector,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY fetchedAtEpoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY fetchedAtEpoch DESC, sector DESC NULLS LAST) AS rn
             FROM profile
             WHERE {ex_where}
               AND sector IS NOT NULL AND sector != ''
@@ -111,7 +111,7 @@ def fetch_data_via_api(cr, exchanges, verbose=False):
         ),
         dedup AS (
             SELECT km.symbol, km.marketCap,
-                ROW_NUMBER() OVER (PARTITION BY km.symbol ORDER BY km.dateEpoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY km.symbol ORDER BY km.dateEpoch DESC, km.marketCap DESC NULLS LAST) AS rn
             FROM key_metrics km
             JOIN prof p ON km.symbol = p.symbol
             WHERE km.period = 'FY'
@@ -145,9 +145,9 @@ def fetch_data_via_api(cr, exchanges, verbose=False):
 
     candidates = []
     for sec, stocks in sector_buckets.items():
-        top = sorted(stocks, key=lambda x: x[1], reverse=True)[:TOP_N_PER_SECTOR]
+        top = sorted(stocks, key=lambda x: (-x[1], x[0]))[:TOP_N_PER_SECTOR]
         candidates.extend(s for s, _ in top)
-    candidates = list(set(candidates))
+    candidates = sorted(set(candidates))
 
     print(f"  Candidates: {len(candidates)} stocks "
           f"(top {TOP_N_PER_SECTOR}/sector × {len(sector_buckets)} sectors)")
@@ -211,8 +211,8 @@ def compute_correlations(con, formation_start, formation_end):
     rows = con.execute(f"""
         WITH daily_ret AS (
             SELECT p.symbol, p.trade_date,
-                (p.adjClose - LAG(p.adjClose) OVER (PARTITION BY p.symbol ORDER BY p.trade_date))
-                    / NULLIF(LAG(p.adjClose) OVER (PARTITION BY p.symbol ORDER BY p.trade_date), 0)
+                (p.adjClose - LAG(p.adjClose) OVER (PARTITION BY p.symbol ORDER BY p.trade_date, p.adjClose DESC NULLS LAST))
+                    / NULLIF(LAG(p.adjClose) OVER (PARTITION BY p.symbol ORDER BY p.trade_date, p.adjClose DESC NULLS LAST), 0)
                 AS ret
             FROM prices_cache p
             WHERE p.trade_date >= '{fs}' AND p.trade_date <= '{fe}'
@@ -239,7 +239,7 @@ def compute_correlations(con, formation_start, formation_end):
         SELECT sym_a, sym_b, sector, correlation, common_days
         FROM pair_corr
         WHERE correlation >= {MIN_CORR}
-        ORDER BY correlation DESC
+        ORDER BY correlation DESC, sym_a, sym_b
         LIMIT {MAX_PAIRS * 5}
     """).fetchall()
 
@@ -332,7 +332,7 @@ def get_price_at_date(con, symbol, target_date, window_days=10, offset_days=0):
           AND trade_date >= '{shifted.isoformat()}'
           AND trade_date <= '{end_date.isoformat()}'
           AND adjClose > 0
-        ORDER BY trade_date ASC LIMIT 1
+        ORDER BY trade_date ASC, adjClose DESC NULLS LAST LIMIT 1
     """).fetchone()
     return float(row[0]) if row else None
 

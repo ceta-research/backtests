@@ -156,12 +156,14 @@ def fetch_data(client, args, verbose=False):
 
     # 3. Apply market cap filter
     print("  Applying market cap filter...")
+    # rn tie-break: a symbol that is both target and acquirer on one deal_date keeps the target row.
     con.execute(f"""
         CREATE TABLE events AS
         WITH matched AS (
             SELECT e.symbol, e.deal_date, e.role, m.marketCap,
                 ROW_NUMBER() OVER (PARTITION BY e.symbol, e.deal_date
-                                   ORDER BY m.filing_date DESC) AS rn
+                                   ORDER BY m.filing_date DESC, m.marketCap DESC NULLS LAST,
+                                            e.role DESC NULLS LAST) AS rn
             FROM all_events e
             LEFT JOIN mcap_cache m ON e.symbol = m.symbol
                 AND m.filing_date <= e.deal_date
@@ -312,7 +314,7 @@ def compute_event_returns(con, offset_days=1, verbose=False):
         FROM event_base eb
         {' '.join(join_clauses)}
         WHERE w1.abnormal_ret IS NOT NULL
-        ORDER BY eb.deal_date
+        ORDER BY eb.deal_date, eb.symbol
     """
     rows = con.execute(result_sql).fetchall()
     col_names = ["symbol", "deal_date", "role", "entry_price"]

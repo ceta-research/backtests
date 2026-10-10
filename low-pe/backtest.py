@@ -35,7 +35,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, remove_price_oscillations, entry_buyable_prices
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -149,17 +149,19 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
 def screen_stocks(con, target_date, mktcap_min):
     """Screen for Low P/E stocks. Returns list of (symbol, market_cap) tuples."""
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH m AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         r AS (
             SELECT symbol, priceToEarningsRatio, debtToEquityRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    priceToEarningsRatio DESC NULLS LAST, debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         )
         SELECT m.symbol, m.marketCap
@@ -172,7 +174,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND r.debtToEquityRatio >= 0
           AND r.debtToEquityRatio < ?
           AND m.marketCap > ?
-        ORDER BY r.priceToEarningsRatio ASC
+        ORDER BY r.priceToEarningsRatio ASC, m.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
           PE_MIN, PE_MAX, ROE_MIN, DE_MAX, mktcap_min, MAX_STOCKS]).fetchall()
@@ -181,7 +183,7 @@ def screen_stocks(con, target_date, mktcap_min):
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY"):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run Low P/E backtest. Returns list of period result dicts.
 
     Args:
@@ -220,21 +222,30 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, symbols, exit_date)
+        # LTP fills only for periods that clear the entry-side cash guard below.
+        ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
+                             offset_days=offset_days, min_entry_price=0.0)
+                    if ltp and entry_buyable_prices(symbols, entry_prices, min_entry_price=0.0) >= MIN_STOCKS else {})
 
-        returns = []
-        held = []
-        for sym in symbols:
-            ep = entry_prices.get(sym)
-            xp = exit_prices.get(sym)
-            if ep and xp and ep > 0:
-                raw_ret = (xp - ep) / ep
-                if use_costs:
-                    cost = tiered_cost(mcaps.get(sym))
-                    net_ret = apply_costs(raw_ret, cost)
-                else:
-                    net_ret = raw_ret
-                returns.append(net_ret)
-                held.append(sym)
+        def book(xmap):
+            returns = []
+            held = []
+            for sym in symbols:
+                ep = entry_prices.get(sym)
+                xp = xmap.get(sym)
+                if ep and xp and ep > 0:
+                    raw_ret = (xp - ep) / ep
+                    if use_costs:
+                        cost = tiered_cost(mcaps.get(sym))
+                        net_ret = apply_costs(raw_ret, cost)
+                    else:
+                        net_ret = raw_ret
+                    returns.append(net_ret)
+                    held.append(sym)
+            return returns, held
+
+        exit_ltp = {**exit_prices, **ltp_fill}
+        returns, held = book(exit_ltp if exit_method == "ltp" else exit_prices)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
         # Screening can pass 30 names while only a handful of them have a usable
@@ -293,6 +304,10 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "min_stocks": MIN_STOCKS,
             "holdings": ",".join(held[:10]) + ("..." if len(held) > 10 else ""),
         })
+        if exit_method == "both":
+            r_ltp, h_ltp = book(exit_ltp)
+            results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
+                                "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s in h_ltp if s in ltp_fill)})
 
         if verbose:
             excess = ""
@@ -307,6 +322,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 def main():
     parser = argparse.ArgumentParser(description="Classic Low P/E backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -363,9 +379,10 @@ def main():
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
+    ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
                            verbose=args.verbose, offset_days=offset_days,
-                           benchmark_symbol=benchmark_symbol)
+                           benchmark_symbol=benchmark_symbol, ltp=ltp, exit_method=args.exit_method)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -379,6 +396,7 @@ def main():
 
     # Print formatted results
     print(format_metrics(metrics, "Low P/E", benchmark_name))
+    ltp_block = ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
 
     # Portfolio metadata
     # B006: count over `executed` (every rebalance the strategy actually ran),
@@ -446,6 +464,7 @@ def main():
             "frequency": frequency,
             "avg_stocks_when_invested": round(avg_stocks, 1),
             "period_data": results,
+            **({"exit_method": args.exit_method, "ltp": ltp_block} if ltp_block else {}),
             "portfolio": format_series(p),
             "spy": format_series(b),
             "comparison": {

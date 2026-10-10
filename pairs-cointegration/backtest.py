@@ -402,7 +402,7 @@ def save_results(results, output_path):
     passed = [r for r in results if passes_filters(r["stats"])]
 
     # Sort by ADF p-value (most significant first), then half-life
-    passed.sort(key=lambda x: (x["stats"]["adf_pvalue"], x["stats"]["half_life_days"] or 999))
+    passed.sort(key=lambda x: (x["stats"]["adf_pvalue"], x["stats"]["half_life_days"] or 999, x["symbol_a"], x["symbol_b"]))
 
     os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
 

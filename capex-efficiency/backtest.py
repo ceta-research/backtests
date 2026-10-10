@@ -38,9 +38,9 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        entry_buyable_prices,
+                        entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations, utc_epoch)
 from metrics import compute_metrics, compute_annual_returns, format_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, save_results,
@@ -180,18 +180,22 @@ def screen_stocks(con, target_date, mktcap_min):
     """Screen for capital-efficient stocks with high ROIC.
     Returns list of (symbol, market_cap, roic) tuples."""
     # 45-day lag: use filings available at least 45 days before rebalance date
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     rows = con.execute("""
         WITH m AS (
             SELECT symbol, capexToRevenue, capexToOperatingCashFlow, capexToDepreciation,
                    returnOnInvestedCapital, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    capexToRevenue DESC NULLS LAST, capexToOperatingCashFlow DESC NULLS LAST,
+                    capexToDepreciation DESC NULLS LAST, returnOnInvestedCapital DESC NULLS LAST,
+                    marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         r AS (
             SELECT symbol, operatingProfitMargin, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    operatingProfitMargin DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         )
         SELECT m.symbol, m.marketCap, m.returnOnInvestedCapital
@@ -205,7 +209,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND m.returnOnInvestedCapital > ?
           AND r.operatingProfitMargin > ?
           AND m.marketCap > ?
-        ORDER BY m.returnOnInvestedCapital DESC
+        ORDER BY m.returnOnInvestedCapital DESC, m.symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
           CAPEX_TO_REV_MAX, CAPEX_TO_OCF_MAX, ROIC_MIN, OPM_MIN, mktcap_min, MAX_STOCKS]).fetchall()
@@ -214,7 +218,7 @@ def screen_stocks(con, target_date, mktcap_min):
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY"):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run capex efficiency backtest. Returns list of period result dicts."""
     results = []
 
@@ -284,16 +288,25 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             })
             continue
 
-        # Collect raw returns for filtering
-        raw_data = []
-        for sym in symbols:
-            ep = px_start.get(sym)
-            xp = px_end.get(sym)
-            if ep and xp and ep > 0:
-                raw_data.append((sym, ep, xp, mcaps.get(sym)))
+        # LTP fills only for periods that clear the entry-side cash guard below.
+        ltp_fill = (ltp.fill(symbols, px_start, px_end, rdate, next_rdate,
+                             offset_days=offset_days, min_entry_price=1.0)
+                    if ltp and entry_buyable_prices(symbols, px_start) >= MIN_STOCKS else {})
+        exit_ltp = {**px_end, **ltp_fill}
 
-        # Filter out artifacts (>200% single-period returns, penny stocks)
-        clean, skipped = filter_returns(raw_data, verbose=verbose)
+        def book(xmap):
+            # Collect raw returns for filtering
+            raw_data = []
+            for sym in symbols:
+                ep = px_start.get(sym)
+                xp = xmap.get(sym)
+                if ep and xp and ep > 0:
+                    raw_data.append((sym, ep, xp, mcaps.get(sym)))
+
+            # Filter out artifacts (>200% single-period returns, penny stocks)
+            return filter_returns(raw_data, verbose=verbose)
+
+        clean, skipped = book(exit_ltp if exit_method == "ltp" else px_end)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
         # Screening can pass 30 names while only a handful of them have a usable
@@ -375,6 +388,12 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "avg_roic": avg_roic,
             "msg": "invested"
         })
+        if exit_method == "both":
+            c_ltp, _ = book(exit_ltp)
+            r_ltp = [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in c_ltp]
+            # Unrounded like "return", so a period with no fill equals the drop book exactly.
+            results[-1].update({"return_ltp": sum(r_ltp) / len(r_ltp) if r_ltp else 0.0,
+                                "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
         bench_str = f"{bench_return*100:.2f}%" if bench_return is not None else "N/A"
         print(f"    → Return: {port_return*100:.2f}% ({len(clean)} stocks, bench: {bench_str})")
 
@@ -384,6 +403,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 def main():
     parser = argparse.ArgumentParser(description="Capex Efficiency Strategy Backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     args = parser.parse_args()
 
     client = CetaResearch()
@@ -421,8 +441,10 @@ def main():
                     print(f"  Skipping {preset_name}: no data")
                     continue
 
+                ltp = LtpExits(client, con, verbose=args.verbose) if args.exit_method != "drop" else None
                 period_results = run_backtest(con, rebalance_dates, mktcap_min, use_costs, args.verbose,
-                                              offset_days=offset_days, benchmark_symbol=benchmark_symbol)
+                                              offset_days=offset_days, benchmark_symbol=benchmark_symbol,
+                                              ltp=ltp, exit_method=args.exit_method)
                 if not period_results:
                     print(f"  Skipping {preset_name}: no valid periods")
                     continue
@@ -443,11 +465,13 @@ def main():
                 metrics = compute_metrics(returns, bench_returns, periods_per_year=1, risk_free_rate=rfr)
                 period_dates = [r["start_date"] for r in period_results]
                 annual_returns = compute_annual_returns(returns, bench_returns, period_dates, periods_per_year=1)
+                ltp_block = ltp.results_block(args.exit_method, period_results, 1, rfr, key="return") if ltp else None
 
                 all_results[preset_name.upper()] = {
                     "portfolio": metrics,
                     "annual_returns": annual_returns,
-                    "period_results": period_results
+                    "period_results": period_results,
+                    **({"exit_method": args.exit_method, "ltp": ltp_block} if ltp_block else {}),
                 }
 
                 print("\n  Summary:")
@@ -490,8 +514,10 @@ def main():
         return
 
     print("\nRunning backtest...")
+    ltp = LtpExits(client, con, verbose=args.verbose) if args.exit_method != "drop" else None
     period_results = run_backtest(con, rebalance_dates, mktcap_min, use_costs, args.verbose,
-                                  offset_days=offset_days, benchmark_symbol=benchmark_symbol)
+                                  offset_days=offset_days, benchmark_symbol=benchmark_symbol,
+                                  ltp=ltp, exit_method=args.exit_method)
 
     if not period_results:
         print("No valid periods. Exiting.")
@@ -517,6 +543,10 @@ def main():
     print("BACKTEST RESULTS")
     print("="*60)
     print(format_metrics(metrics))
+    ltp_block = ltp.results_block(args.exit_method, period_results, 1, rfr, key="return") if ltp else None
+    if ltp_block:
+        # save_results writes this dict as the metrics JSON, the only JSON single mode has.
+        metrics.update({"exit_method": args.exit_method, "ltp": ltp_block})
 
     # Save if requested
     if args.output:

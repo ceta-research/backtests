@@ -132,7 +132,9 @@ def fetch_data(client, exchanges, mktcap_min, benchmark_symbol="SPY", verbose=Fa
             SELECT s.symbol, s.event_date, s.surprise_pct, s.category,
                 m.marketCap,
                 ROW_NUMBER() OVER (PARTITION BY s.symbol, s.event_date
-                                   ORDER BY m.filing_epoch DESC) AS rn
+                                   ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST,
+                                            s.surprise_pct DESC NULLS LAST,
+                                            s.category DESC NULLS LAST) AS rn
             FROM surprises s
             LEFT JOIN mcap_cache m ON s.symbol = m.symbol
                 AND m.filing_epoch <= EPOCH(s.event_date)
@@ -303,7 +305,7 @@ def compute_event_returns(con, windows=WINDOWS, offset_days=1, verbose=False):
         FROM event_base eb
         {' '.join(join_clauses)}
         WHERE w1.abnormal_ret IS NOT NULL
-        ORDER BY eb.event_date
+        ORDER BY eb.event_date, eb.symbol
     """
     rows = con.execute(result_sql).fetchall()
 
@@ -417,7 +419,7 @@ def compute_quintile_metrics(results, windows=WINDOWS):
     """Stratify results by surprise quintile and compute CAR."""
     # Sort by surprise magnitude
     valid = [r for r in results if r.get("surprise_pct") is not None]
-    valid.sort(key=lambda r: r["surprise_pct"])
+    valid.sort(key=lambda r: (r["surprise_pct"], r["event_date"], r["symbol"]))
 
     n = len(valid)
     if n < 50:

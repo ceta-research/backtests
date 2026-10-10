@@ -110,6 +110,7 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
         return None
 
     # Detect clusters using LAG() with gap filter
+    # (if same-day duplicates exist, a date's max-bullish row is compared with the prior date's min-bullish row)
     con.execute(f"""
         CREATE TABLE cluster_events AS
         WITH lagged AS (
@@ -118,9 +119,12 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
                 obs_date,
                 bullish_count,
                 bearish_count,
-                LAG(bullish_count) OVER (PARTITION BY symbol ORDER BY obs_date) AS prev_bullish,
-                LAG(bearish_count) OVER (PARTITION BY symbol ORDER BY obs_date) AS prev_bearish,
-                LAG(obs_date) OVER (PARTITION BY symbol ORDER BY obs_date) AS prev_date
+                LAG(bullish_count) OVER (PARTITION BY symbol ORDER BY obs_date,
+                    bullish_count DESC NULLS LAST, bearish_count DESC NULLS LAST) AS prev_bullish,
+                LAG(bearish_count) OVER (PARTITION BY symbol ORDER BY obs_date,
+                    bullish_count DESC NULLS LAST, bearish_count DESC NULLS LAST) AS prev_bearish,
+                LAG(obs_date) OVER (PARTITION BY symbol ORDER BY obs_date,
+                    bullish_count DESC NULLS LAST, bearish_count DESC NULLS LAST) AS prev_date
             FROM raw_grades
         ),
         filtered AS (
@@ -193,7 +197,7 @@ def fetch_data(client, exchanges, mktcap_min, verbose=False):
             SELECT c.symbol, c.event_date, c.upgrade_delta, c.downgrade_delta,
                 c.gap_days, c.category, m.marketCap,
                 ROW_NUMBER() OVER (PARTITION BY c.symbol, c.event_date
-                                   ORDER BY m.filing_epoch DESC) AS rn
+                                   ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST) AS rn
             FROM cluster_events c
             LEFT JOIN mcap_cache m ON c.symbol = m.symbol
                 AND m.filing_epoch <= EPOCH(c.event_date)
@@ -374,7 +378,7 @@ def compute_event_returns(con, windows=WINDOWS, offset_days=1, verbose=False):
         FROM event_base eb
         {' '.join(join_clauses)}
         WHERE w1.abnormal_ret IS NOT NULL
-        ORDER BY eb.event_date
+        ORDER BY eb.event_date, eb.symbol
     """
     rows = con.execute(result_sql).fetchall()
 

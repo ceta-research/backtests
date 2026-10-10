@@ -92,7 +92,7 @@ def fetch_events(client, table, verbose=False):
         WHERE TRY_STRPTIME(dateAdded, '%B %d, %Y') IS NOT NULL
           AND TRY_STRPTIME(dateAdded, '%B %d, %Y') >= '{START_YEAR}-01-01'
           AND TRY_STRPTIME(dateAdded, '%B %d, %Y') <= '{END_DATE}'
-        ORDER BY event_date
+        ORDER BY event_date, symbol, removedTicker, reason
     """
     rows = client.query(sql, verbose=verbose)
     if not rows:
@@ -167,7 +167,7 @@ def fetch_prices(client, symbols, benchmark_etf, verbose=False):
           AND CAST(date AS DATE) >= '{START_YEAR}-01-01'
           AND CAST(date AS DATE) <= '{END_DATE}'
           AND adjClose > 0
-        ORDER BY symbol, date
+        ORDER BY symbol, date, adjClose
     """
     if verbose:
         print(f"  Fetching prices for {len(all_syms)} symbols...")

@@ -24,6 +24,7 @@ Usage:
     python3 graham-net-net/run_all_exchanges.py --output results/exchange_comparison.json
 """
 
+import argparse
 import json
 import os
 import subprocess
@@ -32,6 +33,9 @@ import time
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
+_ap = argparse.ArgumentParser(add_help=False)
+_ap.add_argument("--exit-method", choices=("drop", "ltp", "both"), default="drop")
+EXIT_METHOD = _ap.parse_known_args()[0].exit_method
 
 EXCHANGES = [
     ("US_MAJOR",  ["NYSE", "NASDAQ", "AMEX"]),
@@ -60,7 +64,7 @@ for name, exchanges in EXCHANGES:
         "--exchange", ex_str,
         "--output", output_file,
         "--verbose",
-    ]
+    ] + (["--exit-method", EXIT_METHOD] if EXIT_METHOD != "drop" else [])
     result = subprocess.run(cmd, capture_output=False, text=True)
     elapsed = time.time() - t0
     print(f"  Completed in {elapsed:.0f}s (exit code: {result.returncode})")

@@ -118,7 +118,8 @@ def fetch_splits_and_prices(client, con, args, verbose, benchmark_symbol="SPY"):
         WITH ranked AS (
             SELECT s.symbol, s.event_date, s.split_ratio, km.marketCap,
                    ROW_NUMBER() OVER (PARTITION BY s.symbol, s.event_date
-                                      ORDER BY km.filing_date DESC) AS rn
+                                      ORDER BY km.filing_date DESC, km.marketCap DESC NULLS LAST,
+                                               s.split_ratio DESC NULLS LAST) AS rn
             FROM raw_splits s
             LEFT JOIN km_cache km ON s.symbol = km.symbol AND km.filing_date <= s.event_date
         )

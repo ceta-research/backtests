@@ -191,7 +191,7 @@ def fetch_data(client, exchanges, mktcap_min, leg="beat", verbose=False):
         SELECT symbol, event_date, epsActual, epsEstimated, is_beat, is_miss
         FROM (
             SELECT *,
-                ROW_NUMBER() OVER (PARTITION BY symbol, event_date ORDER BY epsActual DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol, event_date ORDER BY epsActual DESC, epsEstimated DESC NULLS LAST) AS rn
             FROM surprises
         ) WHERE rn = 1
     """)
@@ -247,7 +247,7 @@ def fetch_data(client, exchanges, mktcap_min, leg="beat", verbose=False):
             SELECT s.symbol, s.event_date, s.streak_length, s.category,
                 m.marketCap,
                 ROW_NUMBER() OVER (PARTITION BY s.symbol, s.event_date
-                                   ORDER BY m.filing_epoch DESC) AS rn
+                                   ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST) AS rn
             FROM streak_events s
             LEFT JOIN mcap_cache m ON s.symbol = m.symbol
                 AND m.filing_epoch <= EPOCH(s.event_date)
@@ -390,7 +390,7 @@ def compute_event_returns(con, windows=WINDOWS, verbose=False):
         FROM event_base eb
         {' '.join(join_clauses)}
         WHERE w1.abnormal_ret IS NOT NULL
-        ORDER BY eb.event_date
+        ORDER BY eb.event_date, eb.symbol
     """
     rows = con.execute(result_sql).fetchall()
 

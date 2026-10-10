@@ -53,6 +53,17 @@ IMPORT_EXEMPT = {
 }
 # Files outside */backtest.py and scripts/ that this change is allowed to touch.
 SCOPE_ALLOW = {
+    # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
+    # same-day duplicate rows compare against; the note records that and the prod
+    # check to run before publishing.
+    "upgrade-cluster/RESULTS_PROVENANCE.md",
+    # B005 stage A: these runners build the backtest command by hand, so --exit-method
+    # has to be passed through or multi-exchange runs silently stay on drop exits.
+    "piotroski/run_all_exchanges.py",
+    "qarp/run_all_exchanges.py",
+    "graham-net-net/run_all_exchanges.py",
+    "graham-number/run_all_exchanges.py",
+    "low-pe/run_all_exchanges.py",
     # Carries period_data through to the combined comparison so one glob covers
     # every topic's per-period book size.
     "magic-formula/run_all_exchanges.py",

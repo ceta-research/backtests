@@ -36,7 +36,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, filter_returns
+from data_utils import query_parquet, generate_rebalance_dates, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, filter_returns, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktcap_threshold
@@ -176,46 +176,54 @@ def screen_and_score(con, target_date, mktcap_min):
 
     Returns dict: {symbol: (score, market_cap)}
     """
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
-    prev_year_epoch = int(datetime.combine(target_date - timedelta(days=445), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    prev_year_epoch = utc_epoch(target_date - timedelta(days=445))
 
     rows = con.execute("""
         WITH
         inc_curr AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         inc_prev AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache WHERE filing_epoch <= ?
         ),
         bal_curr AS (
             SELECT symbol, totalAssets, totalCurrentAssets, totalCurrentLiabilities,
                 longTermDebt, totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalCurrentAssets DESC NULLS LAST,
+                    totalCurrentLiabilities DESC NULLS LAST, longTermDebt DESC NULLS LAST,
+                    totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         bal_prev AS (
             SELECT symbol, totalAssets, longTermDebt, totalCurrentAssets, totalCurrentLiabilities,
                 totalStockholdersEquity, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    totalAssets DESC NULLS LAST, totalCurrentAssets DESC NULLS LAST,
+                    totalCurrentLiabilities DESC NULLS LAST, longTermDebt DESC NULLS LAST,
+                    totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache WHERE filing_epoch <= ?
         ),
         cf_curr AS (
             SELECT symbol, operatingCashFlow, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, operatingCashFlow DESC NULLS LAST) AS rn
             FROM cashflow_cache WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
         met AS (
             SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache WHERE filing_epoch <= ?
         ),
         rat AS (
             SELECT symbol, priceToBookRatio, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, priceToBookRatio DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         ),
         pb_universe AS (
@@ -262,6 +270,7 @@ def screen_and_score(con, target_date, mktcap_min):
              + f7_no_dilution + f8_turnover + f9_margin) AS f_score,
             marketCap
         FROM scored
+        ORDER BY symbol
     """, [
         cutoff_epoch, prev_year_epoch,
         prev_year_epoch,
@@ -280,18 +289,18 @@ def screen_and_score(con, target_date, mktcap_min):
 def get_price(con, symbol, target_date, offset_days=0):
     """Get adjusted close price on or just after target_date + offset_days."""
     shifted_date = target_date + timedelta(days=offset_days)
-    target_epoch = int(datetime.combine(shifted_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(shifted_date + timedelta(days=10), datetime.min.time()).timestamp())
+    target_epoch = utc_epoch(shifted_date)
+    end_epoch = utc_epoch(shifted_date + timedelta(days=10))
     row = con.execute("""
         SELECT adjClose FROM prices_cache
         WHERE symbol = ? AND trade_epoch >= ? AND trade_epoch <= ?
-        ORDER BY trade_epoch ASC LIMIT 1
+        ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST LIMIT 1
     """, [symbol, target_epoch, end_epoch]).fetchone()
     return row[0] if row else None
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY"):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run the full Piotroski backtest with three portfolio tracks."""
     print(f"Phase 2: Running annual backtest ({rebalance_dates[0].year}-{rebalance_dates[-1].year})...")
     periods = []
@@ -309,26 +318,39 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         high = {s: v for s, v in scored.items() if v[0] >= 8}
         low = {s: v for s, v in scored.items() if v[0] <= 2}
 
+        # high and low are subsets of scored: price once, ONE LTP query per period for all three tracks.
+        eps = {s: get_price(con, s, entry_date, offset_days=offset_days) for s in scored}
+        xps = {s: get_price(con, s, exit_date, offset_days=offset_days) for s in scored}
+        ltp_fill = (ltp.fill(list(scored), eps, xps, entry_date, exit_date, offset_days=offset_days,
+                             min_entry_price=MIN_ENTRY_PRICE) if ltp else {})
+        xps_ltp = {**xps, **ltp_fill}
+        methods = {"drop": xps, "ltp": xps_ltp}
+        primary = "ltp" if exit_method == "ltp" else "drop"
+
         track_returns = {}
+        audit = {}
         for name, portfolio in [("high", high), ("low", low), ("all", scored)]:
-            symbol_data = []
-            for sym, (score, mcap) in portfolio.items():
-                ep = get_price(con, sym, entry_date, offset_days=offset_days)
-                xp = get_price(con, sym, exit_date, offset_days=offset_days)
-                symbol_data.append((sym, ep, xp, mcap))
-            clean, _ = filter_returns(symbol_data,
-                                     min_entry_price=MIN_ENTRY_PRICE,
-                                     max_single_return=MAX_SINGLE_RETURN,
-                                     verbose=verbose)
-            returns = []
-            for sym, raw_ret, mcap in clean:
-                if use_costs:
-                    cost = tiered_cost(mcap)
-                    net_ret = apply_costs(raw_ret, cost)
-                else:
-                    net_ret = raw_ret
-                returns.append(net_ret)
-            track_returns[name] = sum(returns) / len(returns) if returns else 0.0
+            for m in ([primary, "ltp"] if exit_method == "both" else [primary]):
+                symbol_data = [(sym, eps[sym], methods[m].get(sym), mcap)
+                               for sym, (score, mcap) in portfolio.items()]
+                clean, _ = filter_returns(symbol_data,
+                                         min_entry_price=MIN_ENTRY_PRICE,
+                                         max_single_return=MAX_SINGLE_RETURN,
+                                         verbose=verbose and m == primary)
+                returns = []
+                for sym, raw_ret, mcap in clean:
+                    if use_costs:
+                        cost = tiered_cost(mcap)
+                        net_ret = apply_costs(raw_ret, cost)
+                    else:
+                        net_ret = raw_ret
+                    returns.append(net_ret)
+                key = name if m == primary else f"{name}_ltp"
+                track_returns[key] = sum(returns) / len(returns) if returns else 0.0
+            if ltp:
+                miss = [s for s in portfolio if xps[s] is None and eps[s] is not None
+                        and eps[s] > 0 and eps[s] >= MIN_ENTRY_PRICE]
+                audit[name] = {"missing": len(miss), "filled": [s for s in miss if s in ltp_fill]}
 
         bench_return = get_benchmark_return(
             con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
@@ -345,6 +367,10 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "low_count": len(low),
             "all_count": len(scored),
         })
+        if exit_method == "both":
+            periods[-1].update({f"{t}_return_ltp": track_returns[f"{t}_ltp"] for t in ("high", "low", "all")})
+        if ltp:
+            periods[-1]["ltp_audit"] = audit
 
         if verbose:
             h_pct = track_returns["high"] * 100
@@ -571,6 +597,7 @@ def print_summary(m, benchmark_name="S&P 500"):
 def main():
     parser = argparse.ArgumentParser(description="Piotroski F-Score backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -626,14 +653,27 @@ def main():
 
     # Phase 2: Run backtest locally
     t1 = time.time()
+    ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     periods = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
                           verbose=args.verbose, offset_days=offset_days,
-                          benchmark_symbol=benchmark_symbol)
+                          benchmark_symbol=benchmark_symbol, ltp=ltp, exit_method=args.exit_method)
     bt_time = time.time() - t1
 
     # Phase 3: Compute and display metrics
     output = build_output(periods, universe_name, risk_free_rate, periods_per_year)
     print_summary(output, benchmark_name=benchmark_name)
+    if ltp:
+        # Headline track is score_8_9; low/all LTP metrics ride along for context.
+        valid = [p for p in periods if p["spy_return"] is not None]
+        block = ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate, key="high_return")
+        if args.exit_method == "both":
+            for t in ("low", "all"):
+                sub = ltp.results_block("both", valid, periods_per_year, risk_free_rate, key=f"{t}_return")
+                block[f"{t}_track"] = {"drop_portfolio": sub["drop_portfolio"], "ltp_portfolio": sub["ltp_portfolio"]}
+        block["high_track_missing"] = sum(p["ltp_audit"]["high"]["missing"] for p in periods)
+        block["high_track_filled"] = sum(len(p["ltp_audit"]["high"]["filled"]) for p in periods)
+        output.update({"exit_method": args.exit_method, "ltp": block, "period_ltp_audit": [
+            {"year": p["year"], **p["ltp_audit"]} for p in periods]})
 
     total_time = time.time() - t0
     print(f"\nTotal time: {total_time:.0f}s (fetch: {fetch_time:.0f}s, backtest: {bt_time:.0f}s)")

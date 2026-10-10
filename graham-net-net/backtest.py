@@ -43,7 +43,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable_prices, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -202,16 +202,15 @@ def screen_stocks(con, target_date, mktcap_min):
 
     Returns list of (symbol, market_cap) tuples.
     """
-    cutoff_epoch = int(datetime.combine(
-        target_date - timedelta(days=DATA_LAG_DAYS), datetime.min.time()
-    ).timestamp())
-    target_epoch = int(datetime.combine(target_date, datetime.min.time()).timestamp())
-    end_epoch = int(datetime.combine(target_date + timedelta(days=10), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=DATA_LAG_DAYS))
+    target_epoch = utc_epoch(target_date)
+    end_epoch = utc_epoch(target_date + timedelta(days=10))
 
     rows = con.execute("""
         WITH km AS (
             SELECT symbol, grahamNetNet, marketCap,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    grahamNetNet DESC NULLS LAST, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache
             WHERE filing_epoch <= ?
               AND grahamNetNet > 0
@@ -221,7 +220,7 @@ def screen_stocks(con, target_date, mktcap_min):
             SELECT symbol, adjClose
             FROM prices_cache
             WHERE trade_epoch >= ? AND trade_epoch <= ?
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC) = 1
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST) = 1
         )
         SELECT km.symbol, km.marketCap
         FROM km
@@ -229,7 +228,7 @@ def screen_stocks(con, target_date, mktcap_min):
         WHERE km.rn = 1
           AND prices.adjClose > 0.50
           AND prices.adjClose < km.grahamNetNet
-        ORDER BY prices.adjClose / km.grahamNetNet ASC
+        ORDER BY prices.adjClose / km.grahamNetNet ASC, km.symbol
         LIMIT ?
     """, [cutoff_epoch, mktcap_min, target_epoch, end_epoch, MAX_STOCKS]).fetchall()
 
@@ -237,7 +236,7 @@ def screen_stocks(con, target_date, mktcap_min):
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY"):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
     """Run Graham net-net backtest. Returns list of period result dicts."""
     results = []
 
@@ -271,20 +270,28 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
+        # LTP fills only for periods that clear the entry-side cash guard below.
+        ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
+                             offset_days=offset_days, min_entry_price=0.50)
+                    if ltp and entry_buyable_prices(symbols, entry_prices, min_entry_price=0.50) >= MIN_STOCKS else {})
+        exit_ltp = {**exit_prices, **ltp_fill}
 
-        # Build raw returns list for filtering
-        raw_returns = []
-        for sym in symbols:
-            ep = entry_prices.get(sym)
-            xp = exit_prices.get(sym)
-            mc = mcaps.get(sym)
-            if ep and xp and ep > 0:
-                raw_returns.append((sym, ep, xp, mc))
+        def book(xmap):
+            # Build raw returns list for filtering
+            raw_returns = []
+            for sym in symbols:
+                ep = entry_prices.get(sym)
+                xp = xmap.get(sym)
+                mc = mcaps.get(sym)
+                if ep and xp and ep > 0:
+                    raw_returns.append((sym, ep, xp, mc))
 
-        # Filter data artifacts: cap >300% annual return (net-nets can legitimately
-        # return 100-200% in recovery years, but >300% is almost always a data error)
-        clean, skipped = filter_returns(raw_returns, min_entry_price=0.50,
-                                        max_single_return=3.0, verbose=verbose)
+            # Filter data artifacts: cap >300% annual return (net-nets can legitimately
+            # return 100-200% in recovery years, but >300% is almost always a data error)
+            return filter_returns(raw_returns, min_entry_price=0.50,
+                                  max_single_return=3.0, verbose=verbose)
+
+        clean, skipped = book(exit_ltp if exit_method == "ltp" else exit_prices)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
         # Screening can pass 30 names while only a handful of them have a usable
@@ -352,6 +359,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "min_stocks": MIN_STOCKS,
             "holdings": ",".join(sym for sym, _, _ in clean[:10]) + ("..." if len(clean) > 10 else ""),
         })
+        if exit_method == "both":
+            c_ltp, _ = book(exit_ltp)
+            r_ltp = [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in c_ltp]
+            results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
+                                "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
 
         if verbose:
             excess = ""
@@ -366,6 +378,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 def main():
     parser = argparse.ArgumentParser(description="Graham Net-Net backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -418,9 +431,10 @@ def main():
 
     print(f"\nPhase 2: Running {frequency} backtest (2001-2025)...")
     t1 = time.time()
+    ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
                            verbose=args.verbose, offset_days=offset_days,
-                           benchmark_symbol=benchmark_symbol)
+                           benchmark_symbol=benchmark_symbol, ltp=ltp, exit_method=args.exit_method)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -442,6 +456,7 @@ def main():
                               risk_free_rate=risk_free_rate)
 
     print(format_metrics(metrics, "Net-Net", benchmark_name))
+    ltp_block = ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
 
     # B006: count over `executed` (every rebalance the strategy actually ran),
     # not `valid` (only those the benchmark can also price). Keeps the honest
@@ -507,6 +522,7 @@ def main():
             "frequency": frequency,
             "avg_stocks_when_invested": round(avg_stocks, 1),
             "period_data": results,
+            **({"exit_method": args.exit_method, "ltp": ltp_block} if ltp_block else {}),
             "portfolio": format_series(p),
             "spy": format_series(b),
             "comparison": {

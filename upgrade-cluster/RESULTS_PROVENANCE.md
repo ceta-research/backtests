@@ -43,3 +43,49 @@ aggregate table that attaches to local lines. The contamination that forced the
 `momentum-05-analyst-revision` retraction does not apply here.
 
 See `docs/sessions/completed/2026-08-29/EVENT_STUDY_DIRECTION_SWEEP.md` in the ATO_SUITE docs tree.
+
+## Same-day duplicates in the cluster LAG
+
+Since 2026-10-10 `backtest.py` detects clusters with `LAG()` over
+`PARTITION BY symbol ORDER BY obs_date, bullish_count DESC NULLS LAST, bearish_count DESC NULLS LAST`.
+The two count keys make the order total. Before, same-day rows came back in whatever order DuckDB's
+parallel run produced.
+
+Where `(symbol, obs_date)` is unique, the count keys change nothing. Where one date has several rows
+with different counts, only the group's first row passes the gap filter (the others get
+`gap_days = 0`), and LAG compares it with the **last** row of the previous date. With DESC that is
+the date's max-bullish row against the prior date's min-bullish row, so `upgrade_delta` is max minus
+min: the most upgrade-friendly comparison there is. No ordering removes this, because a group's first
+and last rows always differ; ASC gives min minus max instead. On a synthetic fixture with same-day
+duplicates on 25% of observations (offline harness; old-code ranges pooled over the verifier's runs
+and three reruns), the old code gave 16,592 to 16,765 upgrade events and 5,968 to 6,017 `upgrade_large`; DESC gives a fixed 20,216 and
+8,499, ASC 15,615 and 4,718. Removing the bias means collapsing each `(symbol, date)` to one row
+before the LAG. That changes the metric, so it is a separate decision.
+
+Whether it fires on real data:
+
+- Local snapshot `data/data_source=fmp/analyst/grades_historical/1765992124.334719.parquet`
+  (17 Dec 2025, 1,463,596 rows, 39,574 symbols, 2012-02-01 to 2025-12-01): 0 `(symbol, date)` groups
+  with more than one row. Every `date` is the 1st of a month and `dateEpoch = epoch(CAST(date AS DATE))`
+  on every row.
+- The pipeline (`ts-data-pipeline/configs/endpoints/fmp/analyst/grades_historical.yaml`) dedupes on
+  `(symbol, dateEpoch)`, keeping the newest `fetchedAtEpoch`. That is the LAG's partition key, so
+  repacked data should be unique on it.
+- **Prod is unverified.** The backtest reads prod at query time, and fetch files not yet repacked
+  (refetched every 6 days) could carry duplicates. Run this before publishing any result from this code
+  (through `cr_client` as written; the backtest uses the same unqualified table name):
+
+```sql
+SELECT COUNT(*) AS dup_groups FROM (
+  SELECT symbol, CAST(date AS DATE) AS d
+  FROM grades_historical
+  WHERE CAST(date AS DATE) BETWEEN '2019-01-01' AND '2025-12-31'
+  GROUP BY 1, 2
+  HAVING COUNT(DISTINCT (
+    CAST(analystRatingsStrongBuy AS INTEGER) + CAST(analystRatingsBuy AS INTEGER),
+    CAST(analystRatingsSell AS INTEGER) + CAST(analystRatingsStrongSell AS INTEGER))) > 1
+)
+```
+
+At 0, the tie-break never fires and results match the pre-fix code. Above 0, upgrade counts and CARs
+are biased upward by the rule above: don't publish until the collapse decision is made.

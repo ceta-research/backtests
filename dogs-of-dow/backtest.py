@@ -33,7 +33,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -175,21 +175,21 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
 
     Returns list of (symbol, market_cap) tuples.
     """
-    cutoff_epoch = int(datetime.combine(target_date - timedelta(days=45), datetime.min.time()).timestamp())
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
     if use_dow:
         # Dogs of the Dow: rank Dow 30 by yield, pick top 10
         rows = con.execute("""
             WITH latest_ratios AS (
                 SELECT symbol, dividendYield, filing_epoch,
-                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, dividendYield DESC NULLS LAST) AS rn
                 FROM ratios_cache
                 WHERE filing_epoch <= ?
                   AND dividendYield IS NOT NULL AND dividendYield > 0
             ),
             latest_metrics AS (
                 SELECT symbol, marketCap,
-                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
                 FROM metrics_cache WHERE filing_epoch <= ?
             )
             SELECT r.symbol, COALESCE(m.marketCap, 100000000000) as marketCap
@@ -197,7 +197,7 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
             JOIN universe u ON r.symbol = u.symbol
             LEFT JOIN latest_metrics m ON r.symbol = m.symbol AND m.rn = 1
             WHERE r.rn = 1
-            ORDER BY r.dividendYield DESC
+            ORDER BY r.dividendYield DESC, r.symbol
             LIMIT ?
         """, [cutoff_epoch, cutoff_epoch, DOGS_COUNT]).fetchall()
     else:
@@ -205,7 +205,7 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
         rows = con.execute("""
             WITH latest_metrics AS (
                 SELECT symbol, marketCap,
-                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
                 FROM metrics_cache
                 WHERE filing_epoch <= ? AND marketCap IS NOT NULL
             ),
@@ -214,12 +214,12 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
                 FROM latest_metrics m
                 JOIN universe u ON m.symbol = u.symbol
                 WHERE m.rn = 1 AND m.marketCap >= ?
-                ORDER BY m.marketCap DESC
+                ORDER BY m.marketCap DESC, m.symbol
                 LIMIT ?
             ),
             latest_ratios AS (
                 SELECT symbol, dividendYield,
-                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, dividendYield DESC NULLS LAST) AS rn
                 FROM ratios_cache
                 WHERE filing_epoch <= ?
                   AND dividendYield IS NOT NULL AND dividendYield > 0
@@ -227,7 +227,7 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
             SELECT b.symbol, b.marketCap
             FROM bluechips b
             JOIN latest_ratios r ON b.symbol = r.symbol AND r.rn = 1
-            ORDER BY r.dividendYield DESC
+            ORDER BY r.dividendYield DESC, b.symbol
             LIMIT ?
         """, [cutoff_epoch, mktcap_min, BLUECHIP_COUNT, cutoff_epoch, DOGS_COUNT]).fetchall()
 
@@ -235,7 +235,8 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
 
 
 def run_backtest(con, rebalance_dates, use_dow=True, use_costs=True, verbose=False,
-                 mktcap_min=1_000_000_000, offset_days=1, benchmark_symbol="SPY"):
+                 mktcap_min=1_000_000_000, offset_days=1, benchmark_symbol="SPY",
+                 ltp=None, exit_method="drop"):
     """Run Dogs backtest. Returns list of period result dicts."""
     results = []
 
@@ -269,15 +270,20 @@ def run_backtest(con, rebalance_dates, use_dow=True, use_costs=True, verbose=Fal
 
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
+        # LTP fills only for periods that clear the entry-side cash guard below (1.0 = filter_returns' default floor).
+        ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
+                             offset_days=offset_days, min_entry_price=1.0)
+                    if ltp and entry_buyable_prices(symbols, entry_prices, 1.0) >= MIN_STOCKS else {})
+        exit_ltp = {**exit_prices, **ltp_fill}
 
         # Compute returns with data quality filtering
-        symbol_returns = []
-        for sym in symbols:
-            ep = entry_prices.get(sym)
-            xp = exit_prices.get(sym)
-            symbol_returns.append((sym, ep, xp, mcaps.get(sym)))
+        def book(xmap):
+            return [(sym, entry_prices.get(sym), xmap.get(sym), mcaps.get(sym)) for sym in symbols]
 
-        clean_returns, skipped = filter_returns(symbol_returns, verbose=verbose)
+        # symbol_returns keeps the DROP exits so the entry-only cash guard below reads it unchanged.
+        symbol_returns = book(exit_prices)
+        clean_returns, skipped = filter_returns(book(exit_ltp) if exit_method == "ltp" else symbol_returns,
+                                                verbose=verbose)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
         # Screening can pass 30 names while only a handful of them have a usable
@@ -343,6 +349,11 @@ def run_backtest(con, rebalance_dates, use_dow=True, use_costs=True, verbose=Fal
             "min_stocks": MIN_STOCKS,
             "holdings": ",".join(sym for sym, _, _ in clean_returns),
         })
+        if exit_method == "both":
+            c_ltp, _ = filter_returns(book(exit_ltp))
+            r_ltp = [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in c_ltp]
+            results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
+                                "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
 
         if verbose:
             excess = ""
@@ -357,6 +368,7 @@ def run_backtest(con, rebalance_dates, use_dow=True, use_costs=True, verbose=Fal
 def main():
     parser = argparse.ArgumentParser(description="Dogs of the Dow backtest")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -414,11 +426,14 @@ def main():
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
+    # prices_cache holds only [d, d+10] per rebalance date, so LTP reads remote stock_eod.
+    ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, use_dow=use_dow,
                            use_costs=use_costs, verbose=args.verbose,
                            mktcap_min=mktcap_threshold,
                            offset_days=offset_days,
-                           benchmark_symbol=benchmark_symbol)
+                           benchmark_symbol=benchmark_symbol,
+                           ltp=ltp, exit_method=args.exit_method)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -432,6 +447,7 @@ def main():
 
     label = "Dogs" if use_dow else "HY BluChp"
     print(format_metrics(metrics, label, benchmark_name))
+    ltp_block = ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
 
     # Portfolio metadata
     # B006: count over `executed` (every rebalance the strategy actually ran),
@@ -503,6 +519,7 @@ def main():
             "frequency": frequency,
             "avg_stocks_when_invested": round(avg_stocks, 1),
             "period_data": results,
+            **({"exit_method": args.exit_method, "ltp": ltp_block} if ltp_block else {}),
             "portfolio": format_series(p),
             "spy": format_series(b),
             "comparison": {

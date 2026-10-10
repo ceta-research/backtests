@@ -16,7 +16,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark
+from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, LtpExits, add_exit_method_arg
 from metrics import compute_metrics, compute_annual_returns, period_accounting
 from costs import tiered_cost, apply_costs
 from cli_utils import get_risk_free_rate, get_mktcap_threshold, REGIONAL_RISK_FREE_RATES
@@ -61,6 +61,7 @@ def main():
     parser.add_argument("--frequency", type=str, default=DEFAULT_FREQUENCY)
     parser.add_argument("--resume", action="store_true",
                         help="Skip exchanges already completed in output file")
+    add_exit_method_arg(parser)
     args = parser.parse_args()
 
     freq_map = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}
@@ -87,7 +88,8 @@ def main():
         benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
 
         # Skip if already completed in resume mode
-        if args.resume and all_results.get(name, {}).get("status") == "completed":
+        if (args.resume and all_results.get(name, {}).get("status") == "completed"
+                and all_results[name].get("exit_method", "drop") == args.exit_method):
             print(f"\n  SKIPPING {name} (already completed)")
             continue
 
@@ -106,8 +108,10 @@ def main():
                 all_results[name] = {"status": "no_data"}
                 continue
 
+            ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
             results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
-                                   verbose=args.verbose, benchmark_symbol=benchmark_symbol)
+                                   verbose=args.verbose, benchmark_symbol=benchmark_symbol,
+                                   ltp=ltp, exit_method=args.exit_method)
 
             valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
             if not valid:
@@ -116,6 +120,7 @@ def main():
                 con.close()
                 continue
 
+            ltp_block = ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
             port_returns = [r["portfolio_return"] for r in valid]
             spy_returns = [r["spy_return"] for r in valid]
 
@@ -171,6 +176,7 @@ def main():
                 "years": round(len(valid) / periods_per_year, 1),
                 "frequency": args.frequency,
                 "avg_stocks_when_invested": round(avg_stocks, 1),
+                **({"exit_method": args.exit_method, "ltp": ltp_block} if ltp_block else {}),
                 "portfolio": format_series(p),
                 "spy": format_series(b),
                 "comparison": {

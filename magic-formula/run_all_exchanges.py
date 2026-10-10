@@ -7,6 +7,7 @@ Usage:
     python3 magic-formula/run_all_exchanges.py
 """
 
+import argparse
 import json
 import subprocess
 import sys
@@ -39,17 +40,20 @@ EXCHANGES = [
 
 SCRIPT = str(Path(__file__).parent / "backtest.py")
 PYTHON = sys.executable
+_ap = argparse.ArgumentParser(add_help=False)
+_ap.add_argument("--exit-method", choices=("drop", "ltp", "both"), default="drop")
+EXIT_METHOD = _ap.parse_known_args()[0].exit_method
 
 
 def run_exchange(name, args, skip_existing=True):
     output_file = RESULTS_DIR / f"magic_formula_{name}.json"
 
-    # Skip if already complete (useful for resume after rate limit)
+    # Skip if already complete (useful for resume after rate limit), and run with the same exit method
     if skip_existing and output_file.exists():
         try:
             with open(output_file) as f:
                 data = json.load(f)
-            if data.get("portfolio", {}).get("cagr") is not None:
+            if data.get("portfolio", {}).get("cagr") is not None and data.get("exit_method", "drop") == EXIT_METHOD:
                 print(f"\n  Skipping {name} (result exists)")
                 return data
         except Exception:
@@ -58,7 +62,7 @@ def run_exchange(name, args, skip_existing=True):
     cmd = [PYTHON, SCRIPT] + args + [
         "--output", str(output_file),
         "--verbose",
-    ]
+    ] + (["--exit-method", EXIT_METHOD] if EXIT_METHOD != "drop" else [])
 
     print(f"\n{'='*65}")
     print(f"  Running: {name}")
