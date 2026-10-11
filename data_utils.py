@@ -676,6 +676,8 @@ def get_prices(con, symbols, target_date, window_days=10, offset_days=0, with_ep
 
 
 EXIT_METHODS = ("drop", "ltp", "both")
+# The one place the default lives: CLIs, runners and run_backtest signatures all read it.
+DEFAULT_EXIT_METHOD = "drop"
 # US delistings 2001+: 3,498/4,969 last bars fall on/before delistedDate + 7d; most later bars to day 30 are zero-volume repeats, past day 30 they mostly trade (OTC / ticker reuse).
 LTP_DELIST_GRACE_DAYS = 7
 # A delisting more than this many days before the entry bar belongs to an earlier holder of the
@@ -685,9 +687,9 @@ LTP_EARLIER_HOLDER_DAYS = 30
 
 
 def add_exit_method_arg(parser):
-    """--exit-method drop|ltp|both (default drop = unchanged behaviour)."""
-    parser.add_argument("--exit-method", choices=EXIT_METHODS, default="drop",
-                        help="Missing exit price: drop the name (default), exit at last traded price, or compute both")
+    """--exit-method drop|ltp|both (default DEFAULT_EXIT_METHOD)."""
+    parser.add_argument("--exit-method", choices=EXIT_METHODS, default=DEFAULT_EXIT_METHOD,
+                        help=f"Missing exit price: drop the name, exit at last traded price, or compute both (default {DEFAULT_EXIT_METHOD})")
 
 
 class LtpExits:
