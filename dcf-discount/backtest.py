@@ -85,11 +85,13 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Returns DuckDB connection or None.
     """
-    # Quality filters at universe selection: exclude funds, ETFs, delisted tickers.
+    # Quality filters at universe selection: exclude funds and ETFs.
+    # isActivelyTrading is deliberately NOT used: it is today's snapshot, so it would
+    # drop names delisted since and add survivorship bias to a historical run (B041).
     # Currency filter on cash_flow_statement excludes foreign-listed parent filings
     # (e.g., Lam Research's German XETRA listing reports USD against EUR mktcap,
     # producing unit-mismatched FCF yields).
-    quality_filters = "AND isFund = false AND isEtf = false AND isActivelyTrading = true"
+    quality_filters = "AND isFund = false AND isEtf = false"
     local_ccy = get_local_currency(exchanges) if exchanges else None
     ccy_filter = f"AND reportedCurrency = '{local_ccy}'" if local_ccy else ""
 

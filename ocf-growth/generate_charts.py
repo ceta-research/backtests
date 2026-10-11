@@ -59,7 +59,7 @@ EXCHANGE_LABELS = {
     "South_Africa": "OCF Growth JNB (South Africa)",
     "Saudi_Arabia": "OCF Growth SAU (Saudi Arabia)",
     "Singapore": "OCF Growth SGX (Singapore)",
-    "Mexico": "OCF Growth BMV (Mexico)",
+    "Mexico": "OCF Growth MEX (Mexico)",
 }
 
 FOOTER = "Data: Ceta Research | OCF Growth >10%, Divergence >0, ROE >10%, OPM >5%, annual rebalance, equal weight, 2000-2025"

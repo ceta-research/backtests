@@ -104,13 +104,14 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     con.execute("SET memory_limit='4GB'")
 
     # 1. Sector map — current snapshot (sectors rarely change for established companies)
+    # No isActivelyTrading filter: today's snapshot would drop names delisted since (B041).
+    # The sector filter is the fund guard: FMP files nearly all funds/ETFs under Financial Services.
     print("  Fetching sector & exchange mappings...")
     sector_sql = f"""
         SELECT DISTINCT symbol, sector, exchange
         FROM profile
         {exchange_where}
         AND sector IN ('{sectors_sql}')
-        AND isActivelyTrading = true
     """
     sector_rows = client.query(sector_sql, verbose=verbose, timeout=120)
     if not sector_rows:
@@ -182,6 +183,8 @@ def screen_stocks(con, target_date, mktcap_min):
     """
     # 45-day lag for point-in-time (July rebalance → filings through ~May 17)
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    # Staleness: last 18 months only, else a delisted name's last FY row keeps a slot forever (B041)
+    earliest_epoch = utc_epoch(target_date - timedelta(days=540))
 
     rows = con.execute("""
         WITH km AS (
@@ -189,7 +192,7 @@ def screen_stocks(con, target_date, mktcap_min):
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
                     marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
-            WHERE filing_epoch <= ?
+            WHERE filing_epoch <= ? AND filing_epoch >= ?
         ),
         fr AS (
             SELECT symbol, operatingProfitMargin, debtToEquityRatio, dividendYield,
@@ -198,7 +201,7 @@ def screen_stocks(con, target_date, mktcap_min):
                     dividendYield DESC NULLS LAST, operatingProfitMargin DESC NULLS LAST,
                     debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
-            WHERE filing_epoch <= ?
+            WHERE filing_epoch <= ? AND filing_epoch >= ?
         )
         SELECT sm.symbol, km.marketCap, fr.dividendYield
         FROM sector_map sm
@@ -211,7 +214,7 @@ def screen_stocks(con, target_date, mktcap_min):
           AND km.marketCap > ?
         ORDER BY fr.dividendYield DESC, sm.symbol
         LIMIT ?
-    """, [cutoff_epoch, cutoff_epoch,
+    """, [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,
           ROE_MIN, OPM_MIN, DE_MAX, DIV_YIELD_MIN,
           mktcap_min, MAX_STOCKS]).fetchall()
 

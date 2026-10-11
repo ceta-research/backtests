@@ -31,10 +31,13 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from data_utils import add_exit_method_arg
+
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 _ap = argparse.ArgumentParser(add_help=False)
-_ap.add_argument("--exit-method", choices=("drop", "ltp", "both"), default="drop")
+add_exit_method_arg(_ap)
 EXIT_METHOD = _ap.parse_known_args()[0].exit_method
 
 EXCHANGES = [
@@ -64,7 +67,8 @@ for name, exchanges in EXCHANGES:
         "--exchange", ex_str,
         "--output", output_file,
         "--verbose",
-    ] + (["--exit-method", EXIT_METHOD] if EXIT_METHOD != "drop" else [])
+        "--exit-method", EXIT_METHOD,   # always forwarded: the child's own default must not decide
+    ]
     result = subprocess.run(cmd, capture_output=False, text=True)
     elapsed = time.time() - t0
     print(f"  Completed in {elapsed:.0f}s (exit code: {result.returncode})")

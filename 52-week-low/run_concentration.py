@@ -4,6 +4,7 @@
 Fetches data once, re-screens at each size for an apples-to-apples comparison.
 Answers the YouTube comment: "can you do this on 10 stocks instead of 30."
 """
+import argparse
 import json
 import os
 import sys
@@ -11,10 +12,15 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import backtest as bt
 from cr_client import CetaResearch
+from data_utils import LtpExits, add_exit_method_arg
 
 EXCHANGES = ["NYSE", "NASDAQ", "AMEX"]
 SIZES = [10, 15, 20, 30]
 PPY = 4  # quarterly
+
+ap = argparse.ArgumentParser(description="52-week-low US concentration sweep")
+add_exit_method_arg(ap)
+exit_method = ap.parse_args().exit_method
 
 cr = CetaResearch()
 rebalance_dates = bt.generate_rebalance_dates(2002, 2025, "quarterly",
@@ -28,8 +34,11 @@ print(f"mktcap_min={mktcap:,.0f}  rfr={rfr:.3f}")
 summary = {}
 for n in SIZES:
     bt.MAX_STOCKS = n
+    # As run_single: local prices_cache, one LtpExits per run so its counts belong to this size.
+    ltp = LtpExits(cr, con, local=True, verbose=False) if exit_method != "drop" else None
     results = bt.run_backtest(con, rebalance_dates, mktcap, use_costs=True,
-                              verbose=False, offset_days=1, benchmark_symbol="SPY")
+                              verbose=False, offset_days=1, benchmark_symbol="SPY",
+                              ltp=ltp, exit_method=exit_method)
     valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
     port = [r["portfolio_return"] for r in valid]
     spy = [r["spy_return"] for r in valid]
@@ -59,6 +68,9 @@ for n in SIZES:
         "best_period": round(max(port) * 100, 1),
         "worst_period": round(min(port) * 100, 1),
     }
+    if ltp:
+        summary[n].update({"exit_method": exit_method,
+                           "ltp": ltp.results_block(exit_method, valid, PPY, rfr)})
     print(f"\n=== TOP {n} (avg held {summary[n]['avg_stocks']}) ===")
     print(f"  CAGR {summary[n]['cagr']}%  final ${summary[n]['final_value']:,}  "
           f"vs SPY {summary[n]['spy_cagr']}% ${summary[n]['spy_final_value']:,}")

@@ -52,7 +52,7 @@ FX_PER_USD = {
     "SGX": 1.35, "SES": 1.35,               # SGD
     # Other regions
     "SAO": 5.0,                             # BRL
-    "BMV": 17.0,                            # MXN
+    "MEX": 17.0, "BMV": 17.0,               # MXN
     "JSE": 18.2, "JNB": 18.2,               # ZAR
     "SAU": 3.75,                            # SAR
     "TLV": 3.65,                            # ILS

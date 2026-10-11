@@ -4,7 +4,8 @@
 Portfolio returns use adjClose and therefore include dividends. Most of the local
 index benchmarks are PRICE indices, so measured excess against them is overstated
 by roughly the local dividend yield. SPY (a dividend-adjusted ETF), the DAX (a
-performance index) and the Ibovespa (a total-return index) are the exceptions.
+performance index), the Ibovespa and the Oslo All-share GR (total-return indices) are the
+exceptions.
 
 This recomputes nothing. It reads the committed results, works out which series
 each exchange was actually measured against, and reports which positive-excess
@@ -39,7 +40,8 @@ from data_utils import LOCAL_INDEX_BENCHMARKS, LOCAL_INDEX_NAMES  # noqa: E402
 #   SPY      dividend-adjusted ETF
 #   ^GDAXI   the DAX is a performance index
 #   ^BVSP    the Ibovespa reinvests dividends
-TOTAL_RETURN = {"SPY", "^GDAXI", "^BVSP"}
+#   ^OSEAX   Oslo All-share GR (matches Euronext's gross index to 0.01pp, 2023-2025)
+TOTAL_RETURN = {"SPY", "^GDAXI", "^BVSP", "^OSEAX"}
 
 # Approximate long-run gross dividend yields for the PRICE indices, in percent.
 # Deliberately round: these decide whether a thin claim sits inside the margin,
@@ -56,7 +58,6 @@ PRICE_INDEX_YIELD = {
     "^SSMI": 3.0,       # SMI
     "^SET.BK": 3.0,     # SET Index
     "^GSPTSE": 2.8,     # TSX Composite
-    "^OSEAX": 3.0,      # Oslo All Share
     "^STI": 3.5,        # Straits Times
     "^AXJO": 4.0,       # ASX 200
 }

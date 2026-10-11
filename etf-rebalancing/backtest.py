@@ -96,12 +96,14 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     # 1. ETF ownership ratios (current snapshot, joined with profile + key_metrics_ttm for mktcap)
     # Filter: marketValue > 0, marketCap > 0, ratio between 0 and 1 (0-100% ownership)
     print("  Fetching ETF ownership data...")
+    # ownership_ratio is the ranking key: DECIMAL sums exactly, so parallel add order can't flip its 6-dp rounding.
+    # TRY_CAST + the count guard drop a name with any NaN/inf/>=1e32 row (as the float sum did) instead of erroring.
     ownership_sql = f"""
         WITH raw AS (
             SELECT
                 eh.asset as symbol,
                 COUNT(DISTINCT eh.symbol) as etf_count,
-                SUM(eh.marketValue) as total_etf_value,
+                CAST(SUM(TRY_CAST(eh.marketValue AS DECIMAL(38,6))) AS DOUBLE) as total_etf_value,
                 k.marketCap as market_cap
             FROM etf_holder eh
             JOIN profile p ON eh.asset = p.symbol
@@ -111,6 +113,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
               AND k.marketCap > 0
             GROUP BY eh.asset, k.marketCap
             HAVING COUNT(DISTINCT eh.symbol) >= {MIN_ETF_OWNERS}
+               AND COUNT(TRY_CAST(eh.marketValue AS DECIMAL(38,6))) = COUNT(*)
         )
         SELECT
             symbol,

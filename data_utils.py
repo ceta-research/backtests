@@ -35,7 +35,7 @@ REGIONAL_BENCHMARKS = {
     "TSX": "EWC", "TSXV": "EWC",          # Canada
     "SAO": "EWZ",                          # Brazil
     "SGX": "EWS",                          # Singapore
-    "BMV": "EWW",                          # Mexico
+    "MEX": "EWW", "BMV": "EWW",           # Mexico (FMP profile code is MEX; BMV matches no rows, B039)
     "JSE": "EZA",                          # South Africa
     "SAU": "KSA",                          # Saudi Arabia
     # European exchanges -> Vanguard FTSE Europe
@@ -73,7 +73,7 @@ LOCAL_INDEX_BENCHMARKS = {
     # SHZ: 399001.SZ has no price data in FMP stock_eod. Falls back to SPY.
     "STO": "^OMXS30",                                   # OMX Stockholm 30 (SEK, 1986+)
     "SIX": "^SSMI",                                     # Swiss Market Index (CHF, 1990+)
-    "OSL": "^OSEAX",                                    # Oslo All Share (NOK, 2013+)
+    "OSL": "^OSEAX",                                    # Oslo All-share GR, dividends reinvested (NOK, 2013+)
     "SET": "^SET.BK",                                   # SET Index (THB, 1982+)
 }
 
@@ -676,6 +676,9 @@ def get_prices(con, symbols, target_date, window_days=10, offset_days=0, with_ep
 
 
 EXIT_METHODS = ("drop", "ltp", "both")
+# The one place the default lives: CLIs and runners read it. run_backtest signature defaults stay "drop";
+# verify_floor_guard gate 14 requires every caller to pass the resolved method.
+DEFAULT_EXIT_METHOD = "drop"
 # US delistings 2001+: 3,498/4,969 last bars fall on/before delistedDate + 7d; most later bars to day 30 are zero-volume repeats, past day 30 they mostly trade (OTC / ticker reuse).
 LTP_DELIST_GRACE_DAYS = 7
 # A delisting more than this many days before the entry bar belongs to an earlier holder of the
@@ -685,9 +688,9 @@ LTP_EARLIER_HOLDER_DAYS = 30
 
 
 def add_exit_method_arg(parser):
-    """--exit-method drop|ltp|both (default drop = unchanged behaviour)."""
-    parser.add_argument("--exit-method", choices=EXIT_METHODS, default="drop",
-                        help="Missing exit price: drop the name (default), exit at last traded price, or compute both")
+    """--exit-method drop|ltp|both (default DEFAULT_EXIT_METHOD)."""
+    parser.add_argument("--exit-method", choices=EXIT_METHODS, default=DEFAULT_EXIT_METHOD,
+                        help=f"Missing exit price: drop the name, exit at last traded price, or compute both (default {DEFAULT_EXIT_METHOD})")
 
 
 class LtpExits:
@@ -697,20 +700,26 @@ class LtpExits:
     The delisted bound is ignored only when delistedDate is more than LTP_EARLIER_HOLDER_DAYS
     before the entry bar (an earlier holder of the ticker). No bar in the window -> the name stays
     dropped. Fills feed filter_returns unchanged, so max_single_return etc. still apply.
+    Every fill passes remove_price_oscillations, like the topic's own exit prices.
     local=True reads the topic's own prices_cache, which must use the trade_epoch schema.
     """
+
+    # Remote cleaning context each side of the window; the filter's widest neighbour span is 20 days.
+    CONTEXT_DAYS = 30
 
     def __init__(self, client, con, local=False, verbose=False):
         self.client, self.con, self.local, self.verbose = client, con, local, verbose
         # One row per symbol (9,900 rows / 9,900 symbols, checked 2026-10-09).
-        rows = self._query("SELECT symbol, delistedDate FROM delisted_companies WHERE delistedDate IS NOT NULL",
-                           limit=100000)
+        # Ordered so a symbol with two rows always keeps its latest delisting (the dict keeps the last row).
+        rows = self._query("SELECT symbol, delistedDate FROM delisted_companies WHERE delistedDate IS NOT NULL"
+                           " ORDER BY symbol, delistedDate", limit=100000)
         self.delisted = {r["symbol"]: date.fromisoformat(str(r["delistedDate"])[:10]) for r in rows or []}
         self.missing = self.filled = self.closed = 0
         self.fills = []
 
     def _query(self, sql, **kw):
         """client.query with retries: one transient failure must not kill a 25-year run."""
+        import re
         import time
         for attempt in range(4):
             try:
@@ -719,7 +728,9 @@ class LtpExits:
                 # A bad query fails the same way every time: don't sleep on it.
                 if attempt == 3 or any(k in str(e) for k in ("[SYNTAX_ERROR]", "Binder Error", "Parser Error", "Catalog Error")):
                     raise
-                time.sleep(5 * (attempt + 1))
+                # cr_client raises a 429 as "Rate limited. Retry after Ns" and never retries it itself.
+                m = re.search(r"Retry after (\d+)s", str(e))
+                time.sleep(max(int(m.group(1)) if m else 0, 5 * (attempt + 1)))
 
     def fill(self, symbols, entry_prices, exit_prices, entry_date, exit_date, offset_days=0,
              min_entry_price=0.0):
@@ -738,15 +749,17 @@ class LtpExits:
                 continue
             lo = utc_date(e)
             hi, dd = exit_date, self.delisted.get(s)
+            ctx = hi + timedelta(days=self.CONTEXT_DAYS)   # remote cleaning context end
             if dd is None:
                 kind = "none"
             elif dd + timedelta(days=LTP_EARLIER_HOLDER_DAYS) >= lo:
-                hi = min(hi, dd + timedelta(days=LTP_DELIST_GRACE_DAYS))
-                kind = "applied"
+                bound = dd + timedelta(days=LTP_DELIST_GRACE_DAYS)
+                kind = "applied" if bound < hi else "not_binding"   # applied = the bound cut the window short
+                hi, ctx = min(hi, bound), min(ctx, bound)   # no bar past the bound, not even as context
             else:
                 kind = "ignored_predates_entry"
             if hi > lo:
-                bounds[s] = (lo, hi, kind)
+                bounds[s] = (lo, hi, kind, ctx)
             else:
                 self.closed += 1   # the delisting bound closes the window before it opens: stays dropped
         got = self._last_bars(bounds) if bounds else {}
@@ -754,8 +767,8 @@ class LtpExits:
         for s in bounds:   # caller's order, not the query's: the fills list is reproducible
             if s not in got:
                 continue
-            bar_epoch, px = got[s]
-            lo, hi, kind = bounds[s]
+            bar_epoch, px, src = got[s]
+            lo, hi, kind, _ = bounds[s]
             bar = utc_date(bar_epoch)
             if not lo < bar <= hi <= exit_date:
                 raise AssertionError(f"LTP bar outside its window: {s} {lo} {bar} {hi}")
@@ -764,7 +777,7 @@ class LtpExits:
                                "entry_bar": lo.isoformat(), "entry_price": entry_prices.get(s),
                                "last_bar": bar.isoformat(), "ltp": px,
                                "delisted_date": self.delisted[s].isoformat() if s in self.delisted else None,
-                               "delisting_bound": kind,
+                               "delisting_bound": kind, "source": src,
                                "exit_date": exit_date.isoformat()})
         self.filled += len(out)
         if self.verbose and want:
@@ -772,43 +785,59 @@ class LtpExits:
         return out
 
     def _last_bars(self, bounds):
-        """{symbol: (last_bar_epoch, adjClose)} with entry_bar_date < bar date <= hi.
+        """{symbol: (last_bar_epoch, adjClose, "local"|"remote")} with entry_bar_date < bar date <= hi.
 
         Local: the topic's prices_cache (already through remove_price_oscillations, must span the
-        holding period), except names whose delisting bound applies. The topic's filter ran over its
-        whole cache, where a reused ticker trading after the delisting can delete a genuine final
-        crash, so those names go remote. Remote: ONE stock_eod query, the last bar per name.
-
-        No oscillation filter on the remote bar: a name is only here because it has no bar in the
-        exit window, so its last bar has no later neighbour and the filter could never remove it.
+        holding period), except names whose delisting bound caps the cleaning context. The topic's
+        filter ran over its whole cache, where a reused ticker trading after the delisting can delete
+        a genuine final crash, so those names go remote.
+        Remote: ONE stock_eod query for each name's bars from CONTEXT_DAYS before the window to its
+        context end, the same filter over them, then the same last-bar pick. Bars after hi are
+        cleaning context only. A name here has no bar in the exit window, but trading that resumes
+        soon after it gives the last bar a later neighbour, so the filter CAN change the fill.
+        Tier 1 sees the same neighbours as a whole-series pass; tier 2 counts over the rows fetched.
         """
-        day_end = lambda d: utc_epoch(d + timedelta(days=1))   # exclusive end of a day
-        esc = lambda s: s.replace("'", "''")
-        local = {s: b for s, b in bounds.items() if self.local and b[2] != "applied"}
+        # Local only when no delisting bound capped the context: the cache's filter saw bars past it.
+        local = {s: b for s, b in bounds.items() if self.local and b[3] >= b[1] + timedelta(days=self.CONTEXT_DAYS)}
         remote = {s: b for s, b in bounds.items() if s not in local}
-        out = {}
-        if local:
-            vals = ",".join("('{}', {}, {})".format(esc(s), day_end(lo), day_end(hi)) for s, (lo, hi, _) in local.items())
-            rows = self.con.execute(f"""
-                WITH m(symbol, lo, hi) AS (VALUES {vals})
-                SELECT p.symbol, p.trade_epoch, p.adjClose FROM prices_cache p JOIN m ON p.symbol = m.symbol
-                WHERE p.trade_epoch >= m.lo AND p.trade_epoch < m.hi AND p.adjClose > 0
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY p.symbol ORDER BY p.trade_epoch DESC, p.adjClose DESC) = 1
-            """).fetchall()
-            out.update({r[0]: (int(r[1]), r[2]) for r in rows})
+        out = {s: (e, px, "local") for s, (e, px) in self._pick(self.con, local).items()} if local else {}
         if remote:
-            vals = ",".join("('{}', {}, {})".format(esc(s), day_end(lo), day_end(hi)) for s, (lo, hi, _) in remote.items())
-            first = (min(lo for lo, _, _ in remote.values()) + timedelta(days=1)).isoformat()
-            after = (max(hi for _, hi, _ in remote.values()) + timedelta(days=1)).isoformat()
+            start = lambda lo: lo + timedelta(days=1 - self.CONTEXT_DAYS)
+            vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), utc_epoch(start(lo)),
+                                                    utc_epoch(ctx + timedelta(days=1)))
+                            for s, (lo, _, _, ctx) in remote.items())
+            first = min(start(lo) for lo, _, _, _ in remote.values()).isoformat()
+            after = (max(ctx for _, _, _, ctx in remote.values()) + timedelta(days=1)).isoformat()
             rows = self._query(f"""
-                WITH m(symbol, lo, hi) AS (VALUES {vals})
+                WITH m(symbol, a, b) AS (VALUES {vals})
                 SELECT e.symbol, e.dateEpoch, e.adjClose FROM stock_eod e JOIN m ON e.symbol = m.symbol
                 WHERE e.date >= '{first}' AND e.date < '{after}'
-                  AND e.dateEpoch >= m.lo AND e.dateEpoch < m.hi AND e.adjClose > 0
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY e.symbol ORDER BY e.dateEpoch DESC, e.adjClose DESC) = 1
-            """, limit=100000, timeout=600, memory_mb=16384, threads=6) or []
-            out.update({r["symbol"]: (int(r["dateEpoch"]), r["adjClose"]) for r in rows})
+                  AND e.dateEpoch >= m.a AND e.dateEpoch < m.b AND e.adjClose > 0
+            """, limit=1000000, timeout=600, memory_mb=16384, threads=6) or []
+            if rows:
+                import duckdb
+                tmp = duckdb.connect()   # never the topic's con: its prices_cache stays as it was
+                tmp.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
+                tmp.executemany("INSERT INTO prices_cache VALUES (?, ?, ?)",
+                                [(r["symbol"], int(r["dateEpoch"]), r["adjClose"]) for r in rows])
+                remove_price_oscillations(tmp, verbose=False)
+                out.update({s: (e, px, "remote") for s, (e, px) in self._pick(tmp, remote).items()})
+                tmp.close()
         return out
+
+    @staticmethod
+    def _pick(con, bounds):
+        """{symbol: (epoch, adjClose)}: the last bar in con's prices_cache with entry_bar_date < bar date <= hi."""
+        day_end = lambda d: utc_epoch(d + timedelta(days=1))   # exclusive end of a day
+        vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), day_end(lo), day_end(hi))
+                        for s, (lo, hi, _, _) in bounds.items())
+        rows = con.execute(f"""
+            WITH m(symbol, lo, hi) AS (VALUES {vals})
+            SELECT p.symbol, p.trade_epoch, p.adjClose FROM prices_cache p JOIN m ON p.symbol = m.symbol
+            WHERE p.trade_epoch >= m.lo AND p.trade_epoch < m.hi AND p.adjClose > 0
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY p.symbol ORDER BY p.trade_epoch DESC, p.adjClose DESC) = 1
+        """).fetchall()
+        return {r[0]: (int(r[1]), r[2]) for r in rows}
 
     def results_block(self, exit_method, valid, periods_per_year, risk_free_rate,
                       key="portfolio_return", spy_key="spy_return"):
@@ -833,13 +862,17 @@ class LtpExits:
 
     def provenance(self):
         """Counts + every fill, for the results JSON."""
-        return {"source": "local prices_cache" if self.local else "remote stock_eod",
+        return {"source": ("local prices_cache, remote stock_eod for delisting-bounded names" if self.local
+                           else "remote stock_eod"),
                 "delist_grace_days": LTP_DELIST_GRACE_DAYS, "missing_exits": self.missing,
                 "ltp_filled": self.filled, "still_missing": self.missing - self.filled,
+                "filled_local": sum(1 for f in self.fills if f["source"] == "local"),
+                "filled_remote": sum(1 for f in self.fills if f["source"] == "remote"),
                 "closed_by_delisting": self.closed,
                 "filled_without_delisting_row": sum(1 for f in self.fills if f["delisted_date"] is None),
                 "filled_ignoring_delisting_row": sum(1 for f in self.fills
                                                      if f["delisting_bound"] == "ignored_predates_entry"),
+                "filled_delisting_not_binding": sum(1 for f in self.fills if f["delisting_bound"] == "not_binding"),
                 "fills": self.fills}
 
 

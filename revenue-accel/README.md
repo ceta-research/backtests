@@ -56,8 +56,8 @@ Each run reports two benchmarks:
 - **Secondary:** SPY in USD, stored under `spy_usd` / `comparison_vs_spy` / `excess_cagr_vs_spy`.
   This is the cross-market comparable, since it is the same total-return series for every run.
 
-Every local index in `LOCAL_INDEX_BENCHMARKS` is a **price index except the DAX**, which is a
-performance index that reinvests dividends. Portfolio returns include dividends, so excess vs a
+Every local index in `LOCAL_INDEX_BENCHMARKS` is a **price index except the DAX, the Ibovespa and
+the Oslo All-share GR**, which reinvest dividends. Portfolio returns include dividends, so excess vs a
 local index overstates the real edge by roughly that market's dividend yield everywhere except
 Germany. Cross-market claims should use the SPY column.
 

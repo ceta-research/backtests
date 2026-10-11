@@ -1,0 +1,109 @@
+{
+ "_note": "Stage B wave 1: every market leg each topic publishes, mirroring what its --global loop (or run_all_exchanges.py) runs: same exchange lists (exceptions in each _source), same --exchange/--preset form, so a leg's JSON is the per-market file the global run writes. Leg names are the topic's own labels. pairs = the stage A gate pairs (published CAGR path, LTP block path). See scripts/LTP_GATE.md.",
+ "cyclical-timing": {
+  "_source": "backtest.py --global presets_to_run (saudi added for stage B)",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {
+   "us": ["--exchange", "NYSE,NASDAQ,AMEX"],
+   "india": ["--exchange", "NSE"],
+   "germany": ["--exchange", "XETRA"],
+   "uk": ["--exchange", "LSE"],
+   "canada": ["--exchange", "TSX"],
+   "china": ["--exchange", "SHZ,SHH"],
+   "hongkong": ["--exchange", "HKSE"],
+   "japan": ["--exchange", "JPX"],
+   "korea": ["--exchange", "KSC"],
+   "australia": ["--exchange", "ASX"],
+   "taiwan": ["--exchange", "TAI,TWO"],
+   "sweden": ["--exchange", "STO"],
+   "switzerland": ["--exchange", "SIX"],
+   "brazil": ["--exchange", "SAO"],
+   "southafrica": ["--exchange", "JNB"],
+   "saudi": ["--exchange", "SAU"]
+  }
+ },
+ "asset-growth": {
+  "_source": "backtest.py --global presets_to_run, minus singapore: its \"SGX\" matches no rows (no returns_SGX.json, not published; EXCHANGE_PRESETS singapore is SES). If the code moves to SES, add singapore as --exchange SES",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {
+   "us": ["--exchange", "NYSE,NASDAQ,AMEX"],
+   "india": ["--exchange", "NSE"],
+   "germany": ["--exchange", "XETRA"],
+   "sweden": ["--exchange", "STO"],
+   "canada": ["--exchange", "TSX"],
+   "china": ["--exchange", "SHZ,SHH"],
+   "hongkong": ["--exchange", "HKSE"],
+   "japan": ["--exchange", "JPX"],
+   "uk": ["--exchange", "LSE"],
+   "australia": ["--exchange", "ASX"],
+   "korea": ["--exchange", "KSC"],
+   "brazil": ["--exchange", "SAO"],
+   "switzerland": ["--exchange", "SIX"],
+   "taiwan": ["--exchange", "TAI"],
+   "thailand": ["--exchange", "SET"],
+   "saudi": ["--exchange", "SAU"]
+  }
+ },
+ "fcf-conversion": {
+  "_source": "backtest.py --global presets_to_run, minus singapore: its \"SGX\" matches no rows (no returns_SGX.json, not published; EXCHANGE_PRESETS singapore is SES). If the code moves to SES, add singapore as --exchange SES",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {
+   "us": ["--exchange", "NYSE,NASDAQ,AMEX"],
+   "india": ["--exchange", "NSE"],
+   "germany": ["--exchange", "XETRA"],
+   "sweden": ["--exchange", "STO"],
+   "canada": ["--exchange", "TSX"],
+   "china": ["--exchange", "SHZ,SHH"],
+   "hongkong": ["--exchange", "HKSE"],
+   "japan": ["--exchange", "JPX"],
+   "uk": ["--exchange", "LSE"],
+   "australia": ["--exchange", "ASX"],
+   "korea": ["--exchange", "KSC"],
+   "brazil": ["--exchange", "SAO"],
+   "switzerland": ["--exchange", "SIX"],
+   "taiwan": ["--exchange", "TAI"],
+   "thailand": ["--exchange", "SET"],
+   "saudi": ["--exchange", "SAU"]
+  }
+ },
+ "cash-conversion": {
+  "_source": "backtest.py GLOBAL_PRESETS, run as --preset (canada = TSX+TSXV, singapore = SES, via EXCHANGE_PRESETS); japan added for stage B; minus france: 1 of 1,321 PAR symbols has FY CCC data, so the run writes {\"error\": \"No valid periods\"} and nothing is published (B039). The --global loop writes no ccc_metrics_*.json: rerun each market as --preset <name> --output results/ccc_metrics_<published name>.json",
+  "pairs": [
+   {"published_cagr_path": "portfolios.low_ccc.cagr", "ltp_block_path": "ltp"},
+   {"published_cagr_path": "portfolios.low_decreasing.cagr", "ltp_block_path": "ltp.low_decreasing_track"},
+   {"published_cagr_path": "portfolios.mid_ccc.cagr", "ltp_block_path": "ltp.mid_track"},
+   {"published_cagr_path": "portfolios.high_ccc.cagr", "ltp_block_path": "ltp.high_track"}
+  ],
+  "legs": {
+   "us": ["--preset", "us"],
+   "india": ["--preset", "india"],
+   "germany": ["--preset", "germany"],
+   "china": ["--preset", "china"],
+   "hongkong": ["--preset", "hongkong"],
+   "japan": ["--preset", "japan"],
+   "canada": ["--preset", "canada"],
+   "uk": ["--preset", "uk"],
+   "switzerland": ["--preset", "switzerland"],
+   "sweden": ["--preset", "sweden"],
+   "korea": ["--preset", "korea"],
+   "brazil": ["--preset", "brazil"],
+   "taiwan": ["--preset", "taiwan"],
+   "singapore": ["--preset", "singapore"],
+   "southafrica": ["--preset", "southafrica"]
+  }
+ },
+ "graham-net-net": {
+  "_source": "run_all_exchanges.py EXCHANGES (backtest.py has no --global loop)",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {
+   "US_MAJOR": ["--exchange", "NYSE,NASDAQ,AMEX"],
+   "JPX": ["--exchange", "JPX"],
+   "HKSE": ["--exchange", "HKSE"],
+   "India": ["--exchange", "NSE"],
+   "KSC": ["--exchange", "KSC"],
+   "LSE": ["--exchange", "LSE"],
+   "TSX": ["--exchange", "TSX"],
+   "TAI": ["--exchange", "TAI,TWO"]
+  }
+ }
+}

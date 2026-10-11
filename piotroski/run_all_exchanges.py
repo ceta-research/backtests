@@ -18,6 +18,9 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from data_utils import add_exit_method_arg
+
 # Exchanges to test, ordered by expected data depth.
 # ASX, SAO, SGX excluded due to fatal FMP adjClose data quality issues
 # (see backtests/DATA_QUALITY_ISSUES.md).
@@ -45,7 +48,7 @@ EXCHANGES_TO_TEST = [
 def main():
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
     ap = argparse.ArgumentParser(add_help=False)
-    ap.add_argument("--exit-method", choices=("drop", "ltp", "both"), default="drop")
+    add_exit_method_arg(ap)
     exit_method = ap.parse_known_args()[0].exit_method
 
     results_dir = os.path.join(os.path.dirname(__file__), "results")
@@ -70,8 +73,8 @@ def main():
         ]
         if verbose:
             cmd.append("--verbose")
-        if exit_method != "drop":
-            cmd += ["--exit-method", exit_method]
+        # Always forwarded: the child's own default must not decide the method.
+        cmd += ["--exit-method", exit_method]
 
         start = time.time()
         try:

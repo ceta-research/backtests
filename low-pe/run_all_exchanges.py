@@ -15,6 +15,9 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from data_utils import add_exit_method_arg
+
 RESULTS_DIR = Path(__file__).parent / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
@@ -34,7 +37,7 @@ EXCHANGES = [
 SCRIPT = str(Path(__file__).parent / "backtest.py")
 PYTHON = sys.executable
 _ap = argparse.ArgumentParser(add_help=False)
-_ap.add_argument("--exit-method", choices=("drop", "ltp", "both"), default="drop")
+add_exit_method_arg(_ap)
 EXIT_METHOD = _ap.parse_known_args()[0].exit_method
 
 
@@ -45,7 +48,8 @@ def run_exchange(name, args):
     cmd = [PYTHON, SCRIPT] + args + [
         "--output", str(output_file),
         "--verbose",
-    ] + (["--exit-method", EXIT_METHOD] if EXIT_METHOD != "drop" else [])
+        "--exit-method", EXIT_METHOD,   # always forwarded: the child's own default must not decide
+    ]
 
     print(f"\n{'='*65}")
     print(f"  Running: {name}")

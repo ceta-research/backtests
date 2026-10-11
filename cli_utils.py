@@ -45,7 +45,7 @@ EXCHANGE_PRESETS = {
     "singapore": {"name": "SES", "exchanges": ["SES"]},
     # Other
     "brazil": {"name": "SAO", "exchanges": ["SAO"]},
-    "mexico": {"name": "BMV", "exchanges": ["BMV"]},
+    "mexico": {"name": "MEX", "exchanges": ["MEX"]},  # FMP profile code; BMV matches no rows (B039)
     "southafrica": {"name": "JSE", "exchanges": ["JNB"]},
     "saudi": {"name": "SAU", "exchanges": ["SAU"]},
     "israel": {"name": "TLV", "exchanges": ["TLV"]},
@@ -80,7 +80,7 @@ REGIONAL_RISK_FREE_RATES = {
     "HEL": 0.025,    # Finland
     # Other
     "SAO": 0.105,    # Brazil (high inflation)
-    "BMV": 0.080,    # Mexico
+    "MEX": 0.080, "BMV": 0.080,    # Mexico
     "JSE": 0.090, "JNB": 0.090,    # South Africa
     "SAU": 0.035,    # Saudi Arabia
     "TLV": 0.030,    # Israel
@@ -123,7 +123,7 @@ MKTCAP_THRESHOLD_MAP = {
 
     # Other regions
     "SAO": 1_000_000_000,     # R$1B ≈ $200M USD (limited universe)
-    "BMV": 2_000_000_000,     # MXN 2B ≈ $118M USD
+    "MEX": 2_000_000_000, "BMV": 2_000_000_000,  # MXN 2B ≈ $118M USD
     "JSE": 10_000_000_000, "JNB": 10_000_000_000,  # R10B ≈ $550M USD
     "SAU": 1_000_000_000,     # SAR 1B ≈ $267M USD
     "TLV": 1_000_000_000,     # ₪1B ≈ $274M USD
