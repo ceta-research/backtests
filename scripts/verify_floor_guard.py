@@ -75,6 +75,8 @@ SCOPE_ALLOW = {
     # maps key on MEX (BMV kept as an alias).
     "cli_utils.py",
     "costs.py",
+    # Stage B prep: ^OSEAX is a total-return index, so the README's list of exceptions changes.
+    "revenue-accel/README.md",
     # B005 follow-up: hosts entry_usable/entry_buyable/entry_buyable_prices, the
     # entry-knowable count the cash rule is now decided on. Root .py files match
     # none of the allow rules below, so without this entry the scope gate
