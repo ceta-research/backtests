@@ -120,7 +120,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                           memory_mb=4096, threads=2)
     print(f"    -> {count:,} rows")
 
-    # 3. Prices (only at rebalance dates + 10-day windows)
+    # 3. Prices (only at rebalance dates + 11-day windows)
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
@@ -656,7 +656,7 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     print(f"\nData fetched in {fetch_time:.0f}s")
 
     t1 = time.time()
-    # prices_cache holds only [d, d+10] per rebalance date, so LTP reads remote stock_eod.
+    # prices_cache holds only [d, d+11] per rebalance date, so LTP reads remote stock_eod.
     ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     periods = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=args.verbose,

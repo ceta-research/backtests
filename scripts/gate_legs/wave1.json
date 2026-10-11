@@ -67,7 +67,7 @@
   }
  },
  "cash-conversion": {
-  "_source": "backtest.py GLOBAL_PRESETS, run as --preset (canada = TSX+TSXV, singapore = SES, via EXCHANGE_PRESETS); japan added for stage B",
+  "_source": "backtest.py GLOBAL_PRESETS, run as --preset (canada = TSX+TSXV, singapore = SES, via EXCHANGE_PRESETS); japan added for stage B; minus france: 1 of 1,321 PAR symbols has FY CCC data, so the run writes {\"error\": \"No valid periods\"} and nothing is published (B039). The --global loop writes no ccc_metrics_*.json: rerun each market as --preset <name> --output results/ccc_metrics_<published name>.json",
   "pairs": [
    {"published_cagr_path": "portfolios.low_ccc.cagr", "ltp_block_path": "ltp"},
    {"published_cagr_path": "portfolios.low_decreasing.cagr", "ltp_block_path": "ltp.low_decreasing_track"},
@@ -89,8 +89,7 @@
    "brazil": ["--preset", "brazil"],
    "taiwan": ["--preset", "taiwan"],
    "singapore": ["--preset", "singapore"],
-   "southafrica": ["--preset", "southafrica"],
-   "france": ["--preset", "france"]
+   "southafrica": ["--preset", "southafrica"]
   }
  },
  "graham-net-net": {

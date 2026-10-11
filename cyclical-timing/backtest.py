@@ -545,7 +545,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest ({BACKTEST_START}-{BACKTEST_END})...")
     t1 = time.time()
-    # Price cache is [d, d+10] per rebalance date only, so LTP reads remote stock_eod.
+    # Price cache is [d, d+11] per rebalance date only, so LTP reads remote stock_eod.
     ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=verbose,

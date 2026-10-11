@@ -4,7 +4,8 @@
 Portfolio returns use adjClose and therefore include dividends. Most of the local
 index benchmarks are PRICE indices, so measured excess against them is overstated
 by roughly the local dividend yield. SPY (a dividend-adjusted ETF), the DAX (a
-performance index) and the Ibovespa (a total-return index) are the exceptions.
+performance index), the Ibovespa and the Oslo All-share GR (total-return indices) are the
+exceptions.
 
 This recomputes nothing. It reads the committed results, works out which series
 each exchange was actually measured against, and reports which positive-excess

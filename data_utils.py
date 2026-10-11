@@ -710,8 +710,9 @@ class LtpExits:
     def __init__(self, client, con, local=False, verbose=False):
         self.client, self.con, self.local, self.verbose = client, con, local, verbose
         # One row per symbol (9,900 rows / 9,900 symbols, checked 2026-10-09).
-        rows = self._query("SELECT symbol, delistedDate FROM delisted_companies WHERE delistedDate IS NOT NULL",
-                           limit=100000)
+        # Ordered so a symbol with two rows always keeps its latest delisting (the dict keeps the last row).
+        rows = self._query("SELECT symbol, delistedDate FROM delisted_companies WHERE delistedDate IS NOT NULL"
+                           " ORDER BY symbol, delistedDate", limit=100000)
         self.delisted = {r["symbol"]: date.fromisoformat(str(r["delistedDate"])[:10]) for r in rows or []}
         self.missing = self.filled = self.closed = 0
         self.fills = []

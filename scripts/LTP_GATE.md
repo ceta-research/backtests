@@ -75,6 +75,15 @@ scope with `--topic`/`--leg` if needed.
 The gate runs `<topic>/backtest.py <leg_args>` one market at a time. The stage B rerun goes through
 the `--global` loops and `run_all_exchanges.py`, which the gate never runs: check those take
 `--exit-method` from `add_exit_method_arg` and pass it to every market before trusting the rerun.
+Exception: cash-conversion's `--global` writes only the combined file (keyed `NSE`, not `India`) and no
+`ccc_metrics_*.json`, which are what its charts and posts read. Rerun it one market at a time:
+`--preset <name> --output results/ccc_metrics_<published name>.json` (US_MAJOR, India, XETRA, China,
+HKSE, JPX, Canada, LSE, SIX, STO, KSC, SAO, Taiwan, SES, JSE).
+
+After a rerun, before anything is published: every per-market file the posts read must carry
+`exit_method` equal to the intended mode, and the comparison JSON must hold no `error` entry. A
+`--global` loop catches a market's exception, records it there, and leaves that market's old file on
+disk.
 
 ## Legs files
 
@@ -84,7 +93,7 @@ the last leg arg). `pairs` lists each published book as `{published_cagr_path, l
 dotted paths into the results JSON.
 
 wave1 holds every market leg of cyclical-timing (16), asset-growth (16), fcf-conversion (16),
-cash-conversion (16) and graham-net-net (8), 72 legs. Each mirrors what the topic's own multi-market
+cash-conversion (15) and graham-net-net (8), 71 legs. Each mirrors what the topic's own multi-market
 runner does, so a leg's JSON is the per-market file the global run writes:
 
 - cyclical-timing, asset-growth, fcf-conversion: the `--global` `presets_to_run` list, as
@@ -92,7 +101,8 @@ runner does, so a leg's JSON is the per-market file the global run writes:
   asset-growth and fcf-conversion leave out singapore: their `"SGX"` matches no rows, the run writes
   no file, and nothing is published for it (`EXCHANGE_PRESETS` singapore is `SES`).
 - cash-conversion: `GLOBAL_PRESETS`, as `--preset <name>` (its global loop reads `EXCHANGE_PRESETS`,
-  so canada is TSX+TSXV and singapore is SES).
+  so canada is TSX+TSXV and singapore is SES), minus france: France has almost no CCC data, the run
+  writes an error file and nothing is published.
 - graham-net-net: `run_all_exchanges.py` `EXCHANGES` (backtest.py has no `--global`).
 
 When a topic's market list changes, change its legs to match; `plan` validates the file.
