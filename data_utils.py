@@ -35,7 +35,7 @@ REGIONAL_BENCHMARKS = {
     "TSX": "EWC", "TSXV": "EWC",          # Canada
     "SAO": "EWZ",                          # Brazil
     "SGX": "EWS",                          # Singapore
-    "BMV": "EWW",                          # Mexico
+    "MEX": "EWW", "BMV": "EWW",           # Mexico (FMP profile code is MEX; BMV matches no rows, B039)
     "JSE": "EZA",                          # South Africa
     "SAU": "KSA",                          # Saudi Arabia
     # European exchanges -> Vanguard FTSE Europe
