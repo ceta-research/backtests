@@ -20,6 +20,8 @@ Gates:
  11 PROVENANCE the measured window has a reader, not just a writer
  12 CHARTS     chart inclusion gates on window_truncated too
  13 FUNNEL     every period record carries an entry-knowable, decodable funnel
+ 14 EXITDEFAULT the exit-method default lives only in data_utils; runners and
+               every call into an exit_method signature pass the resolved method
 
 Usage:  python scripts/verify_floor_guard.py
 """
@@ -67,6 +69,12 @@ SCOPE_ALLOW = {
     # Carries period_data through to the combined comparison so one glob covers
     # every topic's per-period book size.
     "magic-formula/run_all_exchanges.py",
+    # Stage B prep: calls run_backtest directly, so it takes --exit-method and passes it.
+    "52-week-low/run_concentration.py",
+    # Stage B prep, B039: FMP files Mexico under MEX, so the preset, risk-free, mktcap and FX
+    # maps key on MEX (BMV kept as an alias).
+    "cli_utils.py",
+    "costs.py",
     # B005 follow-up: hosts entry_usable/entry_buyable/entry_buyable_prices, the
     # entry-knowable count the cash rule is now decided on. Root .py files match
     # none of the allow rules below, so without this entry the scope gate
@@ -389,6 +397,147 @@ def funnel_hits(tree):
             out.append((d.lineno, "screened is None but entry_buyable is not; "
                                   "a period that never screened cannot know "
                                   "how many names were buyable"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# The exit-method default (gate 14). data_utils.DEFAULT_EXIT_METHOD is the one
+# place it lives, so stage B's flip to ltp is a one-line change. One detector
+# per way of breaking that.
+EXIT_METHOD_VALUES = ("drop", "ltp", "both")
+SUBPROCESS_FNS = ("run", "Popen", "call", "check_call", "check_output")
+# Runners that never name the exit method: their children run the data_utils
+# default, so a flip reaches them unedited. Void once the file names it.
+FORWARD_EXEMPT = {
+    "scripts/batch_rerun_diff.py": "takes no --exit-method; children run the data_utils default",
+}
+
+
+def exit_default_hits(tree):
+    """(lineno, why) for an exit-method default set anywhere but data_utils."""
+    out = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute):
+            kw = {k.arg: k.value for k in n.keywords}
+            if n.func.attr == "add_argument" and any(
+                    isinstance(a, ast.Constant) and a.value == "--exit-method" for a in n.args):
+                d = kw.get("default")
+            elif n.func.attr == "set_defaults" and "exit_method" in kw:
+                d = kw["exit_method"]
+            else:
+                continue
+            if d is None or ast.unparse(d).split(".")[-1] != "DEFAULT_EXIT_METHOD":
+                out.append((n.lineno, f"--exit-method default is "
+                                      f"{ast.unparse(d) if d is not None else 'unset'}, "
+                                      "not data_utils.DEFAULT_EXIT_METHOD"))
+        elif (isinstance(n, (ast.Assign, ast.AnnAssign)) and isinstance(n.value, ast.Constant)
+              and n.value.value in EXIT_METHOD_VALUES):
+            targets = n.targets if isinstance(n, ast.Assign) else [n.target]
+            # `mod.DEFAULT_EXIT_METHOD = ...` patches the one source (a test simulating the flip).
+            if any(isinstance(t, (ast.Name, ast.Attribute))
+                   and "exit_method" in ast.unparse(t).lower()
+                   and not (isinstance(t, ast.Attribute) and t.attr == "DEFAULT_EXIT_METHOD")
+                   for t in targets):
+                out.append((n.lineno, f"hardcodes {ast.unparse(n)}"))
+    return out
+
+
+def topic_run_backtest_calls(tree):
+    """run_backtest calls bound to a topic's backtest module by a static import."""
+    names, mods = set(), set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom):
+            if (n.module or "").split(".")[-1] == "backtest":
+                names |= {a.asname or a.name for a in n.names if a.name == "run_backtest"}
+            mods |= {a.asname or a.name for a in n.names if a.name == "backtest"}
+        elif isinstance(n, ast.Import):
+            mods |= {a.asname or a.name for a in n.names if a.name.split(".")[-1] == "backtest"}
+    return [n for n in ast.walk(tree) if isinstance(n, ast.Call) and (
+        (isinstance(n.func, ast.Name) and n.func.id in names)
+        or (isinstance(n.func, ast.Attribute) and n.func.attr == "run_backtest"
+            and ast.unparse(n.func.value) in mods))]
+
+
+def exit_method_calls(tree):
+    """(call, positional index or None) for each call into an exit_method signature: an
+    imported topic run_backtest, or an in-module call (main -> run_single -> run_backtest)."""
+    local = {}
+    for n in ast.walk(tree):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            pos = [a.arg for a in n.args.posonlyargs + n.args.args]
+            if "exit_method" in pos:
+                local[n.name] = pos.index("exit_method")
+            elif any(a.arg == "exit_method" for a in n.args.kwonlyargs):
+                local[n.name] = None
+    imported = topic_run_backtest_calls(tree)
+    return [(n, None) for n in imported] + [
+        (n, local[n.func.id]) for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+        and n.func.id in local and not any(n is c for c in imported)]
+
+
+def implicit_exit_calls(tree):
+    """(lineno, why) for a call that leaves the method to the signature default or a literal."""
+    out = []
+    for n, idx in exit_method_calls(tree):
+        v = next((k.value for k in n.keywords if k.arg == "exit_method"), None)
+        if v is None and idx is not None and len(n.args) > idx:
+            v = n.args[idx]
+        if v is None:
+            out.append((n.lineno, f"calls {ast.unparse(n.func)} without exit_method=; the "
+                                  "signature's default decides, not data_utils.DEFAULT_EXIT_METHOD"))
+        elif isinstance(v, ast.Constant):
+            out.append((n.lineno, f"calls {ast.unparse(n.func)} with exit_method={ast.unparse(v)}, "
+                                  "not the resolved method"))
+    return out
+
+
+def spawns_topic_backtest(tree):
+    """True for a runner: it shells out to `sys.executable ... backtest.py`."""
+    nodes = list(ast.walk(tree))
+    return (any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                and n.func.attr in SUBPROCESS_FNS and ast.unparse(n.func.value) == "subprocess"
+                for n in nodes)
+            and any(isinstance(n, ast.Constant) and isinstance(n.value, str)
+                    and n.value.endswith("backtest.py") for n in nodes)
+            and any(isinstance(n, ast.Attribute) and ast.unparse(n) == "sys.executable"
+                    for n in nodes))
+
+
+def forward_hits(tree):
+    """(lineno, why) for a runner that does not forward --exit-method unconditionally.
+
+    A condition counts when it tests the method against a method name (`!= "drop"`): that
+    omits the flag for a real method. gate_ltp.py's `default` run omits it on purpose.
+    """
+    parent = {c: p for p in ast.walk(tree) for c in ast.iter_child_nodes(p)}
+    sites, out = [], []
+    for n in ast.walk(tree):
+        if not (isinstance(n, ast.Constant) and n.value == "--exit-method"):
+            continue
+        p = parent.get(n)
+        if isinstance(p, ast.Call) and isinstance(p.func, ast.Attribute) and p.func.attr == "add_argument":
+            continue   # a declaration, not a forward
+        sites.append(n)
+    if not sites:
+        return [(0, "builds child commands but never forwards --exit-method")]
+    for n in sites:
+        p = parent.get(n)
+        if isinstance(p, (ast.List, ast.Tuple)):
+            i = p.elts.index(n)
+            nxt = p.elts[i + 1] if i + 1 < len(p.elts) else None
+            if nxt is None or isinstance(nxt, ast.Constant):
+                out.append((n.lineno, "forwards --exit-method "
+                                      f"{ast.unparse(nxt) if nxt is not None else 'with no value'}, "
+                                      "not the resolved method"))
+        while p is not None and not isinstance(p, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Module)):
+            if isinstance(p, (ast.IfExp, ast.If)) and any(
+                    isinstance(c, ast.Constant) and c.value in EXIT_METHOD_VALUES
+                    for c in ast.walk(p.test)):
+                out.append((n.lineno, "forwards --exit-method only under a condition, so "
+                                      "otherwise the child's own default decides"))
+                break
+            p = parent.get(p)
     return out
 
 
@@ -1215,6 +1364,119 @@ def main():
         print(f"    SELF-TEST FAIL: only {records} period records found; the "
               "`stocks_held` anchor has drifted and the gate is near-vacuous")
         fails.append(("gate 13 coverage", records))
+
+    # ---- gate 14: the exit-method default lives in data_utils only
+    #
+    # Stage B flips DEFAULT_EXIT_METHOD to ltp; that must be the whole change.
+    # (a) no other file sets a default. (b) every call into an exit_method
+    # signature passes the resolved method, never a literal: the run_backtest and
+    # run_single defaults stay "drop", so an omitted one ignores the flip while
+    # LtpExits still fills and the JSON still says ltp. That is each topic's own
+    # main -> run_single -> run_backtest chain plus a run_backtest bound by a
+    # static import; test_floor_guard.py loads topics via importlib to drive the
+    # drop path on synthetic data, which this walk does not see. (c) a runner
+    # forwards --exit-method unconditionally: forwarding only when != "drop" lets
+    # the child's default decide, so after the flip an explicit
+    # `--exit-method drop` would run ltp.
+    bad_a, bad_b, bad_c, runners, exempt14, direct14, calls14 = [], [], [], [], [], 0, 0
+    for f in sorted(ROOT.glob("*.py")) + sorted(ROOT.glob("*/*.py")):
+        src = f.read_text()
+        rel = str(f.relative_to(ROOT))
+        # Text pre-filter, as gate 10: four untouched screen.py files do not parse.
+        if not any(k in src for k in ("exit-method", "exit_method", "run_backtest", "subprocess")):
+            continue
+        try:
+            tree = ast.parse(src)
+        except SyntaxError as e:
+            bad_a.append((rel, 0, f"does not parse: {e}"))
+            continue
+        if rel != "data_utils.py":
+            bad_a += [(rel, ln, why) for ln, why in exit_default_hits(tree)]
+        direct14 += len(topic_run_backtest_calls(tree))
+        calls14 += len(exit_method_calls(tree))
+        bad_b += [(rel, ln, why) for ln, why in implicit_exit_calls(tree)]
+        if spawns_topic_backtest(tree):
+            runners.append(rel)
+            if rel in FORWARD_EXEMPT and "exit-method" not in src and "exit_method" not in src:
+                exempt14.append(rel)
+                continue
+            bad_c += [(rel, ln, why) for ln, why in forward_hits(tree)]
+    bad14 = bad_a + bad_b + bad_c
+    print(f"14 EXITDEFAULT {len(bad_a)} defaults set outside data_utils.py; "
+          f"{len(runners) - len(exempt14) - len({r for r, _, _ in bad_c})}"
+          f"/{len(runners) - len(exempt14)} runners forward --exit-method unconditionally; "
+          f"{calls14 - len(bad_b)}/{calls14} calls into an exit_method signature pass the "
+          f"resolved method ({direct14} via import) (exempt: {exempt14})")
+    for b in bad14:
+        print("    EXIT DEFAULT:", b)
+    fails += [("exit-method default", b) for b in bad14]
+    # SELF-TESTS. Positive controls are the shapes this gate was written
+    # against, verbatim; negative controls are the fixed forms.
+    p14 = {
+        "runner-local default": (exit_default_hits,
+            'ap.add_argument("--exit-method", choices=("drop", "ltp", "both"), default="drop")\n'),
+        "hardcoded constant": (exit_default_hits, 'EXIT_METHOD = "drop"\n'),
+        "second DEFAULT_EXIT_METHOD": (exit_default_hits, 'DEFAULT_EXIT_METHOD = "drop"\n'),
+        "set_defaults literal": (exit_default_hits, 'ap.set_defaults(exit_method="ltp")\n'),
+        "run_concentration call": (implicit_exit_calls,
+            "import backtest as bt\n"
+            "r = bt.run_backtest(con, d, m, use_costs=True, benchmark_symbol='SPY')\n"),
+        "ltp object without the method": (implicit_exit_calls,
+            "from backtest import run_backtest\nr = run_backtest(con, d, ltp=ltp)\n"),
+        "imported call with a literal method": (implicit_exit_calls,
+            'import backtest as bt\nr = bt.run_backtest(con, d, ltp=ltp, exit_method="drop")\n'),
+        "in-module call without the method": (implicit_exit_calls,
+            'def run_backtest(con, exit_method="drop"):\n    pass\n'
+            "def main():\n    run_backtest(con)\n"),
+        "in-module call with a positional literal": (implicit_exit_calls,
+            'def run_single(ex, exit_method="drop"):\n    pass\nrun_single(ex, "ltp")\n'),
+        "conditional forward (IfExp)": (forward_hits,
+            'cmd = [sys.executable, S] + (["--exit-method", M] if M != "drop" else [])\n'),
+        "conditional forward (if)": (forward_hits,
+            'cmd = [sys.executable, S]\nif m != "drop":\n    cmd += ["--exit-method", m]\n'),
+        "no forward at all": (forward_hits, 'cmd = [sys.executable, S, "--preset", p]\n'),
+        "literal value forwarded": (forward_hits,
+            'cmd = [sys.executable, S, "--exit-method", "drop"]\n'),
+    }
+    for label, (fn, src) in p14.items():
+        if not fn(ast.parse(src)):
+            print(f"    SELF-TEST FAIL: gate 14 no longer flags the {label} form")
+            fails.append(("gate 14 probe", label))
+    n14 = {
+        "add_exit_method_arg": (exit_default_hits, "add_exit_method_arg(ap)\n"),
+        "default=DEFAULT_EXIT_METHOD": (exit_default_hits,
+            'ap.add_argument("--exit-method", default=data_utils.DEFAULT_EXIT_METHOD)\n'),
+        "legacy-file fallback": (exit_default_hits, 'm = d.get("exit_method", "drop")\n'),
+        "test patching the one source": (exit_default_hits,
+            'data_utils.DEFAULT_EXIT_METHOD = "ltp"\n'),
+        "explicit exit_method=": (implicit_exit_calls,
+            "import backtest as bt\nr = bt.run_backtest(con, d, ltp=ltp, exit_method=m)\n"),
+        "unrelated run_backtest": (implicit_exit_calls,
+            "import batch_rerun_diff as brd\nr = brd.run_backtest('t', preset='us')\n"),
+        "in-module call threading the parsed method": (implicit_exit_calls,
+            'def run_backtest(con, exit_method="drop"):\n    pass\n'
+            "def main():\n    run_backtest(con, exit_method=args.exit_method)\n"),
+        "in-module positional pass": (implicit_exit_calls,
+            'def run_single(ex, exit_method="drop"):\n    pass\nrun_single(ex, exit_method)\n'),
+        "unconditional forward": (forward_hits,
+            'cmd = [sys.executable, S, "--exit-method", M]\nif v:\n    cmd.append("--verbose")\n'),
+        "forward under the __main__ guard": (forward_hits,
+            'if __name__ == "__main__":\n    cmd = [sys.executable, S, "--exit-method", M]\n'),
+        "gate_ltp's deliberate no-flag `default` run": (forward_hits,
+            'cmd = [sys.executable, S, *([] if mode == "default" else ["--exit-method", mode])]\n'),
+    }
+    for label, (fn, src) in n14.items():
+        if fn(ast.parse(src)):
+            print(f"    SELF-TEST FAIL: gate 14 flags the {label} form, which is CORRECT")
+            fails.append(("gate 14 false positive", label))
+    # Coverage, measured: 6 topic runners + batch_rerun_diff; dogs-of-dow,
+    # interest-coverage and 52-week-low/run_concentration call run_backtest;
+    # 186 calls in all into an exit_method signature, across 78 files.
+    if len(runners) < 7 or direct14 < 3 or calls14 < 175:
+        print(f"    SELF-TEST FAIL: found {len(runners)} runners, {direct14} imported "
+              f"run_backtest calls and {calls14} exit_method calls; the walk has probably "
+              "stopped matching")
+        fails.append(("gate 14 coverage", (len(runners), direct14, calls14)))
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")
