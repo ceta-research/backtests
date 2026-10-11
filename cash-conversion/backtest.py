@@ -51,7 +51,7 @@ START_YEAR = 2000
 END_YEAR = 2025
 
 GLOBAL_PRESETS = [
-    "us", "india", "germany", "china", "hongkong", "canada",
+    "us", "india", "germany", "china", "hongkong", "japan", "canada",
     "uk", "switzerland", "sweden", "korea", "brazil",
     "taiwan", "singapore", "southafrica", "france",
 ]
@@ -124,7 +124,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_price's [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 

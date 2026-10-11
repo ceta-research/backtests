@@ -210,7 +210,7 @@ def screen_sectors(con, target_date, n_worst=N_WORST_SECTORS):
         ),
         sector_stats AS (
             SELECT sector,
-                   AVG(return_12m) AS avg_sector_return,
+                   AVG(return_12m ORDER BY symbol) AS avg_sector_return,
                    COUNT(*) AS n_stocks
             FROM stock_returns
             WHERE return_12m BETWEEN -0.99 AND {SECTOR_RETURN_MAX}

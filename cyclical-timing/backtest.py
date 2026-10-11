@@ -142,7 +142,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
@@ -666,6 +666,7 @@ def main():
             ("switzerland", ["SIX"]),
             ("brazil", ["SAO"]),
             ("southafrica", ["JNB"]),
+            ("saudi", ["SAU"]),
         ]
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)

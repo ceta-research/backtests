@@ -340,22 +340,23 @@ def compute_rsi(con, target_date, quality_symbols):
               AND symbol IN ({sym_list})
         ),
         with_changes AS (
-            SELECT symbol,
+            SELECT symbol, rn,
                    adjClose - LEAD(adjClose) OVER (PARTITION BY symbol ORDER BY rn) as change
             FROM recent_prices
             WHERE rn <= 15
         ),
         gain_loss AS (
-            SELECT symbol,
+            SELECT symbol, rn,
                    CASE WHEN change > 0 THEN change ELSE 0 END as gain,
                    CASE WHEN change < 0 THEN -change ELSE 0 END as loss
             FROM with_changes
             WHERE change IS NOT NULL
         ),
         avg_gl AS (
+            -- ordered so twins tie exactly: an unordered parallel AVG varies in its last bits run to run
             SELECT symbol,
-                   AVG(gain) as avg_gain,
-                   AVG(loss) as avg_loss,
+                   AVG(gain ORDER BY rn) as avg_gain,
+                   AVG(loss ORDER BY rn) as avg_loss,
                    COUNT(*) as n_periods
             FROM gain_loss
             GROUP BY symbol

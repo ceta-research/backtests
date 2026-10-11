@@ -49,6 +49,7 @@ from cli_utils import (add_common_args, resolve_exchanges, print_header,
 HIGH_WINDOW_DAYS = 365       # Calendar days for 252 trading day window
 HIGH_WINDOW_FETCH = 390      # Days before rebalance to fetch prices (252td + buffer)
 MIN_HISTORY_ROWS = 100       # Minimum trading days required to compute valid 52w high
+SIGNAL_TOLERANCE_DAYS = 10   # Signal bar = latest bar in [R - 10d, R]; covers weekends + year-end holidays
 MAX_STOCKS = 30              # Top N by proximity, equal weight
 MIN_STOCKS = 10              # Hold cash if fewer qualify
 DEFAULT_FREQUENCY = "quarterly"
@@ -208,7 +209,9 @@ def compute_proximity(con, symbols, target_date):
         return []
 
     start_epoch = utc_epoch(target_date - timedelta(days=HIGH_WINDOW_FETCH))
-    target_epoch = utc_epoch(target_date + timedelta(days=5))
+    # Signal reads only bars on/before R; entry is the first bar from R+1, so no bar after entry leaks in.
+    target_epoch = utc_epoch(target_date)
+    signal_floor_epoch = utc_epoch(target_date - timedelta(days=SIGNAL_TOLERANCE_DAYS))
 
     sym_list = ",".join(f"'{s}'" for s in symbols)
 
@@ -232,6 +235,7 @@ def compute_proximity(con, symbols, target_date):
             SELECT symbol, adjClose, high_52w, row_count
             FROM windowed
             WHERE trade_epoch <= {target_epoch}
+              AND trade_epoch >= {signal_floor_epoch}
             QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch DESC, adjClose DESC NULLS LAST) = 1
         )
         SELECT
