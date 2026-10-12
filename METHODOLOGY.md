@@ -32,7 +32,7 @@ All backtests in this repo share a common structure:
 6. **Aggregate** to annual/cumulative metrics
 7. **Compare** to benchmark(s)
 
-**Determinism:** Same data + same parameters = same results. All code is open source. Any user with a Ceta Research API key can reproduce our findings.
+**Determinism:** Same data + same parameters = same results. That has held since 2026-10-10, not before; see [Reproducibility](#reproducibility). All code is open source. Any user with a Ceta Research API key can reproduce our findings.
 
 **Data source:** Financial Modeling Prep (FMP) data warehouse, accessed via Ceta Research's SQL API:
 - Income statements, balance sheets, cash flow statements (1985-present, varies by exchange)
@@ -53,6 +53,13 @@ Securities are sourced from the `profile` table, which contains approximately 71
 - Each strategy specifies target exchanges (e.g., NYSE+NASDAQ+AMEX for US-focused strategies)
 - See [Exchange Data Coverage](#exchange-data-coverage) below for complete exchange list and data quality
 
+**Listing rules (applied when a topic is rerun with last-traded-price exits):**
+- XETRA legs hold Germany-domiciled companies only, and SIX legs Switzerland-domiciled companies only.
+- LSE legs hold lines quoted in pence (GBp) only. That drops the `0XXX.L` lines of foreign companies (carried in their home currency) and USD or EUR depositary receipts, and keeps LSE-primary companies registered abroad that quote in pence, such as Experian, Coca-Cola HBC and Wizz Air.
+- On every leg, a security listed under more than one ticker (same ISIN) is held once: the line buyable at entry wins, then a line still marked as actively trading, then the line quoted in the market's own currency (CAD over USD on TSX, HKD over CNY on HKSE), then the alphabetically first symbol. This happens before the top-N cut, so the freed slot goes to the next-ranked name. Share classes have their own ISINs and stay.
+- Why: foreign companies' secondary listings, mostly US large caps, made up 74-78% of XETRA "Germany" holdings on average, and at least half in every invested year. SIX books were 22-34% foreign on average, and LSE books 51-81% foreign lines on average from 2018. Those returns belonged to the listing venue, not to German, Swiss or UK companies. Stockholm is left as listed: its books are almost entirely domestic, and a country filter would drop ABB, AstraZeneca and Nokia.
+- The code applies these rules in cyclical-timing, asset-growth, fcf-conversion, cash-conversion and graham-net-net, the first rerun wave; a results file carries `listing_filter` and `isin_dedup` keys once its topic has been rerun on them, and one without them predates the rules. Other topics haven't been changed yet: their XETRA, SIX and LSE legs still hold every listed line. Caveats in DATA_QUALITY_ISSUES.md (Exchange-listed universes are not domicile universes).
+
 **Market capitalization filter:**
 - Strategy-specific minimum, typically $100M - $1B
 - Prevents micro-cap illiquidity and data quality issues
@@ -71,13 +78,13 @@ To be included in a backtest at a given rebalance date, a stock must have:
 2. **Price data** for return calculation:
    - Daily EOD prices in `historical_price_full` table
    - Adjusted for splits and dividends (`adjClose` field)
-   - Must have a price in a 10-day forward window from each rebalance date (15 days in pairs-fundamentals), taking the first available price. Under the default next-day execution the window starts the day after the rebalance date. The exit price at the end of the period uses the same forward-only window.
+   - Must have a price in a 10-day forward window from each rebalance date (15 days in pairs-fundamentals), taking the first available price. Under the default next-day execution the window starts the day after the rebalance date. The exit price at the end of the period uses the same window. A held name with no price in it exits at its last traded price under the default `--exit-method ltp`, and is dropped from the period under `--exit-method drop`, the rule results produced before a topic's rerun used (see [Survivorship Bias](#survivorship-bias)).
 
 3. **Price sanity filters** (applied per holding, per period, in the periodic-rebalance portfolio topics; pairs topics and event studies use their own rules):
    - **Minimum entry price** (`min_entry_price`, 1.0 in most topics, 0.50 in a few; qarp, low-pe and the topics that don't use `filter_returns` apply none). It's compared to `adjClose` in the exchange's own price units, sub-units included: most LSE lines quote in pence (GBp), JNB in cents (ZAc), TLV in agorot. It's meant as a guard against zero, near-zero and broken prices, not a US$1 rule. Company size is handled by the market-cap filter above, and price spikes by the oscillation filter ([Price Data Quality](#price-data-quality-fmp-eod-anomalies)) and the return cap below. A US$1-equivalent floor was rejected because it would remove large caps in years when their shares traded below US$1, which ICBC, PetroChina and Lloyds all have. One side effect in early years: `adjClose` is back-adjusted for later splits and dividends. On 2003-01-02 the dividend part alone puts the median NYSE and NASDAQ name at 0.52-0.56x its split-adjusted close, and names that split heavily afterwards sit far lower (AAPL 0.22, NVDA 0.09, AMZN 0.98), so a 1.0 floor drops them from early rebalances. Whether a name clears the floor then depends on splits after the rebalance date, which is a look-ahead element.
    - **Maximum single return** (`max_single_return`, 200% per rebalance period in most topics, 300% in small-cap, small-value and trending-value; qarp, low-pe and sector-correlation apply none). A holding whose period return exceeds it is dropped as a likely price artifact. It's upside-only: large losses are kept.
 
-**Survivorship bias:** Partly mitigated. In most topics delisted companies stay in the data, so a company that was later acquired or went bankrupt can still be *selected* at any rebalance date before it stopped trading. The exceptions are dcf-discount, defensive-quality and the three pairs topics (pairs-zscore, pairs-multi-pair, pairs-fundamentals): they build their universe from currently active listings (`isActivelyTrading = true`), so delisted names can't be selected at all. Exits aren't handled the same way as selection. A holding with no price in the 10-day window after the exit date is dropped from that period, so the period return is the average of the names that still trade. A delisting to zero therefore counts as nothing rather than -100%, and an acquisition premium counts as nothing too. pairs-zscore and pairs-multi-pair instead close open positions at the last common trading bar, within their currently-listed universe. Details under [Limitations: Survivorship Bias](#survivorship-bias). Open issue, tracked in DATA_QUALITY_ISSUES.md (Exit-side survivorship).
+**Survivorship bias:** Partly mitigated. In most topics delisted companies stay in the data, so a company that was later acquired or went bankrupt can still be *selected* at any rebalance date before it stopped trading. The exceptions are dcf-discount, defensive-quality and the three pairs topics (pairs-zscore, pairs-multi-pair, pairs-fundamentals): they build their universe from currently active listings (`isActivelyTrading = true`), so delisted names can't be selected at all. On the exit side, a holding with no price in the 10-day window after the exit date exits at its last traded price on or before the exit date (`--exit-method ltp`, the default), so a company that traded down before delisting counts its loss and an acquired one counts its last price. Under the older rule (`--exit-method drop`) such a holding was dropped from the period, so the period return averaged the names that still traded. A holding with no bar between its entry and the exit date is dropped either way. pairs-zscore and pairs-multi-pair instead close open positions at the last common trading bar, within their currently-listed universe. Committed results produced before a topic's rerun used the drop rule. Details, and how to tell which rule a results file used, under [Limitations: Survivorship Bias](#survivorship-bias).
 
 **Look-ahead bias:** Mitigated by using `filing_date` (when the financial statement was filed with regulators) rather than `period_end_date` (when the fiscal period ended). For US companies, 10-K/10-Q filings occur 60-90 days after period end. Using `filing_date` ensures we only use information publicly available to investors at the rebalance date. Screening queries filter `WHERE filing_date <= rebalance_date - 45 days`.
 
@@ -600,15 +607,23 @@ python3 qarp/backtest.py --risk-free-rate 0.04
 
 ### Survivorship Bias
 
-**Status:** Mitigated for selection in most topics, not for exits
+**Status:** Mitigated for selection in most topics, and for exits in results produced with last-traded-price exits
 
 **Selection:** FMP data includes delisted stocks with historical financial statements. When a company is acquired, goes bankrupt, or otherwise stops trading, its history stays in the warehouse, so in most topics it can be picked at any rebalance date before it stopped trading. dcf-discount, defensive-quality, pairs-zscore, pairs-multi-pair and pairs-fundamentals are the exceptions: they filter the universe to currently active listings (`isActivelyTrading = true`), which excludes delisted names entirely and carries full survivorship bias on the selection side.
 
-**Exits:** The exit price is the first price in the 10-day forward window after the exit date. Nothing looks backward. A holding with no price in that window (delisted, acquired, or a coverage gap) is dropped from the period, and the period return is the average of the holdings that still trade. This applies to the periodic-rebalance portfolio backtests (around 80 topics). pairs-zscore and pairs-multi-pair are different: they close open positions at the last common trading bar, within a universe that's already limited to currently listed names. Event studies use their own return windows and aren't covered here. Two related rules:
-- Holdings with a period return above `max_single_return` are dropped (200% in most topics, 300% in small-cap, small-value and trending-value; qarp, low-pe and sector-correlation apply no cap), while losses of any size are kept. This can remove genuine acquisition premiums.
-- If every holding in a period loses its exit price or trips the return cap, the period records 0% and is counted as a cash period.
+**Exits:** The exit price is the first price in the 10-day forward window after the exit date. Under `--exit-method ltp`, a holding with no price in that window (delisted, acquired, or a coverage gap) exits at its last traded price: the last `adjClose`, cleaned by the same oscillation filter as the topic's other prices, after its entry bar and on or before the exit date, or on or before its delisting date plus 7 days if that's earlier. A delisting more than 30 days before the entry bar belongs to an earlier holder of the ticker and is ignored. A holding with no bar in that window is still dropped, and the period return is the average of the rest. A filled exit goes through the same entry floor, return cap and costs as any other. LTP is wired into the periodic-rebalance portfolio backtests (75 topics). pairs-zscore and pairs-multi-pair are different: they close open positions at the last common trading bar, within a universe that's already limited to currently listed names. Event studies use their own return windows and aren't covered here.
 
-**Direction:** Mixed and not yet measured on published results. Dropping a bankrupt holding flatters returns; dropping an acquired one (and the return cap) understates them. Open issue, tracked in DATA_QUALITY_ISSUES.md (Exit-side survivorship).
+`--exit-method drop|ltp|both` picks the rule, and `ltp` is the default. Rerun topics carry `"exit_method": "ltp"` in their results; a committed results file with no `exit_method` key predates the change and used drop exits, until its topic is rerun. `drop` is the old rule, which drops every holding without an exit price. It doesn't reproduce old numbers, because selection changed at the same time (see [Reproducibility](#reproducibility) and the listing rules under [Universe Construction](#universe-construction)). `both` publishes the drop numbers and reports the LTP numbers beside them.
+
+**Which results use it:** a topic rerun with last-traded-price exits writes `"exit_method": "ltp"` in its results JSON and lists every fill (symbol, entry bar, last bar, price, delisting date) under the `ltp` key. The first wave is cyclical-timing, asset-growth, fcf-conversion, cash-conversion and graham-net-net; later waves follow. A results file with no `exit_method` key used drop exits, and that's every committed results file until its topic is rerun, the first wave's included.
+
+Rules that still apply:
+- Holdings with a period return above `max_single_return` are dropped (200% in most topics, 300% in small-cap, small-value and trending-value; qarp, low-pe and sector-correlation apply no cap), while losses of any size are kept. This can remove genuine acquisition premiums, filled exits included.
+- Under `ltp`, a holding whose trading stopped before its price reached zero exits at its last trade, not at -100%, so a total loss is understated wherever trading stopped first.
+- The delisting bound needs a delisting record. Most LSE fills have none, so there the window runs to the exit date.
+- If every holding in a period ends up without an exit price or trips the return cap, the period records 0% and is counted as a cash period. Under `ltp` a period whose names all lost their exit prices can count as invested rather than cash, because fills give it holdings and the cash and invested counts read `stocks_held`.
+
+**Direction:** Strategy-specific. Measured 2026-10-09 on eight legs with both methods in one run, on the books before the listing rules, ISIN dedup and graham-net-net's NCAV currency fix (so the graham-net-net figures describe books that no longer exist), the largest moves were -0.99pp CAGR (graham-net-net, LSE), +0.72pp (52-week-high, US) and -0.59pp (graham-net-net, US). Distress and net-net books lose, because their dead names were real losses. US momentum gains, because acquired names that sat flat through bad quarters count under LTP. History in DATA_QUALITY_ISSUES.md (Exit-side survivorship).
 
 **Limitation:** Very old delistings (pre-1990) may have incomplete financial statement history. The earlier the backtest start date, the higher the potential survivorship bias.
 
@@ -674,7 +689,7 @@ Returns are denominated in the local currency of the exchange:
 
 **Dividends:** Included via `adjClose` field in `historical_price_full`. Dividends are assumed reinvested at the ex-dividend date closing price (implicitly captured by the adjustment factor).
 
-**Corporate actions:** Splits, reverse splits, spinoffs handled via `adjClose` price adjustments, assuming continuity of ownership. A holding that's acquired or delisted mid-period isn't carried through: it's dropped from that period (see [Survivorship Bias](#survivorship-bias)).
+**Corporate actions:** Splits, reverse splits, spinoffs handled via `adjClose` price adjustments, assuming continuity of ownership. A holding that's acquired or delisted mid-period isn't carried through: by default (`--exit-method ltp`) it exits at its last traded price, or is dropped if it has no bar to exit at; results produced before a topic's rerun dropped it from that period (see [Survivorship Bias](#survivorship-bias)).
 
 ### Financial Statement Timing
 
@@ -711,6 +726,8 @@ FMP's EOD price data contains phantom rows on non-trading days (exchange holiday
 
 **Mitigation:** Regional benchmarks (EWJ, INDA, etc.) provide a more appropriate comparison for non-US strategies. Both comparisons are reported.
 
+**Dividends in local index benchmarks:** Topics that compare a market with its own index use `data_utils.LOCAL_INDEX_BENCHMARKS`. Four of those series are total return, like the portfolio's dividend-adjusted `adjClose`: SPY, the DAX (`^GDAXI`), the Ibovespa (`^BVSP`) and the Oslo All-share GR (`^OSEAX`). The rest (Sensex, FTSE 100, Nikkei 225, Hang Seng, KOSPI, TAIEX, SSE Composite, OMX Stockholm 30, SMI, SET, TSX Composite, STI, ASX 200) are price indices that leave dividends out, so excess return against them is overstated by roughly the index's dividend yield.
+
 ---
 
 ## Reproducibility
@@ -725,9 +742,11 @@ To reproduce any result in this repository:
 4. **Set API key:** `export CR_API_KEY="your_key_here"`
 5. **Run backtest:** `python3 qarp/backtest.py` (or any other strategy)
 
-**Determinism:** All randomness eliminated. Portfolio holdings are fully deterministic based on:
-- SQL `ORDER BY` clauses (stable sort order)
-- Tie-breaking: If two stocks have identical scores, SQL engine sorts by symbol alphabetically (stable)
+**Determinism:** Since 2026-10-10, two runs on the same data select the same holdings and produce the same results:
+- Every ordering in the selection path is a total order. Top-N cuts end on the symbol (ascending), and latest-row picks break ties on the values they go on to read.
+- Date bounds are built at UTC midnight, the same as the price bars.
+
+Before that, neither held. The SQL engine runs in parallel and broke ties differently from run to run: twin listings with identical fundamentals tied at the top-N cut, and duplicate filings tied in latest-row picks. Date bounds were built from the machine's local time, so which bars fell inside a window moved with its timezone and daylight saving. On 28 legs run twice on identical data, 4 differed, by up to 0.58pp CAGR, and one flipped a whole year between cash and invested. Committed results produced before 2026-10-10 can carry that noise until rerun.
 
 **Data versioning:** Financial data in Ceta Research updates nightly as companies file new reports or restate historical data. To guarantee exact reproduction:
 - Note the date you ran the backtest
@@ -738,12 +757,12 @@ To reproduce any result in this repository:
 
 ### Expected Variations
 
-Minor variations (<0.1% CAGR) may occur due to:
+Runs on different dates can differ because of:
 - Financial restatements by companies
 - Exchange membership changes (stocks moving between NASDAQ/NYSE)
 - Price data corrections
 
-These are unavoidable in live data and do not indicate methodology issues.
+These are unavoidable in live data and do not indicate methodology issues. They grow with the time between runs. A difference between two runs on the same day and the same code means the data changed between the fetches.
 
 ---
 

@@ -340,7 +340,7 @@ def report(legs, out_dir, checks, with_ltp=False, det_mode=DEFAULT_EXIT_METHOD):
         if "det" in checks:
             probs += check_det(r[det_mode], r[det_mode + ".rep"], det_mode)
         if "flip" in checks:
-            probs += check_flip(r["default"], r[DEFAULT_EXIT_METHOD])
+            probs += check_flip(r["default"], r[DEFAULT_EXIT_METHOD], DEFAULT_EXIT_METHOD)
         secs = {run: (load(run_path(out_dir, g, run)[:-5] + ".meta.json") or {}).get("seconds") for run in r}
         rows.append({"topic": g["topic"], "leg": g["leg"], "leg_args": g["leg_args"], "deltas": deltas,
                      "problems": probs, "seconds": secs})

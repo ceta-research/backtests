@@ -2,7 +2,7 @@
 
 Known data quality issues affecting backtests. All strategies in this repo are affected unless noted otherwise.
 
-Last updated: 2026-03-09
+Last updated: 2026-10-12
 
 ---
 
@@ -287,8 +287,9 @@ instruments and is **clean on both**:
 | price-to-sales STO (90 invested periods) | 10.65 / 10.69% | 10.36% | **-0.31pp** | 90 -> 90, unchanged |
 | fcf-yield STO (thinly invested) | 0.92% | 0.23% | -0.69pp | 5 -> 3 of 25 |
 
-Two as-listed figures are shown because **these backtests are not deterministic**: see
-the note below. The delta is roughly 8x the run-to-run noise, so it is real but small.
+Two as-listed figures are shown because **these backtests were not deterministic** when
+this was measured (fixed 2026-10-10, see the note below). The delta is roughly 8x the
+spread measured on this screen, so it is real but small.
 
 Neither flips sign. The price-to-sales run is the reliable one: 90 invested
 periods before and after, so the screen still fills entirely from domestic
@@ -424,10 +425,10 @@ generalises to any topic that writes per-event CSVs. SQL-only version is Q9 in
 `pre-earnings`, `beat-streaks`, `stock-split`, `index-recon`, `ma-arbitrage`,
 `spinoff`.
 
-### Backtests are not bit-reproducible (found 2026-08-13)
+### Backtests were not bit-reproducible until 2026-10-10 (found 2026-08-13)
 
-Running the same backtest twice with identical arguments does not give the same number.
-Measured on `price-to-sales --preset sweden`, three runs minutes apart:
+Running the same backtest twice with identical arguments did not give the same number.
+First measured on `price-to-sales --preset sweden`, three runs minutes apart:
 
 | Run | CAGR |
 |-----|------|
@@ -435,27 +436,140 @@ Measured on `price-to-sales --preset sweden`, three runs minutes apart:
 | post-edit code, domicile OFF | 10.65% |
 | post-edit code, domicile OFF, repeat | 10.69% |
 
-**Spread 0.04pp across identical configurations.** The stored
-`exchange_comparison.json` for the same screen says 10.96%, a further -0.29pp away, so
-published figures do not reproduce exactly either. Invested periods and the benchmark
-series were identical in every run, so this is not a universe or benchmark difference.
+That spread was 0.04pp, with invested periods and the benchmark series identical in
+every run. It was not the ceiling. On 2026-10-09, 28 legs were run twice on identical
+code minutes apart: 24 matched and **4 differed, by up to 0.58pp CAGR**. asset-growth
+LSE alternated between 6.04% and 6.62% over four runs, because its 2000 rebalance found
+9 or 10 buyable names of 30 against a 10-stock floor, so the whole year flipped between
+cash and invested. A leg sitting at its stock floor turns a one-name wobble into a cash
+year.
+
+**Cause.** The fetched data was identical; the selection wasn't.
+
+1. **Ties in orderings that were not total.** DuckDB runs a query in parallel and breaks
+   `ORDER BY` ties differently from run to run. Twin listings with identical
+   fundamentals (SET `-R` NVDR lines, share classes, one company listed twice) tied
+   exactly at the top-N cut, so a tie group straddling rank N picked arbitrary names.
+   Latest-row dedups (`ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch
+   DESC) = 1`) kept an arbitrary row when two filings shared an epoch.
+2. **Local-time date bounds.** Window bounds were built from the machine's local
+   midnight while bar epochs are UTC midnight, so which bars fell inside a window moved
+   with the machine's timezone and daylight saving.
+
+**Fix (2026-10-10).** Every ordering in the selection path is now a total order: top-N
+cuts end on `symbol`, latest-row dedups break ties on the value columns they go on to
+read, price picks break ties on `adjClose`, and rounded float aggregates that feed a
+ranking are computed exactly. Epoch bounds use `data_utils.utc_epoch()`. Orderings that
+were already total, cut sizes and thresholds are unchanged. The rules are D1-D4 in
+`scripts/LTP_GATE.md`, whose `det` check runs a leg twice and requires identical JSON.
 
 Two consequences:
 
-1. **A difference under ~0.05pp is noise, not a finding.** Do not attribute it to a code
-   change without re-running both arms more than once. This is how the domicile port to
-   `price-to-sales` was cleared: the 0.03pp gap against pre-edit code looked like a
-   regression until a repeat run landed on the other side of it.
-2. **Published numbers drift.** The -0.29pp gap between the stored result and a fresh
-   rerun is larger than the noise floor and is a separate, unexplained issue. Do not
-   silently "correct" a blog to a fresh rerun without establishing which is right.
+1. **On current code, a rerun on the same data reproduces exactly.** A difference
+   between two same-day runs of the same code means the data changed between the
+   fetches: compare the logged row and symbol counts before suspecting the code. The old
+   rule here, "a difference under ~0.05pp is noise", no longer applies, and it was too
+   tight for older code anyway: results committed before 2026-10-10 can carry tie-order
+   noise of the 0.58pp size above.
+2. **Published numbers drift.** The stored `exchange_comparison.json` for the Sweden
+   screen above says 10.96%, 0.29pp away from the reruns. That gap was never attributed
+   and could include tie-order noise, but data restatement and backfill between runs
+   move numbers on their own, by more the longer the gap. Do not silently "correct" a
+   blog to a fresh rerun without establishing which is right.
 
 Shared helpers now live in `data_utils.py`: `EXCHANGE_COUNTRY` (36 exchanges),
 `domicile_countries()` and `domicile_sql_condition()`. `--domicile-filter` is
 implemented on `fcf-yield` and `price-to-sales`; 84 of 93 topics share the
 identical `exchange IN ({ex_filter})` universe filter, so porting it further is
 a mechanical edit rather than per-backtest work. It stays opt-in and default
-OFF; **no published result uses it.**
+OFF in those two topics, and no published result of theirs uses it. The topics
+rerun with last-traded-price exits apply a home-country rule automatically
+instead, on XETRA and SIX legs; see the next subsection.
+
+### Rerun topics apply listing rules on XETRA, SIX and LSE (2026-10)
+
+When a topic is rerun with last-traded-price exits it no longer treats these exchanges as
+listed universes. The code applies this in the first wave (cyclical-timing, asset-growth,
+fcf-conversion, cash-conversion and graham-net-net); their committed results predate it
+until the rerun lands, and carry `listing_filter` / `isin_dedup` keys once it has:
+
+| Leg | Rule | Measured on the previous runs' holdings |
+|---|---|---|
+| XETRA | Germany-domiciled companies only | 74-78% foreign lines; 50% or more in every invested year |
+| SIX | Switzerland-domiciled companies only | 22-34% foreign on average, mostly 2015-2019 |
+| LSE | lines quoted in pence (GBp) only | 51-81% foreign lines on average from 2018 |
+| every leg | one line per ISIN | the same security held twice under two tickers |
+
+**XETRA and SIX.** The most-held XETRA names were US large caps: P&G, General Mills
+and Pfizer in asset-growth; F5, American Express and Autodesk in fcf-conversion; UPS,
+Lockheed and Boeing in cyclical-timing. A disclosure can't fix a book whose market label
+is wrong. SIX also held lines quoted in USD or EUR against the CHF-denominated SMI. On
+these two exchanges `profile.country` and a primary-listing rule disagree on under 2% of
+holdings, so the existing domicile condition is used.
+
+**LSE: pence, not country.** `country IN ('GB')` fails both ways on LSE. It drops
+LSE-primary companies registered abroad (Experian, Coca-Cola HBC, Wizz Air, Plus500,
+TP ICAP: 7-9% of lines in the three ranked topics) and keeps foreign lines that carry
+country GB (Willis Towers Watson's `0Y4Q.L`). The quote-currency rule drops the
+`0XXX.L` lines, which FMP carries in the home currency, and the USD and EUR depositary
+receipts, and keeps every pence-quoted line. Pence does not mean UK: BHP, Glencore and
+Wheaton lines quoted in GBp stay. It also empties most of graham-net-net's old LSE
+book, where 136 of 143 visible lines were not pence-quoted and 85 had a quote currency
+different from the reporting currency (Halyk Bank, Samsung, Kazatomprom), where the old
+screen compared price and NCAV in two currencies. Before 2018 the LSE books looked
+domestic mainly because the foreign lines had no prices yet.
+
+**graham-net-net: NCAV in the price's unit (every leg).** The rerun screen also restates
+`grahamNetNet` (in `key_metrics.reportedCurrency`) in the unit of `adjClose`
+(`profile.currency`): x100 on sub-unit quotes (GBp, ZAc, ILA), and the newest USDxxx
+close at most 7 days old on or before the price bar when the currencies differ. So
+pence lines are no longer screened against pounds (100x too strict), and its HKSE, TSX
+and US books change through FX. A line with no currency on either side, no fresh rate,
+or a depositary receipt (`profile.isAdr`) quoted in a currency other than its reporting
+currency is dropped, not compared raw, and counted in `ncav_ccy_excluded` (receipts
+separately). Receipts go because FMP's per-share basis for them is mixed: against their
+home lines it's per receipt for TSM, PKX and RDY but 1.7-2.2x off for TAK and CAJ, and
+the converted US top 30 picked up CMCM and CCM at 0.01-0.26x NCAV (8 line-years over
+2001-2024). Receipts in their reporting currency (Amarin, Formula Systems) stay and carry
+the same unverified basis as before.
+
+Not fixed yet:
+- `graham-net-net/screen.py`, the live screen, still compares `adjClose` with
+  `grahamNetNetTTM` across currencies.
+- graham-net-net's `km.marketCap` size floor is in the reporting currency, compared with
+  listing-currency thresholds.
+- cyclical-timing's expansion signal counts same-ISIN twins twice (the signal, not the
+  holdings).
+- A reused ticker can carry its current holder's ISIN across the previous company's
+  whole price history (OSG bars are Overseas Shipholding but carry Ambac's ISIN; ACH bars
+  are the Aluminum Corp of China ADR but carry Owens & Minor's). If both lines pass the
+  same screen on the same date, the ISIN rule treats two companies as one.
+
+**Same security, two tickers.** One ISIN keeps one line, before the top-N cut, so a
+collapsed twin frees its slot for the next name. Per ISIN, the line buyable at entry
+wins, then the one `profile` still marks as actively trading (a retired ticker's bars
+stop at the rename), then the one quoted in the market's own currency (TSX HOM-UN.TO
+over HOM-U.TO, HKSE 9988.HK over 89988.HK), then the alphabetically first symbol.
+Pairs held twice before:
+DHL.DE/DPW.DE, BBVA.DE/BOY.DE, DUFN.SW/AVOL.SW, 888/EVOK, BTRW/BDEV, and BC94/SMSN
+(Samsung, 10 graham-net-net periods). Share classes have their own ISINs and stay.
+
+Caveats:
+
+- All three rules read today's `profile` (country, quote currency, ISIN), not its
+  history, so a company that moved its domicile or listing is classed as it is now.
+- The ISIN rule misses legacy lines FMP gives an old ISIN: Rotork ROR/76ID and
+  Antofagasta ANTO/70GD.
+- In cyclical-timing the XETRA, SIX and LSE rules also apply to the universe its
+  expansion signal is computed on, so they can change which years are invested.
+- Cash periods can move either way. fcf-yield XETRA went from 5 to 20 cash periods of 25
+  under a domicile filter, while yield-gap became more investable because unpriced
+  foreign lines had been taking top-30 slots (both above). Only the rerun shows which.
+- Stockholm is left as listed. Its books are almost entirely domestic, and a country
+  filter would wrongly drop ABB, AstraZeneca and Nokia.
+
+**Other topics have not been changed yet.** Their XETRA, SIX and LSE legs still hold
+every listed line; read them with the measurements earlier in this section.
 
 ---
 
@@ -666,38 +780,71 @@ when `frequency == DEFAULT_FREQUENCY`.
 
 ---
 
-## Exit-side survivorship in the invested branch (recorded 2026-09-03, NOT fixed)
+## Exit-side survivorship in the invested branch (recorded 2026-09-03, fixed 2026-10)
 
-**Status:** Open. Pre-existing on `main`, deliberately left unchanged by the B005
-post-price floor guard.
+**Status:** Fixed in code by last-traded-price (LTP) exits, now the default
+(`data_utils.DEFAULT_EXIT_METHOD = "ltp"`); `--exit-method drop` keeps the rule described
+here. A committed result carries the fix only once its topic is rerun, and it then writes
+`"exit_method": "ltp"`. A results file with
+no `exit_method` key used the drop rule. The first rerun wave is cyclical-timing, asset-growth,
+fcf-conversion, cash-conversion and graham-net-net; later waves follow.
 **Affects:** all 66 floor topics, and every topic that averages `filter_returns`'
-output.
+output. LTP is wired into all 75 topics that drop a held name for a missing exit price.
 
-When the book clears the floor at entry, the period return is the mean of the
-names that *survived to the exit date*. `filter_returns` drops a name whose EXIT
-price is missing, so a holding that delisted to zero contributes **nothing**
-rather than -100%. It also drops a name whose realised return exceeds
-`max_single_return`, which is upside-only, so that drop removes winners. The two
-pull in opposite directions and neither is measured.
+Under the drop rule (the only rule before LTP, and the default until 2026-10), when the book
+clears the floor at entry, the period return is the mean of the names that *survived
+to the exit date*. `filter_returns` drops a name whose EXIT price is missing, so a
+holding that delisted to zero contributes **nothing** rather than -100%. It also drops
+a name whose realised return exceeds `max_single_return`, which is upside-only, so that
+drop removes winners. The two pull in opposite directions, and neither was measured
+before LTP.
 
 This is not a new defect. It is what every topic did before the floor guard
-existed, and the B005 correction preserves it byte-for-byte on purpose: that
+existed, and the B005 correction preserved it byte-for-byte on purpose: that
 change is about thin books **at entry**, and quietly altering exit-side behaviour
 under cover of a look-ahead fix would move published numbers in the flattering
 direction with no re-run to justify it.
 
-**It needs its own decision and its own re-run.** The options are not equivalent:
-drop-to-zero (assume a total loss), drop-to-benchmark (assume the position was
-liquidated at the index), or exclude the period from the series entirely. Pick
-one deliberately, then re-run; do not let it be settled as a side effect of some
-other change.
+**It got its own decision and its own re-run.** Of the options (drop-to-zero,
+drop-to-benchmark, exclude the period, last traded price), LTP was chosen.
+Drop-to-zero is wrong for acquisitions, which most US delistings in the backtest
+window look like, and turns data gaps into wipeouts; drop-to-benchmark pulls every result toward
+the index. The rule, in `data_utils.LtpExits`: a name with an entry price but no exit
+price exits at the last `adjClose` after its entry bar and on or before
+min(exit date, delisting date + 7 days), cleaned by `remove_price_oscillations` like
+the topic's own prices. A delisting more than 30 days before the entry bar belongs to
+an earlier holder of the ticker and is ignored. No bar in that window, and the name
+stays dropped as before. Fills are requested only for periods the entry-side cash
+guard has already invested, so LTP never decides the entry-side cash guard, and they
+pass through `filter_returns` like any other exit. `--exit-method drop|ltp|both`
+selects the rule: `drop` reproduces the old one, and `both` publishes the drop book
+with the LTP book beside it. Every fill is listed under `ltp.fills` in the results.
+
+Measured 2026-10-09 on eight legs, both methods in one run per leg, on the books
+before the listing rules, ISIN dedup and graham-net-net's NCAV currency fix: the
+largest moves were graham-net-net LSE -0.99pp CAGR, 52-week-high US +0.72pp and
+graham-net-net US -0.59pp. Direction is strategy-specific: distress and net-net legs
+lose (their dead names were real wipeouts), US momentum gains (acquired names sat
+flat through bad quarters).
+
+**Still open after the fix.**
+- `max_single_return` is still upside-only, so an acquisition premium above the cap
+  still vanishes, filled or not.
+- A name whose trading stopped before its price reached zero exits at its last trade,
+  not at -100%.
+- The delisting bound needs a `delisted_companies` row. Most LSE fills have none, so
+  there the window runs to the exit date; `ltp.filled_without_delisting_row` counts
+  them.
 
 **Related quirk, same area.** If a book clears the floor at entry but every name
 later loses its exit price, the invested branch's
 `sum(returns) / len(returns) if returns else 0.0` writes `portfolio_return 0.0`
 with `stocks_held 0`, which `metrics.period_accounting` then counts as a cash
-period anyway. Pre-existing and unchanged, but the corrected guard makes it
-reachable by a second route, so decide it alongside the above.
+period anyway. Pre-existing, and the corrected guard makes it reachable by a second
+route; LTP leaves the rule as it is. Under `ltp` such a period can count as invested
+instead, because fills give it holdings and the cash and invested counts read
+`stocks_held`, so an ltp run can show fewer cash periods than a drop run of the same
+screen.
 
 > **That sentence was true of 62 topics and false of four, until 2026-09-03.**
 > `capex-efficiency:336,338`, `graham-timing:369`, `sector-momentum:374` and

@@ -187,6 +187,95 @@ def domicile_sql_condition(exchanges):
     return "country IN (" + ", ".join(f"'{c}'" for c in countries) + ")"
 
 
+# Topics rerun with LTP exits: the listing rules are ON, not opt-in. XETRA "Germany" books held
+# 74-78% foreign lines on average, SIX 22-34%: home country only. STO is deliberately absent:
+# profile.country would drop ABB, AstraZeneca, Nokia.
+FILTERED_DOMICILE_EXCHANGES = frozenset({"XETRA", "SIX"})
+
+# profile.currency of a market's own lines where it quotes in a sub-unit, not LOCAL_CURRENCY's
+# reporting code (profile 2026-10-12; every other campaign exchange matches LOCAL_CURRENCY).
+QUOTE_CURRENCY = {"LSE": "GBp", "JNB": "ZAc", "TLV": "ILA"}
+
+
+def campaign_listing_condition(exchanges):
+    """Rerun-campaign listing rule for a leg, or "" when none applies.
+
+    XETRA/SIX legs: domicile_sql_condition(). LSE legs: pence (GBp) lines only, which drops
+    the 0XXX.L foreign lines (quoted in their home currency) and USD/EUR receipts but keeps
+    LSE-primary foreign-registered names (Experian, Coca-Cola HBC, Wizz Air). 'GBP' is not
+    pence: 569 lines, 8 of them non-fund and 7 of those dead (profile 2026-10-12).
+    """
+    if exchanges and set(exchanges) <= FILTERED_DOMICILE_EXCHANGES:
+        return domicile_sql_condition(exchanges)
+    if exchanges and set(exchanges) == {"LSE"}:
+        return f"currency IN ('{QUOTE_CURRENCY['LSE']}')"
+    return ""
+
+
+def campaign_listing_label(exchanges):
+    """campaign_listing_condition() as results record it: "country DE", "currency GBp", or None."""
+    return campaign_listing_condition(exchanges).replace(" IN (", " ").replace("'", "").rstrip(")") or None
+
+
+def leg_quote_currency(exchanges):
+    """profile.currency of a leg's home lines (QUOTE_CURRENCY, else LOCAL_CURRENCY); None if mixed/unknown."""
+    ccys = {QUOTE_CURRENCY.get(e, LOCAL_CURRENCY.get(e)) for e in exchanges or ()}
+    return ccys.pop() if len(ccys) == 1 else None
+
+
+def load_isin_map(client, con, exchanges, sym_filter_sql, verbose=False):
+    """Create isin_dedup_sql()'s `isin_map` for a leg: rerun-campaign topics de-duplicate every leg.
+
+    home_ccy flags lines quoted in leg_quote_currency(); it is NULL on a mixed/unknown leg,
+    which drops that tie-break term.
+    """
+    ccy = leg_quote_currency(exchanges)
+    home = f"currency = '{ccy}'" if ccy else "CAST(NULL AS BOOLEAN)"
+    n = query_parquet(client, f"SELECT symbol, isin, isActivelyTrading, {home} AS home_ccy FROM profile"
+                              f" WHERE {sym_filter_sql}", con, "isin_map", verbose=verbose)
+    if not n:  # query_parquet's empty-result placeholder has none of the columns
+        con.execute("DROP TABLE isin_map")
+        con.execute("CREATE TABLE isin_map(symbol VARCHAR, isin VARCHAR, isActivelyTrading BOOLEAN,"
+                    " home_ccy BOOLEAN)")
+    return n
+
+
+def isin_dedup_sql(candidates_sql, target_date, offset_days, min_entry_price,
+                   window_days=10, isin_table="isin_map", prices_table="prices_cache"):
+    """Wrap a screen's candidate SELECT so one security keeps one row.
+
+    A security is its normalised ISIN, else its symbol: a symbol fanned out by a join keeps
+    one row, and lines of different symbols with no ISIN never merge; share classes have
+    their own ISINs and stay. Rule per security: the line buyable at entry wins (get_prices'
+    bar for the same window passes entry_usable), then a line profile still marks
+    isActivelyTrading (a retired ticker's bars stop at the rename), then the line quoted in
+    the leg's home currency (TSX HOM-UN.TO over HOM-U.TO, HKSE 9988.HK over 89988.HK), then
+    the alphabetically first symbol. `candidates_sql` exposes `symbol` and has no ORDER
+    BY/LIMIT: rank and LIMIT go outside, so a collapsed twin frees its slot for the next
+    name. `isin_table` is load_isin_map()'s (symbol, isin, isActivelyTrading, home_ccy).
+    """
+    shifted = target_date + timedelta(days=offset_days)
+    lo, hi = utc_epoch(shifted), utc_epoch(shifted + timedelta(days=window_days))
+    return f"""
+        SELECT * EXCLUDE (_isin_rn) FROM (
+            SELECT _c.*, ROW_NUMBER() OVER (
+                PARTITION BY COALESCE(_i.isin, _c.symbol)
+                ORDER BY CASE WHEN _px.adjClose > 0 AND _px.adjClose >= {float(min_entry_price)}
+                              THEN 0 ELSE 1 END,
+                         CASE WHEN _i.live THEN 0 ELSE 1 END, CASE WHEN _i.home THEN 0 ELSE 1 END,
+                         _c.symbol) AS _isin_rn
+            FROM ({candidates_sql}) _c
+            LEFT JOIN (SELECT symbol, MIN(NULLIF(UPPER(TRIM(isin)), '')) AS isin,
+                              BOOL_OR(isActivelyTrading) AS live, BOOL_OR(home_ccy) AS home
+                       FROM {isin_table} GROUP BY symbol) _i ON _i.symbol = _c.symbol
+            LEFT JOIN (SELECT symbol, adjClose FROM {prices_table}
+                       WHERE trade_epoch >= {lo} AND trade_epoch <= {hi}
+                       QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol
+                           ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST) = 1) _px
+                ON _px.symbol = _c.symbol
+        ) _d WHERE _isin_rn = 1"""
+
+
 def get_local_currency(exchanges):
     """Get the reportedCurrency for a set of exchanges.
 
@@ -678,7 +767,7 @@ def get_prices(con, symbols, target_date, window_days=10, offset_days=0, with_ep
 EXIT_METHODS = ("drop", "ltp", "both")
 # The one place the default lives: CLIs and runners read it. run_backtest signature defaults stay "drop";
 # verify_floor_guard gate 14 requires every caller to pass the resolved method.
-DEFAULT_EXIT_METHOD = "drop"
+DEFAULT_EXIT_METHOD = "ltp"
 # US delistings 2001+: 3,498/4,969 last bars fall on/before delistedDate + 7d; most later bars to day 30 are zero-volume repeats, past day 30 they mostly trade (OTC / ticker reuse).
 LTP_DELIST_GRACE_DAYS = 7
 # A delisting more than this many days before the entry bar belongs to an earlier holder of the

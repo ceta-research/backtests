@@ -240,6 +240,15 @@ def test_load_legs():
 
 
 def test_report():
+    saved = gate.DEFAULT_EXIT_METHOD
+    gate.DEFAULT_EXIT_METHOD = "drop"   # the fixture's default run is a drop run
+    try:
+        _test_report()
+    finally:
+        gate.DEFAULT_EXIT_METHOD = saved
+
+
+def _test_report():
     with tempfile.TemporaryDirectory() as tmp:
         g = {**G, "topic": "low-pe"}
         os.makedirs(os.path.join(tmp, "low-pe"))
