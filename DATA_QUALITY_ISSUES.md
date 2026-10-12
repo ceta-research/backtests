@@ -489,9 +489,9 @@ instead, on XETRA and SIX legs; see the next subsection.
 ### Rerun topics apply listing rules on XETRA, SIX and LSE (2026-10)
 
 When a topic is rerun with last-traded-price exits it no longer treats these exchanges as
-listed universes. The code applies this in the first wave (cyclical-timing, asset-growth,
-fcf-conversion, cash-conversion and graham-net-net); their committed results predate it
-until the rerun lands, and carry `listing_filter` / `isin_dedup` keys once it has:
+listed universes. The first wave (cyclical-timing, asset-growth, fcf-conversion,
+cash-conversion and graham-net-net) has been rerun this way, and its results carry
+`listing_filter` / `isin_dedup` keys:
 
 | Leg | Rule | Measured on the previous runs' holdings |
 |---|---|---|

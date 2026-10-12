@@ -11,51 +11,51 @@
   },
   "portfolios": {
     "low_ccc": {
-      "cagr": 1.7,
-      "total_return": 52.38,
-      "volatility": 22.51,
-      "sharpe": 0.031,
-      "sortino": 0.051,
-      "calmar": 0.028,
-      "max_drawdown": -60.2,
-      "var_95": -35.9,
-      "pct_negative_years": 32.0,
+      "cagr": 4.13,
+      "total_return": 175.25,
+      "volatility": 16.87,
+      "sharpe": 0.186,
+      "sortino": 0.41,
+      "calmar": 0.142,
+      "max_drawdown": -29.1,
+      "var_95": -17.3,
+      "pct_negative_years": 20.0,
       "max_consecutive_losses": 1
     },
     "mid_ccc": {
-      "cagr": 1.96,
-      "total_return": 62.64,
-      "volatility": 32.2,
-      "sharpe": 0.03,
-      "sortino": 0.049,
-      "calmar": 0.025,
-      "max_drawdown": -78.6,
-      "var_95": -54.9,
-      "pct_negative_years": 36.0,
+      "cagr": 6.61,
+      "total_return": 395.19,
+      "volatility": 20.97,
+      "sharpe": 0.268,
+      "sortino": 0.668,
+      "calmar": 0.183,
+      "max_drawdown": -36.1,
+      "var_95": -12.0,
+      "pct_negative_years": 24.0,
       "max_consecutive_losses": 2
     },
     "high_ccc": {
-      "cagr": -1.15,
-      "total_return": -25.07,
-      "volatility": 28.77,
-      "sharpe": -0.075,
-      "sortino": -0.118,
-      "calmar": -0.014,
-      "max_drawdown": -82.8,
-      "var_95": -49.3,
-      "pct_negative_years": 36.0,
+      "cagr": 3.55,
+      "total_return": 139.14,
+      "volatility": 18.53,
+      "sharpe": 0.138,
+      "sortino": 0.281,
+      "calmar": 0.09,
+      "max_drawdown": -39.6,
+      "var_95": -10.7,
+      "pct_negative_years": 24.0,
       "max_consecutive_losses": 1
     },
     "low_decreasing": {
-      "cagr": 1.79,
-      "total_return": 55.83,
-      "volatility": 23.44,
-      "sharpe": 0.034,
-      "sortino": 0.054,
-      "calmar": 0.031,
-      "max_drawdown": -57.1,
-      "var_95": -30.5,
-      "pct_negative_years": 28.0,
+      "cagr": 3.27,
+      "total_return": 123.59,
+      "volatility": 18.01,
+      "sharpe": 0.126,
+      "sortino": 0.257,
+      "calmar": 0.107,
+      "max_drawdown": -30.5,
+      "var_95": -21.7,
+      "pct_negative_years": 20.0,
       "max_consecutive_losses": 1
     },
     "sp500": {
@@ -71,33 +71,41 @@
       "max_consecutive_losses": 2
     }
   },
-  "spread_cagr": 2.85,
-  "low_vs_spy": -1.35,
+  "spread_cagr": 0.58,
+  "low_vs_spy": 1.08,
   "avg_stock_counts": {
-    "low": 40.0,
-    "mid": 72.0,
-    "high": 81.0,
-    "low_decreasing": 22.0,
-    "total": 193.0
+    "low": 54.0,
+    "mid": 89.0,
+    "high": 113.0,
+    "low_decreasing": 32.0,
+    "total": 192.0
   },
+  "min_stocks": 10,
   "cash_periods": {
-    "low": 1,
-    "high": 2,
-    "low_decreasing": 3
+    "low": 7,
+    "mid": 5,
+    "high": 7,
+    "low_decreasing": 8
+  },
+  "invested_periods": {
+    "low": 18,
+    "mid": 20,
+    "high": 18,
+    "low_decreasing": 17
   },
   "decade_breakdown": [
     {
       "period": "2000-04",
-      "low_return": -11.1,
-      "high_return": -26.2,
-      "spread": 15.1,
+      "low_return": 0.0,
+      "high_return": 0.0,
+      "spread": 0.0,
       "spy_return": -4.0
     },
     {
       "period": "2005-09",
-      "low_return": 10.7,
-      "high_return": 19.4,
-      "spread": -8.7,
+      "low_return": 5.7,
+      "high_return": 3.8,
+      "spread": 1.9,
       "spy_return": 9.7
     },
     {
@@ -123,119 +131,183 @@
     }
   ],
   "low_vs_spy_detail": {
-    "excess_cagr": -1.35,
-    "information_ratio": -0.25,
-    "tracking_error": 7.83,
-    "up_capture": 83.3,
-    "down_capture": 97.8,
-    "beta": 0.841,
-    "alpha": -1.02
+    "excess_cagr": 1.08,
+    "information_ratio": -0.043,
+    "tracking_error": 17.15,
+    "up_capture": 63.0,
+    "down_capture": 39.7,
+    "beta": 0.493,
+    "alpha": 2.12
   },
   "low_decreasing_vs_spy": {
-    "excess_cagr": -1.26,
-    "information_ratio": -0.093,
-    "tracking_error": 16.25,
-    "up_capture": 82.6,
-    "down_capture": 89.6,
-    "beta": 0.718,
-    "alpha": -0.68
+    "excess_cagr": 0.22,
+    "information_ratio": -0.082,
+    "tracking_error": 17.22,
+    "up_capture": 60.1,
+    "down_capture": 44.5,
+    "beta": 0.521,
+    "alpha": 1.2
   },
   "annual_returns": [
     {
       "year": 2000,
-      "low": -37.97,
-      "mid": -68.05,
-      "high": -49.33,
+      "low": 0.0,
+      "mid": 0.0,
+      "high": 0.0,
       "low_decreasing": 0.0,
       "spy": -44.2,
-      "low_count": 1,
-      "mid_count": 1,
-      "high_count": 1,
-      "low_decreasing_count": 0
+      "low_count": 0,
+      "mid_count": 0,
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 1,
+      "low_buyable": 1,
+      "mid_screened": 2,
+      "mid_buyable": 1,
+      "high_screened": 1,
+      "high_buyable": 1,
+      "low_decreasing_screened": 0,
+      "low_decreasing_buyable": 0
     },
     {
       "year": 2001,
       "low": 0.0,
-      "mid": 48.33,
+      "mid": 0.0,
       "high": 0.0,
       "low_decreasing": 0.0,
       "spy": 11.34,
       "low_count": 0,
-      "mid_count": 3,
+      "mid_count": 0,
       "high_count": 0,
-      "low_decreasing_count": 0
+      "low_decreasing_count": 0,
+      "low_screened": 1,
+      "low_buyable": 0,
+      "mid_screened": 3,
+      "mid_buyable": 3,
+      "high_screened": 0,
+      "high_buyable": 0,
+      "low_decreasing_screened": 1,
+      "low_decreasing_buyable": 0
     },
     {
       "year": 2002,
-      "low": -35.91,
-      "mid": -54.85,
-      "high": -51.15,
-      "low_decreasing": -52.86,
+      "low": 0.0,
+      "mid": 0.0,
+      "high": 0.0,
+      "low_decreasing": 0.0,
       "spy": -30.94,
-      "low_count": 3,
-      "mid_count": 2,
-      "high_count": 1,
-      "low_decreasing_count": 1
+      "low_count": 0,
+      "mid_count": 0,
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 4,
+      "low_buyable": 3,
+      "mid_screened": 3,
+      "mid_buyable": 2,
+      "high_screened": 1,
+      "high_buyable": 1,
+      "low_decreasing_screened": 2,
+      "low_decreasing_buyable": 1
     },
     {
       "year": 2003,
-      "low": 38.84,
-      "mid": 63.55,
+      "low": 0.0,
+      "mid": 0.0,
       "high": 0.0,
-      "low_decreasing": 14.22,
+      "low_decreasing": 0.0,
       "spy": 51.81,
-      "low_count": 2,
-      "mid_count": 3,
+      "low_count": 0,
+      "mid_count": 0,
       "high_count": 0,
-      "low_decreasing_count": 1
+      "low_decreasing_count": 0,
+      "low_screened": 3,
+      "low_buyable": 2,
+      "mid_screened": 5,
+      "mid_buyable": 4,
+      "high_screened": 0,
+      "high_buyable": 0,
+      "low_decreasing_screened": 2,
+      "low_decreasing_buyable": 1
     },
     {
       "year": 2004,
-      "low": -20.38,
-      "mid": -6.13,
-      "high": -30.35,
-      "low_decreasing": -20.38,
+      "low": 0.0,
+      "mid": 0.0,
+      "high": 0.0,
+      "low_decreasing": 0.0,
       "spy": -8.03,
-      "low_count": 3,
-      "mid_count": 3,
-      "high_count": 1,
-      "low_decreasing_count": 3
+      "low_count": 0,
+      "mid_count": 0,
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 4,
+      "low_buyable": 3,
+      "mid_screened": 4,
+      "mid_buyable": 3,
+      "high_screened": 1,
+      "high_buyable": 1,
+      "low_decreasing_screened": 3,
+      "low_decreasing_buyable": 3
     },
     {
       "year": 2005,
-      "low": 18.82,
+      "low": 0.0,
       "mid": 24.86,
-      "high": 5.62,
-      "low_decreasing": 14.71,
+      "high": 0.0,
+      "low_decreasing": 0.0,
       "spy": 10.65,
-      "low_count": 5,
+      "low_count": 0,
       "mid_count": 13,
-      "high_count": 3,
-      "low_decreasing_count": 1
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 6,
+      "low_buyable": 5,
+      "mid_screened": 15,
+      "mid_buyable": 14,
+      "high_screened": 4,
+      "high_buyable": 3,
+      "low_decreasing_screened": 2,
+      "low_decreasing_buyable": 1
     },
     {
       "year": 2006,
-      "low": 6.08,
+      "low": 0.0,
       "mid": 34.05,
-      "high": 72.08,
+      "high": 0.0,
       "low_decreasing": 0.0,
       "spy": 18.38,
-      "low_count": 7,
+      "low_count": 0,
       "mid_count": 13,
-      "high_count": 5,
-      "low_decreasing_count": 0
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 8,
+      "low_buyable": 7,
+      "mid_screened": 14,
+      "mid_buyable": 13,
+      "high_screened": 6,
+      "high_buyable": 5,
+      "low_decreasing_screened": 0,
+      "low_decreasing_buyable": 0
     },
     {
       "year": 2007,
       "low": 19.4,
       "mid": 10.52,
       "high": 11.3,
-      "low_decreasing": 41.83,
+      "low_decreasing": 0.0,
       "spy": 9.14,
       "low_count": 53,
       "mid_count": 63,
       "high_count": 59,
-      "low_decreasing_count": 6
+      "low_decreasing_count": 0,
+      "low_screened": 56,
+      "low_buyable": 53,
+      "mid_screened": 68,
+      "mid_buyable": 63,
+      "high_screened": 63,
+      "high_buyable": 59,
+      "low_decreasing_screened": 7,
+      "low_decreasing_buyable": 6
     },
     {
       "year": 2008,
@@ -247,7 +319,15 @@
       "low_count": 61,
       "mid_count": 71,
       "high_count": 57,
-      "low_decreasing_count": 41
+      "low_decreasing_count": 41,
+      "low_screened": 65,
+      "low_buyable": 61,
+      "mid_screened": 74,
+      "mid_buyable": 71,
+      "high_screened": 60,
+      "high_buyable": 57,
+      "low_decreasing_screened": 43,
+      "low_decreasing_buyable": 41
     },
     {
       "year": 2009,
@@ -259,7 +339,15 @@
       "low_count": 37,
       "mid_count": 48,
       "high_count": 33,
-      "low_decreasing_count": 20
+      "low_decreasing_count": 20,
+      "low_screened": 40,
+      "low_buyable": 37,
+      "mid_screened": 53,
+      "mid_buyable": 48,
+      "high_screened": 36,
+      "high_buyable": 34,
+      "low_decreasing_screened": 21,
+      "low_decreasing_buyable": 20
     },
     {
       "year": 2010,
@@ -271,7 +359,15 @@
       "low_count": 76,
       "mid_count": 90,
       "high_count": 69,
-      "low_decreasing_count": 52
+      "low_decreasing_count": 52,
+      "low_screened": 83,
+      "low_buyable": 77,
+      "mid_screened": 97,
+      "mid_buyable": 90,
+      "high_screened": 74,
+      "high_buyable": 69,
+      "low_decreasing_screened": 54,
+      "low_decreasing_buyable": 53
     },
     {
       "year": 2011,
@@ -283,7 +379,15 @@
       "low_count": 80,
       "mid_count": 100,
       "high_count": 71,
-      "low_decreasing_count": 42
+      "low_decreasing_count": 42,
+      "low_screened": 88,
+      "low_buyable": 80,
+      "mid_screened": 106,
+      "mid_buyable": 100,
+      "high_screened": 81,
+      "high_buyable": 71,
+      "low_decreasing_screened": 44,
+      "low_decreasing_buyable": 42
     },
     {
       "year": 2012,
@@ -295,7 +399,15 @@
       "low_count": 54,
       "mid_count": 82,
       "high_count": 53,
-      "low_decreasing_count": 26
+      "low_decreasing_count": 26,
+      "low_screened": 59,
+      "low_buyable": 54,
+      "mid_screened": 89,
+      "mid_buyable": 82,
+      "high_screened": 60,
+      "high_buyable": 53,
+      "low_decreasing_screened": 29,
+      "low_decreasing_buyable": 26
     },
     {
       "year": 2013,
@@ -307,7 +419,15 @@
       "low_count": 62,
       "mid_count": 81,
       "high_count": 76,
-      "low_decreasing_count": 37
+      "low_decreasing_count": 37,
+      "low_screened": 68,
+      "low_buyable": 62,
+      "mid_screened": 83,
+      "mid_buyable": 81,
+      "high_screened": 87,
+      "high_buyable": 76,
+      "low_decreasing_screened": 39,
+      "low_decreasing_buyable": 37
     },
     {
       "year": 2014,
@@ -319,7 +439,15 @@
       "low_count": 56,
       "mid_count": 95,
       "high_count": 109,
-      "low_decreasing_count": 33
+      "low_decreasing_count": 33,
+      "low_screened": 64,
+      "low_buyable": 56,
+      "mid_screened": 101,
+      "mid_buyable": 95,
+      "high_screened": 115,
+      "high_buyable": 109,
+      "low_decreasing_screened": 40,
+      "low_decreasing_buyable": 33
     },
     {
       "year": 2015,
@@ -331,7 +459,15 @@
       "low_count": 52,
       "mid_count": 100,
       "high_count": 114,
-      "low_decreasing_count": 33
+      "low_decreasing_count": 33,
+      "low_screened": 56,
+      "low_buyable": 52,
+      "mid_screened": 109,
+      "mid_buyable": 100,
+      "high_screened": 120,
+      "high_buyable": 114,
+      "low_decreasing_screened": 35,
+      "low_decreasing_buyable": 33
     },
     {
       "year": 2016,
@@ -343,7 +479,15 @@
       "low_count": 48,
       "mid_count": 98,
       "high_count": 104,
-      "low_decreasing_count": 24
+      "low_decreasing_count": 24,
+      "low_screened": 52,
+      "low_buyable": 48,
+      "mid_screened": 104,
+      "mid_buyable": 99,
+      "high_screened": 112,
+      "high_buyable": 106,
+      "low_decreasing_screened": 25,
+      "low_decreasing_buyable": 24
     },
     {
       "year": 2017,
@@ -355,7 +499,15 @@
       "low_count": 53,
       "mid_count": 103,
       "high_count": 98,
-      "low_decreasing_count": 33
+      "low_decreasing_count": 33,
+      "low_screened": 55,
+      "low_buyable": 53,
+      "mid_screened": 114,
+      "mid_buyable": 103,
+      "high_screened": 103,
+      "high_buyable": 99,
+      "low_decreasing_screened": 35,
+      "low_decreasing_buyable": 33
     },
     {
       "year": 2018,
@@ -367,7 +519,15 @@
       "low_count": 51,
       "mid_count": 111,
       "high_count": 133,
-      "low_decreasing_count": 28
+      "low_decreasing_count": 28,
+      "low_screened": 53,
+      "low_buyable": 51,
+      "mid_screened": 120,
+      "mid_buyable": 111,
+      "high_screened": 139,
+      "high_buyable": 133,
+      "low_decreasing_screened": 28,
+      "low_decreasing_buyable": 28
     },
     {
       "year": 2019,
@@ -379,7 +539,15 @@
       "low_count": 52,
       "mid_count": 98,
       "high_count": 120,
-      "low_decreasing_count": 31
+      "low_decreasing_count": 31,
+      "low_screened": 54,
+      "low_buyable": 52,
+      "mid_screened": 100,
+      "mid_buyable": 98,
+      "high_screened": 129,
+      "high_buyable": 120,
+      "low_decreasing_screened": 33,
+      "low_decreasing_buyable": 31
     },
     {
       "year": 2020,
@@ -391,7 +559,15 @@
       "low_count": 51,
       "mid_count": 110,
       "high_count": 121,
-      "low_decreasing_count": 29
+      "low_decreasing_count": 29,
+      "low_screened": 60,
+      "low_buyable": 56,
+      "mid_screened": 122,
+      "mid_buyable": 116,
+      "high_screened": 138,
+      "high_buyable": 129,
+      "low_decreasing_screened": 34,
+      "low_decreasing_buyable": 32
     },
     {
       "year": 2021,
@@ -403,7 +579,15 @@
       "low_count": 54,
       "mid_count": 126,
       "high_count": 164,
-      "low_decreasing_count": 37
+      "low_decreasing_count": 37,
+      "low_screened": 57,
+      "low_buyable": 55,
+      "mid_screened": 134,
+      "mid_buyable": 127,
+      "high_screened": 179,
+      "high_buyable": 167,
+      "low_decreasing_screened": 37,
+      "low_decreasing_buyable": 37
     },
     {
       "year": 2022,
@@ -415,19 +599,35 @@
       "low_count": 58,
       "mid_count": 134,
       "high_count": 207,
-      "low_decreasing_count": 28
+      "low_decreasing_count": 28,
+      "low_screened": 61,
+      "low_buyable": 58,
+      "mid_screened": 140,
+      "mid_buyable": 134,
+      "high_screened": 223,
+      "high_buyable": 208,
+      "low_decreasing_screened": 29,
+      "low_decreasing_buyable": 28
     },
     {
       "year": 2023,
-      "low": 12.41,
+      "low": 12.47,
       "mid": 28.34,
       "high": 25.25,
-      "low_decreasing": 13.13,
+      "low_decreasing": 13.2,
       "spy": 29.48,
-      "low_count": 43,
+      "low_count": 44,
       "mid_count": 106,
       "high_count": 198,
-      "low_decreasing_count": 25
+      "low_decreasing_count": 26,
+      "low_screened": 47,
+      "low_buyable": 45,
+      "mid_screened": 114,
+      "mid_buyable": 109,
+      "high_screened": 215,
+      "high_buyable": 201,
+      "low_decreasing_screened": 28,
+      "low_decreasing_buyable": 27
     },
     {
       "year": 2024,
@@ -439,12 +639,85 @@
       "low_count": 39,
       "mid_count": 139,
       "high_count": 240,
-      "low_decreasing_count": 21
+      "low_decreasing_count": 21,
+      "low_screened": 42,
+      "low_buyable": 39,
+      "mid_screened": 143,
+      "mid_buyable": 139,
+      "high_screened": 255,
+      "high_buyable": 242,
+      "low_decreasing_screened": 24,
+      "low_decreasing_buyable": 21
     }
   ],
+  "listing_filter": null,
+  "isin_dedup": true,
   "benchmark": {
     "symbol": "^TWII",
     "name": "TAIEX"
   },
-  "execution": "next-day close (MOC)"
+  "execution": "next-day close (MOC)",
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "remote stock_eod",
+    "delist_grace_days": 7,
+    "missing_exits": 1,
+    "ltp_filled": 1,
+    "still_missing": 0,
+    "filled_local": 0,
+    "filled_remote": 1,
+    "closed_by_delisting": 0,
+    "filled_without_delisting_row": 1,
+    "filled_ignoring_delisting_row": 0,
+    "filled_delisting_not_binding": 0,
+    "fills": [
+      {
+        "symbol": "3682.TW",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-06",
+        "entry_price": 6.48,
+        "last_bar": "2023-12-14",
+        "ltp": 7.47,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      }
+    ],
+    "low_track": {
+      "missing_exits": 1,
+      "ltp_filled": 1,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2023,
+          "symbol": "3682.TW"
+        }
+      ]
+    },
+    "mid_track": {
+      "missing_exits": 0,
+      "ltp_filled": 0,
+      "still_missing": 0,
+      "fills": []
+    },
+    "high_track": {
+      "missing_exits": 0,
+      "ltp_filled": 0,
+      "still_missing": 0,
+      "fills": []
+    },
+    "low_decreasing_track": {
+      "missing_exits": 1,
+      "ltp_filled": 1,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2023,
+          "symbol": "3682.TW"
+        }
+      ]
+    }
+  }
 }

@@ -100,6 +100,12 @@ SCOPE_ALLOW = {
     # B005 stage B wave 1: LTP exits become the default and rerun topics get the listing rules,
     # so the public methodology changes with the code.
     "METHODOLOGY.md",
+    # Wave 1 rerun: each rerun topic's README restates its results.
+    "cyclical-timing/README.md",
+    "asset-growth/README.md",
+    "fcf-conversion/README.md",
+    "cash-conversion/README.md",
+    "graham-net-net/README.md",
     # B006: its CAGR chart gated on `cash_periods < total_periods`, comparing a
     # full-run cash count against the truncated metrics window, so a truncated
     # leg was read as 100%-cash and dropped from the chart with no trace. The
