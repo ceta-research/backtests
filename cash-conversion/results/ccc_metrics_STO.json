@@ -11,52 +11,52 @@
   },
   "portfolios": {
     "low_ccc": {
-      "cagr": 7.36,
-      "total_return": 490.88,
-      "volatility": 25.21,
-      "sharpe": 0.213,
-      "sortino": 0.473,
-      "calmar": 0.194,
+      "cagr": 8.67,
+      "total_return": 699.62,
+      "volatility": 24.24,
+      "sharpe": 0.275,
+      "sortino": 0.663,
+      "calmar": 0.228,
       "max_drawdown": -38.0,
       "var_95": -24.2,
-      "pct_negative_years": 36.0,
-      "max_consecutive_losses": 2
-    },
-    "mid_ccc": {
-      "cagr": 5.61,
-      "total_return": 291.17,
-      "volatility": 29.36,
-      "sharpe": 0.123,
-      "sortino": 0.234,
-      "calmar": 0.105,
-      "max_drawdown": -53.5,
-      "var_95": -36.4,
       "pct_negative_years": 28.0,
       "max_consecutive_losses": 2
     },
+    "mid_ccc": {
+      "cagr": 6.27,
+      "total_return": 357.74,
+      "volatility": 22.83,
+      "sharpe": 0.187,
+      "sortino": 0.374,
+      "calmar": 0.112,
+      "max_drawdown": -56.2,
+      "var_95": -18.1,
+      "pct_negative_years": 20.0,
+      "max_consecutive_losses": 2
+    },
     "high_ccc": {
-      "cagr": 5.92,
-      "total_return": 321.09,
-      "volatility": 29.83,
-      "sharpe": 0.131,
-      "sortino": 0.252,
-      "calmar": 0.098,
-      "max_drawdown": -60.3,
-      "var_95": -36.0,
-      "pct_negative_years": 40.0,
+      "cagr": 8.29,
+      "total_return": 632.32,
+      "volatility": 25.61,
+      "sharpe": 0.246,
+      "sortino": 0.617,
+      "calmar": 0.164,
+      "max_drawdown": -50.6,
+      "var_95": -22.7,
+      "pct_negative_years": 32.0,
       "max_consecutive_losses": 2
     },
     "low_decreasing": {
-      "cagr": 6.18,
-      "total_return": 347.62,
-      "volatility": 26.19,
-      "sharpe": 0.16,
-      "sortino": 0.344,
-      "calmar": 0.149,
-      "max_drawdown": -41.4,
-      "var_95": -27.5,
-      "pct_negative_years": 36.0,
-      "max_consecutive_losses": 2
+      "cagr": 1.48,
+      "total_return": 44.2,
+      "volatility": 17.98,
+      "sharpe": -0.029,
+      "sortino": -0.06,
+      "calmar": 0.039,
+      "max_drawdown": -37.6,
+      "var_95": -18.8,
+      "pct_negative_years": 28.0,
+      "max_consecutive_losses": 3
     },
     "sp500": {
       "cagr": 2.4,
@@ -71,26 +71,34 @@
       "max_consecutive_losses": 3
     }
   },
-  "spread_cagr": 1.44,
-  "low_vs_spy": 4.96,
+  "spread_cagr": 0.38,
+  "low_vs_spy": 6.27,
   "avg_stock_counts": {
-    "low": 22.0,
-    "mid": 23.0,
-    "high": 37.0,
-    "low_decreasing": 14.0,
-    "total": 82.0
+    "low": 25.0,
+    "mid": 26.0,
+    "high": 43.0,
+    "low_decreasing": 19.0,
+    "total": 80.0
   },
+  "min_stocks": 10,
   "cash_periods": {
-    "low": 0,
-    "high": 0,
-    "low_decreasing": 0
+    "low": 3,
+    "mid": 4,
+    "high": 4,
+    "low_decreasing": 10
+  },
+  "invested_periods": {
+    "low": 22,
+    "mid": 21,
+    "high": 21,
+    "low_decreasing": 15
   },
   "decade_breakdown": [
     {
       "period": "2000-04",
-      "low_return": 5.9,
-      "high_return": -3.1,
-      "spread": 9.0,
+      "low_return": 11.9,
+      "high_return": 2.0,
+      "spread": 9.9,
       "spy_return": -5.1
     },
     {
@@ -116,114 +124,170 @@
     },
     {
       "period": "2020-25",
-      "low_return": 9.1,
-      "high_return": 13.0,
-      "spread": -3.9,
+      "low_return": 8.5,
+      "high_return": 12.8,
+      "spread": -4.4,
       "spy_return": 13.6
     }
   ],
   "low_vs_spy_detail": {
-    "excess_cagr": 4.96,
-    "information_ratio": 0.381,
-    "tracking_error": 12.36,
-    "up_capture": 113.6,
-    "down_capture": 56.3,
-    "beta": 0.887,
-    "alpha": 5.01
+    "excess_cagr": 6.27,
+    "information_ratio": 0.386,
+    "tracking_error": 15.01,
+    "up_capture": 112.1,
+    "down_capture": 38.1,
+    "beta": 0.79,
+    "alpha": 6.35
   },
   "low_decreasing_vs_spy": {
-    "excess_cagr": 3.78,
-    "information_ratio": 0.271,
-    "tracking_error": 13.87,
-    "up_capture": 107.2,
-    "down_capture": 58.7,
-    "beta": 0.895,
-    "alpha": 3.82
+    "excess_cagr": -0.93,
+    "information_ratio": -0.108,
+    "tracking_error": 23.75,
+    "up_capture": 36.7,
+    "down_capture": 24.9,
+    "beta": 0.307,
+    "alpha": -0.65
   },
   "annual_returns": [
     {
       "year": 2000,
-      "low": -22.02,
-      "mid": -33.03,
-      "high": -25.99,
-      "low_decreasing": -18.29,
+      "low": 0.0,
+      "mid": 0.0,
+      "high": 0.0,
+      "low_decreasing": 0.0,
       "spy": -40.7,
-      "low_count": 5,
-      "mid_count": 4,
-      "high_count": 5,
-      "low_decreasing_count": 2
+      "low_count": 0,
+      "mid_count": 0,
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 6,
+      "low_buyable": 5,
+      "mid_screened": 5,
+      "mid_buyable": 4,
+      "high_screened": 5,
+      "high_buyable": 5,
+      "low_decreasing_screened": 2,
+      "low_decreasing_buyable": 2
     },
     {
       "year": 2001,
-      "low": 0.8,
-      "mid": 13.78,
-      "high": 6.62,
-      "low_decreasing": 0.8,
+      "low": 0.0,
+      "mid": 0.0,
+      "high": 0.0,
+      "low_decreasing": 0.0,
       "spy": -2.61,
-      "low_count": 3,
-      "mid_count": 5,
-      "high_count": 7,
-      "low_decreasing_count": 3
+      "low_count": 0,
+      "mid_count": 0,
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 4,
+      "low_buyable": 3,
+      "mid_screened": 7,
+      "mid_buyable": 5,
+      "high_screened": 7,
+      "high_buyable": 7,
+      "low_decreasing_screened": 3,
+      "low_decreasing_buyable": 3
     },
     {
       "year": 2002,
-      "low": -8.65,
-      "mid": -36.39,
-      "high": -49.69,
-      "low_decreasing": -6.38,
+      "low": 0.0,
+      "mid": 0.0,
+      "high": 0.0,
+      "low_decreasing": 0.0,
       "spy": -39.23,
-      "low_count": 4,
-      "mid_count": 7,
-      "high_count": 7,
-      "low_decreasing_count": 2
+      "low_count": 0,
+      "mid_count": 0,
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 6,
+      "low_buyable": 4,
+      "mid_screened": 8,
+      "mid_buyable": 7,
+      "high_screened": 7,
+      "high_buyable": 7,
+      "low_decreasing_screened": 2,
+      "low_decreasing_buyable": 2
     },
     {
       "year": 2003,
       "low": 42.82,
       "mid": 33.78,
-      "high": 43.85,
-      "low_decreasing": 47.1,
+      "high": 0.0,
+      "low_decreasing": 0.0,
       "spy": 48.43,
       "low_count": 10,
       "mid_count": 15,
-      "high_count": 7,
-      "low_decreasing_count": 4
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 15,
+      "low_buyable": 10,
+      "mid_screened": 19,
+      "mid_buyable": 15,
+      "high_screened": 12,
+      "high_buyable": 9,
+      "low_decreasing_screened": 4,
+      "low_decreasing_buyable": 4
     },
     {
       "year": 2004,
       "low": 16.72,
       "mid": 15.02,
       "high": 9.83,
-      "low_decreasing": 10.8,
+      "low_decreasing": 0.0,
       "spy": 8.74,
       "low_count": 13,
       "mid_count": 10,
       "high_count": 14,
-      "low_decreasing_count": 9
+      "low_decreasing_count": 0,
+      "low_screened": 17,
+      "low_buyable": 13,
+      "mid_screened": 13,
+      "mid_buyable": 10,
+      "high_screened": 17,
+      "high_buyable": 14,
+      "low_decreasing_screened": 12,
+      "low_decreasing_buyable": 9
     },
     {
       "year": 2005,
       "low": 38.28,
       "mid": 46.44,
       "high": 62.73,
-      "low_decreasing": 46.11,
+      "low_decreasing": 0.0,
       "spy": 38.82,
       "low_count": 12,
       "mid_count": 15,
       "high_count": 16,
-      "low_decreasing_count": 9
+      "low_decreasing_count": 0,
+      "low_screened": 14,
+      "low_buyable": 12,
+      "mid_screened": 21,
+      "mid_buyable": 16,
+      "high_screened": 20,
+      "high_buyable": 16,
+      "low_decreasing_screened": 11,
+      "low_decreasing_buyable": 9
     },
     {
       "year": 2006,
       "low": 35.02,
       "mid": 13.77,
       "high": 22.73,
-      "low_decreasing": 34.75,
+      "low_decreasing": 0.0,
       "spy": 13.89,
       "low_count": 15,
       "mid_count": 22,
       "high_count": 19,
-      "low_decreasing_count": 9
+      "low_decreasing_count": 0,
+      "low_screened": 20,
+      "low_buyable": 15,
+      "mid_screened": 27,
+      "mid_buyable": 22,
+      "high_screened": 26,
+      "high_buyable": 19,
+      "low_decreasing_screened": 10,
+      "low_decreasing_buyable": 9
     },
     {
       "year": 2007,
@@ -235,31 +299,55 @@
       "low_count": 13,
       "mid_count": 24,
       "high_count": 24,
-      "low_decreasing_count": 11
+      "low_decreasing_count": 11,
+      "low_screened": 21,
+      "low_buyable": 13,
+      "mid_screened": 27,
+      "mid_buyable": 24,
+      "high_screened": 29,
+      "high_buyable": 24,
+      "low_decreasing_screened": 16,
+      "low_decreasing_buyable": 11
     },
     {
       "year": 2008,
       "low": -28.28,
       "mid": -43.16,
       "high": -36.03,
-      "low_decreasing": -34.93,
+      "low_decreasing": 0.0,
       "spy": -28.4,
       "low_count": 11,
       "mid_count": 26,
       "high_count": 22,
-      "low_decreasing_count": 6
+      "low_decreasing_count": 0,
+      "low_screened": 16,
+      "low_buyable": 11,
+      "mid_screened": 31,
+      "mid_buyable": 26,
+      "high_screened": 27,
+      "high_buyable": 22,
+      "low_decreasing_screened": 9,
+      "low_decreasing_buyable": 6
     },
     {
       "year": 2009,
       "low": 56.76,
-      "mid": 77.2,
+      "mid": 0.0,
       "high": 63.85,
-      "low_decreasing": 55.38,
+      "low_decreasing": 0.0,
       "spy": 46.54,
       "low_count": 12,
-      "mid_count": 8,
+      "mid_count": 0,
       "high_count": 20,
-      "low_decreasing_count": 5
+      "low_decreasing_count": 0,
+      "low_screened": 18,
+      "low_buyable": 12,
+      "mid_screened": 10,
+      "mid_buyable": 8,
+      "high_screened": 26,
+      "high_buyable": 20,
+      "low_decreasing_screened": 11,
+      "low_decreasing_buyable": 5
     },
     {
       "year": 2010,
@@ -271,7 +359,15 @@
       "low_count": 15,
       "mid_count": 13,
       "high_count": 27,
-      "low_decreasing_count": 10
+      "low_decreasing_count": 10,
+      "low_screened": 20,
+      "low_buyable": 15,
+      "mid_screened": 15,
+      "mid_buyable": 13,
+      "high_screened": 33,
+      "high_buyable": 27,
+      "low_decreasing_screened": 12,
+      "low_decreasing_buyable": 10
     },
     {
       "year": 2011,
@@ -283,7 +379,15 @@
       "low_count": 17,
       "mid_count": 21,
       "high_count": 28,
-      "low_decreasing_count": 11
+      "low_decreasing_count": 11,
+      "low_screened": 21,
+      "low_buyable": 17,
+      "mid_screened": 26,
+      "mid_buyable": 21,
+      "high_screened": 33,
+      "high_buyable": 28,
+      "low_decreasing_screened": 15,
+      "low_decreasing_buyable": 11
     },
     {
       "year": 2012,
@@ -295,7 +399,15 @@
       "low_count": 15,
       "mid_count": 17,
       "high_count": 28,
-      "low_decreasing_count": 10
+      "low_decreasing_count": 10,
+      "low_screened": 22,
+      "low_buyable": 15,
+      "mid_screened": 22,
+      "mid_buyable": 17,
+      "high_screened": 33,
+      "high_buyable": 28,
+      "low_decreasing_screened": 12,
+      "low_decreasing_buyable": 10
     },
     {
       "year": 2013,
@@ -307,19 +419,35 @@
       "low_count": 16,
       "mid_count": 10,
       "high_count": 37,
-      "low_decreasing_count": 9
+      "low_decreasing_count": 9,
+      "low_screened": 28,
+      "low_buyable": 18,
+      "mid_screened": 15,
+      "mid_buyable": 10,
+      "high_screened": 47,
+      "high_buyable": 37,
+      "low_decreasing_screened": 18,
+      "low_decreasing_buyable": 11
     },
     {
       "year": 2014,
       "low": 23.68,
       "mid": 37.09,
       "high": 27.28,
-      "low_decreasing": 16.64,
+      "low_decreasing": 0.0,
       "spy": 21.64,
       "low_count": 11,
       "mid_count": 20,
       "high_count": 37,
-      "low_decreasing_count": 7
+      "low_decreasing_count": 0,
+      "low_screened": 24,
+      "low_buyable": 11,
+      "mid_screened": 27,
+      "mid_buyable": 20,
+      "high_screened": 47,
+      "high_buyable": 37,
+      "low_decreasing_screened": 13,
+      "low_decreasing_buyable": 7
     },
     {
       "year": 2015,
@@ -331,7 +459,15 @@
       "low_count": 19,
       "mid_count": 22,
       "high_count": 40,
-      "low_decreasing_count": 10
+      "low_decreasing_count": 10,
+      "low_screened": 37,
+      "low_buyable": 19,
+      "mid_screened": 26,
+      "mid_buyable": 22,
+      "high_screened": 55,
+      "high_buyable": 40,
+      "low_decreasing_screened": 17,
+      "low_decreasing_buyable": 10
     },
     {
       "year": 2016,
@@ -343,7 +479,15 @@
       "low_count": 21,
       "mid_count": 31,
       "high_count": 39,
-      "low_decreasing_count": 13
+      "low_decreasing_count": 13,
+      "low_screened": 41,
+      "low_buyable": 21,
+      "mid_screened": 37,
+      "mid_buyable": 31,
+      "high_screened": 51,
+      "high_buyable": 39,
+      "low_decreasing_screened": 27,
+      "low_decreasing_buyable": 13
     },
     {
       "year": 2017,
@@ -355,7 +499,15 @@
       "low_count": 28,
       "mid_count": 29,
       "high_count": 50,
-      "low_decreasing_count": 22
+      "low_decreasing_count": 22,
+      "low_screened": 43,
+      "low_buyable": 28,
+      "mid_screened": 41,
+      "mid_buyable": 29,
+      "high_screened": 59,
+      "high_buyable": 50,
+      "low_decreasing_screened": 30,
+      "low_decreasing_buyable": 22
     },
     {
       "year": 2018,
@@ -367,7 +519,15 @@
       "low_count": 32,
       "mid_count": 41,
       "high_count": 51,
-      "low_decreasing_count": 23
+      "low_decreasing_count": 23,
+      "low_screened": 47,
+      "low_buyable": 32,
+      "mid_screened": 52,
+      "mid_buyable": 41,
+      "high_screened": 65,
+      "high_buyable": 51,
+      "low_decreasing_screened": 28,
+      "low_decreasing_buyable": 23
     },
     {
       "year": 2019,
@@ -379,7 +539,15 @@
       "low_count": 32,
       "mid_count": 34,
       "high_count": 56,
-      "low_decreasing_count": 23
+      "low_decreasing_count": 23,
+      "low_screened": 47,
+      "low_buyable": 32,
+      "mid_screened": 47,
+      "mid_buyable": 34,
+      "high_screened": 72,
+      "high_buyable": 56,
+      "low_decreasing_screened": 33,
+      "low_decreasing_buyable": 23
     },
     {
       "year": 2020,
@@ -391,7 +559,15 @@
       "low_count": 40,
       "mid_count": 38,
       "high_count": 58,
-      "low_decreasing_count": 23
+      "low_decreasing_count": 23,
+      "low_screened": 68,
+      "low_buyable": 40,
+      "mid_screened": 47,
+      "mid_buyable": 40,
+      "high_screened": 73,
+      "high_buyable": 60,
+      "low_decreasing_screened": 40,
+      "low_decreasing_buyable": 23
     },
     {
       "year": 2021,
@@ -403,7 +579,15 @@
       "low_count": 54,
       "mid_count": 47,
       "high_count": 79,
-      "low_decreasing_count": 29
+      "low_decreasing_count": 29,
+      "low_screened": 73,
+      "low_buyable": 54,
+      "mid_screened": 56,
+      "mid_buyable": 47,
+      "high_screened": 98,
+      "high_buyable": 79,
+      "low_decreasing_screened": 39,
+      "low_decreasing_buyable": 29
     },
     {
       "year": 2022,
@@ -415,36 +599,243 @@
       "low_count": 65,
       "mid_count": 46,
       "high_count": 94,
-      "low_decreasing_count": 45
+      "low_decreasing_count": 45,
+      "low_screened": 76,
+      "low_buyable": 65,
+      "mid_screened": 53,
+      "mid_buyable": 46,
+      "high_screened": 117,
+      "high_buyable": 94,
+      "low_decreasing_screened": 51,
+      "low_decreasing_buyable": 45
     },
     {
       "year": 2023,
-      "low": 5.38,
+      "low": 0.73,
       "mid": 1.6,
       "high": 14.46,
-      "low_decreasing": 0.62,
+      "low_decreasing": -5.43,
       "spy": 13.46,
-      "low_count": 41,
+      "low_count": 44,
       "mid_count": 42,
       "high_count": 87,
-      "low_decreasing_count": 16
+      "low_decreasing_count": 18,
+      "low_screened": 61,
+      "low_buyable": 44,
+      "mid_screened": 46,
+      "mid_buyable": 42,
+      "high_screened": 110,
+      "high_buyable": 87,
+      "low_decreasing_screened": 29,
+      "low_decreasing_buyable": 18
     },
     {
       "year": 2024,
-      "low": 4.02,
-      "mid": 2.58,
-      "high": -2.21,
+      "low": 5.74,
+      "mid": 3.1,
+      "high": -2.87,
       "low_decreasing": 5.02,
       "spy": -1.19,
-      "low_count": 46,
-      "mid_count": 30,
-      "high_count": 79,
-      "low_decreasing_count": 30
+      "low_count": 47,
+      "mid_count": 32,
+      "high_count": 81,
+      "low_decreasing_count": 30,
+      "low_screened": 68,
+      "low_buyable": 47,
+      "mid_screened": 38,
+      "mid_buyable": 32,
+      "high_screened": 98,
+      "high_buyable": 81,
+      "low_decreasing_screened": 42,
+      "low_decreasing_buyable": 30
     }
   ],
+  "listing_filter": null,
+  "isin_dedup": true,
   "benchmark": {
     "symbol": "^OMXS30",
     "name": "OMX Stockholm 30"
   },
-  "execution": "next-day close (MOC)"
+  "execution": "next-day close (MOC)",
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "remote stock_eod",
+    "delist_grace_days": 7,
+    "missing_exits": 8,
+    "ltp_filled": 8,
+    "still_missing": 0,
+    "filled_local": 0,
+    "filled_remote": 8,
+    "closed_by_delisting": 0,
+    "filled_without_delisting_row": 7,
+    "filled_ignoring_delisting_row": 0,
+    "filled_delisting_not_binding": 0,
+    "fills": [
+      {
+        "symbol": "EPTI.ST",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 33.2,
+        "last_bar": "2024-01-02",
+        "ltp": 6.42,
+        "delisted_date": "2024-01-02",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "PROMO.ST",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 197.12,
+        "last_bar": "2024-02-14",
+        "ltp": 14.15,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "SPIFF.ST",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 40.2,
+        "last_bar": "2023-12-21",
+        "ltp": 34.6,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "BFG.ST",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 51.7,
+        "last_bar": "2024-05-23",
+        "ltp": 52.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "CALTX.ST",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 112.1,
+        "last_bar": "2024-10-10",
+        "ltp": 208.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "COIC.ST",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 187.93,
+        "last_bar": "2024-11-07",
+        "ltp": 230.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "OX2.ST",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 46.92,
+        "last_bar": "2024-10-21",
+        "ltp": 59.55,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "TANGI.ST",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 12.0,
+        "last_bar": "2024-12-23",
+        "ltp": 1.8,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      }
+    ],
+    "low_track": {
+      "missing_exits": 4,
+      "ltp_filled": 4,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2023,
+          "symbol": "EPTI.ST"
+        },
+        {
+          "year": 2023,
+          "symbol": "PROMO.ST"
+        },
+        {
+          "year": 2023,
+          "symbol": "SPIFF.ST"
+        },
+        {
+          "year": 2024,
+          "symbol": "CALTX.ST"
+        }
+      ]
+    },
+    "mid_track": {
+      "missing_exits": 2,
+      "ltp_filled": 2,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2024,
+          "symbol": "BFG.ST"
+        },
+        {
+          "year": 2024,
+          "symbol": "COIC.ST"
+        }
+      ]
+    },
+    "high_track": {
+      "missing_exits": 2,
+      "ltp_filled": 2,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2024,
+          "symbol": "OX2.ST"
+        },
+        {
+          "year": 2024,
+          "symbol": "TANGI.ST"
+        }
+      ]
+    },
+    "low_decreasing_track": {
+      "missing_exits": 2,
+      "ltp_filled": 2,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2023,
+          "symbol": "PROMO.ST"
+        },
+        {
+          "year": 2023,
+          "symbol": "SPIFF.ST"
+        }
+      ]
+    }
+  }
 }

@@ -62,10 +62,11 @@ def get_cumulative_growth(exchange_key, initial=10000):
     """Compute cumulative growth from annual returns."""
     ex = data[exchange_key]
     values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
+    # "year" is the period START year (July Y -> July Y+1): initial at the first start, each value at its end
+    years = [ex["annual_returns"][0]["year"]]
     for ar in ex["annual_returns"]:
         values.append(values[-1] * (1 + ar["portfolio"] / 100))
-        years.append(ar["year"])
+        years.append(ar["year"] + 1)
     return years, values
 
 
@@ -75,17 +76,18 @@ def get_spy_cumulative(ref_key, initial=10000):
     The "spy" field holds whichever index the exchange was measured against,
     which for non-US markets is the local index.
     """
-    return benchmark_cumulative(data, ref_key, initial)
+    years, values = benchmark_cumulative(data, ref_key, initial)
+    return [y + 1 for y in years], values  # chart_utils puts each value at its start year
 
 
 def get_local_benchmark_cumulative(exchange_key, initial=10000):
     """Get local benchmark cumulative from an exchange's own spy field."""
     ex = data[exchange_key]
     values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
+    years = [ex["annual_returns"][0]["year"]]
     for ar in ex["annual_returns"]:
         values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
+        years.append(ar["year"] + 1)
     return years, values
 
 
@@ -116,6 +118,9 @@ def chart_cumulative(exchanges, filename, title, footer_universe,
     If benchmark_exchange is set, use that exchange's local benchmark.
     Otherwise use SPY.
     """
+    if not all(data[k].get("annual_returns") for k in exchanges + [benchmark_exchange or exchanges[0]]):
+        print(f"  SKIP {filename}: empty annual_returns")
+        return
     fig, ax = plt.subplots(figsize=(12, 6))
 
     if benchmark_exchange:
@@ -171,6 +176,9 @@ def chart_cumulative(exchanges, filename, title, footer_universe,
 def chart_annual_bars(exchanges, filename, title, footer_universe,
                       benchmark_label=None):
     """Generate annual returns bar chart."""
+    if not all(data[k].get("annual_returns") for k in exchanges):
+        print(f"  SKIP {filename}: empty annual_returns")
+        return
     ex = data[exchanges[0]]
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
@@ -216,6 +224,9 @@ def chart_comparison_cagr(filename):
                       if v["invested_periods"] == 0 or v.get("window_truncated", False))
     exchanges_with_data = [(k, v) for k, v in data.items() if k not in excluded]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
+    if not exchanges_with_data:  # max() below needs at least one exchange
+        print(f"  SKIP {filename}: no exchange with a full window and invested periods")
+        return
 
     names = [k for k, v in exchanges_with_data]
     cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]

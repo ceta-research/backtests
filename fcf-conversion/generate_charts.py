@@ -14,7 +14,7 @@ Usage:
 import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, is_usd_benchmark_proxy, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import benchmark_label, benchmark_legend, is_usd_benchmark_proxy, localize_money_title, money, money_axis_label, money_formatter
 import json
 import os
 import sys
@@ -77,7 +77,7 @@ def cumulative_growth_chart(annual_returns, exchange, out_path, bench="S&P 500")
         spy_vals.append(spy_vals[-1] * (1 + ar["spy"] / 100))
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    x = [years[0] - 1] + years
+    x = [years[0]] + [y + 1 for y in years]  # year = period start; plot each value at its end
     ax.plot(x, port_vals, color=STRATEGY_COLOR, linewidth=2, label="FCF Conversion Quality")
     ax.plot(x, spy_vals, color=BENCHMARK_COLOR, linewidth=2, label=bench)
 
@@ -239,16 +239,14 @@ def main():
 
     print(f"Found results for {len(results)} exchanges: {', '.join(sorted(results.keys()))}")
 
-    us_spy = [ar["spy"] for ar in (results.get("NYSE_NASDAQ_AMEX") or {}).get("annual_returns", [])]
-
     # Per-exchange charts
     for exchange, data in results.items():
         if "error" in data or not data.get("annual_returns"):
             continue
 
         annual = data["annual_returns"]
-        # "spy" holds the local index, except where a stale run still carries the SPY series (BSE_NSE)
-        bench = "S&P 500" if [ar["spy"] for ar in annual] == us_spy else benchmark_label(results, exchange)
+        # local index, or "S&P 500, USD" where the series is the US one (SAU has no local index)
+        bench = benchmark_legend(results, exchange)
 
         # Region name mapping for filenames
         region = exchange.lower().replace("_", "")

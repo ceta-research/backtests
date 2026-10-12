@@ -80,13 +80,13 @@
       "portfolio_return": 0.0,
       "spy_return": 0.07987413772237696,
       "stocks_held": 0,
-      "screened": 6,
+      "screened": 5,
       "entry_buyable": null,
       "min_stocks": 10,
       "signal_active": true,
       "expansion_ratio": 0.75,
       "n_signal_stocks": 8,
-      "holdings": "CASH (only 6 qualified with revenue growth > 0)"
+      "holdings": "CASH (only 5 qualified with revenue growth > 0)"
     },
     {
       "rebalance_date": "2006-07-01",
@@ -94,13 +94,13 @@
       "portfolio_return": 0.0,
       "spy_return": 0.2094587022301916,
       "stocks_held": 0,
-      "screened": 10,
-      "entry_buyable": 6,
+      "screened": 9,
+      "entry_buyable": null,
       "min_stocks": 10,
       "signal_active": true,
       "expansion_ratio": 0.769,
       "n_signal_stocks": 13,
-      "holdings": "CASH (6 buyable at entry of 10 screened)"
+      "holdings": "CASH (only 9 qualified with revenue growth > 0)"
     },
     {
       "rebalance_date": "2007-07-01",
@@ -108,13 +108,13 @@
       "portfolio_return": 0.0,
       "spy_return": -0.15196441808747224,
       "stocks_held": 0,
-      "screened": 11,
+      "screened": 10,
       "entry_buyable": 8,
       "min_stocks": 10,
       "signal_active": true,
       "expansion_ratio": 0.812,
       "n_signal_stocks": 16,
-      "holdings": "CASH (8 buyable at entry of 11 screened)"
+      "holdings": "CASH (8 buyable at entry of 10 screened)"
     },
     {
       "rebalance_date": "2008-07-01",
@@ -122,7 +122,7 @@
       "portfolio_return": -0.146066,
       "spy_return": -0.269012,
       "stocks_held": 14,
-      "screened": 18,
+      "screened": 17,
       "entry_buyable": 14,
       "min_stocks": 10,
       "signal_active": true,
@@ -136,7 +136,7 @@
       "portfolio_return": 0.208694,
       "spy_return": 0.159791,
       "stocks_held": 11,
-      "screened": 14,
+      "screened": 13,
       "entry_buyable": 11,
       "min_stocks": 10,
       "signal_active": true,
@@ -164,13 +164,13 @@
       "portfolio_return": 0.0,
       "spy_return": 0.0418838062150163,
       "stocks_held": 0,
-      "screened": 14,
+      "screened": 13,
       "entry_buyable": 9,
       "min_stocks": 10,
       "signal_active": true,
       "expansion_ratio": 0.714,
       "n_signal_stocks": 21,
-      "holdings": "CASH (9 buyable at entry of 14 screened)"
+      "holdings": "CASH (9 buyable at entry of 13 screened)"
     },
     {
       "rebalance_date": "2012-07-01",
@@ -178,7 +178,7 @@
       "portfolio_return": -0.010588,
       "spy_return": 0.207392,
       "stocks_held": 13,
-      "screened": 19,
+      "screened": 18,
       "entry_buyable": 13,
       "min_stocks": 10,
       "signal_active": true,
@@ -276,7 +276,7 @@
       "portfolio_return": -0.242635,
       "spy_return": 0.074335,
       "stocks_held": 10,
-      "screened": 15,
+      "screened": 14,
       "entry_buyable": 10,
       "min_stocks": 10,
       "signal_active": true,
@@ -290,7 +290,7 @@
       "portfolio_return": 0.614277,
       "spy_return": 0.409803,
       "stocks_held": 11,
-      "screened": 16,
+      "screened": 15,
       "entry_buyable": 11,
       "min_stocks": 10,
       "signal_active": true,
@@ -304,13 +304,13 @@
       "portfolio_return": 0.0,
       "spy_return": -0.10681868225968248,
       "stocks_held": 0,
-      "screened": 10,
-      "entry_buyable": 7,
+      "screened": 9,
+      "entry_buyable": null,
       "min_stocks": 10,
       "signal_active": true,
       "expansion_ratio": 0.55,
       "n_signal_stocks": 20,
-      "holdings": "CASH (7 buyable at entry of 10 screened)"
+      "holdings": "CASH (only 9 qualified with revenue growth > 0)"
     },
     {
       "rebalance_date": "2022-07-01",
@@ -318,7 +318,7 @@
       "portfolio_return": -0.070131,
       "spy_return": 0.180842,
       "stocks_held": 19,
-      "screened": 25,
+      "screened": 24,
       "entry_buyable": 19,
       "min_stocks": 10,
       "signal_active": true,
@@ -536,5 +536,23 @@
       "spy": 14.42,
       "excess": -14.42
     }
-  ]
+  ],
+  "listing_filter": null,
+  "isin_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "remote stock_eod",
+    "delist_grace_days": 7,
+    "missing_exits": 0,
+    "ltp_filled": 0,
+    "still_missing": 0,
+    "filled_local": 0,
+    "filled_remote": 0,
+    "closed_by_delisting": 0,
+    "filled_without_delisting_row": 0,
+    "filled_ignoring_delisting_row": 0,
+    "filled_delisting_not_binding": 0,
+    "fills": []
+  }
 }

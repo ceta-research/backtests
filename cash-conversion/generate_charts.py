@@ -32,6 +32,8 @@ REGION_MAP = {
     "SAO": "brazil",
     "Taiwan": "taiwan",
     "JSE": "southafrica",
+    "JPX": "japan",
+    "SES": "singapore",
 }
 
 REGION_LABELS = {
@@ -86,6 +88,11 @@ def cumulative_growth(returns, initial=10000):
     return values
 
 
+def cash_years(d, t):
+    """Years bucket t held cash (fewer than min_stocks buyable at entry): 0% and still compounded."""
+    return d.get("cash_periods", {}).get(t, 0)
+
+
 def bench_name(data, universe):
     """Name of the index the "spy"/"sp500" fields hold (local index after the rerun)."""
     b = data[universe].get("benchmark")
@@ -98,7 +105,8 @@ def chart_cumulative_growth(data, universe, region):
     """Chart 1: Cumulative growth - Low CCC vs Mid CCC vs High CCC vs SPY."""
     d = data[universe]
     ar = d["annual_returns"]
-    years = [ar[0]["year"] - 1] + [row["year"] for row in ar]
+    # "year" is the April entry year: start at the first entry, each value lands at its exit year
+    years = [ar[0]["year"]] + [row["year"] + 1 for row in ar]
 
     low_returns = [row["low"] for row in ar]
     mid_returns = [row["mid"] for row in ar]
@@ -115,15 +123,17 @@ def chart_cumulative_growth(data, universe, region):
     high_cagr = d["portfolios"]["high_ccc"]["cagr"]
     spy_cagr = d["portfolios"]["sp500"]["cagr"]
     bench = bench_name(data, universe)
+    cash = {t: f", cash {cash_years(d, t)} of {len(ar)} yrs" if cash_years(d, t) else ""
+            for t in ("low", "mid", "high")}
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
     ax.plot(years, low_cum, color=C_LOW, linewidth=2.2,
-            label=f"Low CCC <30d ({low_cagr}% CAGR)")
+            label=f"Low CCC <30d ({low_cagr}% CAGR{cash['low']})")
     ax.plot(years, mid_cum, color=C_MID, linewidth=1.6, alpha=0.7,
-            label=f"Mid CCC 30-90d ({mid_cagr}% CAGR)")
+            label=f"Mid CCC 30-90d ({mid_cagr}% CAGR{cash['mid']})")
     ax.plot(years, high_cum, color=C_HIGH, linewidth=1.6, alpha=0.7,
-            label=f"High CCC >90d ({high_cagr}% CAGR)")
+            label=f"High CCC >90d ({high_cagr}% CAGR{cash['high']})")
     ax.plot(years, spy_cum, color=C_SPY, linewidth=1.8, linestyle="--",
             label=f"{bench} ({spy_cagr}% CAGR)")
 
@@ -151,9 +161,11 @@ def chart_cumulative_growth(data, universe, region):
     ax.grid(True, alpha=0.2, linestyle="--")
     ax.set_axisbelow(True)
 
-    fig.text(0.5, -0.02,
-             f"Data: Ceta Research | {label}, annual rebalance, equal weight, 2000-2025",
-             ha="center", fontsize=8, color="#7f8c8d")
+    footer = f"Data: Ceta Research | {label}, annual rebalance, equal weight, 2000-2025"
+    if any(cash.values()):
+        footer += (f"\nA bucket with fewer than {d.get('min_stocks', 10)} names buyable at entry"
+                   " holds cash that year (0%, flat line).")
+    fig.text(0.5, -0.02, footer, ha="center", va="top", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / f"1_{region}_cumulative_growth.png"
@@ -181,6 +193,11 @@ def chart_annual_returns(data, universe, region):
            label="Low CCC (<30d)", color=C_LOW, alpha=0.85)
     ax.bar([o + width for o in offsets], spy_returns, width,
            label=bench, color=C_SPY, alpha=0.4)
+    # Cash years have no bar: label them so they don't read as a 0% invested year.
+    floor = d.get("min_stocks", 10)
+    cash_x = [o for o, row in zip(offsets, ar) if row.get("low_buyable", floor) < floor]
+    for o in cash_x:
+        ax.text(o, 0, "cash", rotation=90, ha="center", va="bottom", fontsize=7, color=C_LOW)
 
     label = REGION_LABELS.get(universe, universe)
     ax.set_ylabel("Annual Return (%)", fontsize=12, fontweight="bold")
@@ -193,9 +210,11 @@ def chart_annual_returns(data, universe, region):
     ax.grid(True, alpha=0.2, axis="y", linestyle="--")
     ax.set_axisbelow(True)
 
-    fig.text(0.5, -0.04,
-             f"Data: Ceta Research | {label}, annual rebalance, equal weight, 2000-2025",
-             ha="center", fontsize=8, color="#7f8c8d")
+    footer = f"Data: Ceta Research | {label}, annual rebalance, equal weight, 2000-2025"
+    if cash_x:
+        footer += (f"\n\"cash\" marks a year with fewer than {floor} Low CCC names buyable at entry."
+                   f" The portfolio held cash (0%) in {len(cash_x)} of {len(ar)} years.")
+    fig.text(0.5, -0.04, footer, ha="center", va="top", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / f"2_{region}_annual_returns.png"
@@ -217,15 +236,25 @@ def comparison_legs(data, metric):
     return legs, excluded
 
 
-def comparison_footer(legs, excluded, n_beat, verb):
-    """Two-line footer: method, benchmark basis, beat count (proxies excluded), exclusions."""
+def comparison_footer(data, legs, excluded, n_beat, verb):
+    """Three-line footer: method, benchmark basis, beat count (proxies excluded), exclusions, cash."""
     proxies = [REGION_LABELS.get(u, u) for u, _, _, p in legs if p]
     note = "Returns in local currency, each against its own market's index"
     note += f"; {', '.join(proxies)} against the S&P 500 in USD." if proxies else "."
     note += f" {n_beat} of {len(legs) - len(proxies)} {verb} their own benchmark."
     if excluded:
         note += f" Excluded (truncated window or never invested): {', '.join(excluded)}."
+    if any(cash_years(data[u], "low") for u, *_ in legs):
+        floor = next(iter(data.values())).get("min_stocks", 10)
+        note += (f"\n\"yrs cash\": years with fewer than {floor} Low CCC names buyable at entry."
+                 " A cash year earns 0% and counts in the CAGR and drawdown.")
     return "Data: Ceta Research | Low CCC (<30 days), annual rebalance, equal weight\n" + note
+
+
+def leg_label(data, universe):
+    n = cash_years(data[universe], "low")
+    label = REGION_LABELS.get(universe, universe)
+    return f"{label}, {n} yrs cash" if n else label
 
 
 def comparison_legend(any_proxy, beat, trail, marker):
@@ -241,9 +270,11 @@ def comparison_legend(any_proxy, beat, trail, marker):
 def chart_comparison_cagr(data):
     """Chart 3: Low CCC CAGR by exchange, each against its own benchmark (marker)."""
     legs, excluded = comparison_legs(data, "cagr")
+    if not legs:
+        return
     legs.sort(key=lambda x: x[1], reverse=True)
 
-    names = [REGION_LABELS.get(u, u) for u, _, _, _ in legs]
+    names = [leg_label(data, u) for u, _, _, _ in legs]
     cagrs = [c for _, c, _, _ in legs]
     benches = [b for _, _, b, _ in legs]
     colors = [C_PROXY if p else C_BEAT if c > b else C_TRAIL for _, c, b, p in legs]
@@ -272,8 +303,8 @@ def chart_comparison_cagr(data):
                 va="center", fontsize=9)
 
     beat = sum(c > b for _, c, b, p in legs if not p)
-    fig.text(0.5, -0.04, comparison_footer(legs, excluded, beat, "beat"),
-             ha="center", fontsize=8, color="#7f8c8d")
+    fig.text(0.5, -0.04, comparison_footer(data, legs, excluded, beat, "beat"),
+             ha="center", va="top", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / "1_comparison_cagr.png"
@@ -285,10 +316,12 @@ def chart_comparison_cagr(data):
 def chart_comparison_drawdown(data):
     """Chart 4: Low CCC max drawdown by exchange, each against its own benchmark (marker)."""
     legs, excluded = comparison_legs(data, "max_drawdown")
+    if not legs:
+        return
     # Sort by drawdown: least negative (best) at top
     legs.sort(key=lambda x: x[1], reverse=True)
 
-    names = [REGION_LABELS.get(u, u) for u, _, _, _ in legs]
+    names = [leg_label(data, u) for u, _, _, _ in legs]
     drawdowns = [dd for _, dd, _, _ in legs]
     bench_dds = [b for _, _, b, _ in legs]
     colors = [C_PROXY if p else C_BEAT if dd > b else C_TRAIL for _, dd, b, p in legs]
@@ -307,7 +340,7 @@ def chart_comparison_drawdown(data):
                  fontsize=13, fontweight="bold", pad=15)
     ax.legend(handles=comparison_legend(any(p for *_, p in legs), "Shallower than its own benchmark",
                                         "Deeper than its own benchmark", "Benchmark max drawdown"),
-              fontsize=9, loc="upper left")
+              fontsize=9, loc="upper left", bbox_to_anchor=(1.01, 1))  # outside: in-axes it hid markers
     ax.grid(True, alpha=0.2, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
@@ -317,8 +350,8 @@ def chart_comparison_drawdown(data):
         ax.text(x_pos, i, f"{dd:.1f}%", va="center", ha="right", fontsize=10, fontweight="bold")
 
     beat = sum(dd > b for _, dd, b, p in legs if not p)
-    fig.text(0.5, -0.04, comparison_footer(legs, excluded, beat, "fell less than"),
-             ha="center", fontsize=8, color="#7f8c8d")
+    fig.text(0.5, -0.04, comparison_footer(data, legs, excluded, beat, "fell less than"),
+             ha="center", va="top", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / "2_comparison_drawdown.png"

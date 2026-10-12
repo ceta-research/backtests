@@ -15,9 +15,8 @@ charts_dir.mkdir(exist_ok=True)
 with open(results_dir / "exchange_comparison.json") as f:
     data = json.load(f)
 
-# Add NSE-only data (India without BSE duplicates)
-with open(results_dir / "returns_NSE.json") as f:
-    data["NSE"] = json.load(f)
+# India leg is NSE-only (returns_India.json); charts key it as NSE
+data["NSE"] = data["India"]
 
 # Color palette
 COLORS = {
@@ -56,17 +55,18 @@ BENCHMARK_LABELS = {
     "TAI": "TAIEX",
 }
 
-FOOTER = "Data: Ceta Research | Graham Net-Net (price < NCAV/share), annual rebalance April, equal weight, 2001-2024"
+FOOTER = "Data: Ceta Research | Graham Net-Net (price < NCAV/share), annual rebalance April, equal weight, 2001-2025"
 
 
 def get_cumulative_growth(exchange_key, initial=10000):
     """Compute cumulative growth from annual returns."""
     ex = data[exchange_key]
     values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
+    # "year" is the period START year (April Y -> April Y+1): initial at the first start, each value at its end
+    years = [ex["annual_returns"][0]["year"]]
     for ar in ex["annual_returns"]:
         values.append(values[-1] * (1 + ar["portfolio"] / 100))
-        years.append(ar["year"])
+        years.append(ar["year"] + 1)
     return years, values
 
 
@@ -77,10 +77,10 @@ def get_benchmark_cumulative(ex_key, initial=10000):
         return [], []
 
     values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
+    years = [ex["annual_returns"][0]["year"]]
     for ar in ex["annual_returns"]:
         values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
+        years.append(ar["year"] + 1)
     return years, values
 
 
@@ -191,6 +191,9 @@ def chart_comparison_cagr(filename):
         and not data[k].get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
+    if not exchanges_with_data:
+        print(f"  Skipping {filename}: no exchange with invested periods")
+        return
 
     names = [EXCHANGE_LABELS.get(k, k).replace("Net-Net ", "").replace(" (", "\n(") for k, _ in exchanges_with_data]
     cagrs = [v["portfolio"]["cagr"] for _, v in exchanges_with_data]
@@ -208,8 +211,8 @@ def chart_comparison_cagr(filename):
     ax.set_yticklabels(names, fontsize=10)
     ax.invert_yaxis()
     ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Graham Net-Net CAGR by Exchange (2001-2024)", fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
+    ax.set_title("Graham Net-Net CAGR by Exchange (2001-2025)", fontsize=14, fontweight="bold", pad=15)
+    ax.legend(fontsize=10, loc="lower right")  # "best" landed on the LSE bar
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
@@ -235,6 +238,9 @@ def chart_comparison_drawdown(filename):
         and not data[k].get("window_truncated", False)
     ]
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
+    if not exchanges_with_data:
+        print(f"  Skipping {filename}: no exchange with invested periods")
+        return
 
     names = [EXCHANGE_LABELS.get(k, k).replace("Net-Net ", "").replace(" (", "\n(") for k, _ in exchanges_with_data]
     drawdowns = [v["portfolio"]["max_drawdown"] for _, v in exchanges_with_data]
@@ -252,8 +258,8 @@ def chart_comparison_drawdown(filename):
     ax.set_yticklabels(names, fontsize=10)
     ax.invert_yaxis()
     ax.set_xlabel("Max Drawdown (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Graham Net-Net Max Drawdown by Exchange (2001-2024)", fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10, loc="lower left")
+    ax.set_title("Graham Net-Net Max Drawdown by Exchange (2001-2025)", fontsize=14, fontweight="bold", pad=15)
+    ax.legend(fontsize=10, loc="upper left")  # shallowest bar on top leaves this corner empty
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
     ax.set_axisbelow(True)
 
@@ -275,96 +281,96 @@ def chart_comparison_drawdown(filename):
 print("Generating charts for US...")
 chart_cumulative(
     ["US_MAJOR"], "us_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net US vs S&P 500 (2001-2024)",
+    "Growth of $10,000: Graham Net-Net US vs S&P 500 (2001-2025)",
     "NYSE + NASDAQ + AMEX, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["US_MAJOR"], "us_annual_returns.png",
-    "Graham Net-Net US vs S&P 500: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net US vs S&P 500: Year-by-Year Returns (2001-2025)",
     "NYSE + NASDAQ + AMEX, annual rebalance April, equal weight"
 )
 
 print("Generating charts for Japan...")
 chart_cumulative(
     ["JPX"], "japan_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Japan vs Nikkei 225 (2001-2024)",
+    "Growth of $10,000: Graham Net-Net Japan vs Nikkei 225 (2001-2025)",
     "JPX (returns and benchmark in JPY)"
 )
 chart_annual_bars(
     ["JPX"], "japan_annual_returns.png",
-    "Graham Net-Net Japan vs Nikkei 225: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Japan vs Nikkei 225: Year-by-Year Returns (2001-2025)",
     "JPX (returns in JPY)"
 )
 
 print("Generating charts for India (NSE)...")
 chart_cumulative(
     ["NSE"], "india_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net India (NSE) vs Sensex (2001-2024)",
+    "Growth of $10,000: Graham Net-Net India (NSE) vs Sensex (2001-2025)",
     "NSE, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["NSE"], "india_annual_returns.png",
-    "Graham Net-Net India (NSE) vs Sensex: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net India (NSE) vs Sensex: Year-by-Year Returns (2001-2025)",
     "NSE, annual rebalance April, equal weight"
 )
 
 print("Generating charts for Korea (KSC)...")
 chart_cumulative(
     ["KSC"], "korea_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Korea vs KOSPI (2001-2024)",
+    "Growth of $10,000: Graham Net-Net Korea vs KOSPI (2001-2025)",
     "KSC, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["KSC"], "korea_annual_returns.png",
-    "Graham Net-Net Korea vs KOSPI: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Korea vs KOSPI: Year-by-Year Returns (2001-2025)",
     "KSC, annual rebalance April, equal weight"
 )
 
 print("Generating charts for Canada (TSX)...")
 chart_cumulative(
     ["TSX"], "canada_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Canada vs TSX Composite (2001-2024)",
+    "Growth of $10,000: Graham Net-Net Canada vs TSX Composite (2001-2025)",
     "TSX, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["TSX"], "canada_annual_returns.png",
-    "Graham Net-Net Canada vs TSX Composite: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Canada vs TSX Composite: Year-by-Year Returns (2001-2025)",
     "TSX, annual rebalance April, equal weight"
 )
 
 print("Generating charts for Hong Kong (HKSE)...")
 chart_cumulative(
     ["HKSE"], "hongkong_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Hong Kong vs Hang Seng (2001-2024)",
+    "Growth of $10,000: Graham Net-Net Hong Kong vs Hang Seng (2001-2025)",
     "HKSE, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["HKSE"], "hongkong_annual_returns.png",
-    "Graham Net-Net Hong Kong vs Hang Seng: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Hong Kong vs Hang Seng: Year-by-Year Returns (2001-2025)",
     "HKSE, annual rebalance April, equal weight"
 )
 
 print("Generating charts for UK (LSE)...")
 chart_cumulative(
     ["LSE"], "uk_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net UK vs FTSE 100 (2001-2024)",
+    "Growth of $10,000: Graham Net-Net UK vs FTSE 100 (2001-2025)",
     "LSE, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["LSE"], "uk_annual_returns.png",
-    "Graham Net-Net UK vs FTSE 100: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net UK vs FTSE 100: Year-by-Year Returns (2001-2025)",
     "LSE, annual rebalance April, equal weight"
 )
 
 print("Generating charts for Taiwan (TAI)...")
 chart_cumulative(
     ["TAI"], "taiwan_cumulative_growth.png",
-    "Growth of $10,000: Graham Net-Net Taiwan vs TAIEX (2001-2024)",
+    "Growth of $10,000: Graham Net-Net Taiwan vs TAIEX (2001-2025)",
     "TAI+TWO, annual rebalance April, equal weight"
 )
 chart_annual_bars(
     ["TAI"], "taiwan_annual_returns.png",
-    "Graham Net-Net Taiwan vs TAIEX: Year-by-Year Returns (2001-2024)",
+    "Graham Net-Net Taiwan vs TAIEX: Year-by-Year Returns (2001-2025)",
     "TAI+TWO, annual rebalance April, equal weight"
 )
 

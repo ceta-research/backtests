@@ -11,51 +11,51 @@
   },
   "portfolios": {
     "low_ccc": {
-      "cagr": 7.64,
-      "total_return": 529.66,
-      "volatility": 27.67,
-      "sharpe": -0.103,
-      "sortino": -0.153,
-      "calmar": 0.185,
-      "max_drawdown": -41.2,
-      "var_95": -38.6,
-      "pct_negative_years": 40.0,
+      "cagr": 5.68,
+      "total_return": 298.14,
+      "volatility": 23.45,
+      "sharpe": -0.205,
+      "sortino": -0.298,
+      "calmar": 0.147,
+      "max_drawdown": -38.6,
+      "var_95": -25.2,
+      "pct_negative_years": 36.0,
       "max_consecutive_losses": 4
     },
     "mid_ccc": {
-      "cagr": 13.33,
-      "total_return": 2185.87,
-      "volatility": 24.92,
-      "sharpe": 0.114,
-      "sortino": 0.23,
-      "calmar": 0.552,
+      "cagr": 6.29,
+      "total_return": 359.89,
+      "volatility": 18.74,
+      "sharpe": -0.225,
+      "sortino": -0.319,
+      "calmar": 0.261,
       "max_drawdown": -24.1,
       "var_95": -21.3,
       "pct_negative_years": 20.0,
       "max_consecutive_losses": 1
     },
     "high_ccc": {
-      "cagr": 16.11,
-      "total_return": 4081.67,
-      "volatility": 43.86,
-      "sharpe": 0.128,
-      "sortino": 0.324,
-      "calmar": 0.393,
+      "cagr": 4.44,
+      "total_return": 196.52,
+      "volatility": 31.27,
+      "sharpe": -0.194,
+      "sortino": -0.338,
+      "calmar": 0.108,
       "max_drawdown": -41.0,
       "var_95": -24.3,
       "pct_negative_years": 32.0,
       "max_consecutive_losses": 3
     },
     "low_decreasing": {
-      "cagr": 5.73,
-      "total_return": 302.97,
-      "volatility": 27.75,
-      "sharpe": -0.172,
-      "sortino": -0.251,
-      "calmar": 0.136,
+      "cagr": 3.92,
+      "total_return": 161.4,
+      "volatility": 23.17,
+      "sharpe": -0.284,
+      "sortino": -0.399,
+      "calmar": 0.093,
       "max_drawdown": -42.1,
-      "var_95": -34.2,
-      "pct_negative_years": 36.0,
+      "var_95": -22.6,
+      "pct_negative_years": 32.0,
       "max_consecutive_losses": 4
     },
     "sp500": {
@@ -71,33 +71,41 @@
       "max_consecutive_losses": 4
     }
   },
-  "spread_cagr": -8.47,
-  "low_vs_spy": -0.94,
+  "spread_cagr": 1.24,
+  "low_vs_spy": -2.9,
   "avg_stock_counts": {
-    "low": 29.0,
-    "mid": 26.0,
-    "high": 27.0,
-    "low_decreasing": 18.0,
-    "total": 81.0
+    "low": 38.0,
+    "mid": 32.0,
+    "high": 36.0,
+    "low_decreasing": 26.0,
+    "total": 80.0
   },
+  "min_stocks": 10,
   "cash_periods": {
-    "low": 2,
-    "high": 2,
-    "low_decreasing": 4
+    "low": 6,
+    "mid": 5,
+    "high": 7,
+    "low_decreasing": 8
+  },
+  "invested_periods": {
+    "low": 19,
+    "mid": 20,
+    "high": 18,
+    "low_decreasing": 17
   },
   "decade_breakdown": [
     {
       "period": "2000-04",
-      "low_return": 4.1,
-      "high_return": 44.8,
-      "spread": -40.7,
+      "low_return": 0.0,
+      "high_return": 0.0,
+      "spread": 0.0,
       "spy_return": 14.7
     },
     {
       "period": "2005-09",
-      "low_return": 20.8,
-      "high_return": 45.4,
-      "spread": -24.6,
+      "low_return": 9.9,
+      "high_return": 17.3,
+      "spread": -7.3,
       "spy_return": 27.3
     },
     {
@@ -116,126 +124,190 @@
     },
     {
       "period": "2020-25",
-      "low_return": 13.7,
-      "high_return": 12.3,
-      "spread": 1.5,
+      "low_return": 13.3,
+      "high_return": 11.8,
+      "spread": 1.4,
       "spy_return": 16.8
     }
   ],
   "low_vs_spy_detail": {
-    "excess_cagr": -0.94,
-    "information_ratio": -0.046,
-    "tracking_error": 24.46,
-    "up_capture": 76.1,
-    "down_capture": 43.9,
-    "beta": 0.588,
-    "alpha": -1.73
+    "excess_cagr": -2.9,
+    "information_ratio": -0.173,
+    "tracking_error": 24.24,
+    "up_capture": 55.2,
+    "down_capture": 32.3,
+    "beta": 0.48,
+    "alpha": -3.9
   },
   "low_decreasing_vs_spy": {
-    "excess_cagr": -2.85,
-    "information_ratio": -0.12,
-    "tracking_error": 25.78,
-    "up_capture": 63.6,
-    "down_capture": 39.5,
-    "beta": 0.555,
-    "alpha": -3.7
+    "excess_cagr": -4.66,
+    "information_ratio": -0.251,
+    "tracking_error": 24.25,
+    "up_capture": 49.3,
+    "down_capture": 46.7,
+    "beta": 0.473,
+    "alpha": -5.67
   },
   "annual_returns": [
     {
       "year": 2000,
       "low": 0.0,
-      "mid": 21.51,
+      "mid": 0.0,
       "high": 0.0,
       "low_decreasing": 0.0,
       "spy": -18.02,
       "low_count": 0,
-      "mid_count": 1,
+      "mid_count": 0,
       "high_count": 0,
-      "low_decreasing_count": 0
+      "low_decreasing_count": 0,
+      "low_screened": 3,
+      "low_buyable": 0,
+      "mid_screened": 10,
+      "mid_buyable": 1,
+      "high_screened": 2,
+      "high_buyable": 0,
+      "low_decreasing_screened": 1,
+      "low_decreasing_buyable": 0
     },
     {
       "year": 2001,
-      "low": 24.81,
-      "mid": 17.58,
-      "high": 39.99,
+      "low": 0.0,
+      "mid": 0.0,
+      "high": 0.0,
       "low_decreasing": 0.0,
       "spy": -4.75,
-      "low_count": 1,
-      "mid_count": 2,
-      "high_count": 1,
-      "low_decreasing_count": 0
+      "low_count": 0,
+      "mid_count": 0,
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 5,
+      "low_buyable": 1,
+      "mid_screened": 10,
+      "mid_buyable": 2,
+      "high_screened": 2,
+      "high_buyable": 1,
+      "low_decreasing_screened": 2,
+      "low_decreasing_buyable": 0
     },
     {
       "year": 2002,
-      "low": -41.21,
-      "mid": 17.71,
+      "low": 0.0,
+      "mid": 0.0,
       "high": 0.0,
-      "low_decreasing": -41.21,
+      "low_decreasing": 0.0,
       "spy": -8.25,
-      "low_count": 2,
-      "mid_count": 2,
+      "low_count": 0,
+      "mid_count": 0,
       "high_count": 0,
-      "low_decreasing_count": 2
+      "low_decreasing_count": 0,
+      "low_screened": 11,
+      "low_buyable": 2,
+      "mid_screened": 7,
+      "mid_buyable": 2,
+      "high_screened": 5,
+      "high_buyable": 0,
+      "low_decreasing_screened": 7,
+      "low_decreasing_buyable": 2
     },
     {
       "year": 2003,
       "low": 0.0,
-      "mid": 71.34,
-      "high": 146.22,
+      "mid": 0.0,
+      "high": 0.0,
       "low_decreasing": 0.0,
       "spy": 91.15,
       "low_count": 0,
-      "mid_count": 4,
-      "high_count": 1,
-      "low_decreasing_count": 0
+      "mid_count": 0,
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 5,
+      "low_buyable": 0,
+      "mid_screened": 13,
+      "mid_buyable": 4,
+      "high_screened": 8,
+      "high_buyable": 2,
+      "low_decreasing_screened": 4,
+      "low_decreasing_buyable": 0
     },
     {
       "year": 2004,
-      "low": 36.83,
-      "mid": 70.46,
-      "high": 37.73,
+      "low": 0.0,
+      "mid": 0.0,
+      "high": 0.0,
       "low_decreasing": 0.0,
       "spy": 13.46,
-      "low_count": 2,
-      "mid_count": 5,
-      "high_count": 2,
-      "low_decreasing_count": 0
+      "low_count": 0,
+      "mid_count": 0,
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 13,
+      "low_buyable": 3,
+      "mid_screened": 12,
+      "mid_buyable": 5,
+      "high_screened": 12,
+      "high_buyable": 2,
+      "low_decreasing_screened": 7,
+      "low_decreasing_buyable": 1
     },
     {
       "year": 2005,
-      "low": 54.11,
+      "low": 0.0,
       "mid": 43.88,
-      "high": 69.99,
-      "low_decreasing": 44.09,
+      "high": 0.0,
+      "low_decreasing": 0.0,
       "spy": 49.02,
-      "low_count": 6,
+      "low_count": 0,
       "mid_count": 13,
-      "high_count": 7,
-      "low_decreasing_count": 3
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 22,
+      "low_buyable": 6,
+      "mid_screened": 43,
+      "mid_buyable": 13,
+      "high_screened": 31,
+      "high_buyable": 8,
+      "low_decreasing_screened": 7,
+      "low_decreasing_buyable": 3
     },
     {
       "year": 2006,
       "low": 17.74,
       "mid": 11.49,
-      "high": 67.28,
-      "low_decreasing": 16.35,
+      "high": 0.0,
+      "low_decreasing": 0.0,
       "spy": 19.29,
       "low_count": 14,
       "mid_count": 12,
-      "high_count": 9,
-      "low_decreasing_count": 7
+      "high_count": 0,
+      "low_decreasing_count": 0,
+      "low_screened": 39,
+      "low_buyable": 14,
+      "mid_screened": 30,
+      "mid_buyable": 12,
+      "high_screened": 38,
+      "high_buyable": 9,
+      "low_decreasing_screened": 15,
+      "low_decreasing_buyable": 7
     },
     {
       "year": 2007,
       "low": 23.57,
       "mid": 4.53,
-      "high": 24.04,
+      "high": 20.95,
       "low_decreasing": 19.45,
       "spy": 38.64,
       "low_count": 18,
       "mid_count": 18,
-      "high_count": 15,
-      "low_decreasing_count": 10
+      "high_count": 16,
+      "low_decreasing_count": 10,
+      "low_screened": 55,
+      "low_buyable": 20,
+      "mid_screened": 53,
+      "mid_buyable": 18,
+      "high_screened": 46,
+      "high_buyable": 17,
+      "low_decreasing_screened": 25,
+      "low_decreasing_buyable": 10
     },
     {
       "year": 2008,
@@ -247,7 +319,15 @@
       "low_count": 27,
       "mid_count": 20,
       "high_count": 28,
-      "low_decreasing_count": 16
+      "low_decreasing_count": 16,
+      "low_screened": 54,
+      "low_buyable": 27,
+      "mid_screened": 61,
+      "mid_buyable": 20,
+      "high_screened": 53,
+      "high_buyable": 28,
+      "low_decreasing_screened": 30,
+      "low_decreasing_buyable": 16
     },
     {
       "year": 2009,
@@ -259,19 +339,35 @@
       "low_count": 18,
       "mid_count": 11,
       "high_count": 23,
-      "low_decreasing_count": 10
+      "low_decreasing_count": 10,
+      "low_screened": 47,
+      "low_buyable": 20,
+      "mid_screened": 37,
+      "mid_buyable": 11,
+      "high_screened": 49,
+      "high_buyable": 24,
+      "low_decreasing_screened": 31,
+      "low_decreasing_buyable": 11
     },
     {
       "year": 2010,
       "low": 26.13,
       "mid": 11.14,
       "high": 11.92,
-      "low_decreasing": 51.42,
+      "low_decreasing": 0.0,
       "spy": -1.77,
       "low_count": 15,
       "mid_count": 25,
       "high_count": 36,
-      "low_decreasing_count": 7
+      "low_decreasing_count": 0,
+      "low_screened": 45,
+      "low_buyable": 15,
+      "mid_screened": 50,
+      "mid_buyable": 25,
+      "high_screened": 67,
+      "high_buyable": 36,
+      "low_decreasing_screened": 23,
+      "low_decreasing_buyable": 7
     },
     {
       "year": 2011,
@@ -283,7 +379,15 @@
       "low_count": 26,
       "mid_count": 28,
       "high_count": 37,
-      "low_decreasing_count": 19
+      "low_decreasing_count": 19,
+      "low_screened": 57,
+      "low_buyable": 26,
+      "mid_screened": 52,
+      "mid_buyable": 28,
+      "high_screened": 70,
+      "high_buyable": 38,
+      "low_decreasing_screened": 33,
+      "low_decreasing_buyable": 19
     },
     {
       "year": 2012,
@@ -295,7 +399,15 @@
       "low_count": 34,
       "mid_count": 33,
       "high_count": 31,
-      "low_decreasing_count": 20
+      "low_decreasing_count": 20,
+      "low_screened": 68,
+      "low_buyable": 34,
+      "mid_screened": 56,
+      "mid_buyable": 33,
+      "high_screened": 53,
+      "high_buyable": 31,
+      "low_decreasing_screened": 37,
+      "low_decreasing_buyable": 20
     },
     {
       "year": 2013,
@@ -307,7 +419,15 @@
       "low_count": 37,
       "mid_count": 30,
       "high_count": 35,
-      "low_decreasing_count": 23
+      "low_decreasing_count": 23,
+      "low_screened": 81,
+      "low_buyable": 37,
+      "mid_screened": 50,
+      "mid_buyable": 30,
+      "high_screened": 58,
+      "high_buyable": 35,
+      "low_decreasing_screened": 48,
+      "low_decreasing_buyable": 23
     },
     {
       "year": 2014,
@@ -319,7 +439,15 @@
       "low_count": 42,
       "mid_count": 27,
       "high_count": 33,
-      "low_decreasing_count": 31
+      "low_decreasing_count": 31,
+      "low_screened": 101,
+      "low_buyable": 42,
+      "mid_screened": 47,
+      "mid_buyable": 27,
+      "high_screened": 62,
+      "high_buyable": 33,
+      "low_decreasing_screened": 70,
+      "low_decreasing_buyable": 31
     },
     {
       "year": 2015,
@@ -331,7 +459,15 @@
       "low_count": 39,
       "mid_count": 26,
       "high_count": 32,
-      "low_decreasing_count": 26
+      "low_decreasing_count": 26,
+      "low_screened": 92,
+      "low_buyable": 39,
+      "mid_screened": 52,
+      "mid_buyable": 26,
+      "high_screened": 62,
+      "high_buyable": 32,
+      "low_decreasing_screened": 49,
+      "low_decreasing_buyable": 26
     },
     {
       "year": 2016,
@@ -343,7 +479,15 @@
       "low_count": 31,
       "mid_count": 27,
       "high_count": 27,
-      "low_decreasing_count": 22
+      "low_decreasing_count": 22,
+      "low_screened": 79,
+      "low_buyable": 33,
+      "mid_screened": 65,
+      "mid_buyable": 27,
+      "high_screened": 51,
+      "high_buyable": 27,
+      "low_decreasing_screened": 56,
+      "low_decreasing_buyable": 24
     },
     {
       "year": 2017,
@@ -355,7 +499,15 @@
       "low_count": 37,
       "mid_count": 31,
       "high_count": 28,
-      "low_decreasing_count": 17
+      "low_decreasing_count": 17,
+      "low_screened": 84,
+      "low_buyable": 38,
+      "mid_screened": 69,
+      "mid_buyable": 31,
+      "high_screened": 53,
+      "high_buyable": 28,
+      "low_decreasing_screened": 46,
+      "low_decreasing_buyable": 18
     },
     {
       "year": 2018,
@@ -367,7 +519,15 @@
       "low_count": 42,
       "mid_count": 42,
       "high_count": 31,
-      "low_decreasing_count": 28
+      "low_decreasing_count": 28,
+      "low_screened": 94,
+      "low_buyable": 42,
+      "mid_screened": 84,
+      "mid_buyable": 44,
+      "high_screened": 61,
+      "high_buyable": 31,
+      "low_decreasing_screened": 64,
+      "low_decreasing_buyable": 28
     },
     {
       "year": 2019,
@@ -379,7 +539,15 @@
       "low_count": 45,
       "mid_count": 41,
       "high_count": 35,
-      "low_decreasing_count": 31
+      "low_decreasing_count": 31,
+      "low_screened": 98,
+      "low_buyable": 46,
+      "mid_screened": 85,
+      "mid_buyable": 41,
+      "high_screened": 67,
+      "high_buyable": 35,
+      "low_decreasing_screened": 48,
+      "low_decreasing_buyable": 32
     },
     {
       "year": 2020,
@@ -391,7 +559,15 @@
       "low_count": 47,
       "mid_count": 40,
       "high_count": 43,
-      "low_decreasing_count": 23
+      "low_decreasing_count": 23,
+      "low_screened": 94,
+      "low_buyable": 47,
+      "mid_screened": 88,
+      "mid_buyable": 41,
+      "high_screened": 78,
+      "high_buyable": 50,
+      "low_decreasing_screened": 45,
+      "low_decreasing_buyable": 23
     },
     {
       "year": 2021,
@@ -403,7 +579,15 @@
       "low_count": 59,
       "mid_count": 55,
       "high_count": 54,
-      "low_decreasing_count": 38
+      "low_decreasing_count": 38,
+      "low_screened": 101,
+      "low_buyable": 59,
+      "mid_screened": 85,
+      "mid_buyable": 55,
+      "high_screened": 81,
+      "high_buyable": 54,
+      "low_decreasing_screened": 65,
+      "low_decreasing_buyable": 38
     },
     {
       "year": 2022,
@@ -415,36 +599,427 @@
       "low_count": 64,
       "mid_count": 53,
       "high_count": 66,
-      "low_decreasing_count": 41
+      "low_decreasing_count": 41,
+      "low_screened": 102,
+      "low_buyable": 64,
+      "mid_screened": 82,
+      "mid_buyable": 53,
+      "high_screened": 89,
+      "high_buyable": 66,
+      "low_decreasing_screened": 63,
+      "low_decreasing_buyable": 41
     },
     {
       "year": 2023,
-      "low": 32.75,
-      "mid": 21.98,
-      "high": 23.98,
-      "low_decreasing": 39.89,
+      "low": 31.81,
+      "mid": 20.53,
+      "high": 22.58,
+      "low_decreasing": 37.33,
       "spy": 24.98,
-      "low_count": 55,
-      "mid_count": 52,
-      "high_count": 50,
-      "low_decreasing_count": 31
+      "low_count": 60,
+      "mid_count": 55,
+      "high_count": 51,
+      "low_decreasing_count": 36,
+      "low_screened": 90,
+      "low_buyable": 60,
+      "mid_screened": 85,
+      "mid_buyable": 55,
+      "high_screened": 74,
+      "high_buyable": 51,
+      "low_decreasing_screened": 53,
+      "low_decreasing_buyable": 36
     },
     {
       "year": 2024,
-      "low": -3.04,
+      "low": -4.47,
       "mid": -2.89,
-      "high": -12.73,
-      "low_decreasing": -5.09,
+      "high": -13.34,
+      "low_decreasing": -6.41,
       "spy": 3.04,
-      "low_count": 59,
+      "low_count": 64,
       "mid_count": 49,
-      "high_count": 43,
-      "low_decreasing_count": 41
+      "high_count": 47,
+      "low_decreasing_count": 44,
+      "low_screened": 97,
+      "low_buyable": 64,
+      "mid_screened": 80,
+      "mid_buyable": 49,
+      "high_screened": 76,
+      "high_buyable": 48,
+      "low_decreasing_screened": 70,
+      "low_decreasing_buyable": 44
     }
   ],
+  "listing_filter": null,
+  "isin_dedup": true,
   "benchmark": {
     "symbol": "^BVSP",
     "name": "Bovespa"
   },
-  "execution": "next-day close (MOC)"
+  "execution": "next-day close (MOC)",
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "remote stock_eod",
+    "delist_grace_days": 7,
+    "missing_exits": 18,
+    "ltp_filled": 18,
+    "still_missing": 0,
+    "filled_local": 0,
+    "filled_remote": 18,
+    "closed_by_delisting": 0,
+    "filled_without_delisting_row": 16,
+    "filled_ignoring_delisting_row": 0,
+    "filled_delisting_not_binding": 1,
+    "fills": [
+      {
+        "symbol": "ALSO3.SA",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 16.750246,
+        "last_bar": "2023-11-21",
+        "ltp": 25.21,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "CASN4.SA",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 7.667773,
+        "last_bar": "2023-05-23",
+        "ltp": 7.71577,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "COCE6.SA",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 34.692047,
+        "last_bar": "2023-05-17",
+        "ltp": 35.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "CPLE11.SA",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 32.77,
+        "last_bar": "2023-12-22",
+        "ltp": 50.12,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "ENBR3.SA",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 22.080513,
+        "last_bar": "2023-08-21",
+        "ltp": 24.08,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "EQPA6.SA",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 10.667536,
+        "last_bar": "2024-03-25",
+        "ltp": 8.24,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "ODER4.SA",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 189.3,
+        "last_bar": "2023-06-07",
+        "ltp": 100.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "SQIA3.SA",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 15.597702,
+        "last_bar": "2023-11-01",
+        "ltp": 27.37,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "VIIA3.SA",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 1.81,
+        "last_bar": "2023-10-17",
+        "ltp": 0.55,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "AESB3.SA",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 9.65,
+        "last_bar": "2024-10-31",
+        "ltp": 8.11,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "ARZZ3.SA",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 61.3,
+        "last_bar": "2024-08-26",
+        "ltp": 52.59,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "BRIT3.SA",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 4.23,
+        "last_bar": "2025-03-14",
+        "ltp": 2.86,
+        "delisted_date": "2025-03-14",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "CIEL3.SA",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 5.44,
+        "last_bar": "2024-08-26",
+        "ltp": 5.83,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "ENAT3.SA",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 25.73,
+        "last_bar": "2024-08-26",
+        "ltp": 21.64,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "RRRP3.SA",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 32.95,
+        "last_bar": "2025-03-14",
+        "ltp": 17.71,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "SOMA3.SA",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 7.44,
+        "last_bar": "2024-07-31",
+        "ltp": 5.94,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "TRPL3.SA",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 33.38,
+        "last_bar": "2024-12-10",
+        "ltp": 30.03,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "USIM6.SA",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 16.57,
+        "last_bar": "2025-02-11",
+        "ltp": 11.0,
+        "delisted_date": "2025-11-07",
+        "delisting_bound": "not_binding",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      }
+    ],
+    "low_track": {
+      "missing_exits": 10,
+      "ltp_filled": 10,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2023,
+          "symbol": "ALSO3.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "COCE6.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "CPLE11.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "SQIA3.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "VIIA3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "AESB3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "BRIT3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "CIEL3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "ENAT3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "RRRP3.SA"
+        }
+      ]
+    },
+    "mid_track": {
+      "missing_exits": 3,
+      "ltp_filled": 3,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2023,
+          "symbol": "CASN4.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "ENBR3.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "EQPA6.SA"
+        }
+      ]
+    },
+    "high_track": {
+      "missing_exits": 5,
+      "ltp_filled": 5,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2023,
+          "symbol": "ODER4.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "ARZZ3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "SOMA3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "TRPL3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "USIM6.SA"
+        }
+      ]
+    },
+    "low_decreasing_track": {
+      "missing_exits": 8,
+      "ltp_filled": 8,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2023,
+          "symbol": "ALSO3.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "COCE6.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "CPLE11.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "SQIA3.SA"
+        },
+        {
+          "year": 2023,
+          "symbol": "VIIA3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "BRIT3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "CIEL3.SA"
+        },
+        {
+          "year": 2024,
+          "symbol": "RRRP3.SA"
+        }
+      ]
+    }
+  }
 }

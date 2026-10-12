@@ -11,23 +11,23 @@
   },
   "portfolios": {
     "low_ccc": {
-      "cagr": 5.4,
-      "total_return": 272.67,
-      "volatility": 22.45,
-      "sharpe": 0.236,
-      "sortino": 0.528,
-      "calmar": 0.117,
+      "cagr": 5.42,
+      "total_return": 273.87,
+      "volatility": 22.44,
+      "sharpe": 0.237,
+      "sortino": 0.529,
+      "calmar": 0.118,
       "max_drawdown": -46.0,
       "var_95": -23.9,
       "pct_negative_years": 40.0,
       "max_consecutive_losses": 3
     },
     "mid_ccc": {
-      "cagr": 5.59,
-      "total_return": 289.61,
-      "volatility": 22.38,
+      "cagr": 5.57,
+      "total_return": 287.78,
+      "volatility": 22.37,
       "sharpe": 0.245,
-      "sortino": 0.548,
+      "sortino": 0.546,
       "calmar": 0.118,
       "max_drawdown": -47.3,
       "var_95": -23.2,
@@ -35,24 +35,24 @@
       "max_consecutive_losses": 3
     },
     "high_ccc": {
-      "cagr": 6.2,
-      "total_return": 350.33,
-      "volatility": 26.07,
-      "sharpe": 0.234,
-      "sortino": 0.578,
-      "calmar": 0.127,
+      "cagr": 6.23,
+      "total_return": 352.79,
+      "volatility": 26.05,
+      "sharpe": 0.235,
+      "sortino": 0.58,
+      "calmar": 0.128,
       "max_drawdown": -48.8,
       "var_95": -24.7,
       "pct_negative_years": 52.0,
       "max_consecutive_losses": 3
     },
     "low_decreasing": {
-      "cagr": 4.13,
-      "total_return": 175.29,
-      "volatility": 22.92,
-      "sharpe": 0.176,
-      "sortino": 0.366,
-      "calmar": 0.084,
+      "cagr": 4.05,
+      "total_return": 169.68,
+      "volatility": 22.94,
+      "sharpe": 0.172,
+      "sortino": 0.358,
+      "calmar": 0.082,
       "max_drawdown": -49.3,
       "var_95": -22.2,
       "pct_negative_years": 36.0,
@@ -71,19 +71,27 @@
       "max_consecutive_losses": 3
     }
   },
-  "spread_cagr": -0.8,
-  "low_vs_spy": 3.2,
+  "spread_cagr": -0.81,
+  "low_vs_spy": 3.22,
   "avg_stock_counts": {
     "low": 107.0,
-    "mid": 152.0,
+    "mid": 153.0,
     "high": 171.0,
-    "low_decreasing": 52.0,
-    "total": 430.0
+    "low_decreasing": 54.0,
+    "total": 431.0
   },
+  "min_stocks": 10,
   "cash_periods": {
     "low": 0,
+    "mid": 0,
     "high": 0,
-    "low_decreasing": 0
+    "low_decreasing": 1
+  },
+  "invested_periods": {
+    "low": 25,
+    "mid": 25,
+    "high": 25,
+    "low_decreasing": 24
   },
   "decade_breakdown": [
     {
@@ -117,28 +125,28 @@
     {
       "period": "2020-25",
       "low_return": 12.6,
-      "high_return": 16.5,
+      "high_return": 16.6,
       "spread": -4.0,
       "spy_return": 18.6
     }
   ],
   "low_vs_spy_detail": {
-    "excess_cagr": 3.2,
-    "information_ratio": 0.155,
-    "tracking_error": 13.12,
-    "up_capture": 87.4,
-    "down_capture": 53.8,
-    "beta": 0.72,
-    "alpha": 3.79
+    "excess_cagr": 3.21,
+    "information_ratio": 0.156,
+    "tracking_error": 13.15,
+    "up_capture": 87.3,
+    "down_capture": 53.5,
+    "beta": 0.719,
+    "alpha": 3.81
   },
   "low_decreasing_vs_spy": {
-    "excess_cagr": 1.93,
-    "information_ratio": 0.08,
-    "tracking_error": 11.3,
-    "up_capture": 85.0,
-    "down_capture": 63.7,
-    "beta": 0.763,
-    "alpha": 2.43
+    "excess_cagr": 1.85,
+    "information_ratio": 0.074,
+    "tracking_error": 10.99,
+    "up_capture": 84.9,
+    "down_capture": 64.5,
+    "beta": 0.768,
+    "alpha": 2.33
   },
   "annual_returns": [
     {
@@ -146,12 +154,20 @@
       "low": 10.85,
       "mid": -12.38,
       "high": -13.63,
-      "low_decreasing": 2.63,
+      "low_decreasing": 0.0,
       "spy": -37.58,
       "low_count": 16,
       "mid_count": 18,
       "high_count": 20,
-      "low_decreasing_count": 5
+      "low_decreasing_count": 0,
+      "low_screened": 25,
+      "low_buyable": 16,
+      "mid_screened": 22,
+      "mid_buyable": 18,
+      "high_screened": 28,
+      "high_buyable": 20,
+      "low_decreasing_screened": 10,
+      "low_decreasing_buyable": 5
     },
     {
       "year": 2001,
@@ -163,7 +179,15 @@
       "low_count": 32,
       "mid_count": 26,
       "high_count": 33,
-      "low_decreasing_count": 12
+      "low_decreasing_count": 12,
+      "low_screened": 43,
+      "low_buyable": 32,
+      "mid_screened": 29,
+      "mid_buyable": 26,
+      "high_screened": 42,
+      "high_buyable": 33,
+      "low_decreasing_screened": 17,
+      "low_decreasing_buyable": 12
     },
     {
       "year": 2002,
@@ -175,7 +199,15 @@
       "low_count": 38,
       "mid_count": 35,
       "high_count": 42,
-      "low_decreasing_count": 16
+      "low_decreasing_count": 16,
+      "low_screened": 44,
+      "low_buyable": 38,
+      "mid_screened": 36,
+      "mid_buyable": 35,
+      "high_screened": 44,
+      "high_buyable": 42,
+      "low_decreasing_screened": 18,
+      "low_decreasing_buyable": 16
     },
     {
       "year": 2003,
@@ -187,7 +219,15 @@
       "low_count": 35,
       "mid_count": 35,
       "high_count": 51,
-      "low_decreasing_count": 11
+      "low_decreasing_count": 11,
+      "low_screened": 43,
+      "low_buyable": 36,
+      "mid_screened": 38,
+      "mid_buyable": 35,
+      "high_screened": 54,
+      "high_buyable": 52,
+      "low_decreasing_screened": 12,
+      "low_decreasing_buyable": 11
     },
     {
       "year": 2004,
@@ -199,7 +239,15 @@
       "low_count": 42,
       "mid_count": 38,
       "high_count": 49,
-      "low_decreasing_count": 24
+      "low_decreasing_count": 24,
+      "low_screened": 48,
+      "low_buyable": 42,
+      "mid_screened": 38,
+      "mid_buyable": 38,
+      "high_screened": 51,
+      "high_buyable": 49,
+      "low_decreasing_screened": 26,
+      "low_decreasing_buyable": 24
     },
     {
       "year": 2005,
@@ -211,7 +259,15 @@
       "low_count": 59,
       "mid_count": 53,
       "high_count": 69,
-      "low_decreasing_count": 24
+      "low_decreasing_count": 24,
+      "low_screened": 67,
+      "low_buyable": 59,
+      "mid_screened": 54,
+      "mid_buyable": 53,
+      "high_screened": 73,
+      "high_buyable": 70,
+      "low_decreasing_screened": 27,
+      "low_decreasing_buyable": 24
     },
     {
       "year": 2006,
@@ -223,7 +279,15 @@
       "low_count": 115,
       "mid_count": 158,
       "high_count": 133,
-      "low_decreasing_count": 22
+      "low_decreasing_count": 22,
+      "low_screened": 133,
+      "low_buyable": 115,
+      "mid_screened": 165,
+      "mid_buyable": 158,
+      "high_screened": 140,
+      "high_buyable": 133,
+      "low_decreasing_screened": 24,
+      "low_decreasing_buyable": 22
     },
     {
       "year": 2007,
@@ -235,7 +299,15 @@
       "low_count": 130,
       "mid_count": 204,
       "high_count": 178,
-      "low_decreasing_count": 67
+      "low_decreasing_count": 67,
+      "low_screened": 147,
+      "low_buyable": 130,
+      "mid_screened": 211,
+      "mid_buyable": 204,
+      "high_screened": 189,
+      "high_buyable": 178,
+      "low_decreasing_screened": 72,
+      "low_decreasing_buyable": 67
     },
     {
       "year": 2008,
@@ -247,7 +319,15 @@
       "low_count": 127,
       "mid_count": 197,
       "high_count": 167,
-      "low_decreasing_count": 67
+      "low_decreasing_count": 67,
+      "low_screened": 141,
+      "low_buyable": 127,
+      "mid_screened": 208,
+      "mid_buyable": 197,
+      "high_screened": 176,
+      "high_buyable": 167,
+      "low_decreasing_screened": 73,
+      "low_decreasing_buyable": 67
     },
     {
       "year": 2009,
@@ -259,7 +339,15 @@
       "low_count": 113,
       "mid_count": 175,
       "high_count": 108,
-      "low_decreasing_count": 74
+      "low_decreasing_count": 74,
+      "low_screened": 128,
+      "low_buyable": 113,
+      "mid_screened": 183,
+      "mid_buyable": 175,
+      "high_screened": 119,
+      "high_buyable": 108,
+      "low_decreasing_screened": 79,
+      "low_decreasing_buyable": 74
     },
     {
       "year": 2010,
@@ -271,7 +359,15 @@
       "low_count": 96,
       "mid_count": 134,
       "high_count": 99,
-      "low_decreasing_count": 36
+      "low_decreasing_count": 36,
+      "low_screened": 109,
+      "low_buyable": 96,
+      "mid_screened": 143,
+      "mid_buyable": 134,
+      "high_screened": 107,
+      "high_buyable": 99,
+      "low_decreasing_screened": 39,
+      "low_decreasing_buyable": 36
     },
     {
       "year": 2011,
@@ -283,7 +379,15 @@
       "low_count": 111,
       "mid_count": 143,
       "high_count": 124,
-      "low_decreasing_count": 65
+      "low_decreasing_count": 65,
+      "low_screened": 127,
+      "low_buyable": 111,
+      "mid_screened": 152,
+      "mid_buyable": 143,
+      "high_screened": 132,
+      "high_buyable": 124,
+      "low_decreasing_screened": 72,
+      "low_decreasing_buyable": 65
     },
     {
       "year": 2012,
@@ -295,7 +399,15 @@
       "low_count": 97,
       "mid_count": 158,
       "high_count": 118,
-      "low_decreasing_count": 56
+      "low_decreasing_count": 56,
+      "low_screened": 112,
+      "low_buyable": 97,
+      "mid_screened": 168,
+      "mid_buyable": 158,
+      "high_screened": 124,
+      "high_buyable": 118,
+      "low_decreasing_screened": 64,
+      "low_decreasing_buyable": 56
     },
     {
       "year": 2013,
@@ -307,7 +419,15 @@
       "low_count": 97,
       "mid_count": 148,
       "high_count": 146,
-      "low_decreasing_count": 37
+      "low_decreasing_count": 37,
+      "low_screened": 112,
+      "low_buyable": 97,
+      "mid_screened": 160,
+      "mid_buyable": 149,
+      "high_screened": 153,
+      "high_buyable": 148,
+      "low_decreasing_screened": 46,
+      "low_decreasing_buyable": 37
     },
     {
       "year": 2014,
@@ -319,7 +439,15 @@
       "low_count": 103,
       "mid_count": 153,
       "high_count": 182,
-      "low_decreasing_count": 48
+      "low_decreasing_count": 48,
+      "low_screened": 120,
+      "low_buyable": 104,
+      "mid_screened": 167,
+      "mid_buyable": 153,
+      "high_screened": 187,
+      "high_buyable": 182,
+      "low_decreasing_screened": 54,
+      "low_decreasing_buyable": 49
     },
     {
       "year": 2015,
@@ -331,7 +459,15 @@
       "low_count": 123,
       "mid_count": 166,
       "high_count": 210,
-      "low_decreasing_count": 67
+      "low_decreasing_count": 67,
+      "low_screened": 138,
+      "low_buyable": 123,
+      "mid_screened": 180,
+      "mid_buyable": 166,
+      "high_screened": 216,
+      "high_buyable": 210,
+      "low_decreasing_screened": 76,
+      "low_decreasing_buyable": 67
     },
     {
       "year": 2016,
@@ -343,7 +479,15 @@
       "low_count": 140,
       "mid_count": 202,
       "high_count": 236,
-      "low_decreasing_count": 62
+      "low_decreasing_count": 62,
+      "low_screened": 155,
+      "low_buyable": 140,
+      "mid_screened": 218,
+      "mid_buyable": 203,
+      "high_screened": 243,
+      "high_buyable": 236,
+      "low_decreasing_screened": 70,
+      "low_decreasing_buyable": 62
     },
     {
       "year": 2017,
@@ -355,7 +499,15 @@
       "low_count": 147,
       "mid_count": 192,
       "high_count": 234,
-      "low_decreasing_count": 76
+      "low_decreasing_count": 76,
+      "low_screened": 166,
+      "low_buyable": 147,
+      "mid_screened": 204,
+      "mid_buyable": 192,
+      "high_screened": 243,
+      "high_buyable": 235,
+      "low_decreasing_screened": 86,
+      "low_decreasing_buyable": 76
     },
     {
       "year": 2018,
@@ -367,7 +519,15 @@
       "low_count": 158,
       "mid_count": 236,
       "high_count": 245,
-      "low_decreasing_count": 74
+      "low_decreasing_count": 74,
+      "low_screened": 176,
+      "low_buyable": 158,
+      "mid_screened": 250,
+      "mid_buyable": 236,
+      "high_screened": 253,
+      "high_buyable": 245,
+      "low_decreasing_screened": 83,
+      "low_decreasing_buyable": 74
     },
     {
       "year": 2019,
@@ -379,7 +539,15 @@
       "low_count": 164,
       "mid_count": 245,
       "high_count": 279,
-      "low_decreasing_count": 84
+      "low_decreasing_count": 84,
+      "low_screened": 182,
+      "low_buyable": 164,
+      "mid_screened": 261,
+      "mid_buyable": 245,
+      "high_screened": 287,
+      "high_buyable": 279,
+      "low_decreasing_screened": 92,
+      "low_decreasing_buyable": 84
     },
     {
       "year": 2020,
@@ -391,7 +559,15 @@
       "low_count": 141,
       "mid_count": 225,
       "high_count": 289,
-      "low_decreasing_count": 55
+      "low_decreasing_count": 55,
+      "low_screened": 166,
+      "low_buyable": 145,
+      "mid_screened": 246,
+      "mid_buyable": 228,
+      "high_screened": 297,
+      "high_buyable": 290,
+      "low_decreasing_screened": 64,
+      "low_decreasing_buyable": 56
     },
     {
       "year": 2021,
@@ -403,48 +579,547 @@
       "low_count": 139,
       "mid_count": 211,
       "high_count": 275,
-      "low_decreasing_count": 82
+      "low_decreasing_count": 82,
+      "low_screened": 159,
+      "low_buyable": 140,
+      "mid_screened": 226,
+      "mid_buyable": 211,
+      "high_screened": 284,
+      "high_buyable": 275,
+      "low_decreasing_screened": 88,
+      "low_decreasing_buyable": 83
     },
     {
       "year": 2022,
-      "low": 6.1,
-      "mid": 7.48,
+      "low": 5.95,
+      "mid": 7.34,
       "high": 5.69,
-      "low_decreasing": 2.82,
+      "low_decreasing": 2.53,
       "spy": 1.63,
-      "low_count": 143,
-      "mid_count": 244,
+      "low_count": 144,
+      "mid_count": 245,
       "high_count": 326,
-      "low_decreasing_count": 60
+      "low_decreasing_count": 61,
+      "low_screened": 164,
+      "low_buyable": 144,
+      "mid_screened": 260,
+      "mid_buyable": 245,
+      "high_screened": 338,
+      "high_buyable": 326,
+      "low_decreasing_screened": 70,
+      "low_decreasing_buyable": 61
     },
     {
       "year": 2023,
-      "low": 16.84,
-      "mid": 23.65,
-      "high": 26.16,
-      "low_decreasing": 14.97,
+      "low": 16.69,
+      "mid": 23.4,
+      "high": 26.03,
+      "low_decreasing": 14.79,
       "spy": 41.33,
-      "low_count": 145,
-      "mid_count": 210,
-      "high_count": 323,
-      "low_decreasing_count": 75
+      "low_count": 147,
+      "mid_count": 212,
+      "high_count": 326,
+      "low_decreasing_count": 76,
+      "low_screened": 166,
+      "low_buyable": 147,
+      "mid_screened": 232,
+      "mid_buyable": 212,
+      "high_screened": 341,
+      "high_buyable": 328,
+      "low_decreasing_screened": 84,
+      "low_decreasing_buyable": 76
     },
     {
       "year": 2024,
-      "low": 1.5,
-      "mid": 4.5,
-      "high": -1.67,
-      "low_decreasing": 2.21,
+      "low": 2.1,
+      "mid": 4.36,
+      "high": -1.02,
+      "low_decreasing": 3.21,
       "spy": -10.32,
-      "low_count": 167,
-      "mid_count": 203,
-      "high_count": 328,
-      "low_decreasing_count": 101
+      "low_count": 172,
+      "mid_count": 205,
+      "high_count": 337,
+      "low_decreasing_count": 104,
+      "low_screened": 189,
+      "low_buyable": 172,
+      "mid_screened": 225,
+      "mid_buyable": 205,
+      "high_screened": 356,
+      "high_buyable": 337,
+      "low_decreasing_screened": 112,
+      "low_decreasing_buyable": 104
     }
   ],
+  "listing_filter": null,
+  "isin_dedup": true,
   "benchmark": {
     "symbol": "^N225",
     "name": "Nikkei 225"
   },
-  "execution": "next-day close (MOC)"
+  "execution": "next-day close (MOC)",
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "remote stock_eod",
+    "delist_grace_days": 7,
+    "missing_exits": 25,
+    "ltp_filled": 25,
+    "still_missing": 0,
+    "filled_local": 0,
+    "filled_remote": 25,
+    "closed_by_delisting": 0,
+    "filled_without_delisting_row": 1,
+    "filled_ignoring_delisting_row": 2,
+    "filled_delisting_not_binding": 1,
+    "fills": [
+      {
+        "symbol": "4653.T",
+        "entry_date": "2022-04-01",
+        "entry_bar": "2022-04-04",
+        "entry_price": 1035.0,
+        "last_bar": "2023-01-20",
+        "ltp": 748.0,
+        "delisted_date": "2023-01-20",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-04-01"
+      },
+      {
+        "symbol": "9964.T",
+        "entry_date": "2022-04-01",
+        "entry_bar": "2022-04-04",
+        "entry_price": 1578.0,
+        "last_bar": "2023-01-25",
+        "ltp": 1345.98,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2023-04-01"
+      },
+      {
+        "symbol": "3278.T",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 204393.67,
+        "last_bar": "2023-10-27",
+        "ltp": 208430.0,
+        "delisted_date": "2023-10-30",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "3453.T",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 236603.81,
+        "last_bar": "2023-10-27",
+        "ltp": 260340.0,
+        "delisted_date": "2023-10-30",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "4739.T",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 3296.81,
+        "last_bar": "2023-11-29",
+        "ltp": 4315.0,
+        "delisted_date": "2023-12-01",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "6502.T",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 4460.0,
+        "last_bar": "2023-12-19",
+        "ltp": 4590.0,
+        "delisted_date": "2023-12-20",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "6641.T",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 1694.0,
+        "last_bar": "2023-04-07",
+        "ltp": 1695.0,
+        "delisted_date": "2023-03-31",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "8096.T",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 6180.0,
+        "last_bar": "2023-05-01",
+        "ltp": 6190.0,
+        "delisted_date": "2023-05-02",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "9728.T",
+        "entry_date": "2023-04-01",
+        "entry_bar": "2023-04-03",
+        "entry_price": 2572.0,
+        "last_bar": "2023-04-06",
+        "ltp": 2438.0,
+        "delisted_date": "2023-03-30",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-04-01"
+      },
+      {
+        "symbol": "1973.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 2372.12,
+        "last_bar": "2025-03-19",
+        "ltp": 3285.0,
+        "delisted_date": "2025-03-21",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "2412.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 4388.4,
+        "last_bar": "2024-05-17",
+        "ltp": 2168.0,
+        "delisted_date": "2024-05-20",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "2427.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 1746.0,
+        "last_bar": "2024-06-05",
+        "ltp": 1749.0,
+        "delisted_date": "2024-06-06",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "2651.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 10350.0,
+        "last_bar": "2024-07-23",
+        "ltp": 10330.0,
+        "delisted_date": "2024-07-24",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "3244.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 2723.71,
+        "last_bar": "2024-06-03",
+        "ltp": 2612.0,
+        "delisted_date": "2024-05-27",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "3254.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 1719.29,
+        "last_bar": "2025-03-27",
+        "ltp": 2383.0,
+        "delisted_date": "2025-03-28",
+        "delisting_bound": "not_binding",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "4185.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 4341.0,
+        "last_bar": "2024-06-24",
+        "ltp": 4335.0,
+        "delisted_date": "2024-06-25",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "4348.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 2715.0,
+        "last_bar": "2024-10-15",
+        "ltp": 6040.0,
+        "delisted_date": "2024-10-16",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "4485.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 3575.0,
+        "last_bar": "2025-01-06",
+        "ltp": 3589.82,
+        "delisted_date": "2025-01-07",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "4541.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 36.34,
+        "last_bar": "2024-08-21",
+        "ltp": 32.14,
+        "delisted_date": "2023-06-27",
+        "delisting_bound": "ignored_predates_entry",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "4581.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 8590.0,
+        "last_bar": "2024-04-08",
+        "ltp": 8590.0,
+        "delisted_date": "2024-04-09",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "4921.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 1980.0,
+        "last_bar": "2024-12-18",
+        "ltp": 2790.0,
+        "delisted_date": "2024-12-18",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "7518.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 2660.61,
+        "last_bar": "2025-03-17",
+        "ltp": 4480.0,
+        "delisted_date": "2025-03-18",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "8114.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 3400.0,
+        "last_bar": "2025-01-23",
+        "ltp": 4163.27,
+        "delisted_date": "2025-01-24",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "9086.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 2705.0,
+        "last_bar": "2024-08-21",
+        "ltp": 3544.0,
+        "delisted_date": "2023-02-24",
+        "delisting_bound": "ignored_predates_entry",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      },
+      {
+        "symbol": "9783.T",
+        "entry_date": "2024-04-01",
+        "entry_bar": "2024-04-02",
+        "entry_price": 2586.5,
+        "last_bar": "2024-05-16",
+        "ltp": 2592.0,
+        "delisted_date": "2024-05-17",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-04-01"
+      }
+    ],
+    "low_track": {
+      "missing_exits": 8,
+      "ltp_filled": 8,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2022,
+          "symbol": "9964.T"
+        },
+        {
+          "year": 2023,
+          "symbol": "3278.T"
+        },
+        {
+          "year": 2023,
+          "symbol": "3453.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "2427.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "2651.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "4348.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "4485.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "4541.T"
+        }
+      ]
+    },
+    "mid_track": {
+      "missing_exits": 5,
+      "ltp_filled": 5,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2022,
+          "symbol": "4653.T"
+        },
+        {
+          "year": 2023,
+          "symbol": "8096.T"
+        },
+        {
+          "year": 2023,
+          "symbol": "9728.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "2412.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "9086.T"
+        }
+      ]
+    },
+    "high_track": {
+      "missing_exits": 12,
+      "ltp_filled": 12,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2023,
+          "symbol": "4739.T"
+        },
+        {
+          "year": 2023,
+          "symbol": "6502.T"
+        },
+        {
+          "year": 2023,
+          "symbol": "6641.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "1973.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "3244.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "3254.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "4185.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "4581.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "4921.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "7518.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "8114.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "9783.T"
+        }
+      ]
+    },
+    "low_decreasing_track": {
+      "missing_exits": 5,
+      "ltp_filled": 5,
+      "still_missing": 0,
+      "fills": [
+        {
+          "year": 2022,
+          "symbol": "9964.T"
+        },
+        {
+          "year": 2023,
+          "symbol": "3278.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "2427.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "4348.T"
+        },
+        {
+          "year": 2024,
+          "symbol": "4541.T"
+        }
+      ]
+    }
+  }
 }

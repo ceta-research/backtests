@@ -68,8 +68,8 @@ def plot_cumulative(data, label, output_path, exch_key, bench, title_suffix=""):
     port_curve = cumulative_growth(port_rets)
     spy_curve = cumulative_growth(spy_rets)
 
-    # x-axis: years with a starting point one year before first year
-    x = [years[0] - 1] + years
+    # "year" is the period's START year (July Y -> July Y+1): $1 at the first start, each value at its end
+    x = [years[0]] + [y + 1 for y in years]
     fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.plot(x, port_curve, color=STRATEGY_COLOR, linewidth=2.5,

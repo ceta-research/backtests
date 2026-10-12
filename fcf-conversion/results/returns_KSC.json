@@ -15,7 +15,7 @@
   "window_label": "2000-2025",
   "years": 25.0,
   "frequency": "annual",
-  "avg_stocks_when_invested": 12.1,
+  "avg_stocks_when_invested": 12.6,
   "period_data": [
     {
       "rebalance_date": "2000-07-01",
@@ -213,7 +213,7 @@
       "screened": 13,
       "entry_buyable": 13,
       "min_stocks": 10,
-      "holdings": "012630.KS,000990.KS,000995.KS,002355.KS,002350.KS,012510.KS,025540.KS,035420.KS,035250.KS,192080.KS,033780.KS,014680.KS,002960.KS"
+      "holdings": "012630.KS,000990.KS,000995.KS,002350.KS,002355.KS,012510.KS,025540.KS,035420.KS,035250.KS,192080.KS,033780.KS,014680.KS,002960.KS"
     },
     {
       "rebalance_date": "2018-07-01",
@@ -257,29 +257,29 @@
       "screened": 17,
       "entry_buyable": 15,
       "min_stocks": 10,
-      "holdings": "081660.KS,192080.KS,178920.KS,383220.KS,069080.KS,268280.KS,281820.KS,009150.KS,009155.KS,001800.KS,271560.KS,036570.KS,001820.KS,011785.KS,011780.KS"
+      "holdings": "081660.KS,192080.KS,178920.KS,383220.KS,069080.KS,268280.KS,281820.KS,009150.KS,009155.KS,001800.KS,271560.KS,036570.KS,001820.KS,011780.KS,011785.KS"
     },
     {
       "rebalance_date": "2022-07-01",
       "exit_date": "2023-07-01",
-      "portfolio_return": -0.068024,
+      "portfolio_return": -0.041378,
       "spy_return": 0.131341,
-      "stocks_held": 11,
+      "stocks_held": 13,
       "screened": 15,
       "entry_buyable": 13,
       "min_stocks": 10,
-      "holdings": "034830.KS,192080.KS,302440.KS,081660.KS,001800.KS,259960.KS,383220.KS,033780.KS,011200.KS,137310.KS,068270.KS"
+      "holdings": "068760.KS,034830.KS,192080.KS,036540.KS,302440.KS,081660.KS,001800.KS,259960.KS,383220.KS,033780.KS,011200.KS,137310.KS,068270.KS"
     },
     {
       "rebalance_date": "2023-07-01",
       "exit_date": "2024-07-01",
-      "portfolio_return": -0.009964,
+      "portfolio_return": -0.013108,
       "spy_return": 0.068546,
-      "stocks_held": 9,
+      "stocks_held": 10,
       "screened": 14,
       "entry_buyable": 11,
       "min_stocks": 10,
-      "holdings": "003495.KS,003490.KS,028670.KS,005830.KS,001800.KS,001450.KS,271560.KS,036570.KS,011200.KS"
+      "holdings": "010050.KS,003490.KS,003495.KS,028670.KS,005830.KS,001800.KS,001450.KS,271560.KS,036570.KS,011200.KS"
     },
     {
       "rebalance_date": "2024-07-01",
@@ -294,12 +294,12 @@
     }
   ],
   "portfolio": {
-    "total_return": -36.62,
-    "cagr": -1.81,
-    "max_drawdown": -44.63,
-    "annualized_volatility": 7.04,
-    "sharpe_ratio": -0.683,
-    "sortino_ratio": -0.606,
+    "total_return": -35.01,
+    "cagr": -1.71,
+    "max_drawdown": -43.22,
+    "annualized_volatility": 6.98,
+    "sharpe_ratio": -0.675,
+    "sortino_ratio": -0.602,
     "calmar_ratio": -0.04,
     "var_95": -15.42,
     "max_consecutive_losses": 3,
@@ -318,16 +318,16 @@
     "pct_negative_periods": 36.0
   },
   "comparison": {
-    "excess_cagr": -7.16,
+    "excess_cagr": -7.06,
     "win_rate": 32.0,
-    "information_ratio": -0.473,
-    "tracking_error": 18.52,
-    "up_capture": 3.34,
+    "information_ratio": -0.469,
+    "tracking_error": 18.46,
+    "up_capture": 4.12,
     "down_capture": 40.86,
-    "beta": 0.144,
-    "alpha": -5.15
+    "beta": 0.146,
+    "alpha": -5.05
   },
-  "excess_cagr": -7.16,
+  "excess_cagr": -7.06,
   "win_rate_vs_spy": 32.0,
   "annual_returns": [
     {
@@ -464,15 +464,15 @@
     },
     {
       "year": 2022,
-      "portfolio": -6.8,
+      "portfolio": -4.14,
       "spy": 13.13,
-      "excess": -19.94
+      "excess": -17.27
     },
     {
       "year": 2023,
-      "portfolio": -1.0,
+      "portfolio": -1.31,
       "spy": 6.85,
-      "excess": -7.85
+      "excess": -8.17
     },
     {
       "year": 2024,
@@ -480,5 +480,60 @@
       "spy": 10.58,
       "excess": 3.89
     }
-  ]
+  ],
+  "listing_filter": null,
+  "isin_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "remote stock_eod",
+    "delist_grace_days": 7,
+    "missing_exits": 3,
+    "ltp_filled": 3,
+    "still_missing": 0,
+    "filled_local": 0,
+    "filled_remote": 3,
+    "closed_by_delisting": 0,
+    "filled_without_delisting_row": 3,
+    "filled_ignoring_delisting_row": 0,
+    "filled_delisting_not_binding": 0,
+    "fills": [
+      {
+        "symbol": "068760.KS",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 81700.0,
+        "last_bar": "2023-05-23",
+        "ltp": 89000.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "036540.KS",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 5120.0,
+        "last_bar": "2023-05-23",
+        "ltp": 5760.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "010050.KS",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 736.0,
+        "last_bar": "2023-08-25",
+        "ltp": 707.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      }
+    ]
+  }
 }

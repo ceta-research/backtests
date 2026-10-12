@@ -13,6 +13,7 @@ Portfolios:
   Mid CCC (30-90 days): Average efficiency
   High CCC (> 90 days): Capital-intensive companies
   Low + Decreasing: Low CCC with YoY improvement (strongest signal)
+  A bucket with fewer than 10 names buyable at entry holds cash that year.
 
 Universe: Non-financial stocks above exchange-specific market cap threshold.
 Benchmark: S&P 500 (SPY).
@@ -35,7 +36,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch,
+                         remove_price_oscillations, entry_usable, entry_buyable_prices, LtpExits,
+                        add_exit_method_arg, utc_epoch,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
@@ -50,6 +52,10 @@ FILING_LAG_DAYS = 45
 EXCLUDED_SECTORS = ("Financial Services",)  # CCC meaningless for banks/insurance
 START_YEAR = 2000
 END_YEAR = 2025
+# Per bucket: fewer names buyable at entry -> that bucket is cash. Not named MIN_STOCKS:
+# test_floor_guard.py drives every MIN_STOCKS topic as a one-book topic; this one has four buckets.
+MIN_BUCKET_STOCKS = 10
+TRACKS = ("low", "mid", "high", "low_decreasing")
 
 GLOBAL_PRESETS = [
     "us", "india", "germany", "china", "hongkong", "japan", "canada",
@@ -308,25 +314,37 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         high = {s: v for s, v in scored.items() if v["bucket"] == "high"}
         low_decreasing = {s: v for s, v in scored.items()
                           if v["bucket"] == "low" and v["direction"] == "decreasing"}
+        tracks = [("low", low), ("mid", mid), ("high", high), ("low_decreasing", low_decreasing)]
 
+        # Price once per period. The floor reads ENTRY prices only: never exits, never LTP fills.
+        eps = {s: get_price(con, s, entry_date, offset_days=offset_days) for s in scored}
+        xps = {s: get_price(con, s, exit_date, offset_days=offset_days) for s in scored}
+        # min_entry_price=1.0 is the filter_returns default this topic runs with.
+        buyable = {name: entry_buyable_prices(list(p), eps, 1.0) for name, p in tracks}
+        cash = {name for name, _ in tracks if buyable[name] < MIN_BUCKET_STOCKS}
+
+        ltp_fill = {}
         if ltp:
-            # low/mid/high partition scored: price once, ONE LTP query per period for all four tracks.
-            eps = {s: get_price(con, s, entry_date, offset_days=offset_days) for s in scored}
-            xps = {s: get_price(con, s, exit_date, offset_days=offset_days) for s in scored}
-            # min_entry_price=1.0 is the filter_returns default this topic runs with.
-            ltp_fill = ltp.fill(list(scored), eps, xps, entry_date, exit_date,
+            # low/mid/high partition scored: ONE LTP query per period, invested buckets only
+            # (low_decreasing is inside low, so it is invested only if low is).
+            held = [s for s, v in scored.items() if v["bucket"] not in cash]
+            ltp_fill = ltp.fill(held, eps, xps, entry_date, exit_date,
                                 offset_days=offset_days, min_entry_price=1.0)
-            xps_ltp = {**xps, **ltp_fill}
+        xps_ltp = {**xps, **ltp_fill}
 
         # Compute returns for each track
         track_data = {}
         audit = {}
-        for name, portfolio in [("low", low), ("mid", mid), ("high", high),
-                                ("low_decreasing", low_decreasing)]:
+        for name, portfolio in tracks:
+            if name in cash:
+                track_data[name] = {"return": 0.0, "count": 0, "skipped": 0}
+                if ltp:
+                    audit[name] = {"missing": 0, "filled": []}
+                continue
             ret, cnt, skip = compute_portfolio_return(
                 con, portfolio, entry_date, exit_date,
                 use_costs=use_costs, verbose=verbose, offset_days=offset_days,
-                priced=(eps, xps_ltp if exit_method == "ltp" else xps) if ltp else None
+                priced=(eps, xps_ltp if exit_method == "ltp" else xps)
             )
             track_data[name] = {"return": ret, "count": cnt, "skipped": skip}
             if ltp:
@@ -359,6 +377,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "total_count": sum(
                 track_data[t]["count"] for t in ["low", "mid", "high"]
             ),
+            # Entry funnel per bucket: screened >= buyable >= count; cash iff buyable < MIN_BUCKET_STOCKS.
+            **{f"{name}_screened": len(p) for name, p in tracks},
+            **{f"{name}_buyable": buyable[name] for name, _ in tracks},
         })
         if exit_method == "both":
             periods[-1].update({f"{t}_{k}": v for t, d in track_data.items()
@@ -369,12 +390,10 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         if verbose:
             s = track_data
             spy_pct = spy_ret * 100 if spy_ret else 0
-            print(f"  {entry_date.year}: "
-                  f"Low={s['low']['return']*100:+.1f}% ({s['low']['count']}), "
-                  f"Mid={s['mid']['return']*100:+.1f}% ({s['mid']['count']}), "
-                  f"High={s['high']['return']*100:+.1f}% ({s['high']['count']}), "
-                  f"Low+Dec={s['low_decreasing']['return']*100:+.1f}% ({s['low_decreasing']['count']}), "
-                  f"SPY={spy_pct:+.1f}%")
+            f = lambda t: (f"CASH ({buyable[t]} buyable)" if t in cash
+                           else f"{s[t]['return']*100:+.1f}% ({s[t]['count']})")
+            print(f"  {entry_date.year}: Low={f('low')}, Mid={f('mid')}, High={f('high')}, "
+                  f"Low+Dec={f('low_decreasing')}, SPY={spy_pct:+.1f}%")
 
     print(f"Phase 2 complete: {len(periods)} annual periods.\n")
     return periods
@@ -471,15 +490,16 @@ def build_output(periods, universe_name, risk_free_rate, periods_per_year):
     low_high_spread = results["low"]["cagr"] - results["high"]["cagr"]
     low_vs_spy_cagr = results["low"]["cagr"] - results["spy"]["cagr"]
 
-    avg_low = sum(p["low_count"] for p in valid) / n
-    avg_mid = sum(p["mid_count"] for p in valid) / n
-    avg_high = sum(p["high_count"] for p in valid) / n
-    avg_low_dec = sum(p["low_decreasing_count"] for p in valid) / n
+    # Per bucket: over invested periods only (the cash predicate's complement); total: all n.
+    inv = {t: [p[f"{t}_count"] for p in valid if p[f"{t}_buyable"] >= MIN_BUCKET_STOCKS]
+           for t in TRACKS}
+    avg_low, avg_mid, avg_high, avg_low_dec = (
+        sum(inv[t]) / len(inv[t]) if inv[t] else 0 for t in TRACKS)
     avg_total = sum(p["total_count"] for p in valid) / n
 
-    low_cash = sum(1 for p in valid if p["low_count"] == 0)
-    high_cash = sum(1 for p in valid if p["high_count"] == 0)
-    low_dec_cash = sum(1 for p in valid if p["low_decreasing_count"] == 0)
+    # Over `valid`, like every other count here. The floor decides cash, not count == 0:
+    # an invested bucket whose names all lost their exit price also holds 0.
+    cash = {t: sum(1 for p in valid if p[f"{t}_buyable"] < MIN_BUCKET_STOCKS) for t in TRACKS}
 
     output = {
         "universe": universe_name,
@@ -505,10 +525,19 @@ def build_output(periods, universe_name, risk_free_rate, periods_per_year):
             "low_decreasing": round(avg_low_dec, 0),
             "total": round(avg_total, 0),
         },
+        "min_stocks": MIN_BUCKET_STOCKS,
+        # Per bucket, cash + invested == n (the periods counted in `period`).
         "cash_periods": {
-            "low": low_cash,
-            "high": high_cash,
-            "low_decreasing": low_dec_cash,
+            "low": cash["low"],
+            "mid": cash["mid"],
+            "high": cash["high"],
+            "low_decreasing": cash["low_decreasing"],
+        },
+        "invested_periods": {
+            "low": n - cash["low"],
+            "mid": n - cash["mid"],
+            "high": n - cash["high"],
+            "low_decreasing": n - cash["low_decreasing"],
         },
         "decade_breakdown": decade_results,
     }
@@ -531,6 +560,7 @@ def build_output(periods, universe_name, risk_free_rate, periods_per_year):
             "mid_count": p["mid_count"],
             "high_count": p["high_count"],
             "low_decreasing_count": p["low_decreasing_count"],
+            **{f"{t}_{k}": p[f"{t}_{k}"] for t in TRACKS for k in ("screened", "buyable")},
             # --exit-method both only: the LTP book next to the drop book.
             **{f"{t}_ltp": round(p[f"{t}_return_ltp"] * 100, 2)
                for t in ("low", "mid", "high", "low_decreasing") if f"{t}_return_ltp" in p},
@@ -562,9 +592,9 @@ def print_summary(m):
           f"High={counts['high']:.0f}, Low+Dec={counts['low_decreasing']:.0f}, "
           f"Total={counts['total']:.0f}")
     cash = m["cash_periods"]
-    if cash["low"] > 0 or cash["high"] > 0 or cash["low_decreasing"] > 0:
-        print(f"Cash periods: Low={cash['low']}, High={cash['high']}, "
-              f"Low+Dec={cash['low_decreasing']}")
+    if any(cash.values()):
+        print(f"Cash periods (<{m['min_stocks']} buyable): Low={cash['low']}, Mid={cash['mid']}, "
+              f"High={cash['high']}, Low+Dec={cash['low_decreasing']}")
     print("-" * 95)
 
     header = (f"{'Portfolio':<22} {'CAGR':>8} {'Vol':>8} {'Sharpe':>8} "
@@ -647,7 +677,7 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     print_header("CASH CONVERSION CYCLE BACKTEST", universe_name,
                  exchanges, signal_desc)
     print(f"  Portfolios: Low (<{CCC_LOW}d), Mid ({CCC_LOW}-{CCC_HIGH}d), "
-          f"High (>{CCC_HIGH}d), Low+Decreasing")
+          f"High (>{CCC_HIGH}d), Low+Decreasing; cash if <{MIN_BUCKET_STOCKS} buyable")
     print(f"  Rebalancing: Annual (April 1), {START_YEAR}-{END_YEAR}")
     print(f"  Costs: {'size-tiered' if use_costs else 'none'}, "
           f"Rf: {risk_free_rate*100:.1f}%")
