@@ -766,7 +766,7 @@ def get_prices(con, symbols, target_date, window_days=10, offset_days=0, with_ep
 EXIT_METHODS = ("drop", "ltp", "both")
 # The one place the default lives: CLIs and runners read it. run_backtest signature defaults stay "drop";
 # verify_floor_guard gate 14 requires every caller to pass the resolved method.
-DEFAULT_EXIT_METHOD = "drop"
+DEFAULT_EXIT_METHOD = "ltp"
 # US delistings 2001+: 3,498/4,969 last bars fall on/before delistedDate + 7d; most later bars to day 30 are zero-volume repeats, past day 30 they mostly trade (OTC / ticker reuse).
 LTP_DELIST_GRACE_DAYS = 7
 # A delisting more than this many days before the entry bar belongs to an earlier holder of the

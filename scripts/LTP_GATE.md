@@ -4,8 +4,8 @@
 the `--exit-method drop|ltp|both` wiring (B005, last-traded-price exits). The checks are the ones that
 passed all 75 wired topics on 2026-10-10.
 
-The default exit method lives in one place, `data_utils.DEFAULT_EXIT_METHOD` (`drop` until stage B
-flips it). The gate imports it, so nothing here changes when it flips.
+The default exit method lives in one place, `data_utils.DEFAULT_EXIT_METHOD` (`ltp` since stage B
+wave 1; it was `drop` before). The gate imports it, so nothing here changes when it flips.
 
 ## Checks
 
