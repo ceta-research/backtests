@@ -15,7 +15,7 @@ charts_dir.mkdir(exist_ok=True)
 with open(results_dir / "exchange_comparison.json") as f:
     data = json.load(f)
 
-# India leg is NSE-only; returns_NSE.json is a stale duplicate, don't read it
+# India leg is NSE-only (returns_India.json); charts key it as NSE
 data["NSE"] = data["India"]
 
 # Color palette

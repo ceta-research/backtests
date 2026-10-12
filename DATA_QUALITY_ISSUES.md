@@ -533,6 +533,18 @@ the converted US top 30 picked up CMCM and CCM at 0.01-0.26x NCAV (8 line-years 
 2001-2024). Receipts in their reporting currency (Amarin, Formula Systems) stay and carry
 the same unverified basis as before.
 
+**graham-net-net: the latest filing decides (fixed 2026-10).** The screen loaded only
+filings with positive NCAV and applied the size floor before picking each company's latest
+filing, so a company whose NCAV had turned negative, or that had shrunk below the floor,
+kept qualifying on its last positive filing however old it was: PIF.TO on its FY2009 NCAV
+for twelve years, Dorel on FY1994, Kinross on FY1997, Gilat on FY1999. It now takes the
+latest FY filing on or before the 45-day cutoff and no older than 540 days, then requires
+NCAV > 0 and the size floor. With the other October 2026 changes in place, this fix alone
+moved TSX from 12.83% to 5.72% a year (2001-2006 go to cash: only
+2-4 genuine net-nets a year), Hong Kong rose from -2.31% to 3.19%, the US from 4.62% to
+7.11% and India from 8.19% to 11.11%. The 45-day lag counts from the fiscal year end, not the
+filing date, so a filing can occasionally be used before it was public.
+
 Not fixed yet:
 - `graham-net-net/screen.py`, the live screen, still compares `adjClose` with
   `grahamNetNetTTM` across currencies.
