@@ -537,7 +537,7 @@ the same unverified basis as before.
 filings with positive NCAV and applied the size floor before picking each company's latest
 filing, so a company whose NCAV had turned negative, or that had shrunk below the floor,
 kept qualifying on its last positive filing however old it was: PIF.TO on its FY2009 NCAV
-for twelve years, Dorel on FY1994, Kinross on FY1997, Gilat on FY1999. It now takes the
+from the 2012 through the 2024 rebalance, Dorel on FY1994, Kinross on FY1997, Gilat on FY1999. It now takes the
 latest FY filing on or before the 45-day cutoff and no older than 540 days, then requires
 NCAV > 0 and the size floor. With the other October 2026 changes in place, this fix alone
 moved TSX from 12.83% to 5.72% a year (2001-2006 go to cash: only
@@ -545,7 +545,20 @@ moved TSX from 12.83% to 5.72% a year (2001-2006 go to cash: only
 7.11% and India from 8.19% to 11.11%. The 45-day lag counts from the fiscal year end, not the
 filing date, so a filing can occasionally be used before it was public.
 
+**cash-conversion: a 10-name minimum per CCC bucket (2026-10).** It had no minimum book size,
+so a bucket of 1-5 names was reported as a portfolio. After the XETRA/SIX listing rules its
+early German and Swiss buckets held 1-5 names and drove -65% to -91% drawdowns. A bucket with
+fewer than 10 names buyable at entry now sits in cash that year (decided before exits, so
+last-traded-price fills never decide it). The thin years were not only German and Swiss:
+India's buckets are cash in 2000-2004 (Mid CCC 14.61% -> 12.44%), South Africa's Low CCC went
+from 9.27% to -1.16% with 14 cash years, Brazil's High CCC from 16.11% to 4.44%, and
+Singapore's Mid CCC is cash in 23 of 25 years. The US, China and the UK never go to cash and
+match the run without the floor.
+
 Not fixed yet:
+- `7386.T` (an LTP fill in cyclical-timing and fcf-conversion's JPX results, held in
+  fcf-conversion's 2024 book) has price levels around 4 billion in `stock_eod`. Entry and exit
+  are on the same scale, so its period return is sane, but the levels are corrupt upstream.
 - `graham-net-net/screen.py`, the live screen, still compares `adjClose` with
   `grahamNetNetTTM` across currencies.
 - graham-net-net's `km.marketCap` size floor is in the reporting currency, compared with
@@ -1168,11 +1181,13 @@ unpublishes first, and a 5xx mid-flight strands a post as a 404). B006
 deliberately touched no post. Relabel-versus-drop for each Oslo leg is also an
 editorial call and is deliberately not made here.
 
-### Seven cohort topics still count cash over the metrics window
+### Six cohort topics still count cash over the metrics window
 
-`altman-z`, `asset-light`, `cash-conversion`, `income-quality`,
-`margin-expansion`, `roe-dupont` and `sustained-roic` emit
-`"cash_periods": {"high": n, "low": m}` from 14 sites that all read
+(Seven until 2026-10: cash-conversion now has a per-bucket floor and emits `cash_periods` and
+`invested_periods` for all four buckets, with cash + invested equal to the years measured.)
+
+`altman-z`, `asset-light`, `income-quality`, `margin-expansion`, `roe-dupont` and
+`sustained-roic` emit `"cash_periods": {"high": n, "low": m}` from sites that all read
 `sum(1 for p in valid if ...)`. That is convention (A), the rejected one: on a
 truncated leg it understates the cash rate, and these records carry no window
 provenance at all.

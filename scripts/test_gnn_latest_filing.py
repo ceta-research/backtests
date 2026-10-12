@@ -63,7 +63,15 @@ def db():
     return con
 
 
+def fetch_filters_ncav(src):
+    """True if the key_metrics fetch filters on grahamNetNet: the cache must hold negative filings too."""
+    start = src.index('metrics_sql = f"""')
+    return "grahamNetNet >" in src[start:src.index('"""', start + len('metrics_sql = f"""'))]
+
+
 def failures(src):
+    if fetch_filters_ncav(src):
+        return ["key_metrics fetch drops negative-NCAV filings, so the latest-filing pick never sees them"]
     try:
         mod = load(src)
         got = {r[0] for r in mod.screen_stocks(db(), D, 1e6, offset_days=1)}
@@ -82,6 +90,9 @@ MUTANTS = {
     "no size floor": ("WHERE rn = 1 AND grahamNetNet > 0 AND marketCap > ?", "WHERE rn = 1 AND grahamNetNet > 0 AND ? IS NOT NULL"),
     "no lag": ("cutoff_epoch = utc_epoch(target_date - timedelta(days=DATA_LAG_DAYS))",
                "cutoff_epoch = utc_epoch(target_date)"),
+    # the old bug's other half: only positive-NCAV filings loaded into metrics_cache
+    "positive-only fetch": ("          AND grahamNetNet IS NOT NULL\n          AND {sym_filter_sql}",
+                            "          AND grahamNetNet IS NOT NULL\n          AND grahamNetNet > 0\n          AND {sym_filter_sql}"),
 }
 
 

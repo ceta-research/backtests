@@ -74,10 +74,10 @@ A cash year is one where fewer than 5 names passed the screen. Years are the Apr
 
 Several invested years hold only 4-7 names, so one stock moves the year:
 
-- India: 2015 held 5. 2017 averages 4: five passed the screen and had entry prices, and the return filter removed one. 2024 held 7 and lost 42.5%.
-- Canada: 2013 held 6, 2014 held 5.
-- UK: 2003, 2004 and 2006 held 5.
-- Japan 2006 and Hong Kong 2007 held 5. Taiwan held 6-7 in 2009, 2014, 2018 and 2024.
+- India: 2010 held 6, 2015 held 5, 2016 and 2018 held 7. 2017 averages 4: five passed the screen and had entry prices, and the return filter removed one. 2024 held 7 and lost 42.5%.
+- Canada: 2007 held 7, 2013 held 6, 2014 held 5.
+- UK: 2003, 2004 and 2006 held 5, 2007 held 6, 2021 held 7.
+- Japan 2006 and Hong Kong 2007 held 5. Taiwan held 7 in 2009, 2014 and 2018, and 6 in 2024.
 
 ## Changes from earlier versions
 

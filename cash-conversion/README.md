@@ -21,7 +21,7 @@ CCC = Days Sales Outstanding + Days Inventory Outstanding - Days Payables Outsta
 
 | Parameter | Value |
 |-----------|-------|
-| Period | 25 annual rebalances, April 2000 to April 2025 |
+| Period | 25 annual rebalances, April 2000 to April 2024, each held one year (last exit April 2025) |
 | Financial data lag | 45 days before each rebalance |
 | Execution | Next-day close after the rebalance date |
 | Costs | Size-tiered transaction costs (0.1-0.5% per trade) |
@@ -57,7 +57,7 @@ Low CCC by market, sorted by excess return. South Africa is shown but not counte
 | Korea (KSC) | KOSPI | 0.40% | 4.44% | -4.04 | -1.58 | -0.168 | -33.5% | -40.0% | 8 of 25 | 39 |
 | South Africa (JSE) | S&P 500 (USD, not counted) | -1.16% | 7.33% | -8.49 | -10.72 | -0.533 | -62.3% | -39.3% | 14 of 25 | 13 |
 
-Returns are in local currency. A cash year earns 0% and still counts in the CAGR and drawdown. Avg stocks is the average book size in invested years. "Excess, invested years" compounds the portfolio and its benchmark over only the years the portfolio was invested, from the `annual_returns` in each results file, and takes the difference in CAGR.
+Returns are in local currency. A cash year earns 0% and still counts in the CAGR and drawdown. Avg stocks is the average book size in invested years. "Excess, invested years" compounds the portfolio and its benchmark over only the years the portfolio was invested, from the `annual_returns` in each results file, and takes the difference in CAGR. Those are rounded to 2 decimals, so for a market with no cash years it can differ from Excess by 0.01.
 
 Read the excess column next to that one. Outside South Africa, every Low CCC cash year falls between 2000 and 2007, so the floor's effect depends on what the index did then. Germany, Sweden and Taiwan held cash while their indexes fell (the DAX lost 46.1% over Low CCC's four cash years, the OMX Stockholm 30 64.9% over three, TAIEX 21.5% over seven), and that is most or all of their excess: over the years it was invested, Low CCC trailed the DAX by 1.65 points a year and beat TAIEX by 0.11. Brazil, Korea and India went the other way: the Bovespa gained 131.5% over Brazil's six cash years, the KOSPI 105.8% over Korea's eight and the Sensex 30.7% over India's five. Brazil's Low CCC beat the Bovespa by 0.92 points a year when invested and trails it by 2.90 over the full period. Cash also damps drawdowns: TAIEX's -57.1% came in 2000-2002, while Taiwan's Low CCC was in cash. From 2007, when it was invested, the index's worst drawdown was -36.4% against Low CCC's -29.1%.
 

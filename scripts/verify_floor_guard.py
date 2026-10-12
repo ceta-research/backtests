@@ -62,6 +62,8 @@ HOLDINGS_EXEMPT = {
 IMPORT_EXEMPT = {
     "pairs-cointegration": "needs statsmodels, not installed in this venv",
 }
+# Topics rerun with LTP exits in the B005 campaign: their results/ and charts/ data files are in scope.
+RERUN_TOPICS = {"cyclical-timing", "asset-growth", "fcf-conversion", "cash-conversion", "graham-net-net"}
 # Files outside */backtest.py and scripts/ that this change is allowed to touch.
 SCOPE_ALLOW = {
     # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
@@ -111,7 +113,7 @@ SCOPE_ALLOW = {
     # leg was read as 100%-cash and dropped from the chart with no trace. The
     # gate now compares against total_rebalances.
     "magic-formula/generate_charts.py",
-    # THE ONE RESULTS FILE THIS CHANGE ADDS, and the only one it may touch. It
+    # A results file outside the rerun topics (RERUN_TOPICS covers theirs). It
     # is a positive control for scripts/scan_results_invariant.py that was
     # gitignored and present only in the author's tree, so the scan reported
     # "the scanner lost its teeth" on every other checkout. Force-added, copied
@@ -816,8 +818,9 @@ def main():
         # the PREDICATE in every one of these files, which is a tighter
         # constraint than naming the files.
         or p.endswith("/generate_charts.py")
-        # A rerun commits generated output: topic results/ and charts/ are data, not code.
-        or (p.count("/") >= 2 and p.split("/")[1] in ("results", "charts"))
+        # A rerun commits generated output: the rerun topics' results/ and charts/ data files.
+        or (p.split("/")[0] in RERUN_TOPICS and p.count("/") >= 2
+            and p.split("/")[1] in ("results", "charts") and p.endswith((".json", ".png", ".csv")))
         or p in SCOPE_ALLOW))
     print(f"6 SCOPE     {len(touched)} files changed, {len(stray)} outside "
           f"*/backtest.py + scripts/ + {len(SCOPE_ALLOW)} allowed")
