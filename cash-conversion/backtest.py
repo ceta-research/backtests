@@ -35,7 +35,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, generate_rebalance_dates, filter_returns,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch)
+                         remove_price_oscillations, entry_usable, LtpExits, add_exit_method_arg, utc_epoch,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import compute_metrics as _compute_metrics
 from costs import tiered_cost, apply_costs
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
@@ -59,16 +60,21 @@ GLOBAL_PRESETS = [
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     """Fetch CCC data and prices into DuckDB."""
+    # Campaign listing rule: XETRA/SIX home country, LSE pence lines.
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
         sym_filter_sql = f"""
             symbol IN (
                 SELECT DISTINCT symbol FROM profile
-                WHERE exchange IN ({ex_filter})
+                WHERE exchange IN ({ex_filter}){listing_and}
                   AND COALESCE(sector, '') NOT IN ('Financial Services')
             )
         """
-        profile_where = f"WHERE exchange IN ({ex_filter})"
+        profile_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
     else:
         sym_filter_sql = """
             symbol IN (
@@ -99,6 +105,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     sym_values = ",".join(f"('{r['symbol']}')" for r in filtered)
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Key metrics (CCC + market cap)
     print("  Fetching key metrics (CCC)...")
@@ -160,7 +168,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen stocks by CCC at a rebalance date.
 
     Returns dict: {symbol: {"ccc": float, "ccc_prior": float|None,
@@ -169,7 +177,7 @@ def screen_stocks(con, target_date, mktcap_min):
     """
     cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
 
-    rows = con.execute("""
+    candidates = """
         WITH ranked AS (
             SELECT symbol,
                 cashConversionCycle AS ccc,
@@ -196,6 +204,11 @@ def screen_stocks(con, target_date, mktcap_min):
         SELECT symbol, ccc, ccc_prior, ccc_change, marketCap
         FROM current_and_prior
         WHERE ccc IS NOT NULL
+    """
+    # One row per ISIN before bucketing; 1.0 is the filter_returns floor this topic prices with.
+    rows = con.execute(f"""
+        SELECT symbol, ccc, ccc_prior, ccc_change, marketCap
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, 1.0)})
         ORDER BY symbol
     """, [cutoff_epoch, mktcap_min]).fetchall()
 
@@ -283,7 +296,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        scored = screen_stocks(con, entry_date, mktcap_min)
+        scored = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
         if not scored:
             if verbose:
                 print(f"  {entry_date.year}: No scored stocks found, skipping")
@@ -665,6 +678,7 @@ def run_single_exchange(args, preset_name=None, preset_data=None):
     bt_time = time.time() - t1
 
     output = build_output(periods, universe_name, risk_free_rate, periods_per_year)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     output["benchmark"] = {"symbol": benchmark_symbol, "name": benchmark_name}
     output["execution"] = exec_model
     print_summary(output)
