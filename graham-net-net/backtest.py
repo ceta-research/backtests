@@ -57,6 +57,7 @@ MIN_STOCKS = 5       # Hold cash if fewer qualify (net-nets are rare)
 MAX_STOCKS = 30      # Portfolio cap
 DEFAULT_FREQUENCY = "annual"
 DATA_LAG_DAYS = 45   # Filing lag for annual data
+MAX_FILING_AGE_DAYS = 540   # a company whose latest FY filing is older drops out (as in dcf-discount)
 
 # Net-net specific market cap thresholds (local currency).
 # Much lower than standard strategies — net-nets are inherently small/micro-cap.
@@ -194,7 +195,6 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         FROM key_metrics
         WHERE period = 'FY'
           AND grahamNetNet IS NOT NULL
-          AND grahamNetNet > 0
           AND {sym_filter_sql}
     """
     count = query_parquet(client, metrics_sql, con, "metrics_cache", verbose=verbose,
@@ -257,20 +257,25 @@ def ncav_lines_sql(target_date, mktcap_min):
     their home lines, so FX alone can't put NCAV per receipt.
     """
     cutoff_epoch = utc_epoch(target_date - timedelta(days=DATA_LAG_DAYS))
+    earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))
     target_epoch = utc_epoch(target_date)
     end_epoch = utc_epoch(target_date + timedelta(days=10))
     stale = FX_MAX_STALE_DAYS * 86400
     subunits = ", ".join(f"'{k}'" for k in SUBUNIT_CCY)
 
+    # Latest FY filing first, THEN the NCAV/size tests: filtering first let a company whose NCAV
+    # turned negative qualify on its last positive filing, however old (PIF.TO on FY2009 for years).
     sql = f"""
-        WITH km AS (
+        WITH latest AS (
             SELECT symbol, grahamNetNet, marketCap, reportedCurrency,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
                     grahamNetNet DESC NULLS LAST, marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache
-            WHERE filing_epoch <= ?
-              AND grahamNetNet > 0
-              AND marketCap > ?
+            WHERE filing_epoch <= ? AND filing_epoch >= ?
+        ),
+        km AS (
+            SELECT * FROM latest
+            WHERE rn = 1 AND grahamNetNet > 0 AND marketCap > ?
         ),
         prices AS (
             SELECT symbol, adjClose, trade_epoch
@@ -304,7 +309,7 @@ def ncav_lines_sql(target_date, mktcap_min):
             FROM br
         )
     """
-    return sql, [cutoff_epoch, mktcap_min, target_epoch, end_epoch]
+    return sql, [cutoff_epoch, earliest_epoch, mktcap_min, target_epoch, end_epoch]
 
 
 def ccy_excluded(con, target_date, mktcap_min, receipts=False):
