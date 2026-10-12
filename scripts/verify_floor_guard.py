@@ -9,7 +9,8 @@ Gates:
   1 COMPILE    every */backtest.py byte-compiles
   2 IMPORT     every */backtest.py imports clean (catches NameError at module scope)
   3 CENSUS     every floor topic is guarded, and the no-floor topics are still
-               no-floor (proof no floor was invented, which the task forbids)
+               no-floor (proof no floor was invented, which the task forbids);
+               BUCKET_FLOOR topics get their own per-bucket guard check
   4 SCHEMA     every floor topic publishes per-period data
   5 HOLDINGS   no invested-branch holdings expression still reads the pre-filter list
   6 SCOPE      nothing outside */backtest.py and scripts/ is modified
@@ -34,6 +35,14 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FLOOR_NAMES = ("MIN_STOCKS", "MIN_PORTFOLIO_STOCKS")
+# One floor per BUCKET (several books per period): gate 3 checks the guard statically, the named
+# test proves behaviour. Kept out of floor_topics, so gates 4/5/13 and test_floor_guard.py (one book,
+# period_data/holdings/stocks_held records) don't apply. topic -> (floor value, why).
+BUCKET_FLOOR_NAME = "MIN_BUCKET_STOCKS"
+BUCKET_FLOOR = {
+    "cash-conversion": (10, "four CCC books per period with per-track {t}_screened/_buyable/_count "
+                            "records; behaviour proven by scripts/test_cash_conversion_floor.py"),
+}
 
 # Documented exemptions, each with the reason it cannot satisfy the generic gate.
 SCHEMA_EXEMPT = {
@@ -220,6 +229,44 @@ def lookahead_hits(tree):
             and n.left.args[0].id in names
             for c in n.comparators
             if isinstance(c, ast.Name) and c.id in fl]
+
+
+def bucket_guard_hits(tree, expected):
+    """(guard linenos, problems) for a BUCKET_FLOOR topic.
+
+    A guard compares `b[...]` with the floor, `b` bound to an expression holding an
+    entry_buyable_prices() call (a dict comprehension, which buyable_vars can't see). Any other
+    operand compared with the floor must be a published `*_buyable` count (build_output's
+    p[f"{t}_buyable"]); track_data[name]["count"] or cnt is the post-filter book (B005)."""
+    probs = []
+    val = next((n.value.value for n in tree.body
+                if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant)
+                and any(isinstance(t, ast.Name) and t.id == BUCKET_FLOOR_NAME for t in n.targets)),
+               None)
+    if val != expected:
+        probs.append((0, f"{BUCKET_FLOOR_NAME} is {val}, not {expected}"))
+    bound = {t.id for n in ast.walk(tree) if isinstance(n, ast.Assign)
+             and any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+                     and c.func.id == "entry_buyable_prices" for c in ast.walk(n.value))
+             for t in n.targets if isinstance(t, ast.Name)}
+    guards = []
+    for n in ast.walk(tree):
+        if not isinstance(n, ast.Compare):
+            continue
+        ops = [n.left] + n.comparators
+        if not any(isinstance(o, ast.Name) and o.id == BUCKET_FLOOR_NAME for o in ops):
+            continue
+        for o in ops:
+            if isinstance(o, ast.Name) and o.id == BUCKET_FLOOR_NAME:
+                continue
+            if isinstance(o, ast.Subscript) and isinstance(o.value, ast.Name) and o.value.id in bound:
+                guards.append(n.lineno)
+            elif not (isinstance(o, ast.Subscript) and "buyable" in ast.unparse(o.slice)):
+                probs.append((n.lineno, f"{ast.unparse(o)} compared with {BUCKET_FLOOR_NAME} "
+                                        "is not an entry-buyable count"))
+    if not guards:
+        probs.append((0, f"no entry_buyable_prices() count compared with {BUCKET_FLOOR_NAME}"))
+    return guards, probs
 
 
 def _slot_names(elt, i):
@@ -591,9 +638,13 @@ def main():
     # is knowable on the rebalance date, so `len(clean) < MIN_STOCKS` sends a
     # period to cash off exit-date information.
     floor_topics, nofloor, unguarded, lookahead, provenance = [], [], [], [], []
+    bucket, bucket_bad = [], []
     for t in all_topics:
         tree = parse(t)
-        if floors(tree):
+        if t in BUCKET_FLOOR:           # before floors(): a renamed floor fails here, loudly
+            bucket.append(t)
+            bucket_bad += [(t, ln, why) for ln, why in bucket_guard_hits(tree, BUCKET_FLOOR[t][0])[1]]
+        elif floors(tree):
             floor_topics.append(t)
             if not guard_hits(tree):
                 unguarded.append(t)
@@ -605,12 +656,18 @@ def main():
                                               f"is built exit-filtered on {bad}"))
         else:
             nofloor.append(t)
-    print(f"3 CENSUS    floor topics {len(floor_topics)}, "
-          f"guarded {len(floor_topics) - len(unguarded)}, unguarded {len(unguarded)}; "
+    bucket_bad += [(t, 0, "in BUCKET_FLOOR but has no backtest.py")
+                   for t in BUCKET_FLOOR if t not in all_topics]
+    print(f"3 CENSUS    floor topics {len(floor_topics)} + per-bucket {len(bucket)}, "
+          f"guarded {len(floor_topics) - len(unguarded)} + "
+          f"{len(set(bucket) - {t for t, _, _ in bucket_bad})}, unguarded {len(unguarded)}; "
           f"no-floor {len(nofloor)} (must stay {len(nofloor)}: no floor invented); "
           f"exit-conditioned {len(lookahead)}; exit-filtered source {len(provenance)}")
     for t in unguarded:
         print("    UNGUARDED", t)
+    for b in bucket_bad:
+        print("    BUCKET FLOOR:", b)
+    fails += [("bucket floor", b) for b in bucket_bad]
     for h in lookahead:
         print("    EXIT-CONDITIONED CASH:", h)
     for h in provenance:
@@ -670,6 +727,26 @@ def main():
     if provenance_hits(p3_prov_ok):
         print("    SELF-TEST FAIL: gate 3 provenance check flags the CORRECT form")
         fails.append(("gate 3 provenance false positive", "clean probe flagged"))
+    # SELF-TEST 6, per-bucket floor: each B005 form flagged, the current source shape accepted.
+    _B = ("MIN_BUCKET_STOCKS = 10\ndef f(tracks, eps, track_data, valid):\n"
+          "    buyable = {name: entry_buyable_prices(list(p), eps, 1.0) for name, p in tracks}\n"
+          "    cash = {name for name, _ in tracks if %s}\n"
+          "    return [p for p in valid if p[f'{t}_buyable'] >= MIN_BUCKET_STOCKS]\n")
+    for label, cond in (
+            ("cash read off the post-filter count", "track_data[name]['count'] < MIN_BUCKET_STOCKS"),
+            ("the guard plus a post-filter clause", "buyable[name] < MIN_BUCKET_STOCKS "
+                                                    "or track_data[name]['count'] < MIN_BUCKET_STOCKS"),
+            ("the screened count", "len(dict(tracks)[name]) < MIN_BUCKET_STOCKS")):
+        if not bucket_guard_hits(ast.parse(_B % cond), 10)[1]:
+            print(f"    SELF-TEST FAIL: gate 3 no longer flags {label} on a per-bucket floor")
+            fails.append(("gate 3 bucket probe", label))
+    if not bucket_guard_hits(ast.parse((_B % "buyable[name] < MIN_BUCKET_STOCKS")
+                                       .replace("= 10", "= 9")), 10)[1]:
+        print("    SELF-TEST FAIL: gate 3 accepts a per-bucket floor of 9")
+        fails.append(("gate 3 bucket probe", "floor value"))
+    if bucket_guard_hits(ast.parse(_B % "buyable[name] < MIN_BUCKET_STOCKS"), 10)[1]:
+        print("    SELF-TEST FAIL: gate 3 flags the CORRECT per-bucket guard")
+        fails.append(("gate 3 bucket false positive", "clean probe flagged"))
 
     # ---- gate 4: schema (per-period data published)
     missing = []
@@ -733,6 +810,8 @@ def main():
         # the PREDICATE in every one of these files, which is a tighter
         # constraint than naming the files.
         or p.endswith("/generate_charts.py")
+        # A rerun commits generated output: topic results/ and charts/ are data, not code.
+        or (p.count("/") >= 2 and p.split("/")[1] in ("results", "charts"))
         or p in SCOPE_ALLOW))
     print(f"6 SCOPE     {len(touched)} files changed, {len(stray)} outside "
           f"*/backtest.py + scripts/ + {len(SCOPE_ALLOW)} allowed")
