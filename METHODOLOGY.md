@@ -53,12 +53,12 @@ Securities are sourced from the `profile` table, which contains approximately 71
 - Each strategy specifies target exchanges (e.g., NYSE+NASDAQ+AMEX for US-focused strategies)
 - See [Exchange Data Coverage](#exchange-data-coverage) below for complete exchange list and data quality
 
-**Listing rules (topics rerun with last-traded-price exits):**
+**Listing rules (applied when a topic is rerun with last-traded-price exits):**
 - XETRA legs hold Germany-domiciled companies only, and SIX legs Switzerland-domiciled companies only.
 - LSE legs hold lines quoted in pence (GBp) only. That drops the `0XXX.L` lines of foreign companies (carried in their home currency) and USD or EUR depositary receipts, and keeps LSE-primary companies registered abroad that quote in pence, such as Experian, Coca-Cola HBC and Wizz Air.
 - On every leg, a security listed under more than one ticker (same ISIN) is held once: the line buyable at entry wins, then a line still marked as actively trading, then the line quoted in the market's own currency (CAD over USD on TSX, HKD over CNY on HKSE), then the alphabetically first symbol. This happens before the top-N cut, so the freed slot goes to the next-ranked name. Share classes have their own ISINs and stay.
-- Why: foreign companies' secondary listings, mostly US large caps, made up about 75% of each XETRA "Germany" book in every year. SIX books were 22-34% foreign on average, and LSE books 51-81% foreign lines on average from 2018. Those returns belonged to the listing venue, not to German, Swiss or UK companies. Stockholm is left as listed: its books are almost entirely domestic, and a country filter would drop ABB, AstraZeneca and Nokia.
-- So far this covers cyclical-timing, asset-growth, fcf-conversion, cash-conversion and graham-net-net. Other topics haven't been changed yet: their XETRA, SIX and LSE legs still hold every listed line. Caveats in DATA_QUALITY_ISSUES.md (Exchange-listed universes are not domicile universes).
+- Why: foreign companies' secondary listings, mostly US large caps, made up 74-78% of XETRA "Germany" holdings on average, and at least half in every invested year. SIX books were 22-34% foreign on average, and LSE books 51-81% foreign lines on average from 2018. Those returns belonged to the listing venue, not to German, Swiss or UK companies. Stockholm is left as listed: its books are almost entirely domestic, and a country filter would drop ABB, AstraZeneca and Nokia.
+- The code applies these rules in cyclical-timing, asset-growth, fcf-conversion, cash-conversion and graham-net-net, the first rerun wave; a results file carries `listing_filter` and `isin_dedup` keys once its topic has been rerun on them, and one without them predates the rules. Other topics haven't been changed yet: their XETRA, SIX and LSE legs still hold every listed line. Caveats in DATA_QUALITY_ISSUES.md (Exchange-listed universes are not domicile universes).
 
 **Market capitalization filter:**
 - Strategy-specific minimum, typically $100M - $1B
@@ -615,7 +615,7 @@ python3 qarp/backtest.py --risk-free-rate 0.04
 
 `--exit-method drop|ltp|both` picks the rule, and `ltp` is the default. Rerun topics carry `"exit_method": "ltp"` in their results; a committed results file with no `exit_method` key predates the change and used drop exits, until its topic is rerun. `drop` is the old rule, which drops every holding without an exit price. It doesn't reproduce old numbers, because selection changed at the same time (see [Reproducibility](#reproducibility) and the listing rules under [Universe Construction](#universe-construction)). `both` publishes the drop numbers and reports the LTP numbers beside them.
 
-**Which results use it:** a topic rerun with last-traded-price exits writes `"exit_method": "ltp"` in its results JSON and lists every fill (symbol, entry bar, last bar, price, delisting date) under the `ltp` key. The first wave is cyclical-timing, asset-growth, fcf-conversion, cash-conversion and graham-net-net; later waves follow. A results file with no `exit_method` key used drop exits, and that's every other topic's committed results until it's rerun.
+**Which results use it:** a topic rerun with last-traded-price exits writes `"exit_method": "ltp"` in its results JSON and lists every fill (symbol, entry bar, last bar, price, delisting date) under the `ltp` key. The first wave is cyclical-timing, asset-growth, fcf-conversion, cash-conversion and graham-net-net; later waves follow. A results file with no `exit_method` key used drop exits, and that's every committed results file until its topic is rerun, the first wave's included.
 
 Rules that still apply:
 - Holdings with a period return above `max_single_return` are dropped (200% in most topics, 300% in small-cap, small-value and trending-value; qarp, low-pe and sector-correlation apply no cap), while losses of any size are kept. This can remove genuine acquisition premiums, filled exits included.
@@ -623,7 +623,7 @@ Rules that still apply:
 - The delisting bound needs a delisting record. Most LSE fills have none, so there the window runs to the exit date.
 - If every holding in a period ends up without an exit price or trips the return cap, the period records 0% and is counted as a cash period. Under `ltp` a period whose names all lost their exit prices can count as invested rather than cash, because fills give it holdings and the cash and invested counts read `stocks_held`.
 
-**Direction:** Strategy-specific. Measured on eight legs with both methods, the largest moves were -0.99pp CAGR (graham-net-net, LSE), +0.72pp (52-week-high, US) and -0.59pp (graham-net-net, US). Distress and net-net books lose, because their dead names were real losses. US momentum gains, because acquired names that sat flat through bad quarters count under LTP. History in DATA_QUALITY_ISSUES.md (Exit-side survivorship).
+**Direction:** Strategy-specific. Measured 2026-10-09 on eight legs with both methods in one run, on the books before the listing rules, ISIN dedup and graham-net-net's NCAV currency fix (so the graham-net-net figures describe books that no longer exist), the largest moves were -0.99pp CAGR (graham-net-net, LSE), +0.72pp (52-week-high, US) and -0.59pp (graham-net-net, US). Distress and net-net books lose, because their dead names were real losses. US momentum gains, because acquired names that sat flat through bad quarters count under LTP. History in DATA_QUALITY_ISSUES.md (Exit-side survivorship).
 
 **Limitation:** Very old delistings (pre-1990) may have incomplete financial statement history. The earlier the backtest start date, the higher the potential survivorship bias.
 

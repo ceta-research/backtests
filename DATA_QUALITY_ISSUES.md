@@ -488,9 +488,10 @@ instead, on XETRA and SIX legs; see the next subsection.
 
 ### Rerun topics apply listing rules on XETRA, SIX and LSE (2026-10)
 
-The topics rerun with last-traded-price exits (so far cyclical-timing, asset-growth,
-fcf-conversion, cash-conversion and graham-net-net) no longer treat these exchanges as
-listed universes:
+When a topic is rerun with last-traded-price exits it no longer treats these exchanges as
+listed universes. The code applies this in the first wave (cyclical-timing, asset-growth,
+fcf-conversion, cash-conversion and graham-net-net); their committed results predate it
+until the rerun lands, and carry `listing_filter` / `isin_dedup` keys once it has:
 
 | Leg | Rule | Measured on the previous runs' holdings |
 |---|---|---|
@@ -531,6 +532,18 @@ home lines it's per receipt for TSM, PKX and RDY but 1.7-2.2x off for TAK and CA
 the converted US top 30 picked up CMCM and CCM at 0.01-0.26x NCAV (8 line-years over
 2001-2024). Receipts in their reporting currency (Amarin, Formula Systems) stay and carry
 the same unverified basis as before.
+
+Not fixed yet:
+- `graham-net-net/screen.py`, the live screen, still compares `adjClose` with
+  `grahamNetNetTTM` across currencies.
+- graham-net-net's `km.marketCap` size floor is in the reporting currency, compared with
+  listing-currency thresholds.
+- cyclical-timing's expansion signal counts same-ISIN twins twice (the signal, not the
+  holdings).
+- A reused ticker can carry its current holder's ISIN across the previous company's
+  whole price history (OSG bars are Overseas Shipholding but carry Ambac's ISIN; ACH bars
+  are the Aluminum Corp of China ADR but carry Owens & Minor's). If both lines pass the
+  same screen on the same date, the ISIN rule treats two companies as one.
 
 **Same security, two tickers.** One ISIN keeps one line, before the top-N cut, so a
 collapsed twin frees its slot for the next name. Per ISIN, the line buyable at entry
@@ -778,7 +791,7 @@ fcf-conversion, cash-conversion and graham-net-net; later waves follow.
 **Affects:** all 66 floor topics, and every topic that averages `filter_returns`'
 output. LTP is wired into all 75 topics that drop a held name for a missing exit price.
 
-Under the drop rule (the only rule before LTP, and still the default), when the book
+Under the drop rule (the only rule before LTP, and the default until 2026-10), when the book
 clears the floor at entry, the period return is the mean of the names that *survived
 to the exit date*. `filter_returns` drops a name whose EXIT price is missing, so a
 holding that delisted to zero contributes **nothing** rather than -100%. It also drops
@@ -802,12 +815,13 @@ min(exit date, delisting date + 7 days), cleaned by `remove_price_oscillations` 
 the topic's own prices. A delisting more than 30 days before the entry bar belongs to
 an earlier holder of the ticker and is ignored. No bar in that window, and the name
 stays dropped as before. Fills are requested only for periods the entry-side cash
-guard has already invested, so LTP never decides whether a period is cash, and they
+guard has already invested, so LTP never decides the entry-side cash guard, and they
 pass through `filter_returns` like any other exit. `--exit-method drop|ltp|both`
 selects the rule: `drop` reproduces the old one, and `both` publishes the drop book
 with the LTP book beside it. Every fill is listed under `ltp.fills` in the results.
 
-Measured on eight legs, both methods in one run per leg: the
+Measured 2026-10-09 on eight legs, both methods in one run per leg, on the books
+before the listing rules, ISIN dedup and graham-net-net's NCAV currency fix: the
 largest moves were graham-net-net LSE -0.99pp CAGR, 52-week-high US +0.72pp and
 graham-net-net US -0.59pp. Direction is strategy-specific: distress and net-net legs
 lose (their dead names were real wipeouts), US momentum gains (acquired names sat

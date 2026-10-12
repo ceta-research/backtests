@@ -187,8 +187,9 @@ def domicile_sql_condition(exchanges):
     return "country IN (" + ", ".join(f"'{c}'" for c in countries) + ")"
 
 
-# B005 stage B rerun topics: the listing rules are ON, not opt-in. XETRA "Germany" books held ~75% foreign lines every year, SIX 22-34%: home
-# country only. STO is deliberately absent: profile.country would drop ABB, AstraZeneca, Nokia.
+# Topics rerun with LTP exits: the listing rules are ON, not opt-in. XETRA "Germany" books held
+# 74-78% foreign lines on average, SIX 22-34%: home country only. STO is deliberately absent:
+# profile.country would drop ABB, AstraZeneca, Nokia.
 FILTERED_DOMICILE_EXCHANGES = frozenset({"XETRA", "SIX"})
 
 # profile.currency of a market's own lines where it quotes in a sub-unit, not LOCAL_CURRENCY's

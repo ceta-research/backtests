@@ -10,8 +10,8 @@ wave 1; it was `drop` before). The gate imports it, so nothing here changes when
 ## Checks
 
 `--check` takes a comma list (default `stage-a`). Each check needs certain runs per leg; runs are
-shared between checks, so `stage-a,det,flip` costs 4 runs per leg today (`both`, `drop`, `default`,
-`drop.rep`), not 6.
+shared between checks, so with the default `ltp`, `stage-a,det,flip` costs 5 runs per leg (`both`,
+`drop`, `ltp`, `default`, `ltp.rep`), not 7.
 
 | check | runs | passes when |
 |---|---|---|
@@ -55,15 +55,13 @@ A long gate in the background on macOS: `nohup caffeinate -i python3 -u scripts/
 
 ## Stage B
 
-Two gates on wave1, one before and one after `DEFAULT_EXIT_METHOD` flips to `ltp`. Both load an `ltp`
-run, so the ltp-vs-both comparison runs; of the wave-1 topics only graham-net-net has had an ltp run
-gated before (stage A record).
+`DEFAULT_EXIT_METHOD` became `ltp` with the wave 1 code. One gate on wave1 covers it: the `ltp` run
+gives the ltp-vs-both comparison, `default` proves a flagless run is the ltp run, and `ltp.rep`
+proves the ltp run repeats exactly.
 
 ```bash
-# before the flip: both, drop, ltp, ltp.rep = 4 runs/leg, 288 backtests
-python3 scripts/gate_ltp.py run scripts/gate_legs/wave1.json --check stage-a,det --with-ltp --det-mode ltp --out-dir results/ltp_gate_b1
-# after the flip, fresh out-dir: both, drop, ltp, default, ltp.rep = 5 runs/leg, 360 backtests
-python3 scripts/gate_ltp.py run scripts/gate_legs/wave1.json --check stage-a,flip,det --out-dir results/ltp_gate_b2
+# both, drop, ltp, default, ltp.rep = 5 runs/leg, 355 backtests for 71 legs
+python3 scripts/gate_ltp.py run scripts/gate_legs/wave1.json --check stage-a,flip,det --out-dir results/ltp_gate_w1
 ```
 
 The first proves, per leg: the both run publishes the drop book, the drop run equals the both run
@@ -219,7 +217,8 @@ The fix makes every ordering in the selection path a total order and changes not
   anything outside the selection/pricing path.
 
 - **D1** Only orderings and epoch bounds change. No new filters, no changed thresholds, no
-  changed metric definitions, no dedup of twin listings (a separate, pending decision).
+  changed metric definitions, no dedup of twin listings in the determinism fix itself (ISIN dedup
+  came later, in the rerun topics; see DATA_QUALITY_ISSUES.md).
 - **D2** Wherever an ordering was already total, the result is unchanged.
 - **D3** The cut size is unchanged (same n, same guard counts).
 - **D4** No refactors, renames or formatting sweeps. Minimal diff, no new comments unless a
