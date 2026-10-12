@@ -15,6 +15,38 @@
   "window_label": "2001-2025",
   "years": 24.0,
   "frequency": "annual",
+  "listing_filter": null,
+  "isin_dedup": true,
+  "ncav_ccy_excluded": {
+    "total": 0,
+    "receipts": 0,
+    "by_period": {
+      "2001-04-01": 0,
+      "2002-04-01": 0,
+      "2003-04-01": 0,
+      "2004-04-01": 0,
+      "2005-04-01": 0,
+      "2006-04-01": 0,
+      "2007-04-01": 0,
+      "2008-04-01": 0,
+      "2009-04-01": 0,
+      "2010-04-01": 0,
+      "2011-04-01": 0,
+      "2012-04-01": 0,
+      "2013-04-01": 0,
+      "2014-04-01": 0,
+      "2015-04-01": 0,
+      "2016-04-01": 0,
+      "2017-04-01": 0,
+      "2018-04-01": 0,
+      "2019-04-01": 0,
+      "2020-04-01": 0,
+      "2021-04-01": 0,
+      "2022-04-01": 0,
+      "2023-04-01": 0,
+      "2024-04-01": 0
+    }
+  },
   "avg_stocks_when_invested": 25.8,
   "period_data": [
     {
@@ -282,6 +314,22 @@
       "holdings": "085310.KS,007460.KS,003060.KS,002070.KS,214330.KS,002360.KS,001940.KS,006200.KS,003925.KS,044380.KS..."
     }
   ],
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "remote stock_eod",
+    "delist_grace_days": 7,
+    "missing_exits": 0,
+    "ltp_filled": 0,
+    "still_missing": 0,
+    "filled_local": 0,
+    "filled_remote": 0,
+    "closed_by_delisting": 0,
+    "filled_without_delisting_row": 0,
+    "filled_ignoring_delisting_row": 0,
+    "filled_delisting_not_binding": 0,
+    "fills": []
+  },
   "portfolio": {
     "total_return": 242.15,
     "cagr": 5.26,

@@ -32,6 +32,8 @@ REGION_MAP = {
     "SAO": "brazil",
     "Taiwan": "taiwan",
     "JSE": "southafrica",
+    "JPX": "japan",
+    "SES": "singapore",
 }
 
 REGION_LABELS = {
@@ -98,7 +100,8 @@ def chart_cumulative_growth(data, universe, region):
     """Chart 1: Cumulative growth - Low CCC vs Mid CCC vs High CCC vs SPY."""
     d = data[universe]
     ar = d["annual_returns"]
-    years = [ar[0]["year"] - 1] + [row["year"] for row in ar]
+    # "year" is the April entry year: start at the first entry, each value lands at its exit year
+    years = [ar[0]["year"]] + [row["year"] + 1 for row in ar]
 
     low_returns = [row["low"] for row in ar]
     mid_returns = [row["mid"] for row in ar]
@@ -241,6 +244,8 @@ def comparison_legend(any_proxy, beat, trail, marker):
 def chart_comparison_cagr(data):
     """Chart 3: Low CCC CAGR by exchange, each against its own benchmark (marker)."""
     legs, excluded = comparison_legs(data, "cagr")
+    if not legs:
+        return
     legs.sort(key=lambda x: x[1], reverse=True)
 
     names = [REGION_LABELS.get(u, u) for u, _, _, _ in legs]
@@ -285,6 +290,8 @@ def chart_comparison_cagr(data):
 def chart_comparison_drawdown(data):
     """Chart 4: Low CCC max drawdown by exchange, each against its own benchmark (marker)."""
     legs, excluded = comparison_legs(data, "max_drawdown")
+    if not legs:
+        return
     # Sort by drawdown: least negative (best) at top
     legs.sort(key=lambda x: x[1], reverse=True)
 
