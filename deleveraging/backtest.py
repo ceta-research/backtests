@@ -42,7 +42,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg, utc_epoch,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -74,11 +75,16 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Returns DuckDB connection or None.
     """
+    # Campaign listing rule; sym_filter_sql carries it (the screen skips `universe`).
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
     else:
         exchange_where = ""
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -96,9 +102,11 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
 
     if exchanges:
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
     else:
         sym_filter_sql = "1=1"
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2-3. Financial data (need both FY D/E and quality metrics)
     queries = [
@@ -128,7 +136,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
@@ -165,7 +173,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for deleveraging stocks.
 
     Finds stocks where D/E ratio dropped >10% year-over-year, company was profitable
@@ -178,7 +186,7 @@ def screen_stocks(con, target_date, mktcap_min):
     # Prior year: ~410 days back (45 + 365) ensures we get the PREVIOUS fiscal year
     prior_cutoff_epoch = utc_epoch(target_date - timedelta(days=PRIOR_LOOKBACK_DAYS))
 
-    rows = con.execute("""
+    candidates = """
         WITH current_fy AS (
             SELECT symbol, debtToEquityRatio AS de_current, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, debtToEquityRatio DESC NULLS LAST) AS rn
@@ -210,7 +218,12 @@ def screen_stocks(con, target_date, mktcap_min):
           AND (cf.de_current - pf.de_prior) / pf.de_prior < ?
           AND km.returnOnEquity > ?
           AND km.marketCap > ?
-        ORDER BY de_change ASC, cf.symbol
+    """
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot.
+    rows = con.execute(f"""
+        SELECT symbol, marketCap, de_change
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        ORDER BY de_change ASC, symbol
         LIMIT ?
     """, [cutoff_epoch, prior_cutoff_epoch, cutoff_epoch,
           DE_PRIOR_MIN, DE_CURRENT_MIN, DE_CHANGE_THRESHOLD,
@@ -228,7 +241,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         bench_return = get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
                                             offset_days=offset_days)
@@ -488,6 +501,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 

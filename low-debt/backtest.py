@@ -43,7 +43,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg, utc_epoch,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations)
+                         remove_price_oscillations,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -75,13 +76,18 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Returns DuckDB connection or None.
     """
+    # Campaign listing rule; sym_filter_sql carries it (the screen skips `universe`).
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
     else:
         exchange_where = ""
         sym_filter_sql = "1=1"
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -97,6 +103,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     sym_values = ",".join(f"('{r['symbol']}')" for r in profiles)
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2-6: Financial data (via parquet for bulk transfer efficiency)
     queries = [
@@ -191,7 +199,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for low D/E + high Piotroski stocks.
 
     Computes Piotroski F-Score from two consecutive FY filings.
@@ -205,7 +213,7 @@ def screen_stocks(con, target_date, mktcap_min):
     # Lower bound to avoid too-stale data (5 years max lookback for prior)
     stale_cutoff_epoch = utc_epoch(target_date - timedelta(days=45 + 550))
 
-    rows = con.execute("""
+    candidates = """
         WITH
         -- Most recent FY before 45-day cutoff (current year)
         inc_curr AS (
@@ -315,6 +323,11 @@ def screen_stocks(con, target_date, mktcap_min):
           AND debtToEquityRatio < ?
           AND (f1_ni + f2_ocf + f3_roa + f4_accrual + f5_leverage + f6_liquidity
                + f7_no_dilution + f8_turnover + f9_margin) >= ?
+    """
+    # One row per ISIN BEFORE the MIN_STOCKS count and the equal-weight book (no top-N cut here).
+    rows = con.execute(f"""
+        SELECT symbol, marketCap, f_score
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
         ORDER BY marketCap DESC, symbol
     """, [
         cutoff_epoch, stale_cutoff_epoch,      # inc_curr
@@ -341,7 +354,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         spy_return = get_benchmark_return(
             con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
@@ -599,6 +612,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 

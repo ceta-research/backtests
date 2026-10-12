@@ -39,6 +39,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
+from data_utils import campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -61,11 +62,16 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Returns DuckDB connection or None.
     """
+    # Campaign listing rule; sym_filter_sql carries it (the screen skips `universe`).
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
     else:
         exchange_where = ""
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -83,9 +89,11 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
 
     if exchanges:
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
     else:
         sym_filter_sql = "1=1"
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Key metrics: Graham Number, market cap
     print("  Fetching key metrics (Graham Number, market cap)...")
@@ -109,7 +117,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
@@ -145,7 +153,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for stocks trading below Graham Number.
 
     Returns list of (symbol, market_cap) tuples, sorted by deepest discount.
@@ -184,6 +192,12 @@ def screen_stocks(con, target_date, mktcap_min):
             discount_ratio = price / gn  # lower = deeper discount
             candidates.append((sym, mcap, discount_ratio))
 
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot (1.0 = filter_returns' default floor).
+    keep = {r[0] for r in con.execute(
+        isin_dedup_sql("SELECT UNNEST(?::VARCHAR[]) AS symbol", target_date, offset_days, 1.0),
+        [[c[0] for c in candidates]]).fetchall()}
+    candidates = [c for c in candidates if c[0] in keep]
+
     # Sort by deepest discount (ascending ratio)
     candidates.sort(key=lambda x: (x[2], x[0]))
     return [(sym, mcap) for sym, mcap, _ in candidates[:MAX_STOCKS]]
@@ -198,7 +212,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         if len(portfolio) < MIN_STOCKS:
             bench_return = get_benchmark_return(
@@ -376,7 +390,7 @@ def main():
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    # prices_cache only holds [d, d+10] windows, so LTP reads remote stock_eod.
+    # prices_cache only holds [d, d+11] windows, so LTP reads remote stock_eod.
     ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=args.verbose,
@@ -458,6 +472,8 @@ def main():
                 valid, cash_periods, universe_name=universe_name),
             "years": round(len(valid) / periods_per_year, 1),
             "frequency": frequency,
+            "listing_filter": campaign_listing_label(exchanges),
+            "isin_dedup": True,
             "avg_stocks_when_invested": round(avg_stocks, 1),
             "period_data": results,
             **({"exit_method": args.exit_method, "ltp": ltp_block} if ltp_block else {}),

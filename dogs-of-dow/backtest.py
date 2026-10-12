@@ -34,6 +34,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
+from data_utils import campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -63,11 +64,16 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Returns DuckDB connection or None.
     """
+    # Campaign listing rule: XETRA/SIX home country, LSE pence lines.
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
     else:
         exchange_where = ""
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -98,12 +104,14 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
     else:
         sym_filter_sql = "1=1"
 
     if use_dow:
         sym_filter_sql = "symbol IN (SELECT symbol FROM dowjones_constituent)"
+    # symbol -> ISIN (+ live, home-currency flags) for screen_dogs' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Market cap data (for blue-chip selection on non-US, and for cost tiers)
     print("  Fetching key metrics (market cap)...")
@@ -129,14 +137,14 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
     if use_dow:
         symbol_source = "symbol IN (SELECT DISTINCT symbol FROM dowjones_constituent WHERE symbol IS NOT NULL)"
     elif exchanges:
-        symbol_source = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        symbol_source = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
     else:
         symbol_source = "symbol IN (SELECT DISTINCT symbol FROM key_metrics WHERE period = 'FY')"
 
@@ -167,7 +175,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
+def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000, offset_days=1):
     """Screen for Dogs (top yielders in blue-chip universe).
 
     For US (use_dow=True): Rank all Dow 30 members by yield, pick top 10.
@@ -179,7 +187,7 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
 
     if use_dow:
         # Dogs of the Dow: rank Dow 30 by yield, pick top 10
-        rows = con.execute("""
+        candidates = """
             WITH latest_ratios AS (
                 SELECT symbol, dividendYield, filing_epoch,
                     ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, dividendYield DESC NULLS LAST) AS rn
@@ -192,29 +200,39 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000):
                     ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
                 FROM metrics_cache WHERE filing_epoch <= ?
             )
-            SELECT r.symbol, COALESCE(m.marketCap, 100000000000) as marketCap
+            SELECT r.symbol, COALESCE(m.marketCap, 100000000000) as marketCap, r.dividendYield
             FROM latest_ratios r
             JOIN universe u ON r.symbol = u.symbol
             LEFT JOIN latest_metrics m ON r.symbol = m.symbol AND m.rn = 1
             WHERE r.rn = 1
-            ORDER BY r.dividendYield DESC, r.symbol
+        """
+        # One row per ISIN BEFORE the top-10 cut; 1.0 is the filter_returns floor this topic prices with.
+        rows = con.execute(f"""
+            SELECT symbol, marketCap
+            FROM ({isin_dedup_sql(candidates, target_date, offset_days, 1.0)})
+            ORDER BY dividendYield DESC, symbol
             LIMIT ?
         """, [cutoff_epoch, cutoff_epoch, DOGS_COUNT]).fetchall()
     else:
         # High Yield Blue Chips: top 30 by market cap, then top 10 by yield
-        rows = con.execute("""
+        candidates = """
             WITH latest_metrics AS (
                 SELECT symbol, marketCap,
                     ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
                 FROM metrics_cache
                 WHERE filing_epoch <= ? AND marketCap IS NOT NULL
-            ),
-            bluechips AS (
-                SELECT m.symbol, m.marketCap
-                FROM latest_metrics m
-                JOIN universe u ON m.symbol = u.symbol
-                WHERE m.rn = 1 AND m.marketCap >= ?
-                ORDER BY m.marketCap DESC, m.symbol
+            )
+            SELECT m.symbol, m.marketCap
+            FROM latest_metrics m
+            JOIN universe u ON m.symbol = u.symbol
+            WHERE m.rn = 1 AND m.marketCap >= ?
+        """
+        # One row per ISIN BEFORE the top-30 cut, so a collapsed twin frees its blue-chip slot.
+        rows = con.execute(f"""
+            WITH bluechips AS (
+                SELECT symbol, marketCap
+                FROM ({isin_dedup_sql(candidates, target_date, offset_days, 1.0)})
+                ORDER BY marketCap DESC, symbol
                 LIMIT ?
             ),
             latest_ratios AS (
@@ -244,7 +262,8 @@ def run_backtest(con, rebalance_dates, use_dow=True, use_costs=True, verbose=Fal
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_dogs(con, entry_date, use_dow=use_dow, mktcap_min=mktcap_min)
+        portfolio = screen_dogs(con, entry_date, use_dow=use_dow, mktcap_min=mktcap_min,
+                                offset_days=offset_days)
 
         if len(portfolio) < MIN_STOCKS:
             bench_return = get_benchmark_return(
@@ -426,7 +445,7 @@ def main():
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    # prices_cache holds only [d, d+10] per rebalance date, so LTP reads remote stock_eod.
+    # prices_cache holds only [d, d+11] per rebalance date, so LTP reads remote stock_eod.
     ltp = LtpExits(cr, con, verbose=args.verbose) if args.exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, use_dow=use_dow,
                            use_costs=use_costs, verbose=args.verbose,
@@ -517,6 +536,8 @@ def main():
                 benchmark_symbol=benchmark_symbol),
             "years": round(len(valid) / periods_per_year, 1),
             "frequency": frequency,
+            "listing_filter": campaign_listing_label(exchanges),
+            "isin_dedup": True,
             "avg_stocks_when_invested": round(avg_stocks, 1),
             "period_data": results,
             **({"exit_method": args.exit_method, "ltp": ltp_block} if ltp_block else {}),

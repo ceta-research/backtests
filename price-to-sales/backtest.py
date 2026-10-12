@@ -47,7 +47,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, domicile_sql_condition, utc_epoch)
+                         remove_price_oscillations, domicile_sql_condition, utc_epoch,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -66,9 +67,11 @@ DEFAULT_FREQUENCY = "quarterly"
 DEFAULT_REBALANCE_MONTHS = [1, 4, 7, 10]  # Jan/Apr/Jul/Oct
 MAX_SINGLE_RETURN = 2.0    # Cap individual stock returns at 200% (data quality guard)
 MIN_ENTRY_PRICE = 1.0      # Skip stocks with entry price < $1 (price data artifact)
+MAX_FILING_AGE_DAYS = 540  # a company whose latest FY filing is older drops out (as in graham-net-net)
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domicile=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domicile=False,
+                       exclude_funds=False):
     """Fetch financial data and load into DuckDB.
 
     Populates tables:
@@ -84,15 +87,24 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
     # universe to companies domiciled in the exchange's home country, stripping
     # foreign secondary listings. No published result uses it. See
     # DATA_QUALITY_ISSUES.md and data_utils.EXCHANGE_COUNTRY.
+    # Campaign listing rule; sym_filter_sql carries it (the screen skips `universe`).
+    listing_cond = campaign_listing_condition(exchanges)
     conds = []
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
         conds.append(f"exchange IN ({ex_filter})")
+        if listing_cond:
+            conds.append(listing_cond)
         if domicile:
             dom = domicile_sql_condition(exchanges)
             if dom:
                 conds.append(dom)
+    # Diagnostic, opt-in via --exclude-funds, default OFF (as in revenue-accel). No published result uses it.
+    if exclude_funds:
+        conds.append("isFund = false AND isEtf = false")
     exchange_where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -109,20 +121,21 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
     sym_values = ",".join(f"('{r['symbol']}')" for r in profiles)
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
 
-    if exchanges:
+    if conds:
         sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile {exchange_where})"
     else:
         sym_filter_sql = "1=1"
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Key metrics (ROE, market cap) — from key_metrics table
-    # Filter for positive ROE upfront to reduce data volume
+    # Every FY filing, passing or not: screen_stocks tests each company's LATEST one.
     queries = [
         ("metrics_cache", f"""
             SELECT symbol, returnOnEquity, marketCap, dateEpoch as filing_epoch, period
             FROM key_metrics
             WHERE period = 'FY'
               AND returnOnEquity IS NOT NULL
-              AND returnOnEquity > {ROE_MIN}
               AND marketCap IS NOT NULL
               AND {sym_filter_sql}
         """, "key metrics (ROE, market cap)"),
@@ -133,8 +146,6 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
             FROM financial_ratios
             WHERE period = 'FY'
               AND priceToSalesRatio IS NOT NULL
-              AND priceToSalesRatio > {PS_MIN}
-              AND priceToSalesRatio < {PS_MAX}
               AND {sym_filter_sql}
         """, "financial ratios (P/S, gross margin, op margin)"),
     ]
@@ -149,7 +160,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
@@ -184,20 +195,22 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for low P/S stocks with quality filters.
 
     Returns list of (symbol, market_cap) tuples sorted by P/S ascending.
     Uses 45-day lag for point-in-time data integrity.
     """
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))
 
-    rows = con.execute("""
+    # Latest FY filing first, THEN the six tests: testing first kept a name on its last passing filing.
+    candidates = """
         WITH m AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
                     marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
-            FROM metrics_cache WHERE filing_epoch <= ?
+            FROM metrics_cache WHERE filing_epoch <= ? AND filing_epoch >= ?
         ),
         r AS (
             SELECT symbol, priceToSalesRatio, grossProfitMargin, operatingProfitMargin,
@@ -205,9 +218,9 @@ def screen_stocks(con, target_date, mktcap_min):
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
                     priceToSalesRatio DESC NULLS LAST, grossProfitMargin DESC NULLS LAST,
                     operatingProfitMargin DESC NULLS LAST) AS rn
-            FROM ratios_cache WHERE filing_epoch <= ?
+            FROM ratios_cache WHERE filing_epoch <= ? AND filing_epoch >= ?
         )
-        SELECT m.symbol, m.marketCap
+        SELECT m.symbol, m.marketCap, r.priceToSalesRatio
         FROM m
         JOIN r ON m.symbol = r.symbol AND r.rn = 1
         WHERE m.rn = 1
@@ -217,9 +230,14 @@ def screen_stocks(con, target_date, mktcap_min):
           AND r.operatingProfitMargin > ?
           AND m.returnOnEquity > ?
           AND m.marketCap > ?
-        ORDER BY r.priceToSalesRatio ASC, m.symbol
+    """
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot.
+    rows = con.execute(f"""
+        SELECT symbol, marketCap
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        ORDER BY priceToSalesRatio ASC, symbol
         LIMIT ?
-    """, [cutoff_epoch, cutoff_epoch,
+    """, [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,
           PS_MIN, PS_MAX, GROSS_MARGIN_MIN, OP_MARGIN_MIN, ROE_MIN, mktcap_min,
           MAX_STOCKS]).fetchall()
 
@@ -235,7 +253,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         bench_return = get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
                                             offset_days=offset_days)
@@ -416,7 +434,7 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, mktcap_threshold, verbose, output_path=None,
                offset_days=1, benchmark_symbol="SPY", benchmark_name="S&P 500",
-               domicile=False, exit_method="drop"):
+               domicile=False, exclude_funds=False, exit_method="drop"):
     """Run backtest for a single exchange set. Returns output dict or None."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
 
@@ -427,6 +445,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     exec_model = "same-bar (close)" if offset_days == 0 else "next-bar (MOC)"
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
     print(f"  Execution: {exec_model}, Benchmark: {benchmark_name} ({benchmark_symbol})")
+    if exclude_funds:
+        print("  Universe guard: closed-end funds and ETFs excluded (isFund/isEtf)")
     print(f"  Risk-free rate: {risk_free_rate*100:.1f}%")
     print("=" * 65)
 
@@ -436,7 +456,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                                                months=DEFAULT_REBALANCE_MONTHS)
     t0 = time.time()
     con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
-                             domicile=domicile)
+                             domicile=domicile, exclude_funds=exclude_funds)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -495,6 +515,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 
@@ -518,6 +539,9 @@ def main():
                         help="EXPERIMENTAL: restrict the universe to companies domiciled "
                              "in the exchange's home country, removing foreign secondary "
                              "listings. Default OFF; no published result uses it.")
+    parser.add_argument("--exclude-funds", action="store_true",
+                        help="Exclude closed-end funds and ETFs from the universe "
+                             "(diagnostic: their investment income is reported as revenue)")
     args = parser.parse_args()
 
     if args.cloud:
@@ -557,10 +581,11 @@ def main():
             ("switzerland", ["SIX"]),
             ("southafrica", ["JNB"]),
             ("norway", ["OSL"]),
-            ("singapore", ["SGX"]),
+            ("singapore", ["SES"]),
             ("brazil", ["SAO"]),
             ("malaysia", ["KLS"]),
             ("japan", ["JPX"]),
+            ("uk", ["LSE"]),
         ]
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
@@ -584,6 +609,7 @@ def main():
                                     use_costs, rfr, mktcap_threshold, args.verbose, output_path,
                                     offset_days=offset_days,
                                     benchmark_symbol=bench_sym, benchmark_name=bench_name,
+                                    exclude_funds=args.exclude_funds,
                                     exit_method=args.exit_method)
                 if result:
                     all_results[uni_name] = result
@@ -649,6 +675,7 @@ def main():
                offset_days=offset_days, benchmark_symbol=benchmark_symbol,
                benchmark_name=benchmark_name,
                domicile=getattr(args, "domicile_filter", False),
+               exclude_funds=args.exclude_funds,
                exit_method=args.exit_method)
 
 
