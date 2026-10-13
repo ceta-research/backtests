@@ -5,7 +5,7 @@ The screen must first pick the newest FY row on or before the 45-day cutoff and 
 MAX_FILING_AGE_DAYS, whatever the year end, and only then require three consecutive fiscal
 years of rising, positive dividendYield plus the DPS-driver and payout tests on that row. Testing
 first (rising rows only, then the newest of them, no age limit) kept a company on its last rising
-year for decades: AJRD held in 2024 on its FY1989 yield. Stopping at the calendar year before the
+year for decades: AJRD ranked in the 2024 top 30 on its FY1989 yield. Stopping at the calendar year before the
 rebalance did the same at one year's depth for January to mid-May year ends (March: most Indian
 and Japanese companies). A fiscal year with a NULL or non-positive yield, or with no row, breaks
 the run; the fetch used to drop those rows, so LAG skipped them. A row dated after the cutoff must
@@ -37,6 +37,8 @@ D_JUL = date(2020, 7, 1)      # the production rebalance date: March year ends a
 FLOOR = 5e8
 AT_MAX_AGE = D - timedelta(days=540)
 TOO_OLD = AT_MAX_AGE - timedelta(days=1)
+AT_CUTOFF = D - timedelta(days=45)
+IN_LAG = D - timedelta(days=44)          # one day inside the 45-day lag
 
 
 def ep(d):
@@ -80,6 +82,11 @@ COMPANIES = {
     "OLD_M": (RISING, run(date(2017, 12, 31), (0.20, 1e9), (0.20, 1e9))),
     # newest row exactly MAX_FILING_AGE_DAYS old at D: the bound is inclusive
     "EDGE_AGE": (run(AT_MAX_AGE, (0.02, 1.0, 0.5), (0.03, 1.1, 0.5), (0.045, 1.2, 0.5)), GOOD_KM),
+    # newest row exactly on the 45-day cutoff at D, and the run only completes there: the bound is inclusive
+    "EDGE_LAG": (run(AT_CUTOFF, (0.05, 1.0, 0.5), (0.02, 1.1, 0.5), (0.03, 1.2, 0.5), (0.056, 1.3, 0.5)), GOOD_KM),
+    # newest row is one day inside the lag at D and cuts to zero; the row before completes a run: in at D
+    # and D_JAN, out on 1 July
+    "LAG44": (run(IN_LAG, (0.02, 1.0, 0.5), (0.03, 1.1, 0.5), (0.048, 1.2, 0.5), (0.0, 0.0, 0.0)), GOOD_KM),
     # January year end: the row ending 2020-01-31 is past the lag at D, so it is the one tested.
     # FY_JAN's yield falls there (out at D); FY_JAN_UP's run only completes there (in at D)
     "FY_JAN": (run(date(2020, 1, 31), (0.02, 1.0, 0.5), (0.03, 1.1, 0.5), (0.05, 1.2, 0.5), (0.01, 1.3, 0.5)),
@@ -102,11 +109,11 @@ COMPANIES = {
 }
 # yield_change_2yr descending, then symbol
 EXPECT = {
-    D: [("FY_JAN_UP", 1e9), ("MAR_CUT", 1e9), ("EDGE_AGE", 1e9), ("OK", 1e9)],
-    D_JAN: [("STALE", 1e9), ("CUT", 1e9), ("MAR_CUT", 1e9), ("FY_JAN", 1e9), ("OLD_R", 1e9), ("EDGE_AGE", 1e9),
-            ("PAYOUT_TURNED", 1e9), ("DPS_TURNED", 1e9), ("STUB", 1e9), ("OK", 1e9), ("ROE_TURNED", 1e9),
-            ("SHRANK", 1e9)],
-    D_JUL: [("FY_JAN_UP", 1e9), ("OK", 1e9)],
+    D: [("EDGE_LAG", 1e9), ("FY_JAN_UP", 1e9), ("MAR_CUT", 1e9), ("LAG44", 1e9), ("EDGE_AGE", 1e9), ("OK", 1e9)],
+    D_JAN: [("STALE", 1e9), ("CUT", 1e9), ("MAR_CUT", 1e9), ("FY_JAN", 1e9), ("LAG44", 1e9), ("OLD_R", 1e9),
+            ("EDGE_AGE", 1e9), ("PAYOUT_TURNED", 1e9), ("DPS_TURNED", 1e9), ("STUB", 1e9), ("OK", 1e9),
+            ("ROE_TURNED", 1e9), ("SHRANK", 1e9)],
+    D_JUL: [("EDGE_LAG", 1e9), ("FY_JAN_UP", 1e9), ("OK", 1e9)],
 }
 
 
@@ -195,6 +202,15 @@ MUTANTS = {
                                  "PARTITION BY symbol ORDER BY fiscal_year DESC, dividendYield"),
     "no lag": ("cutoff_epoch = utc_epoch(target_date - timedelta(days=45))",
                "cutoff_epoch = utc_epoch(target_date)"),
+    # each window bound one day off
+    "filing a day too old allowed": ("MAX_FILING_AGE_DAYS = 540 ", "MAX_FILING_AGE_DAYS = 541 "),
+    "filing age measured from the cutoff": (
+        "earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))",
+        "earliest_epoch = cutoff_epoch - MAX_FILING_AGE_DAYS * 86400"),
+    "lag a day short": ("cutoff_epoch = utc_epoch(target_date - timedelta(days=45))",
+                        "cutoff_epoch = utc_epoch(target_date - timedelta(days=44))"),
+    "lag a day long": ("cutoff_epoch = utc_epoch(target_date - timedelta(days=45))",
+                       "cutoff_epoch = utc_epoch(target_date - timedelta(days=46))"),
     "bounds swapped": ("[cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,",
                        "[earliest_epoch, cutoff_epoch, cutoff_epoch, earliest_epoch,"),
     # the old bug's other half: years skipped instead of breaking the run

@@ -357,7 +357,7 @@ FANNED_TOPICS = ("cyclical-timing", "pe-mean-revert")   # screens that join prof
 SLOT_LEG, SLOT_NAMES = "OSL", [f"S{i:02d}.OL" for i in range(31)]
 SLOT_LINES = [(s, i) for i, s in enumerate(SLOT_NAMES)] + [("S00B.OL", 0.5)]
 SLOT_BOOK = {"dogs-of-dow": SLOT_NAMES[29:19:-1],      # 30 largest securities, then the 10 highest yields
-             "graham-number": SLOT_NAMES[:30]}         # 30 deepest discounts, cut in Python
+             "graham-number": SLOT_NAMES[:30]}         # 30 deepest discounts
 LEGS = {"XETRA": ".DE", "SIX": ".SW", "STO": ".ST", "LSE": ".L", "NYSE": ""}
 HOME = {"XETRA": "DE", "SIX": "CH", "STO": "SE", "LSE": "GB", "NYSE": "US"}
 FOREIGN = {"XETRA": "US", "SIX": "US", "STO": "CH", "LSE": "IE", "NYSE": "IE"}  # STO/LSE/NYSE's must stay

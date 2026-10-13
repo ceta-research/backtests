@@ -30,8 +30,8 @@ D = date(2020, 4, 1)
 BAR = date(2020, 4, 2)
 FLOOR = 5e8
 FY18, FY19 = date(2018, 12, 31), date(2019, 12, 31)
-OLD_DAY = date(2018, 6, 30)             # 641 days before D
-IN_LAG = date(2020, 3, 1)               # inside the 45-day lag
+OLD_DAY = D - timedelta(days=541)       # one day past MAX_FILING_AGE_DAYS
+IN_LAG = D - timedelta(days=44)         # one day inside the 45-day lag
 AT_CUTOFF = D - timedelta(days=45)
 AT_MAX_AGE = D - timedelta(days=540)
 TECH, ENERGY, UTIL = "Technology", "Energy", "Utilities"
@@ -63,7 +63,7 @@ COMPANIES = {
     "DE_TURNED": (TECH, [(FY18, 8.0, 0.5), (FY19, 8.0, 3.0)], M2),
     "ROE_TURNED": (TECH, R2, [(FY18, *GOOD_M), (FY19, 0.01, 1e9)]),
     "SHRANK": (TECH, R2, [(FY18, *GOOD_M), (FY19, 0.20, 1e5)]),
-    # only filing is 641 days old, in both tables or one: out
+    # only filing is 541 days old, in both tables or one: out
     "OLD": (TECH, [(OLD_DAY, 8.0, 0.5)], [(OLD_DAY, *GOOD_M)]),
     "OLD_R": (TECH, [(OLD_DAY, 8.0, 0.5)], M1),
     "OLD_M": (TECH, [(FY19, 8.0, 0.5)], [(OLD_DAY, *GOOD_M)]),
@@ -192,6 +192,13 @@ MUTANTS = {
     "staleness bound 10x": [("MAX_FILING_AGE_DAYS = 540 ", "MAX_FILING_AGE_DAYS = 5400 ")],
     "no lag": [("cutoff_epoch = utc_epoch(target_date - timedelta(days=45))",
                 "cutoff_epoch = utc_epoch(target_date)")],
+    # each window bound one day looser
+    "filing a day too old allowed": [("MAX_FILING_AGE_DAYS = 540 ", "MAX_FILING_AGE_DAYS = 541 ")],
+    "filing age measured from the cutoff": [
+        ("earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))",
+         "earliest_epoch = cutoff_epoch - MAX_FILING_AGE_DAYS * 86400")],
+    "lag a day short": [("cutoff_epoch = utc_epoch(target_date - timedelta(days=45))",
+                         "cutoff_epoch = utc_epoch(target_date - timedelta(days=44))")],
     "bounds swapped": [("[cutoff_epoch, earliest_epoch,\n", "[earliest_epoch, cutoff_epoch,\n")],
     # the band moved below the sector median: out-of-band P/Es would count in it and in the 5-name minimum
     "band after the median": [(BAND, ""), (RATIO_CUT, RATIO_CUT.rstrip("\n") + " AND cs.pe BETWEEN ? AND ?\n"),

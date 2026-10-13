@@ -220,7 +220,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))
 
     # Latest FY row on or before the lag first, THEN the rising/driver/payout tests: testing first kept
-    # a name on its last rising year, however old (AJRD in the 2024 book on FY1989).
+    # a name on its last rising year, however old (AJRD in the 2024 top 30 on FY1989).
     candidates = """
         WITH latest AS (
             SELECT symbol, fiscal_year, dividendYield, yield_1yr, yield_2yr, fy_1yr, fy_2yr,

@@ -17,8 +17,6 @@ import sys
 import types
 from datetime import date, datetime, timedelta, timezone
 
-import duckdb
-
 ROOT = (os.path.abspath(sys.argv[1]) if len(sys.argv) > 1
         else os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PATH = os.path.join(ROOT, "dividend-growth", "backtest.py")

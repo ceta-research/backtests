@@ -31,8 +31,8 @@ sys.path.insert(0, ROOT)
 D = date(2020, 4, 1)
 FLOOR = 5e8
 FY18, FY19 = date(2018, 12, 31), date(2019, 12, 31)   # 457 and 92 days before D
-OLD_DAY = date(2018, 6, 30)             # 641 days before D
-IN_LAG = date(2020, 3, 1)               # inside the 45-day lag
+OLD_DAY = D - timedelta(days=541)       # one day past MAX_FILING_AGE_DAYS
+IN_LAG = D - timedelta(days=44)         # one day inside the 45-day lag
 AT_CUTOFF = D - timedelta(days=45)
 AT_MAX_AGE = D - timedelta(days=540)
 
@@ -55,9 +55,9 @@ FILINGS = {
     # latest yield is zero after a cut (the Alibaba shape), or missing: out
     "CUT": (CAPS, [(FY18, 0.090), (FY19, 0.0)]),
     "CUT_NULL": (CAPS, [(FY18, 0.080), (FY19, None)]),
-    # only ratios filing is 641 days old: out
+    # only ratios filing is 541 days old: out
     "OLD_R": (CAPS, [(OLD_DAY, 0.070)]),
-    # only cap filing is 641 days old: a Dow name keeps the default cap, a non-US name is out
+    # only cap filing is 541 days old: a Dow name keeps the default cap, a non-US name is out
     "OLD_M": ([(OLD_DAY, 7e10)], [(FY19, 0.060)]),
     # newest filing is inside the lag and has cut to zero; the one before pays: in, on the older cap
     "LAGGED": ([(FY19, 5e10), (IN_LAG, 9e10)], [(FY19, 0.020), (IN_LAG, 0.0)]),
@@ -179,6 +179,13 @@ MUTANTS = {
     "staleness bound ten times wider": ("MAX_FILING_AGE_DAYS = 540", "MAX_FILING_AGE_DAYS = 5400"),
     "no lag": ("cutoff_epoch = utc_epoch(target_date - timedelta(days=45))",
                "cutoff_epoch = utc_epoch(target_date)"),
+    # each window bound one day looser
+    "filing a day too old allowed": ("MAX_FILING_AGE_DAYS = 540", "MAX_FILING_AGE_DAYS = 541"),
+    "filing age measured from the cutoff": (
+        "earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))",
+        "earliest_epoch = cutoff_epoch - MAX_FILING_AGE_DAYS * 86400"),
+    "lag a day short": ("cutoff_epoch = utc_epoch(target_date - timedelta(days=45))",
+                        "cutoff_epoch = utc_epoch(target_date - timedelta(days=44))"),
     "ratios bounds swapped (Dow)": (P_DOW, P_DOW.replace("[cutoff_epoch, earliest_epoch", "[earliest_epoch, cutoff_epoch")),
     "metrics bounds swapped (Dow)": (P_DOW, P_DOW.replace("cutoff_epoch, earliest_epoch, DOGS", "earliest_epoch, cutoff_epoch, DOGS")),
     "ratios bounds swapped (non-US)": (P_XUS, P_XUS.replace("cutoff_epoch, earliest_epoch, DOGS", "earliest_epoch, cutoff_epoch, DOGS")),
