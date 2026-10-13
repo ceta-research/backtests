@@ -8,9 +8,12 @@ EVERY leg, with a home-currency flag. isin_dedup_sql(): one row per security (no
 else symbol): the line buyable at entry first (get_prices' FIRST bar in [d+off, d+off+10] against
 the floor), then the line profile marks isActivelyTrading, then the line quoted in the leg's home
 currency, then alphabetical. A symbol fanned out by a join keeps one row, symbols without ISINs
-never merge, a collapsed twin frees its top-N slot. Then each of the five campaign topics runs its
-real fetch_data_via_api + screen_stocks against a fake client on XETRA, SIX, STO, LSE and NYSE
-legs. Each check is re-run against mutants of the rule and must fail. Checks survive python -O.
+never merge, a collapsed twin frees its top-N slot. Then each campaign topic (TOPICS: wave 1 and
+wave 2) runs its real fetch_data_via_api + screen (screen_stocks; dogs-of-dow's screen_dogs) against
+a fake client on XETRA, SIX, STO, LSE and NYSE legs, run_backtest's offset_days is followed through
+the screen into the dedup, and the two topics whose top-N cut is not one query around the dedup
+show the cut running after it. Each check is re-run against mutants of the rule and must fail.
+Checks survive python -O.
 """
 import contextlib
 import importlib.util
@@ -335,8 +338,26 @@ def mutant(old, new):
 
 
 # ---- topic wiring: each topic's own fetch + screen against a fake client ----
-TOPICS = ["cyclical-timing", "asset-growth", "fcf-conversion", "cash-conversion", "graham-net-net"]
+TOPICS = ["cyclical-timing", "asset-growth", "fcf-conversion", "cash-conversion", "graham-net-net",       # wave 1
+          "dogs-of-dow", "low-debt", "fcf-compounders", "fcf-yield", "price-to-sales", "revenue-accel",  # wave 2
+          "dividend-growth", "deleveraging", "pe-mean-revert", "dividend-sustainability", "rising-yield",
+          "graham-number"]
 TOPIC_FLOOR = {"graham-net-net": 0.50}      # entry floor each topic's dedup must use; others 1.0
+# Screen entry point: (name, call, legs that reach every dedup site). Topics not listed use SCREEN_STOCKS.
+SCREEN_STOCKS = ("screen_stocks", lambda mod, con, _ex, **k: mod.screen_stocks(con, D, 1e6, **k), ("XETRA",))
+SCREENS = {"dogs-of-dow": ("screen_dogs",   # the NYSE leg is its Dow branch, every other leg its blue-chip branch
+                           lambda mod, con, ex, **k: mod.screen_dogs(con, D, use_dow=mod.is_us_exchange([ex]),
+                                                                     mktcap_min=1e6, **k),
+                           ("XETRA", "NYSE"))}
+RESULT_FILES = {"dogs-of-dow": ("backtest.py", "run_all_exchanges.py")}   # files that write results; others backtest.py
+RESULT_KEYS = ('"listing_filter": campaign_listing_label(exchanges)', '"isin_dedup": True')
+FANNED_TOPICS = ("cyclical-timing", "pe-mean-revert")   # screens that join profile_cache: a fan-out reaches only them
+# A sixth leg (no listing rule) for top-N cuts that are not `FROM (dedup) ORDER BY .. LIMIT`: 31 securities ranked
+# S00 (largest, deepest value, lowest yield) to S30, and S00's twin ranked second. topic -> the book it must hold.
+SLOT_LEG, SLOT_NAMES = "OSL", [f"S{i:02d}.OL" for i in range(31)]
+SLOT_LINES = [(s, i) for i, s in enumerate(SLOT_NAMES)] + [("S00B.OL", 0.5)]
+SLOT_BOOK = {"dogs-of-dow": SLOT_NAMES[29:19:-1],      # 30 largest securities, then the 10 highest yields
+             "graham-number": SLOT_NAMES[:30]}         # 30 deepest discounts, cut in Python
 LEGS = {"XETRA": ".DE", "SIX": ".SW", "STO": ".ST", "LSE": ".L", "NYSE": ""}
 HOME = {"XETRA": "DE", "SIX": "CH", "STO": "SE", "LSE": "GB", "NYSE": "US"}
 FOREIGN = {"XETRA": "US", "SIX": "US", "STO": "CH", "LSE": "IE", "NYSE": "IE"}  # STO/LSE/NYSE's must stay
@@ -368,40 +389,95 @@ def topic_lines():
                    ("0Y4Q.L", "LSE", "GB", "IE00BDB6Q211", 50.0, True, "USD")]   # USD line profile calls GB
 
 
+# Six consecutive FY filings, the newest 182 days before D: inside the 45-day lag and any filing-age cap.
+FYS = [date(y, 12, 31) for y in range(2009, 2015)]
+
+
+def then(prior, latest):
+    return (prior,) * (len(FYS) - 1) + (latest,)       # `prior` on every earlier filing, `latest` on the newest
+
+
+def rising(latest, step):
+    return tuple(latest - step * k for k in reversed(range(len(FYS))))    # up by `step` a year, ending at `latest`
+
+
+# FMP statement tables: column -> its value on every FY filing, or one value per filing (oldest first).
+# Every line passes every topic's screen on its LATEST filing; year-on-year tests hold on every pair.
+FY_TABLES = {
+    "key_metrics": {
+        "returnOnEquity": 0.2, "returnOnAssets": 0.1, "marketCap": 5e9, "grahamNetNet": 100.0, "currentRatio": 2.0,
+        "cashConversionCycle": 40.0, "daysOfSalesOutstanding": 10.0, "daysOfInventoryOutstanding": 10.0,
+        "daysOfPayablesOutstanding": 10.0, "returnOnInvestedCapital": 0.2, "freeCashFlowYield": 0.1,
+        "grahamNumber": 100.0,                          # above every line's price (50.0, 0.75)
+        "reportedCurrency": ""},                        # per line, see source_db
+    "balance_sheet": {                                  # with income and cash flow: Piotroski 9 of 9
+        "totalAssets": then(1000.0, 1050.0), "totalCurrentAssets": then(400.0, 500.0),
+        "totalCurrentLiabilities": 200.0, "longTermDebt": then(100.0, 50.0),
+        "totalStockholdersEquity": then(500.0, 600.0)},
+    "income_statement": {
+        "revenue": (790.0, 800.0, 820.0, 850.0, 900.0, 1000.0),         # growth 5.9% -> 11.1%: accelerating
+        "netIncome": then(80.0, 100.0), "grossProfit": then(300.0, 400.0)},
+    "cash_flow_statement": {
+        "freeCashFlow": rising(150.0, 10.0), "operatingCashFlow": 200.0,
+        "commonDividendsPaid": -50.0},                  # covered 3x by free cash flow
+    "financial_ratios": {
+        "operatingProfitMargin": 0.2, "grossProfitMargin": 0.4, "interestCoverageRatio": 10.0,
+        "priceToSalesRatio": 0.5, "priceToEarningsRatio": 5.0,          # a sixth of the dear names' 30.0
+        "debtToEquityRatio": then(0.4, 0.2),            # halved in the latest year, and under every cap
+        "dividendYield": rising(0.04, 0.002), "dividendPerShare": rising(1.5, 0.1), "dividendPayoutRatio": 0.3},
+}
+N_DEAR = {"Industrials": 20, "Energy": 5}     # dear names per leg: each sector's median P/E stays 30.0 under every mutant
+
+
+def fy_rows(src, sym, tables, **over):
+    """One row per FYS filing in each table: FY_TABLES' values, `over` replacing columns by name."""
+    for table in tables:
+        for k, fy in enumerate(FYS):
+            vals = [over.get(c, v[k] if isinstance(v, tuple) else v) for c, v in FY_TABLES[table].items()]
+            src.execute(f"INSERT INTO {table} VALUES (?, 'FY', ?, ?{', ?' * len(vals)})", [sym, fy, ep(fy), *vals])
+
+
 def source_db():
-    """The FMP tables the five fetches read, with every line passing every topic's screen."""
+    """The FMP tables the topics' fetches read, with every line passing every topic's screen."""
     src = duckdb.connect()
     src.execute("CREATE TABLE profile(symbol VARCHAR, exchange VARCHAR, country VARCHAR, isin VARCHAR,"
                 " sector VARCHAR, marketCap DOUBLE, isActivelyTrading BOOLEAN, currency VARCHAR, isAdr BOOLEAN)")
-    src.execute("CREATE TABLE key_metrics(symbol VARCHAR, period VARCHAR, dateEpoch BIGINT, returnOnEquity DOUBLE,"
-                " returnOnAssets DOUBLE, marketCap DOUBLE, grahamNetNet DOUBLE, currentRatio DOUBLE,"
-                " cashConversionCycle DOUBLE, daysOfSalesOutstanding DOUBLE, daysOfInventoryOutstanding DOUBLE,"
-                " daysOfPayablesOutstanding DOUBLE, reportedCurrency VARCHAR)")
-    src.execute("CREATE TABLE balance_sheet(symbol VARCHAR, period VARCHAR, dateEpoch BIGINT, totalAssets DOUBLE)")
-    src.execute("CREATE TABLE income_statement(symbol VARCHAR, period VARCHAR, dateEpoch BIGINT, revenue DOUBLE,"
-                " netIncome DOUBLE)")
-    src.execute("CREATE TABLE cash_flow_statement(symbol VARCHAR, period VARCHAR, dateEpoch BIGINT,"
-                " freeCashFlow DOUBLE)")
-    src.execute("CREATE TABLE financial_ratios(symbol VARCHAR, period VARCHAR, dateEpoch BIGINT,"
-                " operatingProfitMargin DOUBLE)")
+    for table, cols in FY_TABLES.items():
+        src.execute(f"CREATE TABLE {table}(symbol VARCHAR, period VARCHAR, date DATE, dateEpoch BIGINT, " + ", ".join(
+            f"{c} {'VARCHAR' if isinstance(v, str) else 'DOUBLE'}" for c, v in cols.items()) + ")")
+    src.execute("CREATE TABLE dividend_calendar(symbol VARCHAR, date DATE, adjDividend DOUBLE)")
+    src.execute("CREATE TABLE dowjones_constituent(symbol VARCHAR)")
     src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date DATE, dateEpoch BIGINT, adjClose DOUBLE, volume DOUBLE)")
-    for sym, ex, country, isin, px, live, ccy in topic_lines():
+    lines = [(*r, {}) for r in topic_lines()] + [
+        (sym, SLOT_LEG, "NO", f"NO00SLOT{int(k):02d}", 50.0, True, "NOK",
+         {"marketCap": 1e12 * (40 - k), "grahamNumber": 1000.0 - 10 * k, "dividendYield": 0.01 * (k + 1)})
+        for sym, k in SLOT_LINES]
+    for sym, ex, country, isin, px, live, ccy, over in lines:
         src.execute("INSERT INTO profile VALUES (?, ?, ?, ?, 'Industrials', 5e9, ?, ?, FALSE)",
                     [sym, ex, country, isin, live, ccy])
-        for fy, assets, rev in ((date(2014, 3, 31), 1000.0, 900.0), (date(2015, 3, 31), 1050.0, 1000.0)):
-            e = ep(fy)
-            # reports in its quote currency (pence -> pounds): no FX fetch, graham-net-net's x100 only
-            src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, 0.2, 0.1, 5e9, 100.0, 2.0, 40.0, 10, 10, 10, ?)",
-                        [sym, e, "GBP" if ccy == "GBp" else ccy])
-            src.execute("INSERT INTO balance_sheet VALUES (?, 'FY', ?, ?)", [sym, e, assets])
-            src.execute("INSERT INTO income_statement VALUES (?, 'FY', ?, ?, 100.0)", [sym, e, rev])
-            src.execute("INSERT INTO cash_flow_statement VALUES (?, 'FY', ?, 150.0)", [sym, e])
-            src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, 0.2)", [sym, e])
+        # reports in its quote currency (pence -> pounds): no FX fetch, graham-net-net's x100 only
+        fy_rows(src, sym, FY_TABLES, reportedCurrency="GBP" if ccy == "GBp" else ccy, **over)
+        for y in range(FYS[0].year - 1, FYS[-1].year + 1):     # one payment a year, raised every year
+            src.execute("INSERT INTO dividend_calendar VALUES (?, ?, ?)", [sym, date(y, 5, 15), 1.0 + 0.1 * (y - 2000)])
+        if ex == "NYSE":                                        # dogs-of-dow's US universe
+            src.execute("INSERT INTO dowjones_constituent VALUES (?)", [sym])
         for day in (BAR, date(2016, 7, 5)):
             src.execute("INSERT INTO stock_eod VALUES (?, ?, ?, ?, 1e6)", [sym, day, ep(day), px])
-    # A second profile row in another (cyclical) sector: cyclical-timing's profile_cache join fans NOI1 out.
+    # A second profile row in another (cyclical) sector: cyclical-timing's and pe-mean-revert's profile_cache
+    # joins fan NOI1 out.
     src.execute("INSERT INTO profile SELECT symbol, exchange, country, isin, 'Energy', marketCap,"
                 " isActivelyTrading, currency, isAdr FROM profile WHERE symbol LIKE 'NOI1%'")
+    # pe-mean-revert: dear home lines set each sector's median P/E. Only the three columns its median reads
+    # are filled, so they pass no screen and rank below every line in dogs-of-dow's size cut.
+    dear = {**{c: None for t in ("key_metrics", "financial_ratios") for c in FY_TABLES[t]},
+            "returnOnEquity": 0.2, "marketCap": 1e9, "priceToEarningsRatio": 30.0}
+    for ex, sfx in LEGS.items():
+        for sector, n in N_DEAR.items():
+            for i in range(n):
+                sym = f"DEAR{sector[0]}{i:02d}{sfx}"
+                src.execute("INSERT INTO profile VALUES (?, ?, ?, NULL, ?, 1e9, TRUE, ?, FALSE)",
+                            [sym, ex, HOME[ex], sector, QUOTE[ex]])
+                fy_rows(src, sym, ("key_metrics", "financial_ratios"), **dear)
     return src
 
 
@@ -460,7 +536,7 @@ def leg_failures(mod, topic, src, legs=tuple(LEGS)):
         if n_isin_sql != 1 or not con.execute("SELECT COUNT(*) FROM isin_map").fetchone()[0]:
             f.append(f"{ex}: isin_map fetched")
         with contextlib.redirect_stdout(io.StringIO()):
-            picked = mod.screen_stocks(con, D, 1e6)
+            picked = SCREENS.get(topic, SCREEN_STOCKS)[1](mod, con, ex)
         syms = list(picked) if isinstance(picked, dict) else [r[0] for r in picked]
         if len(syms) != len(set(syms)):
             f.append(f"{ex}: a symbol held twice")
@@ -474,32 +550,59 @@ class _Stop(Exception):
     pass
 
 
-def forwarding_failures(mod, src):
-    """run_backtest hands its offset_days to screen_stocks (the dedup's entry window)."""
-    con, _ = fetch(mod, src, "XETRA")
-    calls = []
+def forwarding_failures(mod, topic, src):
+    """run_backtest hands its offset_days to the screen, and the screen to the dedup (its entry window)."""
+    name, call, legs = SCREENS.get(topic, SCREEN_STOCKS)
+    f = []
+    for ex in legs:
+        con, _ = fetch(mod, src, ex)
+        calls, seen = [], []
 
-    def rec(_con, _d, _m, offset_days=1):
-        calls.append(offset_days)
-        raise _Stop
+        def rec(*_a, offset_days=1, **_k):
+            calls.append(offset_days)
+            raise _Stop
 
-    saved, mod.screen_stocks = mod.screen_stocks, rec
-    try:
-        with contextlib.redirect_stdout(io.StringIO()):
-            mod.run_backtest(con, DATES, 1e6, offset_days=0)
-    except _Stop:
-        pass
-    finally:
-        mod.screen_stocks = saved
-    return [] if calls == [0] else [f"run_backtest forwards offset_days=0 to screen_stocks, got {calls}"]
+        def spy(c, d, off, fl, **k):
+            seen.append(off)
+            return isin_dedup_sql(c, d, off, fl, **k)
+
+        saved = getattr(mod, name)
+        setattr(mod, name, rec)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                mod.run_backtest(con, DATES, mktcap_min=1e6, offset_days=0)
+        except _Stop:
+            pass
+        finally:
+            setattr(mod, name, saved)
+        if calls != [0]:
+            f.append(f"{ex}: run_backtest forwards offset_days=0 to {name}, got {calls}")
+        with patched(mod, isin_dedup_sql=spy), contextlib.redirect_stdout(io.StringIO()):
+            call(mod, con, ex, offset_days=0)
+        if seen != [0]:
+            f.append(f"{ex}: {name} forwards offset_days=0 to the dedup, got {seen}")
+    return f
 
 
-def results_key_failures(topic):
+def slot_failures(mod, topic, src):
+    """The dedup runs before the topic's top-N cut: the twin collapses and the next security takes its slot."""
+    con, _ = fetch(mod, src, SLOT_LEG)
+    with contextlib.redirect_stdout(io.StringIO()):
+        picked = [r[0] for r in SCREENS.get(topic, SCREEN_STOCKS)[1](mod, con, SLOT_LEG)]
+    return [] if picked == SLOT_BOOK[topic] else [f"{SLOT_LEG}: top-N book {SLOT_BOOK[topic]}, got {picked}"]
+
+
+def results_key_failures(topic, drop=None):
     """run_single/main can't run offline: the results must record the applied rule, and dedup as always on."""
-    with open(os.path.join(ROOT, topic, "backtest.py")) as fh:
-        text = fh.read()
-    return [f"{topic}: results record {k}" for k in ('"listing_filter": campaign_listing_label(exchanges)',
-                                                     '"isin_dedup": True') if k not in text]
+    f = []
+    for name in RESULT_FILES.get(topic, ("backtest.py",)):
+        with open(os.path.join(ROOT, topic, name)) as fh:
+            text = fh.read()
+        if drop:
+            check(drop in text, f"mutant target {drop!r} not in {topic}/{name}")
+            text = text.replace(drop, "")
+        f += [f"{topic}/{name}: results record {k}" for k in RESULT_KEYS if k not in text]
+    return f
 
 
 con = fixture()
@@ -541,8 +644,10 @@ check(ranked(con, isin_dedup_sql, n=3, where=" WHERE symbol LIKE '%.ST'") == pla
 SRC = source_db()
 MODS = {t: load_topic(t) for t in TOPICS}
 for t, mod in MODS.items():
-    fails = leg_failures(mod, t, SRC) + forwarding_failures(mod, SRC) + results_key_failures(t)
+    fails = leg_failures(mod, t, SRC) + forwarding_failures(mod, t, SRC) + results_key_failures(t)
     check(fails == [], f"{t} wiring: {fails}")
+for t in SLOT_BOOK:
+    check(slot_failures(MODS[t], t, SRC) == [], f"{t} top-N cut: {slot_failures(MODS[t], t, SRC)}")
 
 # ---- 3. every check can fail: each broken rule trips its own check ----
 real = campaign_listing_condition
@@ -642,8 +747,13 @@ for name in ("offset ignored", "window 20 days too wide", "best bar in window, n
 
 TOPIC_MUTANTS = {
     "listing filter dropped": ({"campaign_listing_condition": lambda _e: ""}, ("XETRA",), "XETRA: screen keeps"),
+    "listing filter dropped (the queries show it)": (
+        {"campaign_listing_condition": lambda _e: ""}, ("SIX",), "SIX: every query carries"),
     "LSE pence rule dropped": (
         {"campaign_listing_condition": lambda e: "" if set(e) == {"LSE"} else real(e)}, ("LSE",), "LSE: screen keeps"),
+    "home-country rule on an untouched leg": (
+        {"campaign_listing_condition": lambda e: domicile_sql_condition(e) if set(e) == {"STO"} else real(e)},
+        ("STO",), "STO: no query filters"),
     "isin_map gated to XETRA/SIX (the old scope)": ({"load_isin_map": OLD_SCOPE}, ("STO",), "STO: isin_map fetched"),
     "dedup wrapper removed": ({"isin_dedup_sql": lambda c, *_a, **_k: c}, ("NYSE",), "NYSE: screen keeps"),
     "live flag not fetched": (
@@ -657,16 +767,37 @@ TOPIC_MUTANTS = {
         {"isin_dedup_sql": lambda c, d, off, fl, **k: isin_dedup_sql(c, d, off, 1.5 - fl, **k)},
         ("SIX",), "SIX: screen keeps"),
 }
+# what drops offset_days (so its callee runs on the default) -> the forwarding check it must trip
+FORWARD_MUTANTS = {"run_backtest": "run_backtest forwards", "screen": "to the dedup"}
+drops_offset = lambda fn: lambda *a, offset_days=1, **k: fn(*a, **k)
 for t, mod in MODS.items():
     for name, (attrs, legs, expect) in TOPIC_MUTANTS.items():
         with patched(mod, **attrs):
             fails = leg_failures(mod, t, SRC, legs)
         check(any(expect in x for x in fails), f"{t} mutant '{name}' not caught: {fails}")
-# Only cyclical-timing's screen joins profile, so only it can hold a fanned-out symbol twice.
-with patched(MODS["cyclical-timing"], isin_dedup_sql=DEDUP_MUTANTS["fanned-out rows kept (no-ISIN rows pass untouched)"][0]):
-    fails = leg_failures(MODS["cyclical-timing"], "cyclical-timing", SRC, ("STO",))
-check(any("STO: a symbol held twice" in x for x in fails), f"cyclical-timing fan-out mutant not caught: {fails}")
+    for what, expect in FORWARD_MUTANTS.items():
+        name, _call, legs = SCREENS.get(t, SCREEN_STOCKS)
+        name = name if what == "screen" else what
+        with patched(mod, **{name: drops_offset(getattr(mod, name))}):
+            fails = forwarding_failures(mod, t, SRC)
+        check(sum(expect in x for x in fails) == len(legs),      # on every leg, so at every dedup site
+              f"{t} mutant '{what} drops offset_days' not caught: {fails}")
+    for key in RESULT_KEYS:
+        fails = results_key_failures(t, drop=key)
+        check(len(fails) == len(RESULT_FILES.get(t, ("backtest.py",))) and all(key in x for x in fails),
+              f"{t} mutant 'results lose {key}' not caught: {fails}")
+# Only these screens join profile, so only they can hold a fanned-out symbol twice.
+for t in FANNED_TOPICS:
+    with patched(MODS[t], isin_dedup_sql=DEDUP_MUTANTS["fanned-out rows kept (no-ISIN rows pass untouched)"][0]):
+        fails = leg_failures(MODS[t], t, SRC, ("STO",))
+    check(any("STO: a symbol held twice" in x for x in fails), f"{t} fan-out mutant not caught: {fails}")
+# No dedup: the twin takes a slot and the 30th security is cut.
+for t in SLOT_BOOK:
+    with patched(MODS[t], **TOPIC_MUTANTS["dedup wrapper removed"][0]):
+        fails = slot_failures(MODS[t], t, SRC)
+    check(any("top-N book" in x for x in fails), f"{t} top-N mutant not caught: {fails}")
 
 n_mut = (len(LISTING_MUTANTS) + len(GATE_MUTANTS) + 1 + len(DEDUP_MUTANTS)
-         + len(TOPIC_MUTANTS) * len(MODS) + 1)
+         + (len(TOPIC_MUTANTS) + len(FORWARD_MUTANTS) + len(RESULT_KEYS)) * len(MODS) + len(FANNED_TOPICS)
+         + len(SLOT_BOOK))
 print(f"test_domicile_dedup: PASS ({len(MODS)} topics x {len(LEGS)} legs wired; {n_mut} mutants caught)")

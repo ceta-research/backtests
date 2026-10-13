@@ -63,7 +63,11 @@ IMPORT_EXEMPT = {
     "pairs-cointegration": "needs statsmodels, not installed in this venv",
 }
 # Topics rerun with LTP exits in the B005 campaign: their results/ and charts/ data files are in scope.
-RERUN_TOPICS = {"cyclical-timing", "asset-growth", "fcf-conversion", "cash-conversion", "graham-net-net"}
+RERUN_TOPICS = {"cyclical-timing", "asset-growth", "fcf-conversion", "cash-conversion", "graham-net-net",
+                # wave 2
+                "dogs-of-dow", "low-debt", "fcf-compounders", "fcf-yield", "price-to-sales",
+                "revenue-accel", "dividend-growth", "deleveraging", "pe-mean-revert",
+                "dividend-sustainability", "rising-yield", "graham-number"}
 # Files outside */backtest.py and scripts/ that this change is allowed to touch.
 SCOPE_ALLOW = {
     # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
@@ -108,6 +112,18 @@ SCOPE_ALLOW = {
     "fcf-conversion/README.md",
     "cash-conversion/README.md",
     "graham-net-net/README.md",
+    # Wave 2 rerun: the same for its topics (revenue-accel/README.md is listed above).
+    "dogs-of-dow/README.md",
+    "low-debt/README.md",
+    "fcf-compounders/README.md",
+    "fcf-yield/README.md",
+    "price-to-sales/README.md",
+    "dividend-growth/README.md",
+    "deleveraging/README.md",
+    "pe-mean-revert/README.md",
+    "dividend-sustainability/README.md",
+    "rising-yield/README.md",
+    "graham-number/README.md",
     # B006: its CAGR chart gated on `cash_periods < total_periods`, comparing a
     # full-run cash count against the truncated metrics window, so a truncated
     # leg was read as 100%-cash and dropped from the chart with no trace. The
