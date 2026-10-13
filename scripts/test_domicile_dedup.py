@@ -347,7 +347,8 @@ TOPIC_FLOOR = {"graham-net-net": 0.50}      # entry floor each topic's dedup mus
 SCREEN_STOCKS = ("screen_stocks", lambda mod, con, _ex, **k: mod.screen_stocks(con, D, 1e6, **k), ("XETRA",))
 SCREENS = {"dogs-of-dow": ("screen_dogs",   # the NYSE leg is its Dow branch, every other leg its blue-chip branch
                            lambda mod, con, ex, **k: mod.screen_dogs(con, D, use_dow=mod.is_us_exchange([ex]),
-                                                                     mktcap_min=1e6, **k),
+                                                                     # every fixture size within 15,000x the floor
+                                                                     mktcap_min=1e10 if ex == SLOT_LEG else 1e7, **k),
                            ("XETRA", "NYSE"))}
 RESULT_FILES = {"dogs-of-dow": ("backtest.py", "run_all_exchanges.py")}   # files that write results; others backtest.py
 RESULT_KEYS = ('"listing_filter": campaign_listing_label(exchanges)', '"isin_dedup": True')
@@ -416,7 +417,8 @@ FY_TABLES = {
         "totalStockholdersEquity": then(500.0, 600.0)},
     "income_statement": {
         "revenue": (790.0, 800.0, 820.0, 850.0, 900.0, 1000.0),         # growth 5.9% -> 11.1%: accelerating
-        "netIncome": then(80.0, 100.0), "grossProfit": then(300.0, 400.0)},
+        "netIncome": then(80.0, 100.0), "grossProfit": then(300.0, 400.0),
+        "weightedAverageShsOut": 1e12},                 # price x shares above every marketCap: dogs-of-dow sizes on the cap
     "cash_flow_statement": {
         "freeCashFlow": rising(150.0, 10.0), "operatingCashFlow": 200.0,
         "commonDividendsPaid": -50.0},                  # covered 3x by free cash flow
@@ -447,7 +449,12 @@ def source_db():
             f"{c} {'VARCHAR' if isinstance(v, str) else 'DOUBLE'}" for c, v in cols.items()) + ")")
     src.execute("CREATE TABLE dividend_calendar(symbol VARCHAR, date DATE, adjDividend DOUBLE)")
     src.execute("CREATE TABLE dowjones_constituent(symbol VARCHAR)")
-    src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date DATE, dateEpoch BIGINT, adjClose DOUBLE, volume DOUBLE)")
+    src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date DATE, dateEpoch BIGINT, adjClose DOUBLE, volume DOUBLE,"
+                " close DOUBLE)")
+    # dogs-of-dow sizes a line reporting or quoted in another currency (the EEE twins) through USDxxx
+    src.execute("CREATE TABLE forex_prices_daily(symbol VARCHAR, date DATE, dateEpoch BIGINT, close DOUBLE)")
+    for pair, rate in (("USDEUR", 0.9), ("USDCHF", 0.95), ("USDSEK", 8.5), ("USDGBP", 0.65)):
+        src.execute("INSERT INTO forex_prices_daily VALUES (?, ?, ?, ?)", [pair, BAR, ep(BAR), rate])
     lines = [(*r, {}) for r in topic_lines()] + [
         (sym, SLOT_LEG, "NO", f"NO00SLOT{int(k):02d}", 50.0, True, "NOK",
          {"marketCap": 1e12 * (40 - k), "grahamNumber": 1000.0 - 10 * k, "dividendYield": 0.01 * (k + 1)})
@@ -462,7 +469,7 @@ def source_db():
         if ex == "NYSE":                                        # dogs-of-dow's US universe
             src.execute("INSERT INTO dowjones_constituent VALUES (?)", [sym])
         for day in (BAR, date(2016, 7, 5)):
-            src.execute("INSERT INTO stock_eod VALUES (?, ?, ?, ?, 1e6)", [sym, day, ep(day), px])
+            src.execute("INSERT INTO stock_eod VALUES (?, ?, ?, ?, 1e6, ?)", [sym, day, ep(day), px, px])
     # A second profile row in another (cyclical) sector: cyclical-timing's and pe-mean-revert's profile_cache
     # joins fan NOI1 out.
     src.execute("INSERT INTO profile SELECT symbol, exchange, country, isin, 'Energy', marketCap,"

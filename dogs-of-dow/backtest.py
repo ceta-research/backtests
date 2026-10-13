@@ -5,6 +5,9 @@ Dogs of the Dow Backtest
 Annual rebalancing, equal weight, top 10 by highest dividend yield.
 US: Dow 30 membership (dowjones_constituent table).
 Other exchanges: Top 30 by market cap as "blue chip" universe, pick top 10 by yield.
+  Size is the smaller of the latest FY market cap and entry close x shares, both in the
+  leg's currency (point-in-time USDxxx FX); a line with no entry price takes no slot,
+  nor does one sized over 15,000x the leg's floor (a data error).
 
 Signal: Highest dividend yield within blue-chip universe
 Portfolio: 10 stocks, equal weight. Cash if < 5 qualify.
@@ -34,7 +37,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates, filter_returns, entry_buyable, get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch
-from data_utils import campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map
+from data_utils import campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map, get_local_currency
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -48,6 +51,11 @@ MAX_FILING_AGE_DAYS = 540  # a company whose latest FY filing is older drops out
 DEFAULT_FREQUENCY = "annual"
 # MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 
+# Blue-chip size units (non-US): marketCap is in key_metrics.reportedCurrency, close in profile.currency.
+SUBUNIT_CCY = {"GBp": "GBP", "ZAc": "ZAR", "ILA": "ILS"}  # quoted in 1/100 of the unit (data_utils.QUOTE_CURRENCY)
+FX_MAX_STALE_DAYS = 7  # newest USDxxx close on/before the entry bar, at most this old
+SIZE_CEILING_MULT = 15000  # x the leg's floor: a larger size is a data error, no slot (largest real ~7,100x, smallest corrupt ~27,000x)
+
 
 def is_us_exchange(exchanges):
     """Check if running on US exchanges (use true Dow 30)."""
@@ -55,6 +63,39 @@ def is_us_exchange(exchanges):
         return False
     us_codes = {"NYSE", "NASDAQ", "AMEX"}
     return set(exchanges).issubset(us_codes) and len(set(exchanges) & us_codes) > 0
+
+
+def major_ccy_sql(col):
+    """SQL: `col` with sub-unit quotes mapped to their unit (GBp -> GBP)."""
+    return f"CASE {col} " + " ".join(f"WHEN '{k}' THEN '{v}'" for k, v in SUBUNIT_CCY.items()) + f" ELSE {col} END"
+
+
+def fetch_fx(client, con, rebalance_dates, verbose=False):
+    """fx_cache(ccy, fx_epoch, per_usd): USDxxx closes for the leg's currency and every other one a cap or quote is in."""
+    ccys = [r[0] for r in con.execute(f"""
+        SELECT DISTINCT c FROM (
+            SELECT UNNEST([l.ccy, s.c]) AS c FROM leg_ccy l, (
+                SELECT reportedCurrency AS c FROM metrics_cache
+                UNION SELECT {major_ccy_sql('currency')} FROM ccy_map) s
+            WHERE s.c <> l.ccy)
+        WHERE c <> 'USD' AND regexp_full_match(c, '[A-Z]{{3}}') ORDER BY c""").fetchall()]
+    n = 0
+    if ccys:
+        wins = " OR ".join(f"(dateEpoch >= {utc_epoch(d - timedelta(days=FX_MAX_STALE_DAYS))}"
+                           f" AND dateEpoch <= {utc_epoch(d + timedelta(days=11))})" for d in rebalance_dates)
+        # USDxxx (units per USD), not xxxUSD: EURUSD stops in 2026-02 while USDEUR runs on.
+        # One row per currency and day, so the screen's ASOF pick is the same every run.
+        n = query_parquet(client, f"""
+            SELECT SUBSTR(symbol, 4, 3) AS ccy, dateEpoch AS fx_epoch, MAX(close) AS per_usd
+            FROM forex_prices_daily
+            WHERE symbol IN ({", ".join(f"'USD{c}'" for c in ccys)}) AND close > 0 AND ({wins})
+            GROUP BY 1, 2
+        """, con, "fx_cache", verbose=verbose)
+    if not n:  # no foreign currency on the leg, or query_parquet's column-less empty placeholder
+        con.execute("DROP TABLE IF EXISTS fx_cache")
+        con.execute("CREATE TABLE fx_cache(ccy VARCHAR, fx_epoch BIGINT, per_usd DOUBLE)")
+    print(f"    -> FX for {len(ccys)} currencies: {n} rows")
+    return n
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
@@ -94,7 +135,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         print(f"  Universe: Dow 30 ({len(dow_rows)} members)")
     else:
         print("  Fetching exchange membership...")
-        profile_sql = f"SELECT DISTINCT symbol, exchange FROM profile {exchange_where}"
+        profile_sql = f"SELECT DISTINCT symbol, exchange, currency FROM profile {exchange_where}"
         profiles = client.query(profile_sql, verbose=verbose)
         if not profiles:
             print("  No symbols found for these exchanges.")
@@ -102,6 +143,10 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         print(f"  Universe: {len(profiles)} symbols")
         sym_values = ",".join(f"('{r['symbol']}')" for r in profiles)
         con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
+        # Quote currency per line (the close's unit) and the leg's own, which blue chips are sized in (USD if mixed/unknown).
+        con.execute("CREATE TABLE ccy_map AS SELECT UNNEST(?::VARCHAR[]) AS symbol, UNNEST(?::VARCHAR[]) AS currency",
+                    [[r["symbol"] for r in profiles], [r.get("currency") for r in profiles]])
+        con.execute("CREATE TABLE leg_ccy AS SELECT ?::VARCHAR AS ccy", [get_local_currency(exchanges) or "USD"])
 
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
@@ -117,12 +162,27 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     # 2. Market cap data (for blue-chip selection on non-US, and for cost tiers)
     print("  Fetching key metrics (market cap)...")
     metrics_sql = f"""
-        SELECT symbol, marketCap, dateEpoch as filing_epoch, period
+        SELECT symbol, marketCap, reportedCurrency, dateEpoch as filing_epoch, period
         FROM key_metrics
         WHERE period = 'FY' AND marketCap IS NOT NULL AND {sym_filter_sql}
     """
     count = query_parquet(client, metrics_sql, con, "metrics_cache", verbose=verbose)
     print(f"    -> {count} rows")
+
+    if not use_dow:
+        # Share counts and FX for the blue-chip size: entry close x shares, and both figures in the leg's currency.
+        print("  Fetching share counts...")
+        shares_sql = f"""
+            SELECT symbol, weightedAverageShsOut, dateEpoch as filing_epoch
+            FROM income_statement
+            WHERE period = 'FY' AND weightedAverageShsOut > 0 AND {sym_filter_sql}
+        """
+        count = query_parquet(client, shares_sql, con, "shares_cache", verbose=verbose, limit=5000000)
+        if not count:  # query_parquet's empty-result placeholder has none of the columns
+            con.execute("DROP TABLE shares_cache")
+            con.execute("CREATE TABLE shares_cache(symbol VARCHAR, weightedAverageShsOut DOUBLE, filing_epoch BIGINT)")
+        print(f"    -> {count} rows")
+        fetch_fx(client, con, rebalance_dates, verbose=verbose)
 
     # 3. Dividend yield data (FY for historical screening)
     print("  Fetching financial ratios (dividend yield)...")
@@ -159,7 +219,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     bench_list = ", ".join(bench_symbols)
 
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose, volume
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, close, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
@@ -176,13 +236,89 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000, offset_days=1):
+def size_lines_sql(target_date, offset_days, cutoff_epoch, earliest_epoch):
+    """The non-US size CTEs, ending in `sized`: one row per line with an FY market cap or share count.
+
+    size is the smaller of the cap restated from its reportedCurrency and entry close x shares
+    (x0.01 on sub-unit quotes, restated from the line's quote currency), both in leg_ccy at the
+    newest USDxxx close on/before the entry bar, at most FX_MAX_STALE_DAYS old; whichever exists
+    when the other is missing, NULL with neither. priced: get_prices' bar for the window passes
+    entry_usable(1.0). Binds the key_metrics filing bounds (cutoff, earliest).
+    """
+    shifted = target_date + timedelta(days=offset_days)
+    lo, hi = utc_epoch(shifted), utc_epoch(shifted + timedelta(days=10))
+    stale = FX_MAX_STALE_DAYS * 86400
+    subunits = ", ".join(f"'{k}'" for k in SUBUNIT_CCY)
+
+    def to_leg(ccy, fx):  # factor restating a figure in `ccy` in the leg's currency; NULL without a currency or fresh rate
+        return (f"CASE WHEN {ccy} = lccy THEN 1.0 ELSE"
+                f" CASE WHEN lccy = 'USD' THEN 1.0 WHEN trade_epoch - l_ep <= {stale} THEN l_usd END"
+                f" / CASE WHEN {ccy} = 'USD' THEN 1.0 WHEN trade_epoch - {fx}_ep <= {stale} THEN {fx}_usd END END")
+
+    return f"""
+            WITH latest_metrics AS (
+                SELECT symbol, marketCap, reportedCurrency,
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST,
+                        reportedCurrency DESC NULLS LAST) AS rn
+                FROM metrics_cache
+                WHERE filing_epoch <= ? AND filing_epoch >= ? AND marketCap IS NOT NULL
+            ),
+            latest_shares AS (
+                SELECT symbol, weightedAverageShsOut AS shares,
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                        weightedAverageShsOut DESC NULLS LAST) AS rn
+                FROM shares_cache
+                WHERE filing_epoch <= {cutoff_epoch} AND filing_epoch >= {earliest_epoch} AND weightedAverageShsOut > 0
+            ),
+            entry AS (
+                SELECT symbol, trade_epoch, adjClose, close,
+                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST,
+                        close DESC NULLS LAST) AS rn
+                FROM prices_cache
+                WHERE trade_epoch >= {lo} AND trade_epoch <= {hi}
+            ),
+            base AS (
+                SELECT u.symbol, m.marketCap, m.reportedCurrency AS rccy, s.shares, e.trade_epoch, e.adjClose, e.close,
+                       c.currency AS tccy, {major_ccy_sql('c.currency')} AS tmaj, l.ccy AS lccy
+                FROM (SELECT DISTINCT symbol FROM universe) u
+                CROSS JOIN leg_ccy l
+                LEFT JOIN latest_metrics m ON m.symbol = u.symbol AND m.rn = 1
+                LEFT JOIN latest_shares s ON s.symbol = u.symbol AND s.rn = 1
+                LEFT JOIN entry e ON e.symbol = u.symbol AND e.rn = 1
+                LEFT JOIN (SELECT symbol, MAX(currency) AS currency FROM ccy_map GROUP BY symbol) c ON c.symbol = u.symbol
+                WHERE m.symbol IS NOT NULL OR s.symbol IS NOT NULL
+            ),
+            fl AS (SELECT b.*, f.per_usd AS l_usd, f.fx_epoch AS l_ep FROM base b
+                   ASOF LEFT JOIN fx_cache f ON f.ccy = b.lccy AND b.trade_epoch >= f.fx_epoch),
+            fr AS (SELECT b.*, f.per_usd AS r_usd, f.fx_epoch AS r_ep FROM fl b
+                   ASOF LEFT JOIN fx_cache f ON f.ccy = b.rccy AND b.trade_epoch >= f.fx_epoch),
+            ft AS (SELECT b.*, f.per_usd AS t_usd, f.fx_epoch AS t_ep FROM fr b
+                   ASOF LEFT JOIN fx_cache f ON f.ccy = b.tmaj AND b.trade_epoch >= f.fx_epoch),
+            ab AS (
+                SELECT symbol, marketCap, COALESCE(adjClose > 0 AND adjClose >= 1.0, FALSE) AS priced,
+                       CASE WHEN marketCap > 0 THEN marketCap END * {to_leg('rccy', 'r')} AS a,
+                       CASE WHEN close > 0 THEN close END * shares
+                           * CASE WHEN tccy IN ({subunits}) THEN 0.01 ELSE 1.0 END * {to_leg('tmaj', 't')} AS b
+                FROM ft
+            ),
+            sized AS (
+                SELECT symbol, marketCap, priced, LEAST(COALESCE(a, b), COALESCE(b, a)) AS size
+                FROM ab
+            )
+    """
+
+
+def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000, offset_days=1, excluded=False):
     """Screen for Dogs (top yielders in blue-chip universe).
 
     For US (use_dow=True): Rank all Dow 30 members by yield, pick top 10.
-    For non-US (use_dow=False): Take top 30 by market cap, rank by yield, pick top 10.
+    For non-US (use_dow=False): Take top 30 by size (size_lines_sql), rank by yield, pick top 10.
 
-    Returns list of (symbol, market_cap) tuples.
+    A non-US size over SIZE_CEILING_MULT x the floor (mktcap_min) is a data error and takes no slot.
+
+    Returns list of (symbol, market_cap) tuples; the non-US cap is the size. excluded=True (non-US)
+    returns instead how many lines with a reported cap at or above the floor the size rule drops:
+    (no entry price, no size, priced with a size over the ceiling).
     """
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
     earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))
@@ -216,24 +352,28 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000, offset
             LIMIT ?
         """, [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch, DOGS_COUNT]).fetchall()
     else:
-        # High Yield Blue Chips: top 30 by market cap, then top 10 by yield
-        candidates = """
-            WITH latest_metrics AS (
-                SELECT symbol, marketCap,
-                    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
-                FROM metrics_cache
-                WHERE filing_epoch <= ? AND filing_epoch >= ? AND marketCap IS NOT NULL
-            )
-            SELECT m.symbol, m.marketCap
-            FROM latest_metrics m
-            JOIN universe u ON m.symbol = u.symbol
-            WHERE m.rn = 1 AND m.marketCap >= ?
+        # High Yield Blue Chips: top 30 by size, then top 10 by yield
+        lines = size_lines_sql(target_date, offset_days, cutoff_epoch, earliest_epoch)
+        ceiling = mktcap_min * SIZE_CEILING_MULT  # inclusive, tested with the floor before the dedup
+        if excluded:
+            return con.execute(lines + """
+            SELECT COUNT(*) FILTER (WHERE NOT priced), COUNT(*) FILTER (WHERE priced AND size IS NULL),
+                   COUNT(*) FILTER (WHERE priced AND size > ?)
+            FROM sized
+            WHERE marketCap >= ?
+            """, [cutoff_epoch, earliest_epoch, ceiling, mktcap_min]).fetchone()
+        candidates = lines + """
+            SELECT symbol, size AS marketCap, priced
+            FROM sized
+            WHERE size >= ? AND size <= ?
         """
         # One row per ISIN BEFORE the top-30 cut, so a collapsed twin frees its blue-chip slot.
+        # The dedup keeps a security's buyable line (same bar, same 1.0), so `priced` on its pick drops only a security with none.
         rows = con.execute(f"""
             WITH bluechips AS (
                 SELECT symbol, marketCap
                 FROM ({isin_dedup_sql(candidates, target_date, offset_days, 1.0)})
+                WHERE priced
                 ORDER BY marketCap DESC, symbol
                 LIMIT ?
             ),
@@ -249,10 +389,20 @@ def screen_dogs(con, target_date, use_dow=True, mktcap_min=1_000_000_000, offset
             WHERE r.dividendYield > 0
             ORDER BY r.dividendYield DESC, b.symbol
             LIMIT ?
-        """, [cutoff_epoch, earliest_epoch, mktcap_min, BLUECHIP_COUNT,
+        """, [cutoff_epoch, earliest_epoch, mktcap_min, ceiling, BLUECHIP_COUNT,
               cutoff_epoch, earliest_epoch, DOGS_COUNT]).fetchall()
 
     return [(r[0], r[1]) for r in rows]
+
+
+def size_excluded(con, rebalance_dates, mktcap_min, offset_days=1):
+    """Results block: lines per rebalance the blue-chip size rule drops (screen_dogs excluded=True)."""
+    keys = ("no_entry_price", "no_size", "over_ceiling")
+    by = {d.isoformat(): dict(zip(keys, screen_dogs(con, d, use_dow=False, mktcap_min=mktcap_min,
+                                                     offset_days=offset_days, excluded=True)))
+          for d in rebalance_dates[:-1]}
+    tot = {k: sum(p[k] for p in by.values()) for k in keys}
+    return {"total": sum(tot.values()), **tot, "by_period": by}
 
 
 def run_backtest(con, rebalance_dates, use_dow=True, use_costs=True, verbose=False,
@@ -444,6 +594,9 @@ def main():
         sys.exit(1)
     fetch_time = time.time() - t0
     print(f"\nData fetched in {fetch_time:.0f}s")
+    # Non-US: lines per rebalance with a reported cap at or above the floor, dropped for no entry price,
+    # no size or a size over the ceiling.
+    size_excl = None if use_dow else size_excluded(con, rebalance_dates, mktcap_threshold, offset_days)
 
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
@@ -458,6 +611,10 @@ def main():
                            ltp=ltp, exit_method=args.exit_method)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
+    if size_excl:
+        print(f"  Blue-chip size: {size_excl['total']} lines excluded"
+              f" ({size_excl['no_entry_price']} no entry price, {size_excl['no_size']} no size,"
+              f" {size_excl['over_ceiling']} over the ceiling)")
 
     # Phase 3: Compute metrics
     valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
@@ -541,6 +698,7 @@ def main():
             "frequency": frequency,
             "listing_filter": campaign_listing_label(exchanges),
             "isin_dedup": True,
+            **({"size_excluded": size_excl} if size_excl else {}),
             "avg_stocks_when_invested": round(avg_stocks, 1),
             "period_data": results,
             **({"exit_method": args.exit_method, "ltp": ltp_block} if ltp_block else {}),

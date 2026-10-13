@@ -6,9 +6,9 @@ than MAX_FILING_AGE_DAYS first, and only then require dividendYield > 0. Testing
 inside the window, then rn = 1) kept a company that cut its dividend to zero ranking on its last
 paying filing, however old: UBSG.SW stayed a top-10 yielder on SIX at the 2010-2012 rebalances on
 its FY2007 filing. A latest filing with no yield drops the company too. The market-cap filing has
-the same age bound: without one in range a Dow name keeps the default cap, a non-US name leaves the
-blue chips. The same-security dedup still runs before each top-N cut. Every mutant of the topic's
-source must trip a check.
+the same age bound: without one in range a Dow name keeps the default cap, a non-US name (here with
+no share count to size it on either) leaves the blue chips. The same-security dedup still runs
+before each top-N cut. Every mutant of the topic's source must trip a check.
 
 Usage:
     python scripts/test_dogs_selection.py [repo root]
@@ -89,18 +89,28 @@ EXPECT = {   # yield descending, then symbol
 def db(filings):
     con = duckdb.connect()
     con.execute("CREATE TABLE universe(symbol VARCHAR)")
-    con.execute("CREATE TABLE metrics_cache(symbol VARCHAR, marketCap DOUBLE, filing_epoch BIGINT, period VARCHAR)")
+    con.execute("CREATE TABLE metrics_cache(symbol VARCHAR, marketCap DOUBLE, filing_epoch BIGINT, period VARCHAR,"
+                " reportedCurrency VARCHAR)")
     con.execute("CREATE TABLE ratios_cache(symbol VARCHAR, dividendYield DOUBLE, dividendPerShare DOUBLE,"
                 " filing_epoch BIGINT, period VARCHAR)")
-    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, volume DOUBLE)")
+    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, volume DOUBLE,"
+                " close DOUBLE)")
     con.execute("CREATE TABLE isin_map(symbol VARCHAR, isin VARCHAR, isActivelyTrading BOOLEAN, home_ccy BOOLEAN)")
+    # The non-US size inputs: every line reports and trades in the leg's currency and has no share
+    # count, so its size is its market cap (scripts/test_dogs_size.py covers the size rule).
+    con.execute("CREATE TABLE shares_cache(symbol VARCHAR, weightedAverageShsOut DOUBLE, filing_epoch BIGINT)")
+    con.execute("CREATE TABLE fx_cache(ccy VARCHAR, fx_epoch BIGINT, per_usd DOUBLE)")
+    con.execute("CREATE TABLE ccy_map(symbol VARCHAR, currency VARCHAR)")
+    con.execute("CREATE TABLE leg_ccy AS SELECT 'INR' AS ccy")
     for s, (metrics, ratios) in filings.items():
         con.execute("INSERT INTO universe VALUES (?)", [s])
+        con.execute("INSERT INTO ccy_map VALUES (?, 'INR')", [s])
         for d, mcap in metrics:
-            con.execute("INSERT INTO metrics_cache VALUES (?, ?, ?, 'FY')", [s, mcap, ep(d)])
+            con.execute("INSERT INTO metrics_cache VALUES (?, ?, ?, 'FY', 'INR')", [s, mcap, ep(d)])
         for d, yld in ratios:
             con.execute("INSERT INTO ratios_cache VALUES (?, ?, 1.0, ?, 'FY')", [s, yld, ep(d)])
-        con.execute("INSERT INTO prices_cache VALUES (?, ?, ?, 1e6)", [s, ep(date(2020, 4, 2)), PRICE.get(s, 5.0)])
+        px = PRICE.get(s, 5.0)
+        con.execute("INSERT INTO prices_cache VALUES (?, ?, ?, 1e6, ?)", [s, ep(date(2020, 4, 2)), px, px])
         con.execute("INSERT INTO isin_map VALUES (?, ?, TRUE, TRUE)", [s, ISIN.get(s)])
     return con
 
@@ -109,7 +119,7 @@ class _Client:
     """Stands in for CetaResearch in fetch_data_via_api: one profile row, nothing else."""
 
     def query(self, sql, **kw):
-        return [{"symbol": "OK", "exchange": "BSE"}]
+        return [{"symbol": "OK", "exchange": "BSE", "currency": "INR"}]
 
 
 def fetch_sql(mod):
@@ -118,7 +128,8 @@ def fetch_sql(mod):
 
     def fake_query_parquet(client, sql, con, table_name, **kw):
         sent[table_name] = sql
-        con.execute(f"CREATE TABLE {table_name}(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
+        con.execute(f"CREATE TABLE {table_name}(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE,"
+                    " reportedCurrency VARCHAR)")
         return 0
 
     mod.query_parquet = fake_query_parquet
@@ -157,9 +168,10 @@ M_DOW = "FROM metrics_cache WHERE filing_epoch <= ? AND "
 M_XUS = "FROM metrics_cache\n                WHERE filing_epoch <= ? AND "
 AGE, NO_AGE = "filing_epoch >= ?", "? IS NOT NULL"
 P_DOW = "[cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch, DOGS_COUNT]"
-P_XUS = ("[cutoff_epoch, earliest_epoch, mktcap_min, BLUECHIP_COUNT,\n"
+P_XUS = ("[cutoff_epoch, earliest_epoch, mktcap_min, ceiling, BLUECHIP_COUNT,\n"
          "              cutoff_epoch, earliest_epoch, DOGS_COUNT]")
 WRAP = "FROM ({isin_dedup_sql(candidates, target_date, offset_days, 1.0)})\n"
+PRICED = "                WHERE priced\n"   # the non-US entry-price test sits between the dedup and the cut
 CUT_DOW, CUT_XUS = "ORDER BY dividendYield DESC, symbol", "ORDER BY marketCap DESC, symbol"
 FETCH = "WHERE period = 'FY' AND {sym_filter_sql}"
 MUTANTS = {
@@ -195,8 +207,8 @@ MUTANTS = {
     "no dedup (non-US)": ("\n                " + WRAP, "\n                FROM ({candidates})\n"),
     "cut before dedup (Dow)": (WRAP + "            " + CUT_DOW, WRAP.replace(
         "candidates,", f"'SELECT * FROM (' + candidates + ') {CUT_DOW} LIMIT 10',") + "            " + CUT_DOW),
-    "cut before dedup (non-US)": (WRAP + "                " + CUT_XUS, WRAP.replace(
-        "candidates,", f"'SELECT * FROM (' + candidates + ') {CUT_XUS} LIMIT 30',") + "                " + CUT_XUS),
+    "cut before dedup (non-US)": (WRAP + PRICED + "                " + CUT_XUS, WRAP.replace(
+        "candidates,", f"'SELECT * FROM (' + candidates + ') {CUT_XUS} LIMIT 30',") + PRICED + "                " + CUT_XUS),
     # the old bug's other half, were it added: only paying (or non-missing) filings loaded into the cache
     "yield-passing-only fetch": (FETCH, FETCH.replace("AND", "AND dividendYield > 0 AND")),
     "non-missing-only fetch": (FETCH, FETCH.replace("AND", "AND dividendYield IS NOT NULL AND")),
