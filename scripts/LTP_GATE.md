@@ -70,14 +70,15 @@ included) is deterministic. The second repeats that on the flipped code (`det` n
 default, `ltp`) and adds: no flag == `--exit-method ltp`. At two backtests at a time these are long;
 scope with `--topic`/`--leg` if needed.
 
-The gate runs `<topic>/backtest.py <leg_args>` one market at a time. The stage B rerun goes through
+The gate runs `<topic>/backtest.py <leg_args>` one market at a time. The wave 1 rerun goes through
 the `--global` loops and `run_all_exchanges.py`, which the gate never runs: check those take
 `--exit-method` from `add_exit_method_arg` and pass it to every market before trusting the rerun.
 Exception: cash-conversion's `--global` writes only the combined file (keyed `NSE`, not `India`) and no
 `ccc_metrics_*.json`, which are what its charts and posts read. Rerun it one market at a time:
 `--preset <name> --output results/ccc_metrics_<published name>.json` (US_MAJOR, India, XETRA, China,
 HKSE, JPX, Canada, LSE, SIX, STO, KSC, SAO, Taiwan, SES, JSE).
-Wave 2 uses no topic runner at all: its rerun installs gate outputs (see Legs files).
+Wave 2 uses no topic runner at all: it is gated on the per-leg file `scripts/gate_legs/wave2.json`
+(same checks, its own `--out-dir`) and its rerun installs that gate's `ltp` outputs (see Legs files).
 
 After a rerun, before anything is published: every per-market file the posts read, and every node of
 a comparison JSON the charts read, must carry `exit_method` equal to the intended mode, and the
@@ -130,36 +131,53 @@ fields are the drop book. Around the copy:
   `returns_us.json` to `returns_NYSE_NASDAQ_AMEX.json` (`-f`, over a stale file) and `returns_nse.json`
   to `returns_NSE.json`; deleveraging `returns_US.json` to `returns_NYSE_NASDAQ_AMEX.json` and
   `returns_nse.json` to `returns_NSE.json`. The `nse` renames are case-only: on a case-insensitive disk
-  (macOS) go through a temporary name, or the copy keeps the lowercase name and the rebuilt key is
-  `nse`, which the charts do not know.
+  (macOS) go through a temporary name, or the copy keeps the lowercase name and the rebuild stops on
+  a key `nse` that differs from `NSE` only by case.
 - `*/results/` is gitignored: `git add -f` the five files with no earlier version (dogs-of-dow
   `returns_XETRA.json`, `returns_SIX.json`, `returns_JNB.json`, `returns_SAU.json`; fcf-compounders
   `returns_SES.json`).
 
 Then rebuild `<topic>/results/exchange_comparison.json` before `generate_charts.py`. No leg writes it,
-and it is the only results file the 12 chart scripts read (dogs-of-dow also reads `returns_BSE.json`
-and `sweden.json`), so charts drawn without the rebuild are the pre-LTP charts.
+and it is the only results file the 12 chart scripts read, so charts drawn without the rebuild are the
+pre-LTP charts. `scripts/rebuild_comparison.py` does every topic: each node is its per-market file,
+nothing added, in the comparison file's key order with new keys after it. Run each rebuild again with
+`--check` added (same `--keep` or `--drop`): it writes nothing and exits 1 on any disagreement, a
+node that differs from its file, an `error` entry, a node without a file or a file without a node.
+A per-market file that does not parse stops the rebuild with nothing written.
 
-- low-debt, fcf-compounders, price-to-sales, revenue-accel, dividend-growth, deleveraging,
-  pe-mean-revert, dividend-sustainability, rising-yield: `python3 scripts/rebuild_comparison.py <topic>`.
+- low-debt, fcf-compounders, price-to-sales, revenue-accel, deleveraging, pe-mean-revert,
+  dividend-sustainability, rising-yield: `python3 scripts/rebuild_comparison.py <topic>`.
   It folds in every `results/returns_*.json`, keyed by file name, and the comparison charts draw the
   keys they find. So first remove (`git rm`) the pre-LTP files no `_outputs` entry names, or pass
   their keys to `--drop` on every rebuild: low-debt `BSE_NSE`, `SHH_SHZ`, `US_MAJOR`; price-to-sales
-  `BSE_NSE`, `TAI_TWO`, `OSL`, `SAO`; dividend-growth `BSE_NSE`, `US_MAJOR`, `PAR`;
-  dividend-sustainability `BSE_NSE`, `US_MAJOR`. Three legs add a key the live comparison does not
-  hold: `SES` in fcf-compounders (an 18th key) and price-to-sales (a 16th), `ASX` in dividend-growth
-  (a 14th). `--drop` each unless its post adds that market. dividend-growth's `US` key comes back as
-  `NYSE_NASDAQ_AMEX`; its charts label both.
-- fcf-yield, graham-number, dogs-of-dow: `rebuild_comparison.py` does not fit (it reads
-  `returns_*.json` only, keyed by file name). Merge by hand, `{key: installed leg JSON}`:
-  - fcf-yield: key = the file's `universe` field. The curated 10: US_MAJOR, LSE, JPX, Canada, HKSE,
-    China, SIX, Taiwan, SET, NSE (not germany, korea, sweden, norway, saudi, israel).
-  - graham-number: key = the leg name. The curated 12: US_MAJOR, India, Germany, Canada, Sweden,
-    Brazil, Korea, HKSE, Taiwan, Switzerland, Japan, UK (not Australia, Norway, France, SouthAfrica,
-    Singapore).
-  - dogs-of-dow: all 17, key = the `returns_` suffix, `us.json` as `US_MAJOR`, `sweden.json` as `STO`.
-    Add `"status": "completed"` to each node: a single run writes no `status`, and the three
-    comparison charts keep only completed nodes.
+  `BSE_NSE`, `TAI_TWO`, `OSL`, `SAO`; dividend-sustainability `BSE_NSE`, `US_MAJOR`. Two legs add a
+  key the live comparison does not hold: `SES` in fcf-compounders (an 18th key) and price-to-sales
+  (a 16th). `--drop` each unless its post adds that market.
+- dividend-growth, fcf-yield, graham-number: `--keep`, the curated keys in the live file's order.
+  dogs-of-dow: a plain rebuild.
+
+  ```bash
+  python3 scripts/rebuild_comparison.py dividend-growth --keep NYSE_NASDAQ_AMEX NSE TSX LSE XETRA SIX STO HKSE JPX TAI SHZ_SHH KSC JNB
+  python3 scripts/rebuild_comparison.py dividend-growth --keep NYSE_NASDAQ_AMEX NSE TSX LSE XETRA SIX STO HKSE JPX TAI SHZ_SHH KSC JNB --check
+  python3 scripts/rebuild_comparison.py fcf-yield --keep US_MAJOR LSE JPX Canada HKSE China SIX Taiwan SET NSE
+  python3 scripts/rebuild_comparison.py fcf-yield --keep US_MAJOR LSE JPX Canada HKSE China SIX Taiwan SET NSE --check
+  python3 scripts/rebuild_comparison.py graham-number --keep US_MAJOR India Germany Canada Sweden Brazil Korea HKSE Taiwan Switzerland Japan UK
+  python3 scripts/rebuild_comparison.py graham-number --keep US_MAJOR India Germany Canada Sweden Brazil Korea HKSE Taiwan Switzerland Japan UK --check
+  python3 scripts/rebuild_comparison.py dogs-of-dow
+  python3 scripts/rebuild_comparison.py dogs-of-dow --check
+  ```
+
+  - dividend-growth: the live 13, with `US` under its new name `NYSE_NASDAQ_AMEX` (its charts label
+    both). Not kept: the pre-LTP `BSE_NSE`, `US_MAJOR` and `PAR` files, and `ASX`, a leg the live
+    comparison does not hold (a 14th key): add it to the list if its post adds that market.
+  - fcf-yield: files are `value-04-fcf-yield_<leg>.json`, key = the file's `universe` field. The
+    curated 10 leave out germany, korea, sweden, norway, saudi, israel.
+  - graham-number: files are `<leg name, lowercased>_results.json`, key = the leg name. The curated
+    12 leave out Australia, Norway, France, SouthAfrica, Singapore.
+  - dogs-of-dow: all 17, key = the `returns_` suffix, `us.json` as `US_MAJOR`, `sweden.json` as `STO`
+    (`india.json` is not read). Its chart script reads only `exchange_comparison.json` now. A node
+    must NOT carry `status`: a single run writes none, no chart reads it, and `--check` fails a node
+    that has one (the live file's `run_all_exchanges.py` nodes do, until this rebuild).
 
 When a topic's market list changes, change its legs to match; `plan` validates the file.
 

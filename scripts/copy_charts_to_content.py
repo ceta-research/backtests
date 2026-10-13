@@ -101,6 +101,7 @@ TOPIC_DIRS = {
     "piotroski": "quality-01-piotroski",
     "quality-momentum": "factor-04-quality-momentum",
     "relative-strength": "momentum-07-relative-strength",
+    "revenue-accel": "growth-01-revenue-accel",
     "rising-yield": "dividend-05-rising-yield",
     "roe-dupont": "quality-05-roe-dupont",
     "sustained-roic": "quality-03-roic-sustained",
