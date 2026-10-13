@@ -26,20 +26,24 @@ TWO DEFECTS, because the invariant check only sees one of them:
       exchange_comparison.json every leg shares a rebalance grid, so the file's
       maximum n_periods IS total_rebalances. Needs no new fields; works on
       legacy records. The two populations OVERLAP but neither contains the
-      other -- 9 legs carry both, 9 carry only (b).
+      other -- 6 legs carry both, 12 carry only (b) (9 and 9 before the reruns
+      listed above EXPECT_FLAGGED).
 
 SELF-TEST, baked in so the scanner cannot rot into a no-op: the pass condition is
-that it flags EXACTLY the 22 known-bad nodes and clears every 52-week-low node.
+that it flags EXACTLY the 15 known-bad nodes and clears every 52-week-low node.
 Teeth and false-positive control in one assertion. The truncation detector has
 its own pair, against SYNTHETIC in-memory fixtures rather than corpus files, so
 that it cannot silently degrade into agreeing with whatever the corpus says.
 
 M5, THE FALSE-POSITIVE CONTROL (reproduced on real data during planning): swap the
-legacy branch for the naive `i < 0 or c + i != n or c > n` and the scan flags 24
-nodes -- the 22 true bads PLUS both 52-week-low OSL nodes (n=50, cash=84,
-invested=11), which are CORRECT prior art from commit 3c39bcb. 84 > 50 fires
-because cash is a full-window count and n_periods is a metrics-window count. They
-are different populations on purpose.
+legacy branch for the naive `i < 0 or c + i != n or c > n` and the scan flags 26
+nodes (measured 2026-10-13) -- the 15 true bads PLUS 11 CORRECT records of
+benchmark-truncated Norway legs: both 52-week-low OSL nodes (n=50, cash=84,
+invested=11), prior art from commit 3c39bcb, and the rerun records of
+deleveraging, fcf-compounders, fcf-yield, volume-confirmed-momentum and yield-gap.
+(At 037ad42 it was 24: the 22 true bads plus the two 52-week-low nodes.) 84 > 50
+fires because cash is a full-window count and n_periods is a metrics-window count.
+They are different populations on purpose.
 
 Usage:  python scripts/scan_results_invariant.py [--naive]
         --naive runs mutation M5 and is expected to FAIL the self-test.
@@ -50,12 +54,22 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# The 22 known-bad nodes at 037ad42, as (topic-relative path, json pointer).
-# 13 distinct topic/universe pairs; exchange_comparison.json carries a duplicate
-# of each topic's returns_OSL node, which is why nodes (22) exceed pairs (13).
+# The 15 known-bad nodes, as (topic-relative path, json pointer). 9 distinct
+# topic/universe pairs; exchange_comparison.json carries a duplicate of a topic's
+# returns_OSL node, which is why nodes (15) exceed pairs (9).
+#
+# It was 22 nodes / 13 pairs at 037ad42. Reruns repaired 7 nodes in 4 topics, and
+# a repaired record must leave this set (the self-test fails on a known-bad node
+# that is no longer detected):
+#   volume-confirmed-momentum (ddcf265, 2026-09-12): exchange_comparison.json /OSL
+#     now passes (cash 40 + invested 9 = total_rebalances 49), and the rerun
+#     deleted vcm_osl.json. Both entries were stale on main since then, so the
+#     self-test failed there until this edit.
+#   deleveraging, fcf-compounders (B005 stage B wave 2, 2026-10):
+#     exchange_comparison.json /OSL and returns_OSL.json each.
+#   fcf-yield (same wave): value-04-fcf-yield_norway.json.
+# A regression in any of them still fails, as a node flagged that is not known-bad.
 EXPECT_FLAGGED = {
-    ("deleveraging/results/exchange_comparison.json", "/OSL"),
-    ("deleveraging/results/returns_OSL.json", ""),
     ("earnings-consistency/results/exchange_comparison.json", "/OSL"),
     ("earnings-consistency/results/returns_OSL.json", ""),
     ("etf-underowned/results/returns_OSL.json", ""),
@@ -63,9 +77,6 @@ EXPECT_FLAGGED = {
     ("ev-ebitda-relative/results/returns_OSL.json", ""),
     ("ev-ebitda/results/exchange_comparison.json", "/OSL"),
     ("ev-ebitda/results/returns_OSL.json", ""),
-    ("fcf-compounders/results/exchange_comparison.json", "/OSL"),
-    ("fcf-compounders/results/returns_OSL.json", ""),
-    ("fcf-yield/results/value-04-fcf-yield_norway.json", ""),
     ("garp/results/returns_OSL.json", ""),
     ("oversold-quality/results/exchange_comparison.json", "/OSL"),
     ("oversold-quality/results/oversold_quality_osl.json", ""),
@@ -74,15 +85,13 @@ EXPECT_FLAGGED = {
     ("relative-strength/results/returns_OSL.json", ""),
     ("value-momentum/results/exchange_comparison.json", "/OSL"),
     ("value-momentum/results/returns_OSL.json", ""),
-    ("volume-confirmed-momentum/results/exchange_comparison.json", "/OSL"),
-    ("volume-confirmed-momentum/results/vcm_osl.json", ""),
 }
-# 13 topic/universe pairs, for the human-readable summary.
-EXPECT_PAIRS = 13
-# Measured at 037ad42: 20 nodes already carry total_rebalances (all 52-week-low:
-# 17 universes inside exchange_comparison.json plus 3 returns_*.json). They all
-# satisfy the B006 regime, so real data exercises it on day one.
-EXPECT_B006_REGIME = 20
+# 9 topic/universe pairs, for the human-readable summary.
+EXPECT_PAIRS = 9
+# Nodes that carry total_rebalances. 20 at 037ad42 (all 52-week-low); 395 on
+# 2026-10-13, after the reruns to date. A mismatch prints a note, not a failure:
+# it rises with every rerun.
+EXPECT_B006_REGIME = 395
 
 
 def check(rec, naive=False):
@@ -99,8 +108,9 @@ def check(rec, naive=False):
         # to every node. Gating the naive rule behind "no total_rebalances"
         # would make the mutation toothless here, because the prior art
         # (52-week-low) is precisely the data that already carries
-        # total_rebalances. Verified: regime-gated M5 flags 22 and passes; this
-        # ungated form flags 24 and correctly fails the self-test.
+        # total_rebalances. Verified at 037ad42: regime-gated M5 flagged 22 and
+        # passed; this ungated form flagged 24 and correctly failed the self-test
+        # (26 on 2026-10-13: 15 true bads plus 11 correct truncated records).
         regime = "b006" if isinstance(tr, int) else "legacy"
         if i < 0 or c + i != n or c > n:
             return regime, f"impossible (naive: n={n} c={c} i={i})"
@@ -152,41 +162,44 @@ def walk(obj, ptr, rel, hits, counts, naive):
 # and small differences are ordinary (a market that opened late, a delisting at
 # the end). 0.75 is a blunt threshold chosen to surface HALF-window legs, which
 # is the shape that actually misleads. A solo returns_*.json cannot express the
-# comparison at all -- yield-gap is the live example, its returns_OSL.json says
-# n=25 while its exchange_comparison node says n=11, and only the latter (the
-# one the charts read) is truncated.
+# comparison at all -- yield-gap was the live example until its rerun (bf2047d,
+# 2026-09-11): its returns_OSL.json said n=25 while its exchange_comparison node
+# said n=11, and only the latter (the one the charts read) was truncated.
 TRUNCATION_RATIO = 0.75
 MIN_SIBLINGS = 3
 
 # Every materially truncated leg in the corpus, as (path, pointer). All 18 are
-# Norway (OSL), whose ^OSEAX benchmark has no price data before 2013.
-#   9 also carry invested_periods < 0 and are already in EXPECT_FLAGGED above.
-#   9 do not, and were invisible to every check in this repo until now. Of
-#     those, 52-week-low is the correct prior art (it publishes
-#     total_rebalances) and garp is already in the re-run population via its
-#     returns_OSL.json, leaving SEVEN topics whose live comparison charts and
-#     posts still show a 2013-2025 Norway bar among 2000-2025 siblings.
+# Norway (OSL), whose ^OSEAX benchmark has no price data before 2013. A rerun does
+# not remove a leg from this set: the benchmark still starts in 2013, so the leg
+# stays truncated and only its record becomes honest about it.
+#   6 also carry invested_periods < 0 and are in EXPECT_FLAGGED above.
+#   5 are rerun records that label themselves: total_rebalances, and
+#     window_truncated on all but 52-week-low.
+#   7 are legacy records with no arithmetic trace and no label: their live
+#     comparison charts and posts can still show a 2013-2025 Norway bar among
+#     2000-2025 siblings. garp is in the re-run population via its returns_OSL.json.
 EXPECT_TRUNCATED = {
     # --- also flagged by the invariant check (defect (a) and (b) together) ---
-    ("deleveraging/results/exchange_comparison.json", "/OSL"),
     ("earnings-consistency/results/exchange_comparison.json", "/OSL"),
     ("ev-ebitda-relative/results/exchange_comparison.json", "/OSL"),
     ("ev-ebitda/results/exchange_comparison.json", "/OSL"),
-    ("fcf-compounders/results/exchange_comparison.json", "/OSL"),
     ("oversold-quality/results/exchange_comparison.json", "/OSL"),
     ("relative-strength/results/exchange_comparison.json", "/OSL"),
     ("value-momentum/results/exchange_comparison.json", "/OSL"),
-    ("volume-confirmed-momentum/results/exchange_comparison.json", "/OSL"),
-    # --- defect (b) ONLY: no arithmetic trace, nothing ever suppressed them ---
-    ("52-week-high/results/exchange_comparison.json", "/OSL"),
+    # --- defect (b) only, labelled by the rerun record ---
     ("52-week-low/results/exchange_comparison.json", "/OSL"),   # correct prior art
+    ("deleveraging/results/exchange_comparison.json", "/OSL"),               # was (a)+(b)
+    ("fcf-compounders/results/exchange_comparison.json", "/OSL"),            # was (a)+(b)
+    ("volume-confirmed-momentum/results/exchange_comparison.json", "/OSL"),  # was (a)+(b)
+    ("yield-gap/results/exchange_comparison.json", "/OSL"),
+    # --- defect (b) ONLY, legacy: no arithmetic trace, nothing ever suppressed them ---
+    ("52-week-high/results/exchange_comparison.json", "/OSL"),
     ("etf-rebalancing/results/exchange_comparison.json", "/OSL"),
     ("garp/results/exchange_comparison.json", "/OSL"),          # already in re-run set
     ("pe-compression/results/exchange_comparison.json", "/OSL"),
     ("peg-ratio/results/exchange_comparison.json", "/OSL"),
     ("price-momentum/results/exchange_comparison.json", "/OSL"),
     ("price-to-book/results/exchange_comparison.json", "/OSL"),
-    ("yield-gap/results/exchange_comparison.json", "/OSL"),
 }
 
 
@@ -212,17 +225,16 @@ def truncated_legs(data):
 # topic, so a committed cash period can finally be attributed to the screen or
 # to the guard. See the block above period_state() in data_utils.py.
 #
-# CONDITIONAL, and that is deliberate. The committed corpus predates the fields
-# entirely -- nothing here was re-run -- so REQUIRING them would fail all 1712
-# results files and say nothing about anything. Records that carry the funnel
-# get checked; records that do not are counted and skipped. The count is the
-# honest progress meter for the re-run: it reads 0 today and rises as legs are
-# regenerated.
+# CONDITIONAL, and that is deliberate. Most of the committed corpus predates the
+# fields, so REQUIRING them would fail every results file not yet re-run and say
+# nothing about anything. Records that carry the funnel get checked; records that
+# do not are counted and skipped. The count is the honest progress meter for the
+# re-run: it read 0 when this was written and 15,153 on 2026-10-13 (12 topics).
 #
-# Consequence worth naming: this detector is VACUOUS against the corpus right
-# now. Its self-test is therefore not a nicety, it is the only thing separating
-# "no funnel record is broken" from "there are no funnel records". Same reason
-# truncation_selftest() exists.
+# The detector was VACUOUS against the corpus until the first re-run landed, and
+# is again on any checkout without re-run results. Its self-test is therefore not
+# a nicety, it is the only thing separating "no funnel record is broken" from
+# "there are no funnel records". Same reason truncation_selftest() exists.
 FUNNEL_KEYS = ("screened", "entry_buyable", "min_stocks")
 
 
@@ -278,8 +290,8 @@ def funnel_scan(obj, ptr, rel, hits, counts):
 def funnel_selftest():
     """Teeth and false-positive control, on SYNTHETIC records.
 
-    The corpus carries no funnel records at all today, so without this the
-    detector reports a clean scan whether it works or not.
+    Without this the detector reports a clean scan whether it works or not
+    (the corpus carried no funnel record at all when it was written).
     """
     bad = []
     ok = {"stocks_held": 12, "screened": 30, "entry_buyable": 12, "min_stocks": 10}
@@ -395,13 +407,14 @@ def main(argv):
 
     # An EXPECT_FLAGGED path that is absent from disk is a CORPUS problem, not a
     # detector problem, and the two must never print the same message. This fired
-    # for real: volume-confirmed-momentum/results/vcm_osl.json is gitignored
-    # (.gitignore `*/results/`) and existed only in the author's working tree, so
-    # every clean checkout reported "the scanner lost its teeth" while the
-    # detector was working perfectly and the count silently dropped from 22 to
-    # 21. It is committed now (`git add -f`, the established pattern here -- 1712
-    # results files are tracked the same way), so absence below means someone
-    # deleted it or the checkout is partial.
+    # for real, twice, on volume-confirmed-momentum/results/vcm_osl.json. First it
+    # was gitignored (.gitignore `*/results/`) and existed only in the author's
+    # working tree, so every clean checkout reported "the scanner lost its teeth"
+    # while the detector was working perfectly; it was then force-added. Then the
+    # topic's rerun (ddcf265) deleted it and its entry stayed in EXPECT_FLAGGED
+    # until 2026-10-13. When a rerun deletes or repairs a known-bad file, remove
+    # its entry in the same change. Absence below means that was missed, or the
+    # checkout is partial.
     absent = sorted(p for p, _ in EXPECT_FLAGGED if not (ROOT / p).exists())
     if absent:
         ok = False
