@@ -124,6 +124,8 @@ SCOPE_ALLOW = {
     "dividend-sustainability/README.md",
     "rising-yield/README.md",
     "graham-number/README.md",
+    # Wave 2 charts: benchmark_cumulative gains period_end (each value at its period's end year).
+    "chart_utils.py",
     # B006: its CAGR chart gated on `cash_periods < total_periods`, comparing a
     # full-run cash count against the truncated metrics window, so a truncated
     # leg was read as 100%-cash and dropped from the chart with no trace. The

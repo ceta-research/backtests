@@ -76,8 +76,7 @@ def get_spy_cumulative(ref_key, initial=10000):
     The "spy" field holds whichever index the exchange was measured against,
     which for non-US markets is the local index.
     """
-    years, values = benchmark_cumulative(data, ref_key, initial)
-    return [y + 1 for y in years], values  # chart_utils puts each value at its start year
+    return benchmark_cumulative(data, ref_key, initial, period_end=True)
 
 
 def get_local_benchmark_cumulative(exchange_key, initial=10000):

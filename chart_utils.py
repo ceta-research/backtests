@@ -103,20 +103,28 @@ def benchmark_label(data, exchange_key, default="S&P 500"):
     return default
 
 
-def benchmark_cumulative(data, exchange_key, initial=10000):
+def benchmark_cumulative(data, exchange_key, initial=10000, period_end=False):
     """Cumulative growth of THAT exchange's own benchmark series.
 
     Returns (years, values). Empty lists if the exchange has no annual returns.
+
+    annual_returns "year" is the year a holding period STARTS. period_end=True
+    puts `initial` at the first period's start year and each value at its
+    period's end (year + 1), to pair with a portfolio curve built as
+    [years[0]] + [y + 1 for y in years]. The default is the legacy axis, one
+    year early (first year - 1, then each period's own year), kept for the
+    generators whose portfolio curve still uses it.
     """
     entry = (data or {}).get(exchange_key) or {}
     annual = entry.get("annual_returns") or []
     if not annual:
         return [], []
+    shift = 1 if period_end else 0
     values = [initial]
-    years = [annual[0]["year"] - 1]
+    years = [annual[0]["year"] - 1 + shift]
     for ar in annual:
         values.append(values[-1] * (1 + ar.get("spy", 0) / 100))
-        years.append(ar["year"])
+        years.append(ar["year"] + shift)
     return years, values
 
 
