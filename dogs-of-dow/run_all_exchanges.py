@@ -25,7 +25,7 @@ from costs import tiered_cost, apply_costs
 from cli_utils import get_risk_free_rate, get_mktcap_threshold, REGIONAL_RISK_FREE_RATES
 
 from backtest import (
-    fetch_data_via_api, run_backtest, is_us_exchange,
+    fetch_data_via_api, run_backtest, is_us_exchange, size_excluded,
     DOGS_COUNT, BLUECHIP_COUNT, MIN_STOCKS, DEFAULT_FREQUENCY,
 )
 
@@ -175,6 +175,7 @@ def main():
                 "frequency": args.frequency,
                 "listing_filter": campaign_listing_label(exchanges),
                 "isin_dedup": True,
+                **({} if use_dow else {"size_excluded": size_excluded(con, rebalance_dates, mktcap_threshold, offset_days=1)}),
                 "avg_stocks_when_invested": round(avg_stocks, 1),
                 **({"exit_method": args.exit_method,
                     "ltp": ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate)} if ltp else {}),
