@@ -72,6 +72,7 @@ DEFAULT_FREQUENCY = "annual"
 DEFAULT_REBALANCE_MONTHS = [1]  # January
 MAX_SINGLE_RETURN = 2.0    # Cap individual stock returns at 200% (data quality guard)
 MIN_ENTRY_PRICE = 1.0      # Skip stocks with entry price < $1 (price data artifact)
+MAX_FILING_AGE_DAYS = 540  # a company whose latest FY filing is older drops out (as in graham-net-net)
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domicile=False):
@@ -134,6 +135,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
     load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Financial ratios — fetch ALL FY rows (P/E, D/E)
+    # Every FY filing, in the P/E band or not: screen_stocks tests each company's LATEST one.
     queries = [
         ("ratios_cache", f"""
             SELECT symbol, priceToEarningsRatio, debtToEquityRatio,
@@ -141,8 +143,6 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
             FROM financial_ratios
             WHERE period = 'FY'
               AND priceToEarningsRatio IS NOT NULL
-              AND priceToEarningsRatio > 0
-              AND priceToEarningsRatio < 200
               AND {sym_filter_sql}
         """, "financial ratios (P/E, D/E)"),
         ("metrics_cache", f"""
@@ -205,14 +205,16 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     Returns list of (symbol, market_cap) tuples sorted by sector P/E ratio ascending.
 
     Logic:
-    - For each symbol, get the most recent FY P/E filing within 45-day lag
-    - Compute the sector median P/E across all stocks in that exchange/sector at this date
+    - For each symbol, get the most recent FY filing within 45-day lag, at most MAX_FILING_AGE_DAYS old
+    - Compute the sector median P/E across all in-band stocks in that exchange/sector at this date
     - Screen for stocks where (stock P/E / sector median P/E) < SECTOR_RATIO_MAX
     - Apply quality filters: ROE > 8%, D/E < 2.0, market cap threshold
     - Uses 45-day lag for point-in-time data integrity
     """
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))
 
+    # Latest FY filing first, THEN the P/E band: testing first kept a name on its last in-band P/E.
     candidates = """
         WITH latest_ratios AS (
             -- Most recent FY P/E per symbol as of cutoff
@@ -223,8 +225,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
                 ROW_NUMBER() OVER (PARTITION BY r.symbol ORDER BY r.filing_epoch DESC,
                     r.priceToEarningsRatio DESC NULLS LAST, r.debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache r
-            WHERE r.filing_epoch <= ?
-              AND r.priceToEarningsRatio BETWEEN ? AND ?
+            WHERE r.filing_epoch <= ? AND r.filing_epoch >= ?
         ),
         latest_metrics AS (
             -- Most recent ROE + market cap per symbol as of cutoff
@@ -233,10 +234,10 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
                     marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
-            WHERE filing_epoch <= ?
+            WHERE filing_epoch <= ? AND filing_epoch >= ?
         ),
         current_stocks AS (
-            -- Join ratios, metrics, sector info
+            -- Join ratios, metrics, sector info; the band is tested here, so medians stay in-band only
             SELECT
                 lr.symbol,
                 pc.sector,
@@ -248,6 +249,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
             JOIN latest_metrics lm ON lr.symbol = lm.symbol AND lm.rn = 1
             JOIN profile_cache pc ON lr.symbol = pc.symbol
             WHERE lr.rn = 1
+              AND lr.pe BETWEEN ? AND ?
               AND lm.returnOnEquity > ?
               AND (lr.debtToEquityRatio IS NULL
                    OR (lr.debtToEquityRatio >= 0 AND lr.debtToEquityRatio < ?))
@@ -278,9 +280,9 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
         FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
         ORDER BY pe_ratio ASC, symbol
         LIMIT ?
-    """, [cutoff_epoch,
+    """, [cutoff_epoch, earliest_epoch,
+          cutoff_epoch, earliest_epoch,
           PE_MIN, PE_MAX,
-          cutoff_epoch,
           ROE_MIN, DE_MAX, mktcap_min,
           SECTOR_MIN_STOCKS,
           SECTOR_RATIO_MAX,

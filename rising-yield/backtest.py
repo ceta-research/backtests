@@ -54,6 +54,7 @@ DEFAULT_FREQUENCY = "annual"
 DEFAULT_REBALANCE_MONTHS = [7]  # July (FY data available by then)
 MAX_SINGLE_RETURN = 2.0    # Cap individual stock returns at 200%
 MIN_ENTRY_PRICE = 1.0      # Skip penny stocks
+MAX_FILING_AGE_DAYS = 540  # a company whose latest FY row is older drops out (as in graham-net-net)
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
@@ -92,26 +93,26 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Financial ratios - core data for yield trajectory
+    # Every FY row, paying or not: a NULL or zero-yield year must break a rising run, not be skipped.
     print("  Fetching financial ratios (dividend yield, DPS, payout)...")
     ratios_sql = f"""
         SELECT symbol, dividendYield, dividendPerShare, dividendPayoutRatio,
                date, dateEpoch as filing_epoch, period
         FROM financial_ratios
         WHERE period = 'FY'
-          AND dividendYield IS NOT NULL
-          AND dividendYield > 0
           AND {sym_filter_sql}
     """
     count = query_parquet(client, ratios_sql, con, "ratios_cache",
                           verbose=verbose, limit=2000000, timeout=600)
     print(f"    -> {count} rows")
 
-    if count == 0:
+    if count == 0 or not con.execute("SELECT COUNT(*) FROM ratios_cache WHERE dividendYield > 0").fetchone()[0]:
         print("  No dividend yield data. Skipping.")
         con.close()
         return None
 
-    # Precompute yield trajectory with lags (deduplicated by symbol+fiscalYear)
+    # Precompute yield trajectory: lags come from earlier fiscal years (deduplicated by symbol+fiscalYear).
+    # Every FY row is kept, not only its year's newest: screen_stocks tests the LATEST row known at each rebalance.
     con.execute("""
         CREATE TABLE yield_trajectory AS
         WITH deduped AS (
@@ -126,16 +127,17 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
             FROM ratios_cache
         ),
         yearly AS (
-            SELECT symbol, fiscal_year, dividendYield, dividendPerShare,
-                   dividendPayoutRatio, filing_epoch,
+            SELECT symbol, fiscal_year,
                    LAG(dividendYield, 1) OVER (PARTITION BY symbol ORDER BY fiscal_year) AS yield_1yr,
                    LAG(dividendYield, 2) OVER (PARTITION BY symbol ORDER BY fiscal_year) AS yield_2yr,
                    LAG(dividendPerShare, 1) OVER (PARTITION BY symbol ORDER BY fiscal_year) AS dps_1yr,
-                   LAG(dividendPerShare, 2) OVER (PARTITION BY symbol ORDER BY fiscal_year) AS dps_2yr
+                   LAG(dividendPerShare, 2) OVER (PARTITION BY symbol ORDER BY fiscal_year) AS dps_2yr,
+                   LAG(fiscal_year, 1) OVER (PARTITION BY symbol ORDER BY fiscal_year) AS fy_1yr,
+                   LAG(fiscal_year, 2) OVER (PARTITION BY symbol ORDER BY fiscal_year) AS fy_2yr
             FROM deduped
             WHERE rn = 1
         )
-        SELECT *,
+        SELECT * EXCLUDE (rn),
             CASE
                 WHEN dividendPerShare > dps_1yr AND dps_1yr > dps_2yr
                     THEN 'Consecutive DPS Growth'
@@ -144,14 +146,11 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                 ELSE 'Price Decline Driver'
             END AS yield_driver,
             (dividendYield - yield_2yr) AS yield_change_2yr
-        FROM yearly
-        WHERE yield_2yr IS NOT NULL
-          AND dividendYield > yield_1yr
-          AND yield_1yr > yield_2yr
+        FROM deduped JOIN yearly USING (symbol, fiscal_year)
     """)
 
     traj_count = con.execute("SELECT COUNT(*) FROM yield_trajectory").fetchone()[0]
-    print(f"    -> {traj_count} rising-yield observations (3yr consecutive)")
+    print(f"    -> {traj_count} FY rows (the rising test runs at each rebalance)")
 
     # 3. Key metrics (ROE, market cap)
     print("  Fetching key metrics (ROE, market cap)...")
@@ -211,23 +210,33 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for rising dividend yield stocks with quality + driver filters.
 
     Signal: 3 consecutive FY years of rising dividendYield, where the driver
-    is dividend growth (DPS increased), not price decline.
+    is dividend growth (DPS increased), not price decline. Tested on each
+    company's latest FY row on or before the 45-day lag (at most
+    MAX_FILING_AGE_DAYS old), whatever its year end.
 
     Returns list of (symbol, market_cap) sorted by yield_change_2yr DESC.
     """
-    max_year = target_date.year - 1  # Last complete FY before rebalance
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))
 
+    # Latest FY row on or before the lag first, THEN the rising/driver/payout tests: testing first kept
+    # a name on its last rising year, however old (AJRD in the 2024 top 30 on FY1989).
     candidates = """
-        WITH latest_rising AS (
-            SELECT symbol, fiscal_year, dividendYield, yield_change_2yr,
-                   yield_driver, dividendPayoutRatio, filing_epoch,
+        WITH latest AS (
+            SELECT symbol, fiscal_year, dividendYield, yield_1yr, yield_2yr, fy_1yr, fy_2yr,
+                   yield_change_2yr, yield_driver, dividendPayoutRatio, filing_epoch,
                    ROW_NUMBER() OVER (
-                       PARTITION BY symbol ORDER BY fiscal_year DESC
+                       PARTITION BY symbol ORDER BY filing_epoch DESC, dividendYield DESC NULLS LAST,
+                           dividendPerShare DESC NULLS LAST, dividendPayoutRatio DESC NULLS LAST
                    ) AS rn
             FROM yield_trajectory
-            WHERE fiscal_year <= ?
-              AND filing_epoch <= ?
+            WHERE filing_epoch <= ? AND filing_epoch >= ?
+        ),
+        latest_rising AS (
+            SELECT * FROM latest
+            WHERE rn = 1
+              AND fy_1yr = fiscal_year - 1 AND fy_2yr = fiscal_year - 2
+              AND dividendYield > yield_1yr AND yield_1yr > yield_2yr AND yield_2yr > 0
               AND yield_driver IN ('Consecutive DPS Growth', 'Partial DPS Growth')
         ),
         km AS (
@@ -235,7 +244,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
                     marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
             FROM metrics_cache
-            WHERE filing_epoch <= ?
+            WHERE filing_epoch <= ? AND filing_epoch >= ?
         )
         SELECT lr.symbol, km.marketCap, lr.yield_change_2yr, lr.yield_driver
         FROM latest_rising lr
@@ -251,7 +260,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
         FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
         ORDER BY yield_change_2yr DESC, symbol
         LIMIT ?
-    """, [max_year, cutoff_epoch, cutoff_epoch,
+    """, [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,
           ROE_MIN, mktcap_min, PAYOUT_MIN, PAYOUT_MAX, MAX_STOCKS]).fetchall()
 
     return [(r[0], r[1]) for r in rows]

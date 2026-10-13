@@ -6,6 +6,9 @@ Annual rebalancing, equal weight, top 30 by deepest discount to Graham Number.
 Fetches data via configurable provider, caches in DuckDB, runs locally.
 
 Signal: price < Graham Number (sqrt(22.5 × EPS × BVPS)), market cap filter
+  Each company's latest FY filing (45-day lag, at most 540 days old), Graham Number restated
+  in the price's unit (pence x100, point-in-time USDxxx FX across currencies; no currency, no
+  fresh rate or a depositary receipt across currencies drops the line)
 Portfolio: Top 30 by deepest discount (price/GN ratio), equal weight. Cash if < 10 qualify.
 Rebalancing: Annual (January), 2000-2025.
 
@@ -50,6 +53,41 @@ from cli_utils import add_common_args, resolve_exchanges, print_header, get_mktc
 MAX_STOCKS = 30
 MIN_STOCKS = 10
 DEFAULT_FREQUENCY = "annual"
+MAX_FILING_AGE_DAYS = 540  # a company whose latest FY filing is older drops out (as in graham-net-net)
+
+# Price/GN units: adjClose is in profile.currency, grahamNumber in key_metrics.reportedCurrency.
+SUBUNIT_CCY = {"GBp": "GBP", "ZAc": "ZAR", "ILA": "ILS"}  # quoted in 1/100 of the unit (data_utils.QUOTE_CURRENCY)
+FX_MAX_STALE_DAYS = 7  # newest USDxxx close on/before the price bar, at most this old
+
+
+def major_ccy_sql(col):
+    """SQL: `col` with sub-unit quotes mapped to their unit (GBp -> GBP)."""
+    return f"CASE {col} " + " ".join(f"WHEN '{k}' THEN '{v}'" for k, v in SUBUNIT_CCY.items()) + f" ELSE {col} END"
+
+
+def fetch_fx(client, con, rebalance_dates, verbose=False):
+    """fx_cache(ccy, fx_epoch, per_usd): USDxxx closes for every currency a mismatched line needs."""
+    ccys = [r[0] for r in con.execute(f"""
+        SELECT DISTINCT c FROM (
+            SELECT UNNEST([t, r]) AS c FROM (
+                SELECT {major_ccy_sql('u.currency')} AS t, m.reportedCurrency AS r
+                FROM metrics_cache m JOIN ccy_map u ON u.symbol = m.symbol) WHERE t <> r)
+        WHERE c <> 'USD' AND regexp_full_match(c, '[A-Z]{{3}}') ORDER BY c""").fetchall()]
+    n = 0
+    if ccys:
+        wins = " OR ".join(f"(dateEpoch >= {utc_epoch(d - timedelta(days=FX_MAX_STALE_DAYS))}"
+                           f" AND dateEpoch <= {utc_epoch(d + timedelta(days=11))})" for d in rebalance_dates)
+        # USDxxx (units per USD), not xxxUSD: EURUSD stops in 2026-02 while USDEUR runs on.
+        n = query_parquet(client, f"""
+            SELECT SUBSTR(symbol, 4, 3) AS ccy, dateEpoch AS fx_epoch, close AS per_usd
+            FROM forex_prices_daily
+            WHERE symbol IN ({", ".join(f"'USD{c}'" for c in ccys)}) AND close > 0 AND ({wins})
+        """, con, "fx_cache", verbose=verbose)
+    if not n:  # no mismatched line, or query_parquet's column-less empty placeholder
+        con.execute("DROP TABLE IF EXISTS fx_cache")
+        con.execute("CREATE TABLE fx_cache(ccy VARCHAR, fx_epoch BIGINT, per_usd DOUBLE)")
+    print(f"    -> FX for {len(ccys)} currencies: {n} rows")
+    return n
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
@@ -57,7 +95,9 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Populates tables:
         universe(symbol VARCHAR)
-        metrics_cache(symbol, grahamNumber, marketCap, filing_epoch, period)
+        ccy_map(symbol, currency, is_adr)  -- profile.currency (adjClose's unit), profile.isAdr
+        metrics_cache(symbol, grahamNumber, marketCap, reportedCurrency, filing_epoch, period)
+        fx_cache(ccy, fx_epoch, per_usd)
         prices_cache(symbol, trade_epoch, adjClose)
 
     Returns DuckDB connection or None.
@@ -78,7 +118,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     # 1. Universe
     print("  Fetching exchange membership...")
-    profile_sql = f"SELECT DISTINCT symbol, exchange FROM profile {exchange_where}"
+    profile_sql = f"SELECT DISTINCT symbol, exchange, currency, isAdr FROM profile {exchange_where}"
     profiles = client.query(profile_sql, verbose=verbose)
     if not profiles:
         print("  No symbols found for these exchanges.")
@@ -87,6 +127,11 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     sym_values = ",".join(f"('{r['symbol']}')" for r in profiles)
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
+    # Trading currency per line (the price unit), set against reportedCurrency in screen_stocks.
+    con.execute("CREATE TABLE ccy_map AS SELECT UNNEST(?::VARCHAR[]) AS symbol, UNNEST(?::VARCHAR[]) AS currency,"
+                " UNNEST(?::BOOLEAN[]) AS is_adr",
+                [[r["symbol"] for r in profiles], [r.get("currency") for r in profiles],
+                 [r.get("isAdr") for r in profiles]])
 
     if exchanges:
         sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
@@ -96,13 +141,12 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Key metrics: Graham Number, market cap
+    # Every FY filing, NULL (undefined) Graham Numbers included: screen_stocks tests each company's LATEST one.
     print("  Fetching key metrics (Graham Number, market cap)...")
     metrics_sql = f"""
-        SELECT symbol, grahamNumber, marketCap, dateEpoch as filing_epoch, period
+        SELECT symbol, grahamNumber, marketCap, reportedCurrency, dateEpoch as filing_epoch, period
         FROM key_metrics
         WHERE period = 'FY'
-          AND grahamNumber > 0
-          AND marketCap > 0
           AND {sym_filter_sql}
     """
     count = query_parquet(client, metrics_sql, con, "metrics_cache",
@@ -112,6 +156,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     if count == 0:
         print("  No qualifying data found.")
         return None
+    fetch_fx(client, con, rebalance_dates, verbose=verbose)
 
     # 3. Prices at rebalance dates
     print("  Fetching prices...")
@@ -153,54 +198,101 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
+def gn_lines_sql(target_date, mktcap_min):
+    """(sql, params): the screen's CTEs, ending in `conv` with one row per line.
+
+    conv.gn_px is the Graham Number in the price's unit: x100 on sub-unit quotes, USDxxx FX when
+    the trading and reporting currencies differ. It is NULL (line dropped) without both
+    currencies or a rate at most FX_MAX_STALE_DAYS old on/before the price bar, and on a
+    depositary receipt (profile.isAdr) across currencies (conv.dr): FMP's per-share basis for
+    receipts is mixed (see graham-net-net), so FX alone can't put the figure per receipt.
+    """
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    earliest_epoch = utc_epoch(target_date - timedelta(days=MAX_FILING_AGE_DAYS))
+    target_epoch = utc_epoch(target_date)
+    end_epoch = utc_epoch(target_date + timedelta(days=10))
+    stale = FX_MAX_STALE_DAYS * 86400
+    subunits = ", ".join(f"'{k}'" for k in SUBUNIT_CCY)
+
+    # Latest FY filing first, THEN the Graham Number/size tests: testing first kept a company whose
+    # EPS or book value turned negative (Graham Number NULL) on its last positive filing, however old.
+    sql = f"""
+        WITH latest AS (
+            SELECT symbol, grahamNumber, marketCap, reportedCurrency,
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
+                    marketCap DESC NULLS LAST, grahamNumber DESC NULLS LAST,
+                    reportedCurrency DESC NULLS LAST) AS rn
+            FROM metrics_cache
+            WHERE filing_epoch <= ? AND filing_epoch >= ?
+        ),
+        km AS (
+            SELECT * FROM latest
+            WHERE rn = 1 AND grahamNumber > 0 AND marketCap > ?
+        ),
+        prices AS (
+            SELECT symbol, adjClose, trade_epoch
+            FROM prices_cache
+            WHERE trade_epoch >= ? AND trade_epoch <= ?
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST) = 1
+        ),
+        base AS (
+            SELECT km.symbol, km.marketCap, km.grahamNumber, km.reportedCurrency AS rccy,
+                   prices.adjClose, prices.trade_epoch, u.currency AS tccy, {major_ccy_sql('u.currency')} AS tmaj,
+                   u.adr
+            FROM km
+            JOIN prices ON km.symbol = prices.symbol
+            LEFT JOIN (SELECT symbol, MAX(currency) AS currency, BOOL_OR(is_adr) AS adr FROM ccy_map GROUP BY symbol) u
+                ON u.symbol = km.symbol
+            WHERE prices.adjClose > 0
+        ),
+        bt AS (SELECT b.*, f.per_usd AS t_usd, f.fx_epoch AS t_ep FROM base b
+               ASOF LEFT JOIN fx_cache f ON f.ccy = b.tmaj AND b.trade_epoch >= f.fx_epoch),
+        br AS (SELECT b.*, f.per_usd AS r_usd, f.fx_epoch AS r_ep FROM bt b
+               ASOF LEFT JOIN fx_cache f ON f.ccy = b.rccy AND b.trade_epoch >= f.fx_epoch),
+        conv AS (
+            SELECT symbol, marketCap, adjClose, adr AND tmaj <> rccy AS dr,
+                   grahamNumber * CASE WHEN tccy IN ({subunits}) THEN 100.0 ELSE 1.0 END
+                   * CASE WHEN tmaj = rccy THEN 1.0
+                          WHEN adr THEN NULL
+                          ELSE CASE WHEN tmaj = 'USD' THEN 1.0 WHEN trade_epoch - t_ep <= {stale} THEN t_usd END
+                             / CASE WHEN rccy = 'USD' THEN 1.0 WHEN trade_epoch - r_ep <= {stale} THEN r_usd END
+                     END AS gn_px
+            FROM br
+        )
+    """
+    return sql, [cutoff_epoch, earliest_epoch, mktcap_min, target_epoch, end_epoch]
+
+
+def ccy_excluded(con, target_date, mktcap_min, receipts=False):
+    """Screen lines dropped at target_date: Graham Number can't be put in the price's unit (receipts: DRs only)."""
+    ctes, params = gn_lines_sql(target_date, mktcap_min)
+    dr = " AND dr" if receipts else ""
+    return con.execute(ctes + f" SELECT COUNT(*) FROM conv WHERE gn_px IS NULL{dr}", params).fetchone()[0]
+
+
 def screen_stocks(con, target_date, mktcap_min, offset_days=1):
-    """Screen for stocks trading below Graham Number.
+    """Screen for stocks trading below Graham Number (latest FY filing, restated in the
+    price's unit by gn_lines_sql()).
 
     Returns list of (symbol, market_cap) tuples, sorted by deepest discount.
     """
-    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
-
-    # Get latest FY filing before cutoff
-    rows = con.execute("""
-        WITH m AS (
-            SELECT symbol, grahamNumber, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
-                    marketCap DESC NULLS LAST, grahamNumber DESC NULLS LAST) AS rn
-            FROM metrics_cache WHERE filing_epoch <= ?
-        )
-        SELECT m.symbol, m.grahamNumber, m.marketCap
-        FROM m
-        WHERE m.rn = 1
-          AND m.grahamNumber > 0
-          AND m.marketCap > ?
-    """, [cutoff_epoch, mktcap_min]).fetchall()
-
-    if not rows:
-        return []
-
-    # Get prices at target date for comparison against Graham Number
-    symbols = [r[0] for r in rows]
-    prices = get_prices(con, symbols, target_date)
-
-    # Filter: price < Graham Number; rank by discount (price/GN)
-    candidates = []
-    for sym, gn, mcap in rows:
-        price = prices.get(sym)
-        if price is None or price <= 0:
-            continue
-        if price < gn:
-            discount_ratio = price / gn  # lower = deeper discount
-            candidates.append((sym, mcap, discount_ratio))
-
+    ctes, params = gn_lines_sql(target_date, mktcap_min)
+    # Filter: price < Graham Number; rank by discount (price/GN, lower = deeper).
+    # Converted before the dedup, so a twin that fails conversion frees its slot.
+    candidates = ctes + """
+        SELECT symbol, marketCap, adjClose / gn_px AS price_to_gn
+        FROM conv
+        WHERE adjClose < gn_px
+    """
     # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot (1.0 = filter_returns' default floor).
-    keep = {r[0] for r in con.execute(
-        isin_dedup_sql("SELECT UNNEST(?::VARCHAR[]) AS symbol", target_date, offset_days, 1.0),
-        [[c[0] for c in candidates]]).fetchall()}
-    candidates = [c for c in candidates if c[0] in keep]
+    rows = con.execute(f"""
+        SELECT symbol, marketCap
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, 1.0)})
+        ORDER BY price_to_gn ASC, symbol
+        LIMIT ?
+    """, params + [MAX_STOCKS]).fetchall()
 
-    # Sort by deepest discount (ascending ratio)
-    candidates.sort(key=lambda x: (x[2], x[0]))
-    return [(sym, mcap) for sym, mcap, _ in candidates[:MAX_STOCKS]]
+    return [(r[0], r[1]) for r in rows]
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
@@ -386,6 +478,9 @@ def main():
         sys.exit(1)
     fetch_time = time.time() - t0
     print(f"\nData fetched in {fetch_time:.0f}s")
+    # Screen lines per rebalance with no currency, no fresh FX or a cross-currency DR (dropped, not compared raw).
+    ccy_excl = {d.isoformat(): ccy_excluded(con, d, mktcap_threshold) for d in rebalance_dates[:-1]}
+    dr_excl = sum(ccy_excluded(con, d, mktcap_threshold, receipts=True) for d in rebalance_dates[:-1])
 
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
@@ -398,6 +493,8 @@ def main():
                            ltp=ltp, exit_method=args.exit_method)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
+    print(f"  Graham Number currency: {sum(ccy_excl.values())} candidate lines excluded"
+          f" (no currency or fresh FX; {dr_excl} cross-currency receipts)")
 
     # Phase 3: Compute metrics
     valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
@@ -474,6 +571,7 @@ def main():
             "frequency": frequency,
             "listing_filter": campaign_listing_label(exchanges),
             "isin_dedup": True,
+            "gn_ccy_excluded": {"total": sum(ccy_excl.values()), "receipts": dr_excl, "by_period": ccy_excl},
             "avg_stocks_when_invested": round(avg_stocks, 1),
             "period_data": results,
             **({"exit_method": args.exit_method, "ltp": ltp_block} if ltp_block else {}),

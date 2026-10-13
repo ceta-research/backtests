@@ -119,11 +119,13 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     """)
 
     # Precompute year-over-year changes
+    # An increase needs the prior calendar year's row: the first paid year after a no-dividend year is a break.
     con.execute("""
         CREATE TABLE div_yoy AS
         SELECT symbol, yr, total_div,
             LAG(total_div) OVER (PARTITION BY symbol ORDER BY yr) AS prev_div,
             CASE WHEN total_div > LAG(total_div) OVER (PARTITION BY symbol ORDER BY yr)
+                  AND LAG(yr) OVER (PARTITION BY symbol ORDER BY yr) = yr - 1
                  THEN 1 ELSE 0 END AS increased
         FROM div_annual
     """)
@@ -216,6 +218,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     max_year = target_date.year - 1  # Last complete year before rebalance
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
+    # The run of increase-years must END at max_year (MAX(d.yr) = ?): no dividend or no increase there, no streak.
     candidates = """
         WITH last_break AS (
             SELECT symbol, MAX(yr) AS break_yr
@@ -231,7 +234,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
               AND d.yr <= ?
               AND (lb.break_yr IS NULL OR d.yr > lb.break_yr)
             GROUP BY d.symbol
-            HAVING COUNT(*) >= ?
+            HAVING COUNT(*) >= ? AND MAX(d.yr) = ?
         ),
         fr AS (
             SELECT symbol, dividendPayoutRatio, filing_epoch,
@@ -266,7 +269,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
         FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
         ORDER BY consecutive_years DESC, marketCap DESC, symbol
         LIMIT ?
-    """, [max_year, max_year, MIN_STREAK,
+    """, [max_year, max_year, MIN_STREAK, max_year,
           cutoff_epoch, cutoff_epoch, cutoff_epoch,
           PAYOUT_MIN, PAYOUT_MAX, FCF_MIN, mktcap_min, MAX_STOCKS]).fetchall()
 

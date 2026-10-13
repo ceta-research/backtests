@@ -57,6 +57,8 @@ PIOTROSKI_MIN = 7          # Piotroski F-Score >= 7 (out of 9)
 MIN_STOCKS = 10            # Hold cash if fewer qualify
 MAX_SINGLE_RETURN = 2.0    # Cap individual stock returns at 200% (data quality guard)
 MIN_ENTRY_PRICE = 1.0      # Skip stocks with entry price < $1 (price data artifact)
+PRIOR_FY_MIN_DAYS = 300    # Prior FY row: 300-430 days before the company's own current row
+PRIOR_FY_MAX_DAYS = 430    # (52/53-week years and a moved year-end fit; a skipped year does not)
 DEFAULT_FREQUENCY = "annual"
 DEFAULT_REBALANCE_MONTHS = [7]  # July — annual FY filings available by then (45-day lag)
 
@@ -208,10 +210,11 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """
     # 45-day lag for point-in-time (July rebalance = data through ~May 17)
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
-    # Prior year: need filings at least ~410 days back (45 + 365)
-    prior_cutoff_epoch = utc_epoch(target_date - timedelta(days=410))
-    # Lower bound to avoid too-stale data (5 years max lookback for prior)
+    # Current row no older than 595 days (45 + 550)
     stale_cutoff_epoch = utc_epoch(target_date - timedelta(days=45 + 550))
+    # Prior FY is measured from each company's OWN current row, not from the rebalance date:
+    # a date window (410-595 days back) never matched a year-end between May 18 and Nov 13.
+    prior_gap_min, prior_gap_max = PRIOR_FY_MIN_DAYS * 86400, PRIOR_FY_MAX_DAYS * 86400
 
     candidates = """
         WITH
@@ -223,13 +226,14 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
             FROM income_cache
             WHERE filing_epoch <= ? AND filing_epoch > ?
         ),
-        -- Prior FY (for YoY comparisons)
+        -- Prior FY (for YoY comparisons): latest filing 300-430 days before the current row
         inc_prev AS (
             SELECT symbol, netIncome, grossProfit, revenue, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
                     netIncome DESC NULLS LAST, grossProfit DESC NULLS LAST, revenue DESC NULLS LAST) AS rn
             FROM income_cache
-            WHERE filing_epoch <= ? AND filing_epoch > ?
+            JOIN (SELECT symbol AS sym, filing_epoch AS curr_epoch FROM inc_curr WHERE rn = 1) c ON c.sym = symbol
+            WHERE filing_epoch <= curr_epoch - ? AND filing_epoch >= curr_epoch - ?
         ),
         bal_curr AS (
             SELECT symbol, totalAssets, totalCurrentAssets, totalCurrentLiabilities,
@@ -249,7 +253,8 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
                     totalCurrentLiabilities DESC NULLS LAST, longTermDebt DESC NULLS LAST,
                     totalStockholdersEquity DESC NULLS LAST) AS rn
             FROM balance_cache
-            WHERE filing_epoch <= ? AND filing_epoch > ?
+            JOIN (SELECT symbol AS sym, filing_epoch AS curr_epoch FROM bal_curr WHERE rn = 1) c ON c.sym = symbol
+            WHERE filing_epoch <= curr_epoch - ? AND filing_epoch >= curr_epoch - ?
         ),
         cf_curr AS (
             SELECT symbol, operatingCashFlow, filing_epoch,
@@ -331,9 +336,9 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
         ORDER BY marketCap DESC, symbol
     """, [
         cutoff_epoch, stale_cutoff_epoch,      # inc_curr
-        prior_cutoff_epoch, stale_cutoff_epoch, # inc_prev
+        prior_gap_min, prior_gap_max,          # inc_prev
         cutoff_epoch, stale_cutoff_epoch,        # bal_curr
-        prior_cutoff_epoch, stale_cutoff_epoch,  # bal_prev
+        prior_gap_min, prior_gap_max,            # bal_prev
         cutoff_epoch, stale_cutoff_epoch,        # cf_curr
         cutoff_epoch, stale_cutoff_epoch,        # rat
         cutoff_epoch,                            # met
