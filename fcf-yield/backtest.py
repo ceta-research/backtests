@@ -43,7 +43,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                         remove_price_oscillations, filter_returns,
-                        entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch)
+                        entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -86,12 +87,12 @@ DEFAULT_REBALANCE_MONTHS = [7]  # July (annual FY filings available, 45-day lag)
 # Exchanges with known data quality issues - excluded from global run
 # Presets to skip in global mode (data quality or too thin)
 EXCLUDED_PRESETS = {
-    "india",        # BSE+NSE: <10 qualifying stocks even without mktcap filter
     "brazil",       # SAO: adjClose split artifacts
     "australia",    # ASX: adjClose split artifacts
     "southafrica",  # JNB: historically <8 qualifying stocks (too thin)
     "france",       # PAR: pipeline gap (1 FY symbol in warehouse)
     "singapore",    # SES/SGX: 0 symbols in profile table
+    "mexico",       # MEX: not part of the published study
     "nyse",         # Covered by "us" preset
     "nasdaq",       # Covered by "us" preset
 }
@@ -114,16 +115,24 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
 
     Returns DuckDB connection or None.
     """
+    # Campaign listing rule; profile_where feeds the universe and sym_filter_sql.
+    listing_cond = campaign_listing_condition(exchanges)
     conds = []
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
         conds.append(f"exchange IN ({ex_filter})")
+        if listing_cond:
+            conds.append(listing_cond)
         if domicile:
             countries = sorted({c for e in exchanges
                                 for c in EXCHANGE_COUNTRY.get(e, ())})
-            if countries:
-                conds.append("country IN (" + ", ".join(f"'{c}'" for c in countries) + ")")
+            domicile_cond = "country IN (" + ", ".join(f"'{c}'" for c in countries) + ")"
+            # XETRA/SIX: the listing rule already is the home-country condition.
+            if countries and domicile_cond != listing_cond:
+                conds.append(domicile_cond)
     profile_where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -144,6 +153,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
         sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile {profile_where})"
     else:
         sym_filter_sql = "1=1"
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2-3. Financial data (FY, annual filings)
     queries = [
@@ -207,12 +218,12 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for high FCF yield stocks. Returns list of (symbol, market_cap) tuples."""
     # 45-day lag: use filings available at least 45 days before rebalance date
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
-    rows = con.execute("""
+    candidates = """
         WITH m AS (
             SELECT symbol, freeCashFlowYield, returnOnEquity, marketCap, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
@@ -226,7 +237,7 @@ def screen_stocks(con, target_date, mktcap_min):
                     interestCoverageRatio DESC NULLS LAST, operatingProfitMargin DESC NULLS LAST) AS rn
             FROM ratios_cache WHERE filing_epoch <= ?
         )
-        SELECT m.symbol, m.marketCap
+        SELECT m.symbol, m.marketCap, m.freeCashFlowYield
         FROM m
         JOIN r ON m.symbol = r.symbol AND r.rn = 1
         WHERE m.rn = 1
@@ -236,7 +247,12 @@ def screen_stocks(con, target_date, mktcap_min):
           AND r.interestCoverageRatio > ?
           AND r.operatingProfitMargin > ?
           AND m.marketCap > ?
-        ORDER BY m.freeCashFlowYield DESC, m.symbol
+    """
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot.
+    rows = con.execute(f"""
+        SELECT symbol, marketCap
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        ORDER BY freeCashFlowYield DESC, symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch,
           FCF_YIELD_MIN, FCF_YIELD_MAX, ROE_MIN, IC_MIN, OPM_MIN, mktcap_min, MAX_STOCKS]).fetchall()
@@ -253,7 +269,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         if len(portfolio) < MIN_STOCKS:
             spy_return = get_benchmark_return(
@@ -564,6 +580,8 @@ def _run_single(args, exchanges, universe_name, frequency, use_costs,
             benchmark_symbol=benchmark_symbol),
         "years": round(len(valid) / periods_per_year, 1),
         "frequency": frequency,
+        "listing_filter": campaign_listing_label(exchanges),
+        "isin_dedup": True,
         "avg_stocks_when_invested": round(avg_stocks, 1),
         "period_data": results,
         **({"exit_method": exit_method, "ltp": ltp_block} if ltp_block else {}),

@@ -45,7 +45,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         remove_price_oscillations, get_local_benchmark, get_benchmark_return,
-                        LOCAL_INDEX_BENCHMARKS, utc_epoch)
+                        LOCAL_INDEX_BENCHMARKS, utc_epoch,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -83,11 +84,14 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, exclud
     # survivorship bias to a historical run.
     fund_guard = " AND isFund = false AND isEtf = false" if exclude_funds else ""
 
+    # Campaign listing rule; sym_filter_sql carries it (the screen skips `universe`).
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter}){fund_guard}"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}{fund_guard}"
         sym_filter_sql = (f"symbol IN (SELECT DISTINCT symbol FROM profile "
-                          f"WHERE exchange IN ({ex_filter}){fund_guard})")
+                          f"WHERE exchange IN ({ex_filter}){listing_and}{fund_guard})")
     elif exclude_funds:
         exchange_where = "WHERE isFund = false AND isEtf = false"
         sym_filter_sql = ("symbol IN (SELECT DISTINCT symbol FROM profile "
@@ -95,6 +99,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, exclud
     else:
         exchange_where = ""
         sym_filter_sql = "1=1"
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -110,6 +116,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, exclud
 
     sym_values = ",".join(f"('{r['symbol']}')" for r in profiles)
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2-4: Financial data
     queries = [
@@ -187,7 +195,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, exclud
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for revenue-accelerating stocks.
 
     Requires 3 consecutive FY revenue filings to compute:
@@ -203,7 +211,7 @@ def screen_stocks(con, target_date, mktcap_min):
     # Max 5-year lookback to avoid very stale data
     stale_cutoff_epoch = utc_epoch(target_date - timedelta(days=45 + 5 * 365))
 
-    rows = con.execute("""
+    candidates = """
         WITH
         -- All FY revenue filings in the valid window
         inc AS (
@@ -248,7 +256,12 @@ def screen_stocks(con, target_date, mktcap_min):
           AND rat.debtToEquityRatio >= 0                 -- Must have positive equity
           AND rat.debtToEquityRatio < ?                  -- Quality: D/E filter
           AND met.marketCap > ?                          -- MCap filter
-        ORDER BY rc.acceleration DESC, rc.symbol
+    """
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot.
+    rows = con.execute(f"""
+        SELECT symbol, marketCap, acceleration
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        ORDER BY acceleration DESC, symbol
         LIMIT ?
     """, [
         cutoff_epoch, stale_cutoff_epoch,   # inc
@@ -277,7 +290,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         # Primary benchmark = local index (SPY for US). SPY is also always kept as a
         # secondary, cross-market comparable since it is total-return in USD.
@@ -611,6 +624,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                           execution=exec_model,
                           spy_metrics=spy_metrics,
                           spy_annual=spy_annual)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 

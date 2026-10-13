@@ -51,7 +51,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, domicile_sql_condition, utc_epoch)
+                         remove_price_oscillations, domicile_sql_condition, utc_epoch,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -88,14 +89,19 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
     # exchange's country, not merely listed on it. Off by default.
     dom_cond = domicile_sql_condition(exchanges) if domicile else ""
     dom_and = f" AND {dom_cond}" if dom_cond else ""
+    # Campaign listing rule; sym_filter_sql carries it (sector medians included).
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
 
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter}){dom_and}"
-        exchange_and = f"AND exchange IN ({ex_filter}){dom_and}"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){dom_and}{listing_and}"
+        exchange_and = f"AND exchange IN ({ex_filter}){dom_and}{listing_and}"
     else:
         exchange_where = f"WHERE {dom_cond}" if dom_cond else ""
         exchange_and = dom_and
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -119,11 +125,13 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
 
     if exchanges:
         sym_filter_sql = (f"symbol IN (SELECT DISTINCT symbol FROM profile "
-                          f"WHERE exchange IN ({ex_filter}){dom_and})")
+                          f"WHERE exchange IN ({ex_filter}){dom_and}{listing_and})")
     elif dom_cond:
         sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE {dom_cond})"
     else:
         sym_filter_sql = "1=1"
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Financial ratios — fetch ALL FY rows (P/E, D/E)
     queries = [
@@ -157,7 +165,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
@@ -191,7 +199,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, domici
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for sector-relatively cheap stocks with quality fundamentals.
 
     Returns list of (symbol, market_cap) tuples sorted by sector P/E ratio ascending.
@@ -205,7 +213,7 @@ def screen_stocks(con, target_date, mktcap_min):
     """
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
-    rows = con.execute("""
+    candidates = """
         WITH latest_ratios AS (
             -- Most recent FY P/E per symbol as of cutoff
             SELECT
@@ -258,11 +266,17 @@ def screen_stocks(con, target_date, mktcap_min):
         SELECT
             cs.symbol,
             cs.marketCap,
-            ROUND(cs.pe / sm.median_pe, 4) AS pe_ratio_to_sector
+            ROUND(cs.pe / sm.median_pe, 4) AS pe_ratio_to_sector,
+            cs.pe / sm.median_pe AS pe_ratio
         FROM current_stocks cs
         JOIN sector_medians sm ON cs.sector = sm.sector
         WHERE cs.pe / sm.median_pe < ?
-        ORDER BY cs.pe / sm.median_pe ASC, cs.symbol
+    """
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot (medians still count twins).
+    rows = con.execute(f"""
+        SELECT symbol, marketCap, pe_ratio_to_sector
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        ORDER BY pe_ratio ASC, symbol
         LIMIT ?
     """, [cutoff_epoch,
           PE_MIN, PE_MAX,
@@ -284,7 +298,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         bench_return = get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
                                             offset_days=offset_days)
@@ -497,7 +511,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    # prices_cache only holds [R, R+10d] windows, so LTP reads remote stock_eod.
+    # prices_cache only holds [R, R+11d] windows, so LTP reads remote stock_eod.
     ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
                            verbose=verbose, offset_days=offset_days,
@@ -545,6 +559,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 

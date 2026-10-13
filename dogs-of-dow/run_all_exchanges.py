@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cr_client import CetaResearch
 from data_utils import query_parquet, get_prices, generate_rebalance_dates, get_local_benchmark, LtpExits, add_exit_method_arg
+from data_utils import campaign_listing_label
 from metrics import compute_metrics, compute_annual_returns, period_accounting
 from costs import tiered_cost, apply_costs
 from cli_utils import get_risk_free_rate, get_mktcap_threshold, REGIONAL_RISK_FREE_RATES
@@ -40,7 +41,7 @@ EXCHANGE_CONFIGS = [
     {"name": "SHZ", "exchanges": ["SHZ"]},
     {"name": "SHH", "exchanges": ["SHH"]},
     {"name": "KSC", "exchanges": ["KSC"]},
-    {"name": "TSX", "exchanges": ["TSX"]},
+    {"name": "TSX", "exchanges": ["TSX", "TSXV"]},
     {"name": "SET", "exchanges": ["SET"]},
     {"name": "TAI", "exchanges": ["TAI"]},
     {"name": "STO", "exchanges": ["STO"]},
@@ -172,6 +173,8 @@ def main():
                                     benchmark_symbol=benchmark_symbol),
                 "years": round(len(valid) / periods_per_year, 1),
                 "frequency": args.frequency,
+                "listing_filter": campaign_listing_label(exchanges),
+                "isin_dedup": True,
                 "avg_stocks_when_invested": round(avg_stocks, 1),
                 **({"exit_method": args.exit_method,
                     "ltp": ltp.results_block(args.exit_method, valid, periods_per_year, risk_free_rate)} if ltp else {}),

@@ -36,7 +36,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, utc_epoch)
+                         remove_price_oscillations, utc_epoch,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -77,11 +78,16 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Returns DuckDB connection or None.
     """
+    # Campaign listing rule; sym_filter_sql carries it (the screen skips `universe`).
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
     else:
         exchange_where = ""
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -99,9 +105,11 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
 
     if exchanges:
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
     else:
         sym_filter_sql = "1=1"
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Cash flow statement (need 6+ FY filings for 5-year growth window)
     queries = [
@@ -139,7 +147,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
@@ -173,7 +181,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for FCF compounders: consistent multi-year FCF growth + quality.
 
     Computes 5-year FCF growth consistency score from FY cash flow statements.
@@ -182,7 +190,7 @@ def screen_stocks(con, target_date, mktcap_min):
     # 45-day lag for point-in-time
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
 
-    rows = con.execute("""
+    candidates = """
         WITH ranked_fcf AS (
             SELECT symbol, freeCashFlow, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, freeCashFlow DESC NULLS LAST) AS rn
@@ -242,7 +250,12 @@ def screen_stocks(con, target_date, mktcap_min):
           AND km.returnOnInvestedCapital > ?
           AND fr.operatingProfitMargin > ?
           AND km.marketCap > ?
-        ORDER BY km.returnOnInvestedCapital DESC, fs.symbol
+    """
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot.
+    rows = con.execute(f"""
+        SELECT symbol, marketCap, growth_years, roic
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        ORDER BY roic DESC, symbol
         LIMIT ?
     """, [cutoff_epoch, cutoff_epoch, cutoff_epoch,
           FCF_GROWTH_YEARS_MIN, ROIC_MIN, OPM_MIN, mktcap_min, MAX_STOCKS]).fetchall()
@@ -259,7 +272,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         if len(portfolio) < MIN_STOCKS:
             spy_return = get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
@@ -476,7 +489,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    # prices_cache holds only [R, R+10] windows at rebalance dates, so LTP reads remote stock_eod.
+    # prices_cache holds only [d, d+11] per rebalance date, so LTP reads remote stock_eod.
     ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
                             verbose=verbose, offset_days=offset_days,
@@ -525,6 +538,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 
@@ -583,7 +597,7 @@ def main():
             ("norway", ["OSL"]),
             ("taiwan", ["TAI"]),
             ("thailand", ["SET"]),
-            ("singapore", ["SGX"]),
+            ("singapore", ["SES"]),
             ("southafrica", ["JNB"]),
             ("saudi", ["SAU"]),
             ("israel", ["TLV"]),
