@@ -7,20 +7,36 @@ of 5, 10, 15, and 20 simultaneous pairs with two allocation methods:
 equal-weight and inverse-volatility. Shows the diversification curve: how
 adding more pairs improves risk-adjusted returns up to a saturation point.
 
+Universe (pairs_universe.py): for each trading year, the lines listed and traded
+through the formation year before it, one per security and per company, the top
+30 of each sector by that year's median daily traded value in USD. No size
+look-ahead. A line needs an FY filing of any date, a later one included: that
+test is not point-in-time. Survivorship is reduced, not removed: the price data
+holds almost no name that stopped trading before 2015 (US) or 2020 (elsewhere).
+
 Core pair-finding logic is identical to pairs-zscore:
   - Annual formation (previous calendar year): correlation >= 0.70, >= 200 common days
   - Half-life filter: spread AR(1) half-life in [5, 60] days
-  - Daily z-score signal: enter at |z| > 2.0, exit at |z| < 0.5
+  - Daily z-score signal on a full window of 40 common bars: enter at |z| > 2.0,
+    exit at |z| < 0.5, each executed on the next bar
+  - Pair return per trade = direction * (Return_A - Return_B) / 2, less one
+    size-tiered cost per leg for the round trip
+  - Exits: a position still open at the pair's last common bar closes there
+    (--exit-method ltp, the only mode)
 
 New features vs pairs-zscore:
   - Portfolio size comparison: N = 5, 10, 15, 20 simultaneous pairs (top N by correlation)
   - Inverse-volatility allocation: weight = 1 / spread_vol, normalised
   - Diversification analysis: metrics across all N × allocation combinations
   - Primary output ("portfolio" in exchange_comparison.json): 20-pair inverse-vol config
+  - A pair is entered when each leg's first bar in the entry window (10 days from 1 January
+    plus the execution offset) is 1.00 or more and on or before the pair's delisting bound;
+    a pair that is not entered sits the year out
+  - A book is cash in a year when fewer than MIN_PAIRS_ACTIVE of its pairs are entered
 
-Output:
-  results/exchange_comparison.json   — standard format + diversification_analysis key
-  results/diversification_analysis.json — standalone per-size/allocation breakdown
+Output (--output <file>):
+  <file>                    — standard format + diversification_analysis key
+  diversification_<file>    — standalone per-size/allocation breakdown, beside it
 
 Academic reference:
   Gatev, E., Goetzmann, W. & Rouwenhorst, K. (2006). "Pairs Trading:
@@ -41,22 +57,25 @@ import math
 import os
 import sys
 import time
-from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import query_parquet, get_local_benchmark, LOCAL_INDEX_BENCHMARKS, remove_price_oscillations
+from data_utils import (get_local_benchmark, add_exit_method_arg, campaign_listing_label,
+                        get_prices, utc_date)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost
 from cli_utils import (add_common_args, resolve_exchanges, print_header,
-                       get_risk_free_rate, get_mktcap_threshold)
+                       get_risk_free_rate)
+from pairs_universe import (ENTRY_WINDOW_DAYS, UNIVERSE_NOTES, PairLtp, build_candidates,
+                            check_pairs, fetch_prices, fetch_universe, load_delist_bounds)
 
 # ── Strategy Parameters ────────────────────────────────────────────────────────
-TOP_N_PER_SECTOR  = 30       # Candidate stocks per sector (ranked by market cap)
+TOP_N_PER_SECTOR  = 30       # Candidate stocks per sector (ranked by formation-year traded value)
 MIN_CORR          = 0.70     # Minimum 252-day returns correlation
-MIN_CORR_DAYS     = 200      # Minimum common trading days for pair eligibility
+MIN_CORR_DAYS     = 200      # Minimum common trading days for pair eligibility (and formation-year bars)
+MIN_CANDIDATES    = 20       # Leg skipped when no trading year has this many candidates
 HALF_LIFE_MIN     = 5        # Minimum half-life (days) — filter out noise pairs
 HALF_LIFE_MAX     = 60       # Maximum half-life (days) — filter out barely-mean-reverting pairs
 Z_LOOKBACK        = 40       # Rolling window for z-score mean/std (trading days)
@@ -64,7 +83,7 @@ Z_ENTRY           = 2.0      # |z| threshold to enter a trade
 Z_EXIT            = 0.5      # |z| threshold for convergence exit
 MAX_HOLD_DAYS     = 60       # Time stop: maximum trading days to hold a position
 LOSS_STOP         = -0.05    # Loss stop: exit if pair P&L < -5%
-MIN_PAIRS_ACTIVE  = 3        # Portfolio held cash if fewer pairs have any trades
+MIN_PAIRS_ACTIVE  = 3        # Portfolio held cash if fewer of its pairs are entered
 MAX_SINGLE_RETURN = 2.0      # Cap absolute pair return (data quality guard)
 MIN_LEG_PRICE     = 1.0      # Skip pairs where either leg price < 1.0 (artifacts)
 START_YEAR        = 2005
@@ -77,179 +96,84 @@ PORTFOLIO_SIZES   = [5, 10, 15, 20]
 _MAX_CANDIDATES   = 20 * 10   # Only look at top 200 correlation candidates
 
 
-def fetch_data_via_api(cr, exchanges, verbose=False, benchmark_symbol="SPY"):
-    """Fetch sector mapping, market caps, and full daily price history into DuckDB.
+def fetch_data_via_api(cr, exchanges, verbose=False, benchmark_symbol="SPY", offset_days=1):
+    """Build the per-year candidate universe (pairs_universe) and fetch daily prices into DuckDB.
 
-    Populates DuckDB tables:
-        sector_map(symbol VARCHAR, sector VARCHAR)
-        mcap_map(symbol VARCHAR, marketCap DOUBLE)
-        prices_cache(symbol VARCHAR, trade_date DATE, adjClose DOUBLE)
+    The connection holds pairs_universe's tables, among them:
+        candidates(yr, symbol, sector, company, size_usd, cap_usd)   one list per trading year
+        prices_cache(symbol, trade_date DATE, trade_epoch BIGINT, adjClose DOUBLE)
 
-    Returns DuckDB connection or None.
+    Returns (connection, {year: build_candidates' counts}) or None.
     """
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
 
-    ex_filter = ", ".join(f"'{e}'" for e in exchanges) if exchanges else None
-    ex_where = f"exchange IN ({ex_filter})" if ex_filter else "1=1"
-
-    # ── Sector map ────────────────────────────────────────────────────────────
-    print("  Fetching sector mapping...")
-    sector_sql = f"""
-        WITH dedup AS (
-            SELECT symbol, sector,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY fetchedAtEpoch DESC, sector DESC NULLS LAST) AS rn
-            FROM profile
-            WHERE {ex_where}
-              AND sector IS NOT NULL AND sector != ''
-              AND isActivelyTrading = true
-        )
-        SELECT symbol, sector FROM dedup WHERE rn = 1
-    """
-    sector_data = cr.query(sector_sql, verbose=verbose)
-    if not sector_data:
-        print("  No sector data found.")
+    years = range(START_YEAR, END_YEAR + 1)
+    if fetch_universe(cr, con, exchanges, years, verbose=verbose) is None:
         return None
+    per_year = build_candidates(con, years, offset_days, MIN_LEG_PRICE,
+                                TOP_N_PER_SECTOR, MIN_CORR_DAYS)
+    sizes = [c["candidates"] for c in per_year.values()]
+    print(f"  Candidates: {min(sizes)}-{max(sizes)} stocks a year "
+          f"(top {TOP_N_PER_SECTOR}/sector by formation-year traded value)")
 
-    sector_map = {r["symbol"]: r["sector"] for r in sector_data}
-    all_symbols = list(sector_map.keys())
-    n_sectors = len(set(sector_map.values()))
-    print(f"  {len(all_symbols)} symbols across {n_sectors} sectors")
-
-    # ── Latest market cap for candidate ranking ───────────────────────────────
-    print("  Fetching market caps...")
-    mcap_sql = f"""
-        WITH prof AS (
-            SELECT DISTINCT symbol FROM profile
-            WHERE {ex_where}
-              AND sector IS NOT NULL AND sector != ''
-              AND isActivelyTrading = true
-        ),
-        dedup AS (
-            SELECT km.symbol, km.marketCap,
-                ROW_NUMBER() OVER (PARTITION BY km.symbol ORDER BY km.dateEpoch DESC, km.marketCap DESC NULLS LAST) AS rn
-            FROM key_metrics km
-            JOIN prof p ON km.symbol = p.symbol
-            WHERE km.period = 'FY'
-              AND km.marketCap IS NOT NULL AND km.marketCap > 0
-        )
-        SELECT symbol, marketCap FROM dedup WHERE rn = 1
-    """
-    mcap_data = []
-    for attempt in range(3):
-        try:
-            mcap_data = cr.query(mcap_sql, verbose=verbose) or []
-            break
-        except Exception as e:
-            if "Rate limited" in str(e) and attempt < 2:
-                wait = 65
-                print(f"    Rate limited, waiting {wait}s...")
-                time.sleep(wait)
-            else:
-                raise
-    if not mcap_data:
-        print("  No market cap data.")
-        return None
-
-    mcap_map = {r["symbol"]: r["marketCap"] for r in mcap_data}
-
-    # ── Select top N per sector by market cap ─────────────────────────────────
-    sector_buckets = defaultdict(list)
-    for sym in all_symbols:
-        if sym in mcap_map and mcap_map[sym] > 0:
-            sector_buckets[sector_map[sym]].append((sym, mcap_map[sym]))
-
-    candidates = []
-    for sec, stocks in sector_buckets.items():
-        top = sorted(stocks, key=lambda x: (-x[1], x[0]))[:TOP_N_PER_SECTOR]
-        candidates.extend(s for s, _ in top)
-    candidates = sorted(set(candidates))
-
-    print(f"  Candidates: {len(candidates)} stocks "
-          f"(top {TOP_N_PER_SECTOR}/sector × {len(sector_buckets)} sectors)")
-
-    if len(candidates) < 20:
+    if max(sizes) < MIN_CANDIDATES:
         print("  Too few candidates for pairs trading.")
         return None
-
-    # ── Load sector/mcap into DuckDB ──────────────────────────────────────────
-    sec_vals = ", ".join(f"('{s}', '{sector_map[s].replace(chr(39), chr(39)+chr(39))}')"
-                         for s in candidates)
-    con.execute("CREATE TABLE sector_map(symbol VARCHAR, sector VARCHAR)")
-    con.execute(f"INSERT INTO sector_map VALUES {sec_vals}")
-
-    mcap_vals = ", ".join(f"('{s}', {mcap_map.get(s, 0)})" for s in candidates)
-    con.execute("CREATE TABLE mcap_map(symbol VARCHAR, marketCap DOUBLE)")
-    con.execute(f"INSERT INTO mcap_map VALUES {mcap_vals}")
 
     # ── Fetch daily prices (2004 onward) ──────────────────────────────────────
     # Extra year (2004) provides warmup for z-score lookback on first trading year
     print("  Fetching daily prices (2004-present)...")
-    bench_syms = {"SPY", benchmark_symbol}  # always include SPY + local benchmark
-    price_syms = candidates + list(bench_syms)
-    price_sym_filter = ", ".join(f"'{s}'" for s in price_syms)
-
-    price_sql = f"""
-        SELECT symbol, CAST(date AS DATE) AS trade_date, adjClose
-        FROM stock_eod
-        WHERE symbol IN ({price_sym_filter})
-          AND date >= '2004-01-01'
-          AND adjClose IS NOT NULL AND adjClose > 0
-    """
-    count = query_parquet(cr, price_sql, con, "prices_cache",
-                          verbose=verbose, limit=10_000_000, timeout=600,
-                          memory_mb=4096, threads=2)
+    count = fetch_prices(cr, con, None, [benchmark_symbol], verbose=verbose)
     if count == 0:
         print("  No price data found.")
         return None
 
     print(f"  Price rows: {count:,}")
-    con.execute("CREATE INDEX idx_pc_sym_date ON prices_cache(symbol, trade_date)")
-    remove_price_oscillations(con, verbose=verbose)
-    return con
+    return con, per_year
 
 
 def compute_pair_candidates(con, formation_start, formation_end):
     """Find same-sector pairs by returns correlation during the formation period.
 
     Returns list of (sym_a, sym_b, sector, correlation, common_days).
+    Both legs are candidates of the trading year after the formation period.
     Filters: same sector, corr >= MIN_CORR, >= MIN_CORR_DAYS common days.
     Ranked by correlation (desc). Capped at _MAX_CANDIDATES to bound runtime.
     """
     fs = formation_start.isoformat()
     fe = formation_end.isoformat()
+    year = formation_end.year + 1
 
     rows = con.execute(f"""
         WITH daily_ret AS (
-            SELECT p.symbol, p.trade_date,
-                (p.adjClose - LAG(p.adjClose) OVER (PARTITION BY p.symbol ORDER BY p.trade_date))
-                    / NULLIF(LAG(p.adjClose) OVER (PARTITION BY p.symbol ORDER BY p.trade_date), 0)
+            SELECT p.symbol, c.sector, p.trade_date,
+                (p.adjClose - LAG(p.adjClose) OVER (PARTITION BY p.symbol ORDER BY p.trade_date, p.adjClose DESC NULLS LAST))
+                    / NULLIF(LAG(p.adjClose) OVER (PARTITION BY p.symbol ORDER BY p.trade_date, p.adjClose DESC NULLS LAST), 0)
                 AS ret
             FROM prices_cache p
+            JOIN candidates c ON c.symbol = p.symbol AND c.yr = {year}
             WHERE p.trade_date >= '{fs}' AND p.trade_date <= '{fe}'
-              AND p.symbol != 'SPY'
-              AND p.symbol IN (SELECT symbol FROM sector_map)
         ),
         pair_corr AS (
             SELECT
                 a.symbol AS sym_a,
                 b.symbol AS sym_b,
-                sm_a.sector,
+                a.sector,
                 ROUND(CORR(a.ret, b.ret), 4) AS correlation,
                 COUNT(*) AS common_days
             FROM daily_ret a
             JOIN daily_ret b
                 ON a.trade_date = b.trade_date AND a.symbol < b.symbol
-            JOIN sector_map sm_a ON a.symbol = sm_a.symbol
-            JOIN sector_map sm_b ON b.symbol = sm_b.symbol
+               AND a.sector = b.sector
             WHERE a.ret IS NOT NULL AND b.ret IS NOT NULL
-              AND sm_a.sector = sm_b.sector
-            GROUP BY a.symbol, b.symbol, sm_a.sector
+            GROUP BY a.symbol, b.symbol, a.sector
             HAVING COUNT(*) >= {MIN_CORR_DAYS}
         )
         SELECT sym_a, sym_b, sector, correlation, common_days
         FROM pair_corr
         WHERE correlation >= {MIN_CORR}
+          AND NOT isnan(correlation)
         ORDER BY correlation DESC, sym_a, sym_b
         LIMIT {_MAX_CANDIDATES}
     """).fetchall()
@@ -357,6 +281,31 @@ def estimate_spread_params(con, sym_a, sym_b, formation_start, formation_end):
     return beta, mean_s, std_s, half_life
 
 
+def entered_pairs(con, selected, trading_start, trading_end, offset_days=1, ltp=None):
+    """The pairs of `selected` entered for the year that starts at trading_start.
+
+    A pair is entered when each leg's entry bar, its first bar in [trading_start + offset_days,
+    that day + ENTRY_WINDOW_DAYS] (data_utils.get_prices), prints MIN_LEG_PRICE or more and is
+    dated inside the pair's delisting bound (ltp.bound, as in simulate_pair_trades). No later
+    bar is read: the year's cash decision rests on this list, and only these pairs trade.
+    """
+    entry = get_prices(con, sorted({s for pair in selected for s in pair[:2]}), trading_start,
+                       window_days=ENTRY_WINDOW_DAYS, offset_days=offset_days, with_epochs=True)
+    entered = []
+    for pair in selected:
+        sym_a, sym_b = pair[0], pair[1]
+        pa_row, pb_row = entry.get(sym_a), entry.get(sym_b)   # (adjClose, bar epoch)
+        if not pa_row or not pb_row:
+            continue
+        if float(pa_row[0]) < MIN_LEG_PRICE or float(pb_row[0]) < MIN_LEG_PRICE:
+            continue
+        bound = ltp.bound(sym_a, sym_b, trading_start, trading_end) if ltp is not None else trading_end
+        if utc_date(max(pa_row[1], pb_row[1])) > bound:   # a bar past a leg's delisting bound is a repeat
+            continue
+        entered.append(pair)
+    return entered
+
+
 def compute_spread_vol_during_formation(con, sym_a, sym_b, beta,
                                         formation_start, formation_end):
     """Compute annualised spread RETURN volatility during the formation period.
@@ -406,7 +355,7 @@ def compute_spread_vol_during_formation(con, sym_a, sym_b, beta,
 
 def simulate_pair_trades(con, sym_a, sym_b, beta,
                           trading_start, trading_end,
-                          mc_a, mc_b, use_costs=True, offset_days=1):
+                          mc_a, mc_b, use_costs=True, offset_days=1, ltp=None):
     """Simulate active z-score trading for one pair during the trading year.
 
     Fetches daily z-scores for the pair, then iterates day by day tracking
@@ -416,23 +365,30 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
     Exit: |z| < Z_EXIT (0.5)  →  convergence
           holding_days >= MAX_HOLD_DAYS  →  time stop
           pair P&L <= LOSS_STOP (-5%)    →  loss stop
-          year end                       →  forced close
+          last common bar                →  forced close
+
+    mc_a, mc_b: each leg's market cap in USD (None: the smallest-cap cost tier).
+    ltp: pairs_universe.PairLtp. It bounds the bars by a leg's delisting and labels
+    the forced close 'last_bar' or 'year_end'.
 
     Returns list of trade dicts, or None if no prices available.
     Each trade dict:
         entry_date, exit_date, entry_z, exit_z,
-        exit_type ('convergence'|'time_stop'|'loss_stop'|'year_end'),
+        exit_type ('convergence'|'time_stop'|'loss_stop'|'last_bar'|'year_end'),
         holding_days, pair_return (after costs)
     """
-    # Warmup: need Z_LOOKBACK calendar days before trading_start for valid z-scores
+    # Warmup: twice Z_LOOKBACK in calendar days, so weekday bars fill the window by trading_start
     warmup_start = trading_start - timedelta(days=Z_LOOKBACK * 2)
+    last_day = ltp.bound(sym_a, sym_b, trading_start, trading_end) if ltp is not None else trading_end
+    # Half the pair's capital sits in each leg, so a round trip costs each leg's one-way rate once.
+    cost = (tiered_cost(mc_a) + tiered_cost(mc_b)) if use_costs else 0.0
 
     rows = con.execute(f"""
         WITH log_prices AS (
             SELECT symbol, trade_date, LN(adjClose) AS lp, adjClose
             FROM prices_cache
             WHERE trade_date >= '{warmup_start.isoformat()}'
-              AND trade_date <= '{trading_end.isoformat()}'
+              AND trade_date <= '{last_day.isoformat()}'
               AND symbol IN ('{sym_a}', '{sym_b}')
               AND adjClose > 0
         ),
@@ -451,7 +407,8 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
                 trade_date,
                 pa, pb, spread,
                 (spread - AVG(spread) OVER w)
-                    / NULLIF(STDDEV(spread) OVER w, 0) AS z_score
+                    / NULLIF(STDDEV(spread) OVER w, 0) AS z_score,
+                COUNT(*) OVER w AS window_bars
             FROM paired
             WINDOW w AS (ORDER BY trade_date
                          ROWS BETWEEN {Z_LOOKBACK - 1} PRECEDING AND CURRENT ROW)
@@ -460,6 +417,7 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
         FROM with_z
         WHERE trade_date >= '{trading_start.isoformat()}'
           AND z_score IS NOT NULL
+          AND window_bars = {Z_LOOKBACK}
         ORDER BY trade_date
     """).fetchall()
 
@@ -467,38 +425,65 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
         return None
 
     trades = []
-    in_position     = False
-    entry_idx       = None
-    entry_z         = None
-    entry_pa        = None
-    entry_pb        = None
-    direction       = None   # +1 = long_spread (buy A, short B); -1 = short_spread
-    trading_day     = 0
-    pending_entry   = False  # MOC: signal fired, waiting for next-day execution
-    pending_z       = None
-    pending_dir     = None
+    in_position       = False
+    entry_idx         = None
+    entry_z           = None
+    entry_pa          = None
+    entry_pb          = None
+    direction         = None   # +1 = long_spread (buy A, short B); -1 = short_spread
+    trading_day       = 0      # trading days since entry
+    pending_entry_z   = None   # MOC: entry signal z-score, enter at next row's prices
+    pending_exit_type = None   # MOC: exit type flagged, execute at next row's prices
+
+    def _append_trade(ed, xd, ez, xz, xt, hd, pr):
+        trades.append({
+            "entry_date":   ed.isoformat() if hasattr(ed, "isoformat") else str(ed),
+            "exit_date":    xd.isoformat() if hasattr(xd, "isoformat") else str(xd),
+            "entry_z":      round(ez, 3),
+            "exit_z":       round(float(xz), 3) if xz is not None else 0.0,
+            "exit_type":    xt,
+            "holding_days": hd,
+            "pair_return":  round(pr, 6),
+        })
 
     for i, row in enumerate(rows):
         trade_date, pa, pb = row[0], float(row[1]), float(row[2])
         z = row[3]
         if z is None or math.isnan(z):
-            pending_entry = False  # stale signal
             continue
 
+        # ── Execute pending exit at today's prices (signal fired yesterday) ────
+        if pending_exit_type is not None and in_position:
+            exit_type         = pending_exit_type
+            pending_exit_type = None
+            ret_a      = (pa - entry_pa) / entry_pa
+            ret_b      = (pb - entry_pb) / entry_pb
+            pair_return = direction * (ret_a - ret_b) / 2.0
+            pair_return -= cost
+            pair_return = max(pair_return, -MAX_SINGLE_RETURN)
+            _append_trade(rows[entry_idx][0], trade_date,
+                          entry_z, z, exit_type, trading_day, pair_return)
+            in_position = False
+            entry_idx   = None
+            trading_day = 0
+
+        # ── Execute pending entry at today's prices (signal fired yesterday) ───
+        if pending_entry_z is not None and not in_position:
+            sig_z           = pending_entry_z
+            pending_entry_z = None
+            in_position = True
+            entry_idx   = i
+            entry_z     = sig_z
+            entry_pa    = pa
+            entry_pb    = pb
+            direction   = -1 if sig_z > 0 else 1
+            trading_day = 0
+            continue  # don't evaluate exits on entry bar
+
         if not in_position:
-            if pending_entry and offset_days > 0:
-                # Execute at today's price (next-day MOC relative to signal)
-                in_position   = True
-                entry_idx     = i
-                entry_z       = pending_z
-                entry_pa      = pa
-                entry_pb      = pb
-                direction     = pending_dir
-                trading_day   = 0
-                pending_entry = False
-            elif abs(z) >= Z_ENTRY:
+            # Entry condition: |z| first crosses Z_ENTRY
+            if abs(z) >= Z_ENTRY:
                 if offset_days == 0:
-                    # Same-day entry (legacy mode)
                     in_position = True
                     entry_idx   = i
                     entry_z     = z
@@ -507,13 +492,11 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
                     direction   = -1 if z > 0 else 1
                     trading_day = 0
                 else:
-                    # Signal fired; enter next day
-                    pending_entry = True
-                    pending_z     = z
-                    pending_dir   = -1 if z > 0 else 1
+                    pending_entry_z = z   # enter tomorrow
         else:
             trading_day += 1
 
+            # Current pair P&L (equal-dollar, market-neutral)
             ret_a = (pa - entry_pa) / entry_pa
             ret_b = (pb - entry_pb) / entry_pb
             pair_return = direction * (ret_a - ret_b) / 2.0
@@ -527,67 +510,51 @@ def simulate_pair_trades(con, sym_a, sym_b, beta,
                 exit_type = "loss_stop"
 
             if exit_type:
-                if use_costs:
-                    cost = 2 * tiered_cost(mc_a) + 2 * tiered_cost(mc_b)
+                if offset_days == 0:
                     pair_return -= cost
-                pair_return = max(pair_return, -MAX_SINGLE_RETURN)
+                    pair_return = max(pair_return, -MAX_SINGLE_RETURN)
+                    _append_trade(rows[entry_idx][0], trade_date,
+                                  entry_z, z, exit_type, trading_day, pair_return)
+                    in_position = False
+                    entry_idx   = None
+                    trading_day = 0
+                else:
+                    pending_exit_type = exit_type   # exit tomorrow
 
-                trades.append({
-                    "entry_date":   rows[entry_idx][0].isoformat()
-                                    if hasattr(rows[entry_idx][0], "isoformat")
-                                    else str(rows[entry_idx][0]),
-                    "exit_date":    trade_date.isoformat()
-                                    if hasattr(trade_date, "isoformat")
-                                    else str(trade_date),
-                    "entry_z":      round(entry_z, 3),
-                    "exit_z":       round(z, 3),
-                    "exit_type":    exit_type,
-                    "holding_days": trading_day,
-                    "pair_return":  round(pair_return, 6),
-                })
-                in_position = False
-                entry_idx   = None
-                trading_day = 0
-
-    # Force-close open position at year end
+    # Force-close: a position still open at the pair's last common bar closes there
     if in_position and rows:
         last = rows[-1]
         last_date, last_pa, last_pb, last_z = last[0], float(last[1]), float(last[2]), last[3]
         if last_pa and last_pb and entry_pa and entry_pb:
+            if ltp is not None:   # an exit queued for a bar that never came is a forced close too
+                final_exit = ltp.close(sym_a, sym_b, rows[entry_idx][0], last_date,
+                                       trading_start, trading_end)
+            else:
+                final_exit = pending_exit_type if pending_exit_type else "year_end"
             ret_a = (last_pa - entry_pa) / entry_pa
             ret_b = (last_pb - entry_pb) / entry_pb
             pair_return = direction * (ret_a - ret_b) / 2.0
-            if use_costs:
-                cost = 2 * tiered_cost(mc_a) + 2 * tiered_cost(mc_b)
-                pair_return -= cost
+            pair_return -= cost
             pair_return = max(pair_return, -MAX_SINGLE_RETURN)
             trading_day = len(rows) - 1 - entry_idx
-
-            trades.append({
-                "entry_date":   rows[entry_idx][0].isoformat()
-                                if hasattr(rows[entry_idx][0], "isoformat")
-                                else str(rows[entry_idx][0]),
-                "exit_date":    last_date.isoformat()
-                                if hasattr(last_date, "isoformat")
-                                else str(last_date),
-                "entry_z":      round(entry_z, 3),
-                "exit_z":       round(float(last_z), 3) if last_z else 0.0,
-                "exit_type":    "year_end",
-                "holding_days": trading_day,
-                "pair_return":  round(pair_return, 6),
-            })
+            _append_trade(rows[entry_idx][0], last_date,
+                          entry_z, last_z, final_exit, trading_day, pair_return)
 
     return trades if trades else None
 
 
 def run_backtest_multi(con, use_costs=True, verbose=False,
-                       benchmark_symbol="SPY", offset_days=1):
+                       benchmark_symbol="SPY", offset_days=1, ltp=None):
     """Run annual multi-pair backtest (START_YEAR to END_YEAR).
 
     Identical formation and signal logic as pairs-zscore, but collects
     per-pair annual returns rather than aggregating to a single portfolio.
     This allows compute_portfolio_for_size() to test different N and
     allocation methods in a post-processing step.
+
+    Reads con's candidates (one list per trading year) and prices_cache.
+    ltp: pairs_universe.PairLtp for the forced closes (see simulate_pair_trades) and the entry
+    bound (see entered_pairs). A formed pair that is not entered sits the year out.
 
     Returns:
         (per_year_data, aggregate_trade_stats)
@@ -596,7 +563,7 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
         {
           "year": int,
           "spy_return": float or None,
-          "pairs": [
+          "pairs": [            # the entered pairs, by correlation
               {
                   "sym_a", "sym_b", "sector", "correlation",
                   "spread_vol_ann": float or None,
@@ -604,7 +571,9 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
                   "n_trades": int,
                   "convergence_rate": float or None
               }, ...
-          ]
+          ],
+          "formation": {pairs_formed, pairs_entered, same_company_pairs,
+                        pairs: [{a, b, sector, corr}] of every formed pair}
         }
 
     aggregate_trade_stats: dict — totals across all years/pairs.
@@ -641,6 +610,8 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
 
         # Select the top max_n pairs (already ordered by correlation)
         selected = filtered_pairs[:max_n]
+        # Two lines of one company, or a NaN correlation, stop the run.
+        same_company = check_pairs(con, year, [(p[0], p[1], p[3]) for p in selected])
 
         if verbose:
             print(f"  {year}: {len(candidates)} corr candidates → "
@@ -665,37 +636,19 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
             if bench_s > 0:
                 spy_ret = (bench_e - bench_s) / bench_s
 
-        # ── Step 4: Compute spread vols and simulate trades ───────────────────
+        # ── Step 4: Pairs entered, on their entry bars alone ──────────────────
+        entered = entered_pairs(con, selected, trading_start, trading_end, offset_days, ltp)
+
+        # ── Step 5: Compute spread vols and simulate trades ───────────────────
+        # Cash is decided here, before any later bar is read: under MIN_PAIRS_ACTIVE entered pairs the year trades nothing.
+        n_formed, n_entered = len(selected), len(entered)
+        invested = n_entered >= MIN_PAIRS_ACTIVE
+        # Cost tier: each leg's USD market cap for this trading year (None: the smallest-cap tier).
+        caps = dict(con.execute("SELECT symbol, cap_usd FROM candidates WHERE yr = ?",
+                                [year]).fetchall())
         pair_results = []
 
-        for (sym_a, sym_b, sector, corr, beta, _mean, _std, half_life) in selected:
-            # Price check at trading start
-            pa_row = con.execute(f"""
-                SELECT adjClose FROM prices_cache
-                WHERE symbol = '{sym_a}'
-                  AND trade_date >= '{trading_start.isoformat()}'
-                ORDER BY trade_date ASC, adjClose DESC NULLS LAST LIMIT 1
-            """).fetchone()
-            pb_row = con.execute(f"""
-                SELECT adjClose FROM prices_cache
-                WHERE symbol = '{sym_b}'
-                  AND trade_date >= '{trading_start.isoformat()}'
-                ORDER BY trade_date ASC, adjClose DESC NULLS LAST LIMIT 1
-            """).fetchone()
-            if not pa_row or not pb_row:
-                continue
-            if float(pa_row[0]) < MIN_LEG_PRICE or float(pb_row[0]) < MIN_LEG_PRICE:
-                continue
-
-            mc_a_row = con.execute(
-                f"SELECT marketCap FROM mcap_map WHERE symbol = '{sym_a}'"
-            ).fetchone()
-            mc_b_row = con.execute(
-                f"SELECT marketCap FROM mcap_map WHERE symbol = '{sym_b}'"
-            ).fetchone()
-            mc_a = float(mc_a_row[0]) if mc_a_row else 1e9
-            mc_b = float(mc_b_row[0]) if mc_b_row else 1e9
-
+        for (sym_a, sym_b, sector, corr, beta, _mean, _std, half_life) in entered:
             # Spread vol (annualised) during formation — used for inv-vol weights
             spread_vol_ann = compute_spread_vol_during_formation(
                 con, sym_a, sym_b, beta, formation_start, formation_end
@@ -704,8 +657,9 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
             trades = simulate_pair_trades(
                 con, sym_a, sym_b, beta,
                 trading_start, trading_end,
-                mc_a, mc_b, use_costs=use_costs, offset_days=offset_days
-            )
+                caps.get(sym_a), caps.get(sym_b), use_costs=use_costs,
+                offset_days=offset_days, ltp=ltp
+            ) if invested else None
 
             annual_return = 0.0
             n_trades      = 0
@@ -737,11 +691,20 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
             "year":       year,
             "spy_return": spy_ret,
             "pairs":      pair_results,
+            "formation":  {
+                "pairs_formed":       n_formed,
+                "pairs_entered":      n_entered,
+                "same_company_pairs": same_company,
+                "pairs":              [{"a": p[0], "b": p[1], "sector": p[2], "corr": p[3]}
+                                       for p in selected],
+            },
         })
 
         if verbose:
             n_with_trades = sum(1 for p in pair_results if p["n_trades"] > 0)
-            print(f"    → {n_with_trades}/{len(pair_results)} pairs traded")
+            cash_marker = "" if invested else " [CASH]"
+            print(f"    → {n_with_trades}/{n_entered} entered pairs traded "
+                  f"({n_formed} formed){cash_marker}")
 
     # ── Aggregate trade statistics ─────────────────────────────────────────────
     trade_stats = {}
@@ -751,6 +714,7 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
         n_time   = sum(1 for t in all_trades if t["exit_type"] == "time_stop")
         n_loss   = sum(1 for t in all_trades if t["exit_type"] == "loss_stop")
         n_end    = sum(1 for t in all_trades if t["exit_type"] == "year_end")
+        n_last   = sum(1 for t in all_trades if t["exit_type"] == "last_bar")
         avg_hold = sum(t["holding_days"] for t in all_trades) / n
         avg_pl   = sum(t["pair_return"]  for t in all_trades) / n
         trade_stats = {
@@ -759,6 +723,7 @@ def run_backtest_multi(con, use_costs=True, verbose=False,
             "time_stop_rate":       round(n_time * 100.0 / n, 1),
             "loss_stop_rate":       round(n_loss * 100.0 / n, 1),
             "year_end_rate":        round(n_end  * 100.0 / n, 1),
+            "last_bar_rate":        round(n_last * 100.0 / n, 1),
             "avg_holding_days":     round(avg_hold, 1),
             "avg_trade_return_pct": round(avg_pl * 100, 3),
         }
@@ -774,17 +739,21 @@ def compute_portfolio_for_size(per_year_data, n_pairs, allocation):
         n_pairs: int — number of top pairs (by correlation) to include
         allocation: "equal" or "inverse_vol"
 
+    A year is cash when fewer than MIN_PAIRS_ACTIVE of the book's pairs are entered.
+
     Returns:
         list of {year, portfolio_return, spy_return, n_active, is_cash}
     """
     results = []
     for yd in per_year_data:
-        pairs   = yd["pairs"][:n_pairs]   # top N by correlation (already sorted)
+        pairs   = yd["pairs"][:n_pairs]   # top N entered pairs by correlation (already sorted)
         spy_ret = yd["spy_return"]
 
         n_active = sum(1 for p in pairs if p["n_trades"] > 0)
+        # Cash on the entry-side count, known in January; n_active is known only at year end.
+        n_entered = len(pairs)
 
-        if n_active < MIN_PAIRS_ACTIVE or not pairs:
+        if n_entered < MIN_PAIRS_ACTIVE or not pairs:
             results.append({
                 "year":             yd["year"],
                 "portfolio_return": 0.0,
@@ -896,11 +865,13 @@ def build_diversification_analysis(per_year_data, risk_free_rate=0.02):
 
 def build_output(m, per_year_data, primary_yearly, diversification_analysis,
                  trade_stats, universe_name, benchmark_name="S&P 500",
-                 benchmark_symbol="SPY"):
+                 benchmark_symbol="SPY", per_year=None, listing_filter=None, ltp_block=None):
     """Build JSON output in standard exchange_comparison format.
 
     Primary portfolio = 20-pair inverse_vol configuration.
     Also embeds diversification_analysis for generate_charts.py.
+    per_year: build_candidates' {year: counts}, merged into each year's record.
+    listing_filter: campaign_listing_label() of the leg. ltp_block: PairLtp.closes_block().
     """
     p = m["portfolio"]
     b = m["benchmark"]
@@ -940,18 +911,21 @@ def build_output(m, per_year_data, primary_yearly, diversification_analysis,
     for y in primary_yearly:
         if y["spy_return"] is None:
             continue
+        yd = [d for d in per_year_data if d["year"] == y["year"]][0]
         annual_rows.append({
             "year":             y["year"],
             "portfolio":        round(y["portfolio_return"] * 100, 2),
             "spy":              round(y["spy_return"] * 100, 2),
             "excess":           round((y["portfolio_return"] - y["spy_return"]) * 100, 2),
-            "n_pairs_formed":   len([yd for yd in per_year_data
-                                     if yd["year"] == y["year"]][0]["pairs"]),
             "n_active":         y["n_active"],
             "is_cash":          y["is_cash"],
+            # the year's universe: candidates, sectors and the other build_candidates counts
+            **(per_year or {}).get(y["year"], {}),
+            # pairs_formed, pairs_entered, same_company_pairs and the formed pairs
+            **yd["formation"],
         })
 
-    return {
+    out = {
         "universe":               universe_name,
         # B006: n_periods, total_rebalances, cash_periods, invested_periods and
         # the window-provenance block, for the 20-pair inverse-vol primary
@@ -986,13 +960,30 @@ def build_output(m, per_year_data, primary_yearly, diversification_analysis,
         "win_rate_vs_spy":        pct(c.get("win_rate")),
         "annual_returns":         annual_rows,
         "diversification_analysis": diversification_analysis,
+        # Size look-ahead removed; survivorship reduced, not removed (see pairs_universe.py).
+        "universe_rule":          {**UNIVERSE_NOTES, "top_n_per_sector": TOP_N_PER_SECTOR,
+                                   "min_formation_bars": MIN_CORR_DAYS},
+        "listing_filter":         listing_filter,
+        "isin_dedup":             True,
+        "company_dedup":          True,
     }
+    if ltp_block is not None:
+        out.update({"exit_method": ltp_block["exit_method"], "ltp": ltp_block})
+    return out
+
+
+def diversification_path(output_path):
+    """The standalone diversification file of a results file: beside it, named after it."""
+    return os.path.join(os.path.dirname(output_path),
+                        "diversification_" + os.path.basename(output_path))
 
 
 def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
                verbose, output_path=None, offset_days=1,
-               benchmark_symbol="SPY", benchmark_name="S&P 500"):
+               benchmark_symbol="SPY", benchmark_name="S&P 500", *, exit_method):
     """Run backtest for a single exchange set. Returns output dict or None."""
+    if exit_method != "ltp":   # a pair has no drop book: both legs close at their last common bar
+        raise ValueError("pairs-multi-pair runs with --exit-method ltp only")
     exec_model = "next-day close (MOC)" if offset_days > 0 else "same-day close (biased)"
     signal_desc = (
         f"Same-sector corr > {MIN_CORR}, half-life {HALF_LIFE_MIN}-{HALF_LIFE_MAX}d, "
@@ -1000,25 +991,27 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
         f"equal + inverse_vol allocation"
     )
     print_header("MULTI-PAIR PORTFOLIO BACKTEST", universe_name, exchanges, signal_desc)
-    print(f"  Costs: {'size-tiered×4 legs' if use_costs else 'none'}  "
+    print(f"  Costs: {'size-tiered, one per leg and round trip' if use_costs else 'none'}  "
           f"RFR: {risk_free_rate*100:.1f}%  "
           f"Execution: {exec_model}  Benchmark: {benchmark_name} ({benchmark_symbol})")
     print("=" * 65)
 
     print("\nPhase 1: Fetching data via API...")
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, verbose=verbose,
-                             benchmark_symbol=benchmark_symbol)
-    if con is None:
+    fetched = fetch_data_via_api(cr, exchanges, verbose=verbose,
+                                 benchmark_symbol=benchmark_symbol, offset_days=offset_days)
+    if fetched is None:
         print("No data available. Skipping.")
         return None
+    con, per_year = fetched
+    ltp = PairLtp(con, load_delist_bounds(cr), verbose=verbose)
     print(f"Data fetched in {time.time()-t0:.0f}s")
 
     print(f"\nPhase 2: Running per-pair simulation ({START_YEAR}-{END_YEAR})...")
     t1 = time.time()
     per_year_data, trade_stats = run_backtest_multi(
         con, use_costs=use_costs, verbose=verbose,
-        benchmark_symbol=benchmark_symbol, offset_days=offset_days
+        benchmark_symbol=benchmark_symbol, offset_days=offset_days, ltp=ltp
     )
     print(f"Simulation completed in {time.time()-t1:.0f}s")
 
@@ -1055,6 +1048,7 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     if trade_stats:
         print(f"  Total trades (all pairs, all years): {trade_stats['total_trades']}")
         print(f"  Convergence rate: {trade_stats['convergence_rate']}%")
+        print(f"  Last-bar closes:  {trade_stats['last_bar_rate']}%")
         print(f"  Avg hold:         {trade_stats['avg_holding_days']} days")
         print(f"  Avg trade return: {trade_stats['avg_trade_return_pct']}%")
 
@@ -1103,7 +1097,9 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
     out = build_output(m, per_year_data, primary_yearly, diversification_analysis,
                        trade_stats, universe_name,
                        benchmark_name=benchmark_name,
-                       benchmark_symbol=benchmark_symbol)
+                       benchmark_symbol=benchmark_symbol,
+                       per_year=per_year, listing_filter=campaign_listing_label(exchanges),
+                       ltp_block=ltp.closes_block(exit_method))
 
     if output_path:
         out_dir = os.path.dirname(output_path)
@@ -1113,8 +1109,8 @@ def run_single(cr, exchanges, universe_name, use_costs, risk_free_rate,
             json.dump(out, f, indent=2)
         print(f"  Results saved to {output_path}")
 
-        # Also save standalone diversification_analysis.json
-        div_path = os.path.join(out_dir or ".", "diversification_analysis.json")
+        # Also save the standalone diversification file, one per results file
+        div_path = diversification_path(output_path)
         with open(div_path, "w") as f:
             json.dump(diversification_analysis, f, indent=2)
         print(f"  Diversification analysis saved to {div_path}")
@@ -1127,7 +1123,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="Multi-Pair Portfolio Construction Backtest (Annual Formation, Daily Signal)")
     add_common_args(parser)
+    add_exit_method_arg(parser)
     args = parser.parse_args()
+    if args.exit_method != "ltp":   # no drop book exists to publish or compare against
+        parser.error("pairs-multi-pair closes a pair at the last bar both legs traded: "
+                     "--exit-method ltp is the only mode")
 
     exchanges, universe_name = resolve_exchanges(args)
     use_costs = not args.no_costs
@@ -1175,7 +1175,8 @@ def main():
                                     use_costs, rfr, args.verbose, out_path,
                                     offset_days=offset_days,
                                     benchmark_symbol=bench_sym,
-                                    benchmark_name=bench_name)
+                                    benchmark_name=bench_name,
+                                    exit_method=args.exit_method)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -1241,7 +1242,8 @@ def main():
                args.verbose, args.output,
                offset_days=offset_days,
                benchmark_symbol=bench_sym,
-               benchmark_name=bench_name)
+               benchmark_name=bench_name,
+               exit_method=args.exit_method)
 
 
 if __name__ == "__main__":

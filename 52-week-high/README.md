@@ -1,12 +1,14 @@
 # 52-Week High Proximity
 
-Buys stocks closest to their 52-week high. George & Hwang (2004) showed that this signal — `adjClose / MAX(high over 252 trading days)` — explains much of what we call momentum, crashes less than classic 12-month momentum, and is driven by anchoring bias.
+Buys stocks closest to their 52-week high. George & Hwang (2004) showed that this signal — `close / MAX(high over 252 trading days)` — explains much of what we call momentum, crashes less than classic 12-month momentum, and is driven by anchoring bias.
 
 ## Signal
 
 ```
-proximity_ratio = adjClose / MAX(high over past 252 trading days)
+proximity_ratio = close / MAX(high over past 252 trading days)
 ```
+
+The signal bar is the latest bar on or up to 10 days before the rebalance date with volume > 0 (a stock with none is not ranked), and the 52-week high is the highest `high` over the 252 bars ending at it, untraded (zero or NULL volume) bars included.
 
 A ratio of 1.0 means the stock is exactly at its 52-week high. A ratio of 0.95 means 5% below. Higher ratio = stronger signal.
 
@@ -18,7 +20,7 @@ A ratio of 1.0 means the stock is exactly at its 52-week high. A ratio of 0.95 m
 
 | Parameter | Value |
 |-----------|-------|
-| Signal | adjClose / MAX(high, 252 trading days) |
+| Signal | close / MAX(high, 252 bars ending at the last traded bar on or up to 10 days before rebalance) |
 | Universe | Exchange-specific MCap threshold |
 | Selection | Top 30 by proximity ratio, equal weight |
 | Min stocks | 10 (cash if fewer qualify) |
@@ -68,5 +70,5 @@ python3 52-week-high/generate_charts.py
 
 - `high` column required from `stock_eod`. Data quality flags (sub-$1 adjClose, >200% single-period return) applied.
 - Minimum 100 trading days required before computing proximity ratio (avoids early-data noise).
-- Proximity > 1.1 treated as data artifact (adjClose exceeds computed 52-week high — can happen due to split adjustments).
+- Proximity > 1.1 treated as data artifact (close exceeds computed 52-week high — can happen due to split adjustments).
 - Exchanges excluded: ASX (adjClose/high artifacts), SAO (adjClose artifacts).

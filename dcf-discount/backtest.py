@@ -17,10 +17,13 @@ Key insight: screening condition FCF*13.67/MarketCap > 1.20 is equivalent to
 Parameters:
     g = 2.5% terminal growth, r = 10% discount rate, multiple = 13.67
     Discount threshold: 20% (FCF yield >= 8.78%)
+    FCF yield cap: 50% (the published regional screens use the same 8.78% to 50% band)
     MarketCap minimum: $1B
     Portfolio: Top 50 by FCF yield (= deepest discount), equal weight
     Rebalancing: Annual (April, after most FY filings are available)
-    Filing lag: 45 days. Staleness: 18 months.
+    Filing lag: 45 days. Staleness: 18 months. Each company is tested on its latest FY
+    filing in that window: one whose latest free cash flow is not positive, or not in the
+    market's reporting currency, is out.
 
 Academic reference: Gordon (1959) "Dividends, Earnings, and Stock Prices".
 Margin of safety concept: Graham & Dodd (1934) "Security Analysis".
@@ -49,7 +52,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg, utc_epoch,
                         get_local_benchmark, get_local_currency, get_benchmark_return,
-                        LOCAL_INDEX_BENCHMARKS, remove_price_oscillations)
+                        LOCAL_INDEX_BENCHMARKS, remove_price_oscillations,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -64,6 +68,7 @@ DISCOUNT_THRESHOLD = 0.20   # 20% discount to computed DCF
 # Condition: FCF * DCF_MULTIPLE / marketCap > (1 + DISCOUNT_THRESHOLD)
 # Equivalent FCF yield: (1 + DISCOUNT_THRESHOLD) / DCF_MULTIPLE
 FCF_YIELD_MIN = (1 + DISCOUNT_THRESHOLD) / DCF_MULTIPLE  # ~8.78%
+FCF_YIELD_MAX = 0.50        # FCF yield cap, as in the published regional screens
 
 # MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold()
 MAX_STOCKS = 50
@@ -79,7 +84,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     Populates tables:
         universe(symbol VARCHAR)
-        fcf_cache(symbol, freeCashFlow, filing_epoch, period)
+        fcf_cache(symbol, freeCashFlow, ccy_ok, filing_epoch, period)
         metrics_cache(symbol, marketCap, filing_epoch, period)
         prices_cache(symbol, trade_epoch, adjClose)
 
@@ -88,19 +93,22 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     # Quality filters at universe selection: exclude funds and ETFs.
     # isActivelyTrading is deliberately NOT used: it is today's snapshot, so it would
     # drop names delisted since and add survivorship bias to a historical run (B041).
-    # Currency filter on cash_flow_statement excludes foreign-listed parent filings
-    # (e.g., Lam Research's German XETRA listing reports USD against EUR mktcap,
-    # producing unit-mismatched FCF yields).
+    # Currency rule: a cash-flow filing counts only in the leg's reporting currency (ccy_ok,
+    # tested in screen_stocks on the latest filing). It keeps the universe to local reporters;
+    # key_metrics.marketCap is in the reporting currency too, so it is not a unit fix.
     quality_filters = "AND isFund = false AND isEtf = false"
     local_ccy = get_local_currency(exchanges) if exchanges else None
-    ccy_filter = f"AND reportedCurrency = '{local_ccy}'" if local_ccy else ""
+    ccy_ok_sql = f"reportedCurrency = '{local_ccy}'" if local_ccy else "TRUE"
+    # Campaign listing rule; sym_filter_sql carries it (the screen skips `universe`).
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
 
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter}) {quality_filters}"
+        exchange_where = f"WHERE exchange IN ({ex_filter}) {quality_filters}{listing_and}"
         sym_filter_sql = (
             f"symbol IN (SELECT DISTINCT symbol FROM profile "
-            f"WHERE exchange IN ({ex_filter}) {quality_filters})"
+            f"WHERE exchange IN ({ex_filter}) {quality_filters}{listing_and})"
         )
     else:
         exchange_where = f"WHERE 1=1 {quality_filters}"
@@ -108,6 +116,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
             f"symbol IN (SELECT DISTINCT symbol FROM profile "
             f"WHERE 1=1 {quality_filters})"
         )
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -125,16 +135,15 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     sym_values = ",".join(f"('{r['symbol']}')" for r in profiles)
     con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
-    # 2. FCF from cash_flow_statement (FY only, positive FCF, local currency)
+    # 2. Every FY cash-flow and key-metrics filing, passing or not: screen_stocks tests the LATEST one.
     queries = [
         ("fcf_cache", f"""
-            SELECT symbol, freeCashFlow, dateEpoch AS filing_epoch, period
+            SELECT symbol, freeCashFlow, {ccy_ok_sql} AS ccy_ok, dateEpoch AS filing_epoch, period
             FROM cash_flow_statement
             WHERE period = 'FY'
-              AND freeCashFlow IS NOT NULL
-              AND freeCashFlow > 0
-              {ccy_filter}
               AND {sym_filter_sql}
         """, "cash flow (free cash flow)"),
 
@@ -142,8 +151,6 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
             SELECT symbol, marketCap, dateEpoch AS filing_epoch, period
             FROM key_metrics
             WHERE period = 'FY'
-              AND marketCap IS NOT NULL
-              AND marketCap > 0
               AND {sym_filter_sql}
         """, "key metrics (market cap)"),
     ]
@@ -154,11 +161,11 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                               limit=2000000, timeout=600, memory_mb=4096, threads=2)
         print(f"    -> {count} rows")
 
-    # 3. Prices (only at rebalance dates, +10 day window each)
+    # 3. Prices (only at rebalance dates, +11 day window each)
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
@@ -194,10 +201,11 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for high FCF yield (= deep DCF discount) stocks.
 
-    Signal: FCF/MarketCap >= FCF_YIELD_MIN (equivalent to 20% DCF discount).
+    Signal: FCF/MarketCap from FCF_YIELD_MIN (equivalent to 20% DCF discount) to FCF_YIELD_MAX,
+    on each company's latest FY filing.
     Returns list of (symbol, market_cap) tuples sorted by FCF yield DESC (deepest discount first).
     """
     # 45-day lag for point-in-time (most FY filings available 6 weeks after fiscal year end)
@@ -205,11 +213,12 @@ def screen_stocks(con, target_date, mktcap_min):
     # Staleness: only use filings within last 18 months
     earliest_epoch = utc_epoch(target_date - timedelta(days=540))
 
-    rows = con.execute("""
+    # Latest FY filing first, THEN the tests: testing first kept a name on its last positive-FCF filing.
+    candidates = """
         WITH fcf AS (
-            SELECT symbol, freeCashFlow, filing_epoch,
+            SELECT symbol, freeCashFlow, ccy_ok, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
-                    freeCashFlow DESC NULLS LAST) AS rn
+                    freeCashFlow DESC NULLS LAST, ccy_ok DESC NULLS LAST) AS rn
             FROM fcf_cache
             WHERE filing_epoch <= ? AND filing_epoch >= ?
         ),
@@ -225,12 +234,20 @@ def screen_stocks(con, target_date, mktcap_min):
         FROM fcf f
         JOIN km ON f.symbol = km.symbol AND km.rn = 1
         WHERE f.rn = 1
+          AND f.freeCashFlow > 0
+          AND f.ccy_ok
           AND km.marketCap >= ?
           AND f.freeCashFlow / km.marketCap >= ?
-        ORDER BY fcf_yield DESC, f.symbol
+          AND f.freeCashFlow / km.marketCap <= ?
+    """
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot.
+    rows = con.execute(f"""
+        SELECT symbol, marketCap, fcf_yield
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        ORDER BY fcf_yield DESC, symbol
         LIMIT ?
     """, [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,
-          mktcap_min, FCF_YIELD_MIN, MAX_STOCKS]).fetchall()
+          mktcap_min, FCF_YIELD_MIN, FCF_YIELD_MAX, MAX_STOCKS]).fetchall()
 
     return [(r[0], r[1]) for r in rows]
 
@@ -244,7 +261,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         if len(portfolio) < MIN_STOCKS:
             bench_return = get_benchmark_return(
@@ -437,7 +454,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     mktcap_min = get_mktcap_threshold(exchanges)
     benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
     exec_model = "Same-day close" if offset_days == 0 else "Next-day MOC"
-    signal_desc = (f"FCF yield >= {FCF_YIELD_MIN*100:.2f}% (= {DISCOUNT_THRESHOLD*100:.0f}% DCF discount), "
+    signal_desc = (f"FCF yield {FCF_YIELD_MIN*100:.2f}% (= {DISCOUNT_THRESHOLD*100:.0f}% DCF discount) to "
+                   f"{FCF_YIELD_MAX*100:.0f}% on the latest FY filing, "
                    f"MCap >= {mktcap_min/1e9:.0f}B local, top {MAX_STOCKS} by FCF yield")
     print_header("DCF DISCOUNT BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Gordon Growth Model: g={GROWTH_RATE*100:.1f}%, r={DISCOUNT_RATE*100:.0f}%, "
@@ -462,7 +480,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    # prices_cache only holds [R, R+10d] windows, so LTP reads remote stock_eod.
+    # prices_cache only holds [R, R+11d] windows, so LTP reads remote stock_eod.
     ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_min, use_costs=use_costs,
                            verbose=verbose, offset_days=offset_days,
@@ -510,6 +528,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 

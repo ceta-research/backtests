@@ -32,7 +32,7 @@ The key finding: going from 5 to 15 pairs roughly halves the maximum drawdown. B
 | Z-score exit | \|z\| < 0.5 |
 | Time stop | 60 trading days |
 | Loss stop | -5% pair P&L |
-| Min active pairs | 3 (cash period if fewer pairs trade) |
+| Min entered pairs | 3. A year with fewer than 3 entered pairs is cash. A pair is entered when each leg's first bar from 1 January plus the execution offset to ten days later prints 1.00 or more, inside the pair's delisting bound. A pair that is not entered does not trade that year. |
 
 ---
 

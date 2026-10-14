@@ -5,8 +5,12 @@
 Buys the top 30 stocks nearest to their 52-week high (highest proximity ratio)
 within each exchange. Quarterly rebalancing.
 
-Signal: adjClose / MAX(high over 252 trading days) per George & Hwang (2004).
+Signal: close / MAX(high over 252 trading days) per George & Hwang (2004).
+        Both split-adjusted, neither dividend-adjusted; adjClose prices returns only.
+        Signal bar: the latest bar in [R - 10d, R] with volume > 0 (none: not ranked);
+        the high spans the 252 bars ending there, untraded (zero or NULL volume) bars included.
         Higher ratio = stock closer to its 52-week high = stronger momentum signal.
+        Exact ties rank by larger market cap, then symbol.
         No skip-month needed (unlike classic 12-1 momentum).
 
 Universe: MCap > exchange threshold (from key_metrics FY). Price > $1.
@@ -38,7 +42,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, utc_epoch)
+                         remove_price_oscillations, utc_epoch,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -49,14 +54,14 @@ from cli_utils import (add_common_args, resolve_exchanges, print_header,
 HIGH_WINDOW_DAYS = 365       # Calendar days for 252 trading day window
 HIGH_WINDOW_FETCH = 390      # Days before rebalance to fetch prices (252td + buffer)
 MIN_HISTORY_ROWS = 100       # Minimum trading days required to compute valid 52w high
-SIGNAL_TOLERANCE_DAYS = 10   # Signal bar = latest bar in [R - 10d, R]; covers weekends + year-end holidays
+SIGNAL_TOLERANCE_DAYS = 10   # Signal bar = latest bar in [R - 10d, R] with volume > 0; covers weekends + year-end holidays
 MAX_STOCKS = 30              # Top N by proximity, equal weight
 MIN_STOCKS = 10              # Hold cash if fewer qualify
 DEFAULT_FREQUENCY = "quarterly"
 DEFAULT_REBALANCE_MONTHS = [1, 4, 7, 10]   # Jan / Apr / Jul / Oct
 MAX_SINGLE_RETURN = 2.0      # Cap at 200% per stock (data quality guard)
 MIN_ENTRY_PRICE = 1.0        # Skip sub-$1 entry prices (price data artifacts)
-MAX_PROXIMITY = 1.1          # Proximity > 1.1 likely a data error (adjClose > 52w high)
+MAX_PROXIMITY = 1.1          # Proximity > 1.1 likely a data error (close > 52w high)
 
 # Development compute (max resources)
 FETCH_MEMORY_MB = 4096
@@ -70,16 +75,21 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         universe(symbol VARCHAR)
         metrics_cache(symbol, marketCap, filing_epoch, period)
             -- used for point-in-time market cap filter only
-        prices_cache(symbol, trade_epoch, adjClose, high)
+        prices_cache(symbol, trade_epoch, adjClose, close, high, volume)
             -- extended window: 52W lookback + entry date per rebalance date
 
     Returns DuckDB connection or None.
     """
+    # Campaign listing rule; sym_filter_sql carries it into the market-cap and price fetches.
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
     else:
         exchange_where = ""
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='8GB'")
@@ -98,10 +108,12 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
 
     if exchanges:
         sym_filter_sql = (
-            f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+            f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
         )
     else:
         sym_filter_sql = "1=1"
+    # symbol -> ISIN (+ live, home-currency flags) for compute_proximity's same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Historical market cap (from key_metrics FY filings, point-in-time)
     print("  Fetching historical market cap...")
@@ -117,16 +129,16 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                           memory_mb=FETCH_MEMORY_MB, threads=FETCH_THREADS)
     print(f"    -> {count} market cap rows")
 
-    # 3. Prices — HIGH_WINDOW_FETCH days before each rebalance through entry end (R+10)
-    # Need both adjClose (for entry/exit returns) AND high (for 52w high computation).
-    # Window per rebalance date: [R - HIGH_WINDOW_FETCH, R + 10]
+    # 3. Prices — HIGH_WINDOW_FETCH days before each rebalance through entry end (R+11)
+    # adjClose prices entry/exit returns; close and high (split-adjusted, dividends left in) make the signal.
+    # Window per rebalance date: [R - HIGH_WINDOW_FETCH, R + 11]
     # This covers: 252 trading days of high data + entry prices.
     # Exit prices for period i are covered by period i+1's entry window.
-    print("  Fetching prices (adjClose + high for 52w window)...")
+    print("  Fetching prices (adjClose + close/high for 52w window)...")
     date_conditions = []
     for d in rebalance_dates:
         fetch_start = d - timedelta(days=HIGH_WINDOW_FETCH)
-        entry_end = d + timedelta(days=10)
+        entry_end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(
             f"(date >= '{fetch_start.isoformat()}' AND date <= '{entry_end.isoformat()}')"
         )
@@ -144,7 +156,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     # Symbol pre-filter: only symbols with FY key_metrics (MCap data).
     exchange_fy_filter = f"AND {sym_filter_sql}" if sym_filter_sql != "1=1" else ""
     price_sql = f"""
-        SELECT symbol, dateEpoch as trade_epoch, adjClose, high, volume
+        SELECT symbol, dateEpoch as trade_epoch, adjClose, close, high, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
@@ -166,7 +178,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                           memory_mb=FETCH_MEMORY_MB, threads=FETCH_THREADS)
     con.execute("CREATE INDEX idx_prices_sym_epoch ON prices_cache(symbol, trade_epoch)")
     remove_price_oscillations(con, verbose=verbose)
-    print(f"    -> {count} price rows (adjClose + high, {HIGH_WINDOW_FETCH}-day window per date)")
+    print(f"    -> {count} price rows (adjClose + close/high, {HIGH_WINDOW_FETCH}-day window per date)")
 
     return con
 
@@ -195,17 +207,23 @@ def get_eligible_symbols(con, target_date, mktcap_min):
     return {r[0]: r[1] for r in rows}
 
 
-def compute_proximity(con, symbols, target_date):
-    """Compute 52-week high proximity ratio for a set of symbols at target_date.
+def compute_proximity(con, eligible, target_date, offset_days=1):
+    """Compute 52-week high proximity ratio for the eligible symbols at target_date.
 
-    proximity_ratio = adjClose(T) / MAX(high) over past 252 trading days
+    proximity_ratio = close(S) / MAX(high) over the 252 bars ending at S, untraded (zero or NULL volume)
+    bars included, S being the latest bar in [R - 10d, R] with volume > 0; a line with no such bar is not ranked.
+
+    Price basis on both sides: split-adjusted, dividends left in. adjClose is back-adjusted for
+    every later dividend, so it would rank a name by what it paid out after the rebalance date.
 
     Higher ratio = stock is closer to its 52-week high.
-    Ratio of 1.0 means the stock is exactly at its 52-week high.
+    Ratio of 1.0 means the stock closed exactly at its 52-week high.
+
+    eligible: {symbol: market_cap} from get_eligible_symbols. Exact ties rank by larger cap, then symbol.
 
     Returns list of (symbol, proximity_ratio) sorted descending.
     """
-    if not symbols:
+    if not eligible:
         return []
 
     start_epoch = utc_epoch(target_date - timedelta(days=HIGH_WINDOW_FETCH))
@@ -213,50 +231,61 @@ def compute_proximity(con, symbols, target_date):
     target_epoch = utc_epoch(target_date)
     signal_floor_epoch = utc_epoch(target_date - timedelta(days=SIGNAL_TOLERANCE_DAYS))
 
-    sym_list = ",".join(f"'{s}'" for s in symbols)
-
-    rows = con.execute(f"""
-        WITH windowed AS (
-            SELECT symbol, trade_epoch, adjClose, high,
+    # Duplicates sort by close, high, volume DESC NULLS LAST: fixed frames, untraded twin outside the traded bar's frame.
+    candidates = f"""
+        WITH eligible AS (
+            SELECT unnest(?::VARCHAR[]) AS symbol, unnest(?::DOUBLE[]) AS marketCap
+        ),
+        windowed AS (
+            SELECT symbol, trade_epoch, close, high, volume,
                 MAX(high) OVER (
-                    PARTITION BY symbol ORDER BY trade_epoch
+                    PARTITION BY symbol ORDER BY trade_epoch, close, high, volume DESC NULLS LAST
                     ROWS BETWEEN 251 PRECEDING AND CURRENT ROW
                 ) AS high_52w,
                 COUNT(*) OVER (
-                    PARTITION BY symbol ORDER BY trade_epoch
+                    PARTITION BY symbol ORDER BY trade_epoch, close, high, volume DESC NULLS LAST
                     ROWS BETWEEN 251 PRECEDING AND CURRENT ROW
                 ) AS row_count
             FROM prices_cache
-            WHERE symbol IN ({sym_list})
+            WHERE symbol IN (SELECT symbol FROM eligible)
               AND trade_epoch >= {start_epoch}
               AND trade_epoch <= {target_epoch}
         ),
         latest AS (
-            SELECT symbol, adjClose, high_52w, row_count
+            SELECT symbol, close, high_52w, row_count
             FROM windowed
             WHERE trade_epoch <= {target_epoch}
               AND trade_epoch >= {signal_floor_epoch}
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch DESC, adjClose DESC NULLS LAST) = 1
+              AND volume > 0
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch DESC, close DESC NULLS LAST,
+                                       high_52w DESC NULLS LAST, row_count DESC) = 1
         )
         SELECT
-            symbol,
-            adjClose / high_52w AS proximity_ratio,
-            adjClose,
-            high_52w,
-            row_count
-        FROM latest
-        WHERE high_52w > 0
-          AND adjClose > 0
-          AND row_count >= {MIN_HISTORY_ROWS}
-          AND adjClose / high_52w <= {MAX_PROXIMITY}
-        ORDER BY proximity_ratio DESC, symbol
+            l.symbol,
+            l.close / l.high_52w AS proximity_ratio,
+            e.marketCap,
+            l.close,
+            l.high_52w,
+            l.row_count
+        FROM latest l
+        JOIN eligible e ON e.symbol = l.symbol
+        WHERE l.high_52w > 0
+          AND l.close > 0
+          AND l.row_count >= {MIN_HISTORY_ROWS}
+          AND l.close / l.high_52w <= {MAX_PROXIMITY}
+    """
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot for the next name.
+    rows = con.execute(f"""
+        SELECT symbol, proximity_ratio, close, high_52w, row_count
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        ORDER BY proximity_ratio DESC, marketCap DESC NULLS LAST, symbol
         LIMIT {MAX_STOCKS}
-    """).fetchall()
+    """, [list(eligible), list(eligible.values())]).fetchall()
 
     return [(r[0], r[1]) for r in rows]  # list of (symbol, proximity_ratio)
 
 
-def screen_stocks(con, target_date, mktcap_min, verbose=False):
+def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1):
     """Screen for 52-week high proximity stocks at target_date.
 
     1. Get universe passing market cap filter (point-in-time)
@@ -269,7 +298,7 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False):
     if not eligible:
         return []
 
-    proximity_ranked = compute_proximity(con, list(eligible.keys()), target_date)
+    proximity_ranked = compute_proximity(con, eligible, target_date, offset_days=offset_days)
 
     result = [
         (sym, eligible.get(sym, 0), prox)
@@ -297,7 +326,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min, verbose=verbose)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, verbose=verbose, offset_days=offset_days)
 
         if len(portfolio) < MIN_STOCKS:
             bench_return = get_benchmark_return(
@@ -495,7 +524,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     exec_model = "next-day close (MOC)" if offset_days == 1 else "same-day close"
 
     signal_desc = (
-        f"Top {MAX_STOCKS} by proximity ratio (adjClose/52w-high) | MCap>{mktcap_threshold/1e9:.0f}B local"
+        f"Top {MAX_STOCKS} by proximity ratio (close/52w-high) | MCap>{mktcap_threshold/1e9:.0f}B local"
     )
     print_header("52-WEEK HIGH PROXIMITY BACKTEST", universe_name, exchanges, signal_desc)
     print(f"  Frequency: {frequency}, Costs: {'size-tiered' if use_costs else 'none'}")
@@ -516,7 +545,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    # Quarterly cache windows [R-390, R+10] span every holding period, so LTP reads the local cache.
+    # Quarterly cache windows [R-390, R+11] span every holding period, so LTP reads the local cache.
     ltp = LtpExits(cr, con, local=True, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=verbose,
@@ -565,6 +594,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 

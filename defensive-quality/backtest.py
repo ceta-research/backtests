@@ -43,7 +43,8 @@ from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
                         entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
-                         remove_price_oscillations, utc_epoch)
+                         remove_price_oscillations, utc_epoch,
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -86,19 +87,24 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                 bench_symbols.add(f"'{sym}'")
     bench_list = ", ".join(bench_symbols)
 
+    # Campaign listing rule; the sector map, sym_filter_sql and the price universe all carry it.
+    listing_cond = campaign_listing_condition(exchanges)
+    listing_and = f" AND {listing_cond}" if listing_cond else ""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_where = f"WHERE exchange IN ({ex_filter})"
-        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}))"
+        exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
+        sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
         price_universe_filter = (
             f"(symbol IN ({bench_list}) OR symbol IN "
-            f"(SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}) "
+            f"(SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and} "
             f"AND sector IN ('{sectors_sql}')))"
         )
     else:
         exchange_where = ""
         sym_filter_sql = "1=1"
         price_universe_filter = f"(symbol IN ({bench_list}) OR symbol IN (SELECT DISTINCT symbol FROM profile WHERE sector IN ('{sectors_sql}')))"
+    if listing_cond:
+        print(f"  Listing filter: {listing_cond}")
 
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
@@ -125,6 +131,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         CREATE TABLE sector_map(symbol VARCHAR, sector VARCHAR, exchange VARCHAR);
         INSERT INTO sector_map VALUES
     """ + sym_values)
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
+    load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
 
     # 2. Key metrics FY (ROE, market cap)
     print("  Fetching key metrics (ROE, market cap)...")
@@ -155,7 +163,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print("  Fetching prices...")
     date_conditions = []
     for d in rebalance_dates:
-        end = d + timedelta(days=10)
+        end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(f"(date >= '{d.isoformat()}' AND date <= '{end.isoformat()}')")
     date_filter = " OR ".join(date_conditions)
 
@@ -175,7 +183,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min):
+def screen_stocks(con, target_date, mktcap_min, offset_days=1):
     """Screen for quality stocks in defensive sectors.
 
     Returns list of (symbol, market_cap, dividend_yield) sorted by dividend_yield DESC.
@@ -186,7 +194,7 @@ def screen_stocks(con, target_date, mktcap_min):
     # Staleness: last 18 months only, else a delisted name's last FY row keeps a slot forever (B041)
     earliest_epoch = utc_epoch(target_date - timedelta(days=540))
 
-    rows = con.execute("""
+    candidates = """
         WITH km AS (
             SELECT symbol, returnOnEquity, marketCap, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
@@ -212,7 +220,12 @@ def screen_stocks(con, target_date, mktcap_min):
           AND (fr.debtToEquityRatio IS NULL OR fr.debtToEquityRatio < ?)
           AND (fr.dividendYield IS NULL OR fr.dividendYield > ?)
           AND km.marketCap > ?
-        ORDER BY fr.dividendYield DESC, sm.symbol
+    """
+    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot.
+    rows = con.execute(f"""
+        SELECT symbol, marketCap, dividendYield
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        ORDER BY dividendYield DESC, symbol
         LIMIT ?
     """, [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,
           ROE_MIN, OPM_MIN, DE_MAX, DIV_YIELD_MIN,
@@ -230,7 +243,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
 
         # Benchmark return
         spy_return = get_benchmark_return(
@@ -444,7 +457,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     # Phase 2: Run backtest
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
-    # prices_cache holds only 10-day windows at rebalance dates, so LTP reads remote stock_eod.
+    # prices_cache holds only [R, R+11d] windows at rebalance dates, so LTP reads remote stock_eod.
     ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
                            verbose=verbose, offset_days=offset_days,
@@ -493,6 +506,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
+    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 
