@@ -1,22 +1,309 @@
 {
   "universe": "NYSE_NASDAQ_AMEX",
   "n_periods": 25,
-  "years": 25.0,
-  "frequency": "annual",
+  "total_rebalances": 25,
   "cash_periods": 0,
   "invested_periods": 25,
-  "avg_stocks_when_invested": 196.0,
+  "measured_start": "2000-07-01",
+  "measured_end": "2025-07-01",
+  "requested_start": "2000-07-01",
+  "requested_end": "2025-07-01",
+  "benchmark_symbol": null,
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2000-2025",
+  "years": 25.0,
+  "frequency": "annual",
+  "avg_stocks_when_invested": 232.4,
+  "period_data": [
+    {
+      "rebalance_date": "2000-07-01",
+      "exit_date": "2001-07-01",
+      "portfolio_return": -0.02596,
+      "spy_return": -0.147792,
+      "stocks_held": 100,
+      "screened": 116,
+      "entry_buyable": 102,
+      "min_stocks": 10,
+      "holdings": "SKM,SHEL,INTC,BP,RDS-B,MRK,JNJ,HD,BMY,TV,NOK,TXN,UPS,MDT,AMGN,NVO,PEP,MSI,STM,RIO"
+    },
+    {
+      "rebalance_date": "2001-07-01",
+      "exit_date": "2002-07-01",
+      "portfolio_return": -0.105256,
+      "spy_return": -0.224495,
+      "stocks_held": 119,
+      "screened": 134,
+      "entry_buyable": 119,
+      "min_stocks": 10,
+      "holdings": "AKO-A,AKO-B,TSM,CCU,UMC,XOM,PFE,MRK,ORCL,INTC,CEO,SHEL,BP,RDS-B,BMY,TTE,AZN,PEP,TXN,NVO"
+    },
+    {
+      "rebalance_date": "2002-07-01",
+      "exit_date": "2003-07-01",
+      "portfolio_return": 0.109337,
+      "spy_return": 0.068608,
+      "stocks_held": 64,
+      "screened": 84,
+      "entry_buyable": 65,
+      "min_stocks": 10,
+      "holdings": "CCU,JNJ,NVO,RDY,E,SNY,SSL,CAH,KOF,ADP,KSS,FMX,SYY,CCL,PAYX,NKE,CUK,LNC,EA,FISV"
+    },
+    {
+      "rebalance_date": "2003-07-01",
+      "exit_date": "2004-07-01",
+      "portfolio_return": 0.260681,
+      "spy_return": 0.149303,
+      "stocks_held": 114,
+      "screened": 142,
+      "entry_buyable": 114,
+      "min_stocks": 10,
+      "holdings": "PKX,TSM,UMC,JNJ,BRK-A,BRK-B,INTC,CSCO,TTE,NVS,UPS,NOK,SSL,MDT,HD,SNY,WBA,LOW,KOF,UNH"
+    },
+    {
+      "rebalance_date": "2004-07-01",
+      "exit_date": "2005-07-01",
+      "portfolio_return": 0.141522,
+      "spy_return": 0.088669,
+      "stocks_held": 186,
+      "screened": 222,
+      "entry_buyable": 187,
+      "min_stocks": 10,
+      "holdings": "PKX,CAJ,HNP,TSM,CEO,CHT,UMC,XOM,INTC,BP,SHEL,BRK-B,BRK-A,KO,TTE,CVX,UPS,NVO,AZN,HD"
+    },
+    {
+      "rebalance_date": "2005-07-01",
+      "exit_date": "2006-07-01",
+      "portfolio_return": 0.178078,
+      "spy_return": 0.079874,
+      "stocks_held": 250,
+      "screened": 280,
+      "entry_buyable": 250,
+      "min_stocks": 10,
+      "holdings": "KEP,PKX,LPL,TSM,CCU,CHT,UMC,XOM,ERIC,GRVY,FPO,BP,SHEL,PFE,JNJ,CEO,RDS-B,INTC,TTE,CVX"
+    },
+    {
+      "rebalance_date": "2006-07-01",
+      "exit_date": "2007-07-01",
+      "portfolio_return": 0.193105,
+      "spy_return": 0.209459,
+      "stocks_held": 267,
+      "screened": 291,
+      "entry_buyable": 268,
+      "min_stocks": 10,
+      "holdings": "TLK,SKM,CCU,CHT,ERIC,XOM,BP,CEO,RDS-B,SHEL,JNJ,BRK-A,BRK-B,IBA,NVO,GOOG,GOOGL,SNY,AMGN,E"
+    },
+    {
+      "rebalance_date": "2007-07-01",
+      "exit_date": "2008-07-01",
+      "portfolio_return": -0.102446,
+      "spy_return": -0.151964,
+      "stocks_held": 265,
+      "screened": 311,
+      "entry_buyable": 265,
+      "min_stocks": 10,
+      "holdings": "CAJ,AYRO,TSM,AKO-A,AKO-B,CCU,CHT,XOM,UMC,PEGY,BBL,MO,PFE,SSL,CVX,NVO,KO,BHP,PEP,E"
+    },
+    {
+      "rebalance_date": "2008-07-01",
+      "exit_date": "2009-07-01",
+      "portfolio_return": -0.225452,
+      "spy_return": -0.269012,
+      "stocks_held": 197,
+      "screened": 225,
+      "entry_buyable": 197,
+      "min_stocks": 10,
+      "holdings": "TLK,LPL,CAJ,SONY,TSM,AKO-A,AKO-B,CCU,BBL,PEGY,BRK-B,NVO,TTE,CSCO,INTC,BHP,AAPL,MRK,SLB,ORCL"
+    },
+    {
+      "rebalance_date": "2009-07-01",
+      "exit_date": "2010-07-01",
+      "portfolio_return": 0.225509,
+      "spy_return": 0.159791,
+      "stocks_held": 152,
+      "screened": 171,
+      "entry_buyable": 152,
+      "min_stocks": 10,
+      "holdings": "AKO-A,AKO-B,BBL,CEO,SSL,MSFT,NVO,CVX,CSCO,KO,GOOG,GOOGL,MRK,AMGN,VALE,DIS,MOS,SLB,GILD,OXY"
+    },
+    {
+      "rebalance_date": "2010-07-01",
+      "exit_date": "2011-07-01",
+      "portfolio_return": 0.365405,
+      "spy_return": 0.335481,
+      "stocks_held": 202,
+      "screened": 232,
+      "entry_buyable": 205,
+      "min_stocks": 10,
+      "holdings": "PKX,LPL,WIT,UMC,NVO,GOOG,GOOGL,IBA,AAPL,SSL,KOF,ORCL,ABEV,PEP,AMZN,AMGN,GRVY,V,BMY,TEVA"
+    },
+    {
+      "rebalance_date": "2011-07-01",
+      "exit_date": "2012-07-01",
+      "portfolio_return": -0.074023,
+      "spy_return": 0.041884,
+      "stocks_held": 311,
+      "screened": 346,
+      "entry_buyable": 311,
+      "min_stocks": 10,
+      "holdings": "EC,SKM,CAJ,TSM,CCU,WIT,CEO,HDB,NVO,PEGY,BBL,ERIC,UMC,MSFT,CVX,VALE,IBA,PG,BHP,RIO"
+    },
+    {
+      "rebalance_date": "2012-07-01",
+      "exit_date": "2013-07-01",
+      "portfolio_return": 0.193459,
+      "spy_return": 0.207392,
+      "stocks_held": 261,
+      "screened": 295,
+      "entry_buyable": 261,
+      "min_stocks": 10,
+      "holdings": "EC,TLK,CAJ,CHT,CEO,BBL,XOM,NVO,AAPL,RDS-B,SHEL,BHP,SSL,CVX,GOOG,GOOGL,ORCL,BP,TTE,VALE"
+    },
+    {
+      "rebalance_date": "2013-07-01",
+      "exit_date": "2014-07-01",
+      "portfolio_return": 0.235274,
+      "spy_return": 0.247411,
+      "stocks_held": 223,
+      "screened": 259,
+      "entry_buyable": 225,
+      "min_stocks": 10,
+      "holdings": "TLK,LPL,CCU,NVO,XOM,KOF,BRK-B,BRK-A,IBA,SSL,FMX,PFE,ABEV,ORCL,NVS,TTE,SNY,DIS,SLB,CSCO"
+    },
+    {
+      "rebalance_date": "2014-07-01",
+      "exit_date": "2015-07-01",
+      "portfolio_return": 0.051683,
+      "spy_return": 0.071771,
+      "stocks_held": 267,
+      "screened": 308,
+      "entry_buyable": 267,
+      "min_stocks": 10,
+      "holdings": "KEP,SKM,LPL,CAJ,LFC,CCU,WIT,GOOG,GOOGL,IBA,BRK-A,BRK-B,SSL,JNJ,ERIC,ABEV,ORCL,ABALX,UMC,META"
+    },
+    {
+      "rebalance_date": "2015-07-01",
+      "exit_date": "2016-07-01",
+      "portfolio_return": -0.038281,
+      "spy_return": 0.027142,
+      "stocks_held": 274,
+      "screened": 308,
+      "entry_buyable": 274,
+      "min_stocks": 10,
+      "holdings": "KEP,LPL,CAJ,TSM,SONY,LFC,IBA,SSL,GOOG,GOOGL,BBL,ERIC,JNJ,INTC,UMC,ABALX,DIS,V,SNY,BNS"
+    },
+    {
+      "rebalance_date": "2016-07-01",
+      "exit_date": "2017-07-01",
+      "portfolio_return": 0.225489,
+      "spy_return": 0.18581,
+      "stocks_held": 213,
+      "screened": 253,
+      "entry_buyable": 214,
+      "min_stocks": 10,
+      "holdings": "KEP,LPL,ENIC,TSM,SONY,CCU,NVO,CHT,GOOG,GOOGL,YNDX,BRK-B,BRK-A,META,DIS,V,CSCO,SNY,CDOCX,NKE"
+    },
+    {
+      "rebalance_date": "2017-07-01",
+      "exit_date": "2018-07-01",
+      "portfolio_return": 0.158083,
+      "spy_return": 0.143362,
+      "stocks_held": 234,
+      "screened": 265,
+      "entry_buyable": 234,
+      "min_stocks": 10,
+      "holdings": "TLK,PTR,SKM,ENIC,GOOG,GOOGL,YNDX,META,SSL,CSCO,SAP,BMY,PAC,ASR,BBDO,VIV,TXN,ACN,COST,RIO"
+    },
+    {
+      "rebalance_date": "2018-07-01",
+      "exit_date": "2019-07-01",
+      "portfolio_return": 0.00028,
+      "spy_return": 0.111954,
+      "stocks_held": 318,
+      "screened": 353,
+      "entry_buyable": 318,
+      "min_stocks": 10,
+      "holdings": "PTR,PKX,SKM,LPL,SONY,CAJ,TAK,ENIC,CCU,LFC,WIT,YNDX,META,BRK-B,CEO,ASX,JD,XOM,RDS-B,SHEL"
+    },
+    {
+      "rebalance_date": "2019-07-01",
+      "exit_date": "2020-07-01",
+      "portfolio_return": -0.060941,
+      "spy_return": 0.074335,
+      "stocks_held": 327,
+      "screened": 357,
+      "entry_buyable": 328,
+      "min_stocks": 10,
+      "holdings": "PTR,SONY,TSM,BABA,WIT,GOOG,GOOGL,BRK-A,CEO,RDY,BIDU,V,GRVY,XOM,RDS-B,SHEL,ABEV,INTC,CVX,DIS"
+    },
+    {
+      "rebalance_date": "2020-07-01",
+      "exit_date": "2021-07-01",
+      "portfolio_return": 0.392922,
+      "spy_return": 0.409803,
+      "stocks_held": 228,
+      "screened": 263,
+      "entry_buyable": 233,
+      "min_stocks": 10,
+      "holdings": "BABA,LFC,IBA,BRK-B,BRK-A,CEO,V,JD,PEGY,CRM,ADBE,TCOM,ACN,NKE,SNY,ASR,COP,ADP,INTU,CME"
+    },
+    {
+      "rebalance_date": "2021-07-01",
+      "exit_date": "2022-07-01",
+      "portfolio_return": -0.242455,
+      "spy_return": -0.106819,
+      "stocks_held": 210,
+      "screened": 232,
+      "entry_buyable": 210,
+      "min_stocks": 10,
+      "holdings": "KEP,TSM,META,UMC,IBA,OZON,BIDU,BEKE,ERIC,ADBE,CRM,CSCO,GMAB,SBSW,VIPS,RIO,BLK,AMD,ZM,GGAL"
+    },
+    {
+      "rebalance_date": "2022-07-01",
+      "exit_date": "2023-07-01",
+      "portfolio_return": 0.146662,
+      "spy_return": 0.180842,
+      "stocks_held": 453,
+      "screened": 489,
+      "entry_buyable": 456,
+      "min_stocks": 10,
+      "holdings": "PTR,PKX,CAJ,GOOG,GOOGL,TSLA,UMC,RDY,BRK-A,BRK-B,NVDA,IBA,PDD,JNJ,NTES,PFE,ERIC,BIDU,ADBE,ASML"
+    },
+    {
+      "rebalance_date": "2023-07-01",
+      "exit_date": "2024-07-01",
+      "portfolio_return": 0.095837,
+      "spy_return": 0.254402,
+      "stocks_held": 263,
+      "screened": 300,
+      "entry_buyable": 264,
+      "min_stocks": 10,
+      "holdings": "TLK,TSM,NVO,WIT,MSFT,CHT,RDY,PDD,YNDX,UMC,XOM,TSLA,CVX,NTES,PFE,SHEL,ACN,DHR,LIN,TCOM"
+    },
+    {
+      "rebalance_date": "2024-07-01",
+      "exit_date": "2025-07-01",
+      "portfolio_return": 0.135594,
+      "spy_return": 0.144186,
+      "stocks_held": 311,
+      "screened": 339,
+      "entry_buyable": 312,
+      "min_stocks": 10,
+      "holdings": "KSPI,NVO,GGAL,GOOG,GOOGL,NVDA,PDD,BABA,CHT,META,BRK-A,BRK-B,EDN,GRVY,EXTO,NTES,BIDU,SUPV,ADBE,CRM"
+    }
+  ],
   "portfolio": {
-    "total_return": 519.23,
-    "cagr": 7.57,
-    "max_drawdown": -31.41,
-    "annualized_volatility": 17.22,
-    "sharpe_ratio": 0.323,
-    "sortino_ratio": 0.622,
-    "calmar_ratio": 0.241,
-    "var_95": -23.75,
+    "total_return": 530.49,
+    "cagr": 7.64,
+    "max_drawdown": -30.48,
+    "annualized_volatility": 16.72,
+    "sharpe_ratio": 0.338,
+    "sortino_ratio": 0.663,
+    "calmar_ratio": 0.251,
+    "var_95": -22.55,
     "max_consecutive_losses": 2,
-    "pct_negative_periods": 36.0
+    "pct_negative_periods": 32.0
   },
   "spy": {
     "total_return": 561.67,
@@ -31,167 +318,714 @@
     "pct_negative_periods": 20.0
   },
   "comparison": {
-    "excess_cagr": -0.29,
+    "excess_cagr": -0.21,
     "win_rate": 48.0,
-    "information_ratio": -0.025,
-    "tracking_error": 8.6,
-    "up_capture": 93.16,
-    "down_capture": 81.77,
-    "beta": 0.902,
-    "alpha": 0.29
+    "information_ratio": -0.028,
+    "tracking_error": 8.2,
+    "up_capture": 91.98,
+    "down_capture": 77.95,
+    "beta": 0.884,
+    "alpha": 0.47
   },
-  "excess_cagr": -0.29,
+  "excess_cagr": -0.21,
   "win_rate_vs_spy": 48.0,
   "annual_returns": [
     {
       "year": 2000,
-      "portfolio": -4.8,
+      "portfolio": -2.6,
       "spy": -14.78,
-      "excess": 9.98
+      "excess": 12.18
     },
     {
       "year": 2001,
-      "portfolio": -8.56,
+      "portfolio": -10.53,
       "spy": -22.45,
-      "excess": 13.89
+      "excess": 11.92
     },
     {
       "year": 2002,
-      "portfolio": 12.89,
+      "portfolio": 10.93,
       "spy": 6.86,
-      "excess": 6.02
+      "excess": 4.07
     },
     {
       "year": 2003,
-      "portfolio": 26.82,
+      "portfolio": 26.07,
       "spy": 14.93,
-      "excess": 11.89
+      "excess": 11.14
     },
     {
       "year": 2004,
-      "portfolio": 15.22,
+      "portfolio": 14.15,
       "spy": 8.87,
-      "excess": 6.36
+      "excess": 5.29
     },
     {
       "year": 2005,
-      "portfolio": 17.99,
+      "portfolio": 17.81,
       "spy": 7.99,
-      "excess": 10.01
+      "excess": 9.82
     },
     {
       "year": 2006,
-      "portfolio": 19.97,
+      "portfolio": 19.31,
       "spy": 20.95,
-      "excess": -0.98
+      "excess": -1.64
     },
     {
       "year": 2007,
-      "portfolio": -10.04,
+      "portfolio": -10.24,
       "spy": -15.2,
-      "excess": 5.15
+      "excess": 4.95
     },
     {
       "year": 2008,
-      "portfolio": -23.75,
+      "portfolio": -22.55,
       "spy": -26.9,
-      "excess": 3.15
+      "excess": 4.36
     },
     {
       "year": 2009,
-      "portfolio": 23.47,
+      "portfolio": 22.55,
       "spy": 15.98,
-      "excess": 7.49
+      "excess": 6.57
     },
     {
       "year": 2010,
-      "portfolio": 36.95,
+      "portfolio": 36.54,
       "spy": 33.55,
-      "excess": 3.4
+      "excess": 2.99
     },
     {
       "year": 2011,
-      "portfolio": -6.8,
+      "portfolio": -7.4,
       "spy": 4.19,
-      "excess": -10.99
+      "excess": -11.59
     },
     {
       "year": 2012,
-      "portfolio": 20.31,
+      "portfolio": 19.35,
       "spy": 20.74,
-      "excess": -0.43
+      "excess": -1.39
     },
     {
       "year": 2013,
-      "portfolio": 23.31,
+      "portfolio": 23.53,
       "spy": 24.74,
-      "excess": -1.43
+      "excess": -1.21
     },
     {
       "year": 2014,
-      "portfolio": 5.16,
+      "portfolio": 5.17,
       "spy": 7.18,
-      "excess": -2.02
+      "excess": -2.01
     },
     {
       "year": 2015,
-      "portfolio": -5.43,
+      "portfolio": -3.83,
       "spy": 2.71,
-      "excess": -8.14
+      "excess": -6.54
     },
     {
       "year": 2016,
-      "portfolio": 22.51,
+      "portfolio": 22.55,
       "spy": 18.58,
-      "excess": 3.93
+      "excess": 3.97
     },
     {
       "year": 2017,
-      "portfolio": 15.55,
+      "portfolio": 15.81,
       "spy": 14.34,
-      "excess": 1.22
+      "excess": 1.47
     },
     {
       "year": 2018,
-      "portfolio": -1.07,
+      "portfolio": 0.03,
       "spy": 11.2,
-      "excess": -12.26
+      "excess": -11.17
     },
     {
       "year": 2019,
-      "portfolio": -7.24,
+      "portfolio": -6.09,
       "spy": 7.43,
-      "excess": -14.68
+      "excess": -13.53
     },
     {
       "year": 2020,
-      "portfolio": 39.24,
+      "portfolio": 39.29,
       "spy": 40.98,
-      "excess": -1.74
+      "excess": -1.69
     },
     {
       "year": 2021,
-      "portfolio": -26.44,
+      "portfolio": -24.25,
       "spy": -10.68,
-      "excess": -15.76
+      "excess": -13.56
     },
     {
       "year": 2022,
-      "portfolio": 13.82,
+      "portfolio": 14.67,
       "spy": 18.08,
-      "excess": -4.27
+      "excess": -3.42
     },
     {
       "year": 2023,
-      "portfolio": 10.85,
+      "portfolio": 9.58,
       "spy": 25.44,
-      "excess": -14.59
+      "excess": -15.86
     },
     {
       "year": 2024,
-      "portfolio": 13.8,
+      "portfolio": 13.56,
       "spy": 14.42,
-      "excess": -0.62
+      "excess": -0.86
     }
-  ]
+  ],
+  "listing_filter": null,
+  "isin_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "remote stock_eod",
+    "delist_grace_days": 7,
+    "missing_exits": 44,
+    "ltp_filled": 44,
+    "still_missing": 0,
+    "filled_local": 0,
+    "filled_remote": 44,
+    "closed_by_delisting": 0,
+    "filled_without_delisting_row": 9,
+    "filled_ignoring_delisting_row": 0,
+    "filled_delisting_not_binding": 3,
+    "fills": [
+      {
+        "symbol": "CLC",
+        "entry_date": "2016-07-01",
+        "entry_bar": "2016-07-05",
+        "entry_price": 59.76,
+        "last_bar": "2017-02-27",
+        "ltp": 83.0,
+        "delisted_date": "2017-03-08",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2017-07-01"
+      },
+      {
+        "symbol": "RSPP",
+        "entry_date": "2018-07-01",
+        "entry_bar": "2018-07-02",
+        "entry_price": 43.18,
+        "last_bar": "2018-07-18",
+        "ltp": 47.83,
+        "delisted_date": "2018-07-18",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2019-07-01"
+      },
+      {
+        "symbol": "CEO",
+        "entry_date": "2020-07-01",
+        "entry_bar": "2020-07-02",
+        "entry_price": 113.897392,
+        "last_bar": "2021-03-16",
+        "ltp": 121.760002,
+        "delisted_date": "2021-03-09",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2021-07-01"
+      },
+      {
+        "symbol": "LINX",
+        "entry_date": "2020-07-01",
+        "entry_bar": "2020-07-02",
+        "entry_price": 4.58,
+        "last_bar": "2021-06-25",
+        "ltp": 7.5,
+        "delisted_date": "2021-07-01",
+        "delisting_bound": "not_binding",
+        "source": "remote",
+        "exit_date": "2021-07-01"
+      },
+      {
+        "symbol": "JOBS",
+        "entry_date": "2021-07-01",
+        "entry_bar": "2021-07-02",
+        "entry_price": 77.71,
+        "last_bar": "2022-05-06",
+        "ltp": 60.9,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2022-07-01"
+      },
+      {
+        "symbol": "CERN",
+        "entry_date": "2021-07-01",
+        "entry_bar": "2021-07-02",
+        "entry_price": 78.76,
+        "last_bar": "2022-06-07",
+        "ltp": 94.92,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2022-07-01"
+      },
+      {
+        "symbol": "MSP",
+        "entry_date": "2021-07-01",
+        "entry_bar": "2021-07-02",
+        "entry_price": 27.49,
+        "last_bar": "2022-06-22",
+        "ltp": 35.18,
+        "delisted_date": "2022-06-23",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2022-07-01"
+      },
+      {
+        "symbol": "BRKS",
+        "entry_date": "2021-07-01",
+        "entry_bar": "2021-07-02",
+        "entry_price": 91.71,
+        "last_bar": "2021-11-30",
+        "ltp": 113.1,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2022-07-01"
+      },
+      {
+        "symbol": "SYKE",
+        "entry_date": "2021-07-01",
+        "entry_bar": "2021-07-02",
+        "entry_price": 53.45,
+        "last_bar": "2021-08-26",
+        "ltp": 54.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2022-07-01"
+      },
+      {
+        "symbol": "PTR",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 44.47,
+        "last_bar": "2022-09-08",
+        "ltp": 46.85,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "CAJ",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 22.68,
+        "last_bar": "2023-03-06",
+        "ltp": 21.63,
+        "delisted_date": "2023-03-06",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "IBA",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 42.943756,
+        "last_bar": "2023-04-28",
+        "ltp": 53.0,
+        "delisted_date": "2023-04-21",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "WMCNX",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 10.69,
+        "last_bar": "2022-07-29",
+        "ltp": 10.6916,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "IIVI",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 193.79,
+        "last_bar": "2023-06-30",
+        "ltp": 227.08,
+        "delisted_date": "2023-06-30",
+        "delisting_bound": "not_binding",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "ABMD",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 256.66,
+        "last_bar": "2022-12-23",
+        "ltp": 381.019989,
+        "delisted_date": "2022-12-21",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "IS",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 2.53,
+        "last_bar": "2022-11-04",
+        "ltp": 2.74,
+        "delisted_date": "2022-11-04",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "LVRO",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 9.66,
+        "last_bar": "2023-05-31",
+        "ltp": 5.78,
+        "delisted_date": "2026-02-23",
+        "delisting_bound": "not_binding",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "SAFM",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 216.17,
+        "last_bar": "2022-07-21",
+        "ltp": 204.0,
+        "delisted_date": "2022-07-21",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "AUY",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 4.43,
+        "last_bar": "2023-03-31",
+        "ltp": 5.85,
+        "delisted_date": "2023-03-31",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "TRQ",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 26.39,
+        "last_bar": "2022-12-15",
+        "ltp": 31.41,
+        "delisted_date": "2022-12-15",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "CO",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 2.94,
+        "last_bar": "2023-06-09",
+        "ltp": 2.9876,
+        "delisted_date": "2023-06-09",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "SGFY",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 15.85,
+        "last_bar": "2023-03-28",
+        "ltp": 30.49,
+        "delisted_date": "2023-03-28",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "HSKA",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 97.83,
+        "last_bar": "2023-06-12",
+        "ltp": 119.989998,
+        "delisted_date": "2023-06-12",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "ZEST",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 73.8,
+        "last_bar": "2023-03-28",
+        "ltp": 3.093,
+        "delisted_date": "2023-03-21",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "CDEV",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 5.49,
+        "last_bar": "2022-09-01",
+        "ltp": 7.62,
+        "delisted_date": "2022-09-02",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "RFP",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-05",
+        "entry_price": 12.49,
+        "last_bar": "2023-02-28",
+        "ltp": 21.92,
+        "delisted_date": "2023-02-28",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "YNDX",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 18.94,
+        "last_bar": "2023-08-14",
+        "ltp": 18.94,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "PXD",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 201.15,
+        "last_bar": "2024-05-02",
+        "ltp": 269.62,
+        "delisted_date": "2024-05-02",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "SWAV",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 278.959991,
+        "last_bar": "2024-05-30",
+        "ltp": 334.75,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "PDCE",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 71.099998,
+        "last_bar": "2023-08-29",
+        "ltp": 73.85,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "DEN",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 86.029999,
+        "last_bar": "2023-11-03",
+        "ltp": 88.66,
+        "delisted_date": "2023-11-01",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "ERF",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 14.2,
+        "last_bar": "2024-05-30",
+        "ltp": 20.09,
+        "delisted_date": "2024-05-30",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "LTHM",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 28.209999,
+        "last_bar": "2024-01-11",
+        "ltp": 6.04,
+        "delisted_date": "2024-01-04",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "ESMT",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 18.52,
+        "last_bar": "2024-01-25",
+        "ltp": 23.05,
+        "delisted_date": "2024-01-25",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "TDCX",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 7.92,
+        "last_bar": "2024-06-18",
+        "ltp": 7.13,
+        "delisted_date": "2024-06-20",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "VRTV",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 127.32,
+        "last_bar": "2023-11-29",
+        "ltp": 169.99,
+        "delisted_date": "2023-11-29",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "LBAI",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 13.05,
+        "last_bar": "2024-05-15",
+        "ltp": 13.43,
+        "delisted_date": "2024-05-16",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "EXTO",
+        "entry_date": "2024-07-01",
+        "entry_bar": "2024-07-02",
+        "entry_price": 4.12,
+        "last_bar": "2025-02-03",
+        "ltp": 3.47,
+        "delisted_date": "2025-02-03",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-07-01"
+      },
+      {
+        "symbol": "RBCP",
+        "entry_date": "2024-07-01",
+        "entry_bar": "2024-07-02",
+        "entry_price": 118.91,
+        "last_bar": "2024-10-15",
+        "ltp": 123.98,
+        "delisted_date": "2024-10-14",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-07-01"
+      },
+      {
+        "symbol": "SMAR",
+        "entry_date": "2024-07-01",
+        "entry_bar": "2024-07-02",
+        "entry_price": 44.11,
+        "last_bar": "2025-01-21",
+        "ltp": 56.47,
+        "delisted_date": "2025-01-21",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-07-01"
+      },
+      {
+        "symbol": "INST",
+        "entry_date": "2024-07-01",
+        "entry_bar": "2024-07-02",
+        "entry_price": 23.76,
+        "last_bar": "2024-11-12",
+        "ltp": 23.6,
+        "delisted_date": "2024-11-12",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-07-01"
+      },
+      {
+        "symbol": "CEIX",
+        "entry_date": "2024-07-01",
+        "entry_bar": "2024-07-02",
+        "entry_price": 102.76,
+        "last_bar": "2025-02-14",
+        "ltp": 79.44,
+        "delisted_date": "2025-02-10",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-07-01"
+      },
+      {
+        "symbol": "AMK",
+        "entry_date": "2024-07-01",
+        "entry_bar": "2024-07-02",
+        "entry_price": 34.36,
+        "last_bar": "2024-09-05",
+        "ltp": 35.24,
+        "delisted_date": "2024-09-04",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-07-01"
+      },
+      {
+        "symbol": "NAPA",
+        "entry_date": "2024-07-01",
+        "entry_bar": "2024-07-02",
+        "entry_price": 7.18,
+        "last_bar": "2024-12-24",
+        "ltp": 11.09,
+        "delisted_date": "2024-12-23",
+        "delisting_bound": "applied",
+        "source": "remote",
+        "exit_date": "2025-07-01"
+      }
+    ]
+  }
 }
