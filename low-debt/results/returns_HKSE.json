@@ -1,22 +1,309 @@
 {
   "universe": "HKSE",
   "n_periods": 25,
+  "total_rebalances": 25,
+  "cash_periods": 2,
+  "invested_periods": 23,
+  "measured_start": "2000-07-01",
+  "measured_end": "2025-07-01",
+  "requested_start": "2000-07-01",
+  "requested_end": "2025-07-01",
+  "benchmark_symbol": null,
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2000-2025",
   "years": 25.0,
   "frequency": "annual",
-  "cash_periods": 0,
-  "invested_periods": 25,
-  "avg_stocks_when_invested": 58.2,
+  "avg_stocks_when_invested": 66.3,
+  "period_data": [
+    {
+      "rebalance_date": "2000-07-01",
+      "exit_date": "2001-07-01",
+      "portfolio_return": 0.0,
+      "spy_return": -0.1822748697593649,
+      "stocks_held": 0,
+      "screened": 15,
+      "entry_buyable": 6,
+      "min_stocks": 10,
+      "holdings": "CASH (6 buyable at entry of 15 screened)"
+    },
+    {
+      "rebalance_date": "2001-07-01",
+      "exit_date": "2002-07-01",
+      "portfolio_return": 0.0,
+      "spy_return": -0.20426545316647704,
+      "stocks_held": 0,
+      "screened": 24,
+      "entry_buyable": 5,
+      "min_stocks": 10,
+      "holdings": "CASH (5 buyable at entry of 24 screened)"
+    },
+    {
+      "rebalance_date": "2002-07-01",
+      "exit_date": "2003-07-01",
+      "portfolio_return": 0.033022,
+      "spy_return": -0.084748,
+      "stocks_held": 13,
+      "screened": 27,
+      "entry_buyable": 13,
+      "min_stocks": 10,
+      "holdings": "0941.HK,0019.HK,0087.HK,0902.HK,0062.HK,0177.HK,0694.HK,0392.HK,0809.HK,0992.HK,0450.HK,0050.HK,1044.HK"
+    },
+    {
+      "rebalance_date": "2003-07-01",
+      "exit_date": "2004-07-01",
+      "portfolio_return": 0.348956,
+      "spy_return": 0.272586,
+      "stocks_held": 12,
+      "screened": 24,
+      "entry_buyable": 12,
+      "min_stocks": 10,
+      "holdings": "4335.HK,4333.HK,0902.HK,0019.HK,0087.HK,0177.HK,0694.HK,1138.HK,0696.HK,0179.HK,0242.HK,0420.HK"
+    },
+    {
+      "rebalance_date": "2004-07-01",
+      "exit_date": "2005-07-01",
+      "portfolio_return": 0.283675,
+      "spy_return": 0.160206,
+      "stocks_held": 26,
+      "screened": 49,
+      "entry_buyable": 26,
+      "min_stocks": 10,
+      "holdings": "0857.HK,0883.HK,0941.HK,4335.HK,0902.HK,0001.HK,0144.HK,0576.HK,0347.HK,0177.HK,1138.HK,0945.HK,0323.HK,0363.HK,0522.HK,2883.HK,1070.HK,0242.HK,0341.HK,1097.HK"
+    },
+    {
+      "rebalance_date": "2005-07-01",
+      "exit_date": "2006-07-01",
+      "portfolio_return": 0.159807,
+      "spy_return": 0.151559,
+      "stocks_held": 48,
+      "screened": 72,
+      "entry_buyable": 48,
+      "min_stocks": 10,
+      "holdings": "0857.HK,0883.HK,0016.HK,4335.HK,0002.HK,0004.HK,0012.HK,2600.HK,0338.HK,0763.HK,1138.HK,0576.HK,0347.HK,0323.HK,0653.HK,0083.HK,0242.HK,0017.HK,0511.HK,0694.HK"
+    },
+    {
+      "rebalance_date": "2006-07-01",
+      "exit_date": "2007-07-01",
+      "portfolio_return": 0.697359,
+      "spy_return": 0.356747,
+      "stocks_held": 37,
+      "screened": 54,
+      "entry_buyable": 38,
+      "min_stocks": 10,
+      "holdings": "0857.HK,0941.HK,0883.HK,0762.HK,0330.HK,0945.HK,0101.HK,0338.HK,0322.HK,0347.HK,0014.HK,0010.HK,0511.HK,0064.HK,2883.HK,0489.HK,0045.HK,0358.HK,0168.HK,2038.HK"
+    },
+    {
+      "rebalance_date": "2007-07-01",
+      "exit_date": "2008-07-01",
+      "portfolio_return": -0.197358,
+      "spy_return": -0.020166,
+      "stocks_held": 47,
+      "screened": 72,
+      "entry_buyable": 48,
+      "min_stocks": 10,
+      "holdings": "0941.HK,3968.HK,0509.HK,1168.HK,2600.HK,0945.HK,0267.HK,0291.HK,0700.HK,0322.HK,1898.HK,0489.HK,0272.HK,0148.HK,2319.HK,0576.HK,0358.HK,2038.HK,2880.HK,0168.HK"
+    },
+    {
+      "rebalance_date": "2008-07-01",
+      "exit_date": "2009-07-01",
+      "portfolio_return": -0.100213,
+      "spy_return": -0.162474,
+      "stocks_held": 71,
+      "screened": 110,
+      "entry_buyable": 71,
+      "min_stocks": 10,
+      "holdings": "0941.HK,2628.HK,2318.HK,0728.HK,3968.HK,1898.HK,1919.HK,4333.HK,0998.HK,4335.HK,0347.HK,0330.HK,1168.HK,0101.HK,0683.HK,2727.HK,2883.HK,0322.HK,1138.HK,0945.HK"
+    },
+    {
+      "rebalance_date": "2009-07-01",
+      "exit_date": "2010-07-01",
+      "portfolio_return": 0.27449,
+      "spy_return": 0.09502,
+      "stocks_held": 37,
+      "screened": 55,
+      "entry_buyable": 38,
+      "min_stocks": 10,
+      "holdings": "0941.HK,1398.HK,0939.HK,1088.HK,0883.HK,4338.HK,0762.HK,4333.HK,1186.HK,0101.HK,0998.HK,0700.HK,0322.HK,0659.HK,0151.HK,0291.HK,1766.HK,0552.HK,1138.HK,1171.HK"
+    },
+    {
+      "rebalance_date": "2010-07-01",
+      "exit_date": "2011-07-01",
+      "portfolio_return": 0.181647,
+      "spy_return": 0.143939,
+      "stocks_held": 74,
+      "screened": 102,
+      "entry_buyable": 74,
+      "min_stocks": 10,
+      "holdings": "0941.HK,2628.HK,1088.HK,2318.HK,0728.HK,2601.HK,1988.HK,4335.HK,1211.HK,1168.HK,2899.HK,0322.HK,0489.HK,0914.HK,0291.HK,1044.HK,0683.HK,0392.HK,0168.HK,1099.HK"
+    },
+    {
+      "rebalance_date": "2011-07-01",
+      "exit_date": "2012-07-01",
+      "portfolio_return": -0.211513,
+      "spy_return": -0.133284,
+      "stocks_held": 90,
+      "screened": 116,
+      "entry_buyable": 90,
+      "min_stocks": 10,
+      "holdings": "0883.HK,2318.HK,1088.HK,0728.HK,4338.HK,2601.HK,0998.HK,0934.HK,1988.HK,4333.HK,4335.HK,0914.HK,0144.HK,0489.HK,2899.HK,0293.HK,2222.HK,0291.HK,0880.HK,1157.HK"
+    },
+    {
+      "rebalance_date": "2012-07-01",
+      "exit_date": "2013-07-01",
+      "portfolio_return": 0.036421,
+      "spy_return": 0.046775,
+      "stocks_held": 42,
+      "screened": 68,
+      "entry_buyable": 43,
+      "min_stocks": 10,
+      "holdings": "1972.HK,1088.HK,0883.HK,0728.HK,0998.HK,0653.HK,0880.HK,0083.HK,1157.HK,0358.HK,1072.HK,0270.HK,0177.HK,2319.HK,1066.HK,3983.HK,3368.HK,0511.HK,0576.HK,0525.HK"
+    },
+    {
+      "rebalance_date": "2013-07-01",
+      "exit_date": "2014-07-01",
+      "portfolio_return": 0.121137,
+      "spy_return": 0.13994,
+      "stocks_held": 53,
+      "screened": 78,
+      "entry_buyable": 53,
+      "min_stocks": 10,
+      "holdings": "0941.HK,0066.HK,2008.HK,6889.HK,2328.HK,1929.HK,4333.HK,0683.HK,0509.HK,0168.HK,0270.HK,3618.HK,0073.HK,0945.HK,0175.HK,1232.HK,0178.HK,87001.HK,2196.HK,0868.HK"
+    },
+    {
+      "rebalance_date": "2014-07-01",
+      "exit_date": "2015-07-01",
+      "portfolio_return": 0.061779,
+      "spy_return": 0.11604,
+      "stocks_held": 55,
+      "screened": 72,
+      "entry_buyable": 55,
+      "min_stocks": 10,
+      "holdings": "2628.HK,0027.HK,0728.HK,2601.HK,0001.HK,0880.HK,0388.HK,0914.HK,0653.HK,2333.HK,0509.HK,1928.HK,1336.HK,0270.HK,1680.HK,2238.HK,2196.HK,0177.HK,1066.HK,0347.HK"
+    },
+    {
+      "rebalance_date": "2015-07-01",
+      "exit_date": "2016-07-01",
+      "portfolio_return": -0.225414,
+      "spy_return": -0.198731,
+      "stocks_held": 61,
+      "screened": 89,
+      "entry_buyable": 62,
+      "min_stocks": 10,
+      "holdings": "6288.HK,2628.HK,1113.HK,0066.HK,4335.HK,2328.HK,0006.HK,0914.HK,0101.HK,0144.HK,0168.HK,2319.HK,0460.HK,3898.HK,0945.HK,1093.HK,0347.HK,2238.HK,2020.HK,0874.HK"
+    },
+    {
+      "rebalance_date": "2016-07-01",
+      "exit_date": "2017-07-01",
+      "portfolio_return": 0.209962,
+      "spy_return": 0.224366,
+      "stocks_held": 64,
+      "screened": 95,
+      "entry_buyable": 66,
+      "min_stocks": 10,
+      "holdings": "6288.HK,0386.HK,0728.HK,2601.HK,0388.HK,1766.HK,1113.HK,2328.HK,1339.HK,1972.HK,2018.HK,1093.HK,2020.HK,1177.HK,0247.HK,2238.HK,3606.HK,0064.HK,0014.HK,3969.HK"
+    },
+    {
+      "rebalance_date": "2017-07-01",
+      "exit_date": "2018-07-01",
+      "portfolio_return": 0.150324,
+      "spy_return": 0.107097,
+      "stocks_held": 86,
+      "screened": 118,
+      "entry_buyable": 88,
+      "min_stocks": 10,
+      "holdings": "0941.HK,0857.HK,0386.HK,1088.HK,1113.HK,0004.HK,0027.HK,0914.HK,1929.HK,0101.HK,0270.HK,2313.HK,0175.HK,3606.HK,2020.HK,3799.HK,1093.HK,0945.HK,0291.HK,0177.HK"
+    },
+    {
+      "rebalance_date": "2018-07-01",
+      "exit_date": "2019-07-01",
+      "portfolio_return": -0.043846,
+      "spy_return": 0.01156,
+      "stocks_held": 122,
+      "screened": 156,
+      "entry_buyable": 122,
+      "min_stocks": 10,
+      "holdings": "6288.HK,0941.HK,0857.HK,0386.HK,2628.HK,0883.HK,1088.HK,0016.HK,2601.HK,0066.HK,0027.HK,1113.HK,0728.HK,0762.HK,1766.HK,0175.HK,0914.HK,1997.HK,1336.HK,0823.HK"
+    },
+    {
+      "rebalance_date": "2019-07-01",
+      "exit_date": "2020-07-01",
+      "portfolio_return": -0.055845,
+      "spy_return": -0.129915,
+      "stocks_held": 87,
+      "screened": 119,
+      "entry_buyable": 87,
+      "min_stocks": 10,
+      "holdings": "0857.HK,0883.HK,1088.HK,1658.HK,0728.HK,0388.HK,0762.HK,0027.HK,1766.HK,0914.HK,4335.HK,0019.HK,0087.HK,2313.HK,6889.HK,0175.HK,2020.HK,1336.HK,1093.HK,1313.HK"
+    },
+    {
+      "rebalance_date": "2020-07-01",
+      "exit_date": "2021-07-01",
+      "portfolio_return": 0.187638,
+      "spy_return": 0.12682,
+      "stocks_held": 67,
+      "screened": 99,
+      "entry_buyable": 69,
+      "min_stocks": 10,
+      "holdings": "9988.HK,9618.HK,2628.HK,3690.HK,0883.HK,2601.HK,0762.HK,2328.HK,0291.HK,2382.HK,1339.HK,0019.HK,0087.HK,1336.HK,1313.HK,0168.HK,0945.HK,1787.HK,0220.HK,1066.HK"
+    },
+    {
+      "rebalance_date": "2021-07-01",
+      "exit_date": "2022-07-01",
+      "portfolio_return": -0.26857,
+      "spy_return": -0.228894,
+      "stocks_held": 109,
+      "screened": 131,
+      "entry_buyable": 109,
+      "min_stocks": 10,
+      "holdings": "0700.HK,1810.HK,9888.HK,2269.HK,2359.HK,6969.HK,0241.HK,2601.HK,0291.HK,0002.HK,0968.HK,2382.HK,0012.HK,0728.HK,6186.HK,1929.HK,0762.HK,1093.HK,1801.HK,0168.HK"
+    },
+    {
+      "rebalance_date": "2022-07-01",
+      "exit_date": "2023-07-01",
+      "portfolio_return": -0.096429,
+      "spy_return": -0.115607,
+      "stocks_held": 133,
+      "screened": 164,
+      "entry_buyable": 133,
+      "min_stocks": 10,
+      "holdings": "1398.HK,4338.HK,0857.HK,9633.HK,9999.HK,0386.HK,0016.HK,2269.HK,9888.HK,2628.HK,1088.HK,0883.HK,1876.HK,0066.HK,6690.HK,0291.HK,2333.HK,0728.HK,1113.HK,2331.HK"
+    },
+    {
+      "rebalance_date": "2023-07-01",
+      "exit_date": "2024-07-01",
+      "portfolio_return": 0.026996,
+      "spy_return": -0.079633,
+      "stocks_held": 75,
+      "screened": 94,
+      "entry_buyable": 75,
+      "min_stocks": 10,
+      "holdings": "3690.HK,0857.HK,1211.HK,0883.HK,1088.HK,9999.HK,0728.HK,6690.HK,2359.HK,9961.HK,2057.HK,2601.HK,0762.HK,0788.HK,2313.HK,1339.HK,0168.HK,1766.HK,9696.HK,3606.HK"
+    },
+    {
+      "rebalance_date": "2024-07-01",
+      "exit_date": "2025-07-01",
+      "portfolio_return": 0.250732,
+      "spy_return": 0.363116,
+      "stocks_held": 115,
+      "screened": 147,
+      "entry_buyable": 121,
+      "min_stocks": 10,
+      "holdings": "6288.HK,0700.HK,9988.HK,0941.HK,1211.HK,3690.HK,9633.HK,9999.HK,0728.HK,2628.HK,2015.HK,9888.HK,2359.HK,1024.HK,0027.HK,2020.HK,1876.HK,0011.HK,9961.HK,1880.HK"
+    }
+  ],
   "portfolio": {
-    "total_return": 144.85,
-    "cagr": 3.65,
-    "max_drawdown": -34.07,
-    "annualized_volatility": 22.14,
-    "sharpe_ratio": 0.029,
-    "sortino_ratio": 0.052,
-    "calmar_ratio": 0.107,
-    "var_95": -21.48,
+    "total_return": 265.61,
+    "cagr": 5.32,
+    "max_drawdown": -33.91,
+    "annualized_volatility": 21.47,
+    "sharpe_ratio": 0.108,
+    "sortino_ratio": 0.208,
+    "calmar_ratio": 0.157,
+    "var_95": -22.54,
     "max_consecutive_losses": 2,
-    "pct_negative_periods": 40.0
+    "pct_negative_periods": 32.0
   },
   "spy": {
     "total_return": 50.22,
@@ -31,167 +318,270 @@
     "pct_negative_periods": 44.0
   },
   "comparison": {
-    "excess_cagr": 2.01,
-    "win_rate": 56.0,
-    "information_ratio": 0.271,
-    "tracking_error": 9.88,
-    "up_capture": 123.17,
-    "down_capture": 91.36,
-    "beta": 1.123,
-    "alpha": 2.17
+    "excess_cagr": 3.68,
+    "win_rate": 60.0,
+    "information_ratio": 0.374,
+    "tracking_error": 11.21,
+    "up_capture": 126.1,
+    "down_capture": 71.13,
+    "beta": 1.032,
+    "alpha": 3.73
   },
-  "excess_cagr": 2.01,
-  "win_rate_vs_spy": 56.0,
+  "excess_cagr": 3.68,
+  "win_rate_vs_spy": 60.0,
   "annual_returns": [
     {
       "year": 2000,
-      "portfolio": -14.79,
+      "portfolio": 0.0,
       "spy": -18.23,
-      "excess": 3.44
+      "excess": 18.23
     },
     {
       "year": 2001,
-      "portfolio": -20.82,
+      "portfolio": 0.0,
       "spy": -20.43,
-      "excess": -0.39
+      "excess": 20.43
     },
     {
       "year": 2002,
-      "portfolio": 3.2,
+      "portfolio": 3.3,
       "spy": -8.47,
-      "excess": 11.67
+      "excess": 11.78
     },
     {
       "year": 2003,
-      "portfolio": 40.7,
+      "portfolio": 34.9,
       "spy": 27.26,
-      "excess": 13.44
+      "excess": 7.64
     },
     {
       "year": 2004,
-      "portfolio": 28.03,
+      "portfolio": 28.37,
       "spy": 16.02,
-      "excess": 12.01
+      "excess": 12.35
     },
     {
       "year": 2005,
-      "portfolio": 15.26,
+      "portfolio": 15.98,
       "spy": 15.16,
-      "excess": 0.1
+      "excess": 0.82
     },
     {
       "year": 2006,
-      "portfolio": 64.33,
+      "portfolio": 69.74,
       "spy": 35.67,
-      "excess": 28.65
+      "excess": 34.06
     },
     {
       "year": 2007,
-      "portfolio": -19.68,
+      "portfolio": -19.74,
       "spy": -2.02,
-      "excess": -17.66
+      "excess": -17.72
     },
     {
       "year": 2008,
-      "portfolio": -7.91,
+      "portfolio": -10.02,
       "spy": -16.25,
-      "excess": 8.33
+      "excess": 6.23
     },
     {
       "year": 2009,
-      "portfolio": 27.54,
+      "portfolio": 27.45,
       "spy": 9.5,
-      "excess": 18.03
+      "excess": 17.95
     },
     {
       "year": 2010,
-      "portfolio": 18.51,
+      "portfolio": 18.16,
       "spy": 14.39,
-      "excess": 4.11
+      "excess": 3.77
     },
     {
       "year": 2011,
-      "portfolio": -19.68,
+      "portfolio": -21.15,
       "spy": -13.33,
-      "excess": -6.35
+      "excess": -7.82
     },
     {
       "year": 2012,
-      "portfolio": 1.34,
+      "portfolio": 3.64,
       "spy": 4.68,
-      "excess": -3.34
+      "excess": -1.04
     },
     {
       "year": 2013,
-      "portfolio": 13.13,
+      "portfolio": 12.11,
       "spy": 13.99,
-      "excess": -0.86
+      "excess": -1.88
     },
     {
       "year": 2014,
-      "portfolio": 4.64,
+      "portfolio": 6.18,
       "spy": 11.6,
-      "excess": -6.96
+      "excess": -5.43
     },
     {
       "year": 2015,
-      "portfolio": -21.48,
+      "portfolio": -22.54,
       "spy": -19.87,
-      "excess": -1.61
+      "excess": -2.67
     },
     {
       "year": 2016,
-      "portfolio": 20.61,
+      "portfolio": 21.0,
       "spy": 22.44,
-      "excess": -1.82
+      "excess": -1.44
     },
     {
       "year": 2017,
-      "portfolio": 12.03,
+      "portfolio": 15.03,
       "spy": 10.71,
-      "excess": 1.32
+      "excess": 4.32
     },
     {
       "year": 2018,
-      "portfolio": -6.56,
+      "portfolio": -4.38,
       "spy": 1.16,
-      "excess": -7.71
+      "excess": -5.54
     },
     {
       "year": 2019,
-      "portfolio": -5.74,
+      "portfolio": -5.58,
       "spy": -12.99,
-      "excess": 7.25
+      "excess": 7.41
     },
     {
       "year": 2020,
-      "portfolio": 19.44,
+      "portfolio": 18.76,
       "spy": 12.68,
-      "excess": 6.76
+      "excess": 6.08
     },
     {
       "year": 2021,
-      "portfolio": -26.57,
+      "portfolio": -26.86,
       "spy": -22.89,
-      "excess": -3.68
+      "excess": -3.97
     },
     {
       "year": 2022,
-      "portfolio": -10.21,
+      "portfolio": -9.64,
       "spy": -11.56,
-      "excess": 1.36
+      "excess": 1.92
     },
     {
       "year": 2023,
-      "portfolio": 3.0,
+      "portfolio": 2.7,
       "spy": -7.96,
-      "excess": 10.96
+      "excess": 10.66
     },
     {
       "year": 2024,
-      "portfolio": 26.24,
+      "portfolio": 25.07,
       "spy": 36.31,
-      "excess": -10.07
+      "excess": -11.24
     }
-  ]
+  ],
+  "listing_filter": null,
+  "isin_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "remote stock_eod",
+    "delist_grace_days": 7,
+    "missing_exits": 7,
+    "ltp_filled": 7,
+    "still_missing": 0,
+    "filled_local": 0,
+    "filled_remote": 7,
+    "closed_by_delisting": 0,
+    "filled_without_delisting_row": 6,
+    "filled_ignoring_delisting_row": 0,
+    "filled_delisting_not_binding": 1,
+    "fills": [
+      {
+        "symbol": "4338.HK",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-04",
+        "entry_price": 1579.28,
+        "last_bar": "2023-06-08",
+        "ltp": 1600.0,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "8032.HK",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-04",
+        "entry_price": 1.3,
+        "last_bar": "2023-06-26",
+        "ltp": 1.46,
+        "delisted_date": "2023-06-26",
+        "delisting_bound": "not_binding",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "1387.HK",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-04",
+        "entry_price": 1.44,
+        "last_bar": "2023-05-23",
+        "ltp": 0.66,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "2686.HK",
+        "entry_date": "2022-07-01",
+        "entry_bar": "2022-07-04",
+        "entry_price": 1.36,
+        "last_bar": "2023-05-24",
+        "ltp": 1.72,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2023-07-01"
+      },
+      {
+        "symbol": "3948.HK",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 17.26,
+        "last_bar": "2023-08-11",
+        "ltp": 17.4,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "1839.HK",
+        "entry_date": "2023-07-01",
+        "entry_bar": "2023-07-03",
+        "entry_price": 7.36,
+        "last_bar": "2024-06-03",
+        "ltp": 7.46,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2024-07-01"
+      },
+      {
+        "symbol": "0468.HK",
+        "entry_date": "2024-07-01",
+        "entry_bar": "2024-07-02",
+        "entry_price": 2.32,
+        "last_bar": "2025-03-18",
+        "ltp": 2.5,
+        "delisted_date": null,
+        "delisting_bound": "none",
+        "source": "remote",
+        "exit_date": "2025-07-01"
+      }
+    ]
+  }
 }

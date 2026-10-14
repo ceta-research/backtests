@@ -28,6 +28,7 @@ try:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mticker
+    from matplotlib.patches import Patch
     import numpy as np
 except ImportError:
     print("matplotlib not installed. Run: pip install matplotlib")
@@ -45,6 +46,7 @@ COLORS = {
     "cash": "#9e9e9e",       # Grey
 }
 MIN_STOCKS = 10  # backtest.py's cash rule: fewer names than this and the period is held in cash
+TIE_PP = 0.2     # excess CAGR under this many points either way is a tie
 
 EXCHANGE_LABELS = {
     "NYSE_NASDAQ_AMEX": "United States",
@@ -174,13 +176,14 @@ def plot_cumulative_growth(exchange_key, data, label, bench, filename):
             f"Max DD: {p.get('max_drawdown', 'N/A')}%")
     if too_thin(data):
         note = ""  # mostly the cash line: not figures to quote
-    ax.text(0.02, 0.05, note, transform=ax.transAxes, fontsize=9,
-            color="#555555", va="bottom")
 
     # Show fewer x ticks for readability
     ax.set_xticks([x[0]] + [yr for yr in range(x[0] + 1, x[-1] + 1) if yr % 5 == 0])
 
     plt.tight_layout()
+    # Below the axes: inside them the lines can run through it and hide a minus sign.
+    if note:
+        fig.text(0.5, -0.01, note, ha="center", va="top", fontsize=9, color="#555555")
     os.makedirs(CHARTS_DIR, exist_ok=True)
     path = os.path.join(CHARTS_DIR, filename)
     plt.savefig(path, dpi=150, bbox_inches="tight")
@@ -310,13 +313,27 @@ def plot_comparison_cagr(all_data, filename="1_comparison_cagr.png"):
     x = range(len(labels))
     width = 0.38
 
+    # Colour by the file's excess: under TIE_PP either way is a tie, not a beat or a trail.
+    def bar_colour(key, port, spy):
+        excess = (all_data[key].get("comparison") or {}).get("excess_cagr")
+        excess = port - spy if excess is None else excess
+        if excess >= TIE_PP:
+            return COLORS["positive"]
+        return COLORS["negative"] if excess <= -TIE_PP else COLORS["cash"]
+
+    colours = [bar_colour(*leg) for leg in legs]
     fig, ax = plt.subplots(figsize=(14, 7))
-    ax.bar([i - width/2 for i in x], port_cagrs, width,
-           color=[COLORS["positive"] if c > s else COLORS["negative"]
-                  for c, s in zip(port_cagrs, spy_cagrs)],
-           alpha=0.85, label="Low Debt Quality")
-    ax.bar([i + width/2 for i in x], spy_cagrs, width,
-           color=COLORS["spy"], alpha=0.5, label="Local Benchmark")
+    ax.bar([i - width/2 for i in x], port_cagrs, width, color=colours, alpha=0.85)
+    ax.bar([i + width/2 for i in x], spy_cagrs, width, color=COLORS["spy"], alpha=0.5)
+    # Explicit handles: an auto legend takes the first bar's colour, whatever it is.
+    used = set(colours)
+    handles = [Patch(color=colour, alpha=0.85, label=f"Low Debt Quality, {text}")
+               for colour, text in [
+                   (COLORS["positive"], f"ahead by {TIE_PP} points or more"),
+                   (COLORS["cash"], f"within {TIE_PP} points (a tie)"),
+                   (COLORS["negative"], f"behind by {TIE_PP} points or more")]
+               if colour in used]
+    handles.append(Patch(color=COLORS["spy"], alpha=0.5, label="Local Benchmark"))
 
     ax.set_title(f"Low Debt Quality CAGR by Exchange{window_of(all_data, legs)}",
                  fontsize=13, fontweight="bold", pad=12)
@@ -324,7 +341,7 @@ def plot_comparison_cagr(all_data, filename="1_comparison_cagr.png"):
     ax.set_xticks(list(x))
     ax.set_xticklabels(labels, rotation=35, ha="right", fontsize=10)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.1f}%"))
-    ax.legend(fontsize=10)
+    ax.legend(handles=handles, fontsize=10)
     ax.grid(True, axis="y", alpha=0.3)
 
     plt.tight_layout()

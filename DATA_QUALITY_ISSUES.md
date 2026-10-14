@@ -521,14 +521,12 @@ legs carry the listing rules whether or not the flag is given.
 ### Rerun topics apply listing rules on XETRA, SIX and LSE (2026-10)
 
 When a topic is rerun with last-traded-price exits it no longer treats these exchanges as
-listed universes. Two waves have been rerun this way, and their results carry
-`listing_filter` / `isin_dedup` keys: the first wave (cyclical-timing, asset-growth,
-fcf-conversion, cash-conversion and graham-net-net) and, of the second, deleveraging,
-fcf-compounders, fcf-yield, revenue-accel, dividend-sustainability and price-to-sales. Six
-more second-wave topics have the rules in their code (dogs-of-dow, low-debt,
-dividend-growth, pe-mean-revert, rising-yield and graham-number); their committed results
-predate the rerun and follow in a later change. The rules, with what was measured on the
-first wave's previous holdings:
+listed universes. Two waves have been rerun this way, seventeen topics in all, and their
+results carry `exit_method`, `listing_filter` and `isin_dedup` keys: the first wave
+(cyclical-timing, asset-growth, fcf-conversion, cash-conversion and graham-net-net) and the
+second (deleveraging, fcf-compounders, fcf-yield, revenue-accel, dividend-sustainability,
+price-to-sales, dogs-of-dow, low-debt, dividend-growth, pe-mean-revert, rising-yield and
+graham-number). The rules, with what was measured on the first wave's previous holdings:
 
 | Leg | Rule | Measured on the previous runs' holdings |
 |---|---|---|
@@ -592,10 +590,13 @@ from 9.27% to -1.16% with 14 cash years, Brazil's High CCC from 16.11% to 4.44%,
 Singapore's Mid CCC is cash in 23 of 25 years. The US, China and the UK never go to cash and
 match the run without the floor.
 
-**Second wave: selection defects found by the audits and fixed before the rerun.** One has
-been rerun (price-to-sales). The other six topics' fixes are in code, and their committed
-results predate them until their rerun lands. The rules are in METHODOLOGY.md (Filing and
-Selection Rules); the sizes below were measured on the old screens before any rerun.
+**Second wave: selection defects found by the audits and fixed before the rerun.** All
+seven topics below have been rerun on the fixed code, and their committed results carry the
+fixes. The rules are in METHODOLOGY.md (Filing and Selection Rules). Each entry first sizes
+the defect, as measured on the old screen before any rerun, and then says what the
+installed results show. No leg was run with a fix switched off, so where an effect is
+credited to a fix alone, it comes from a replay of the screen with and without the fix,
+made on the warehouse before the rerun. A replay is not a backtest.
 
 **price-to-sales: the latest filing decides (fixed 2026-10, #10; rerun).** The screen cached
 only passing rows and took the latest of those, so a company kept qualifying on its last
@@ -607,7 +608,7 @@ year with no cash quarter in either file, but the fix is one of six changes betw
 files and no run isolates it.
 
 **graham-number: Graham number in the price's unit, and the latest filing (fixed 2026-10,
-#11; not rerun yet).** The screen compared `adjClose` (the listing's quote currency) with
+#11; rerun).** The screen compared `adjClose` (the listing's quote currency) with
 `key_metrics.grahamNumber` (per share, in the filing's reporting currency) and ranked on the
 raw ratio. At five sampled rebalances 23 to 27 of the US top 30 were foreign-currency
 reporters (Korean and Japanese ADRs ranked first on won and yen Graham numbers), and no
@@ -618,23 +619,59 @@ Lines with no currency or rate, and depositary receipts quoted in a currency oth
 their reporting currency, are dropped and counted in `gn_ccy_excluded`. Separately, the
 fetch loaded only filings with a positive Graham number, so a company whose earnings or book
 value turned negative kept qualifying on its last good year. It now takes the latest FY
-filing within 540 days and then tests it.
+filing within 540 days and then tests it. In the rerun the US leg went from 7.01% to 11.80%
+a year with no cash year in either file. Its file counts 2,762 line-dates dropped under
+`gn_ccy_excluded` over the 25 rebalances, all of them cross-currency depositary receipts,
+and by the fix's screen check 71 of the old US book's 750 top-30 slots are still held. The
+UK leg went from 5 cash years of 25 to none and South Africa from 25 to 7, because pence
+and cent quotes can now pass. Inside the books, the split between the two rules, the dedup
+and data revised since the published run isn't determined. A line that isn't an ordinary
+share ranks first in the US book in 11 of 25 years (every year from 2014), in Canada's in 9
+and in the UK's in 13 (under "Not fixed yet" below), so the US figure can't be credited to
+the screen until a funds-excluded leg is run.
 
-**rising-yield: the rising run must end at the latest year (fixed 2026-10, #11; not rerun
-yet).** It took each company's newest row that passed the three-year rising test, with no
+**rising-yield: the rising run must end at the latest year (fixed 2026-10, #11; rerun).** It
+took each company's newest row that passed the three-year rising test, with no
 age limit, and dropped non-paying years before counting "consecutive" years. Between 59% and
 77% of top-30 slots sat on a row older than the last complete fiscal year; the 2024 top 30
 held AJRD on its FY1989 row. The test must now hold on the latest FY row (within 540 days),
-over three consecutive fiscal years, and a zero or missing yield breaks the run.
+over three consecutive fiscal years, and a zero or missing yield breaks the run. The old screen
+also read only fiscal years ending in the calendar year before the rebalance or earlier; the
+rerun reads the latest year end at least 45 days old, so a March year-end company is screened in
+July on the year that ended three months earlier, not fifteen. In the
+rerun cash years went from 65 to 227 of 425 market-years over 17 markets, 181 of them on
+the screen count and 46 on the entry-side guard, and CAGR fell in 15 markets (it rose in
+the US and China). Nine markets became too thin to test. Of the eight still invested in at
+least half their years, 5 are ahead of their benchmark (4 of the 5 against a price index),
+1 ties and 2 trail; the published files read 12 of 17 ahead. By a replay of the screen
+about 123 of the 162 added cash years come from the fix and about 36 would have appeared
+without it. The replay modelled a draft of the fix that kept the published screen's bound
+(fiscal year at most the rebalance year minus one), so for a March year-end, common in
+India and Japan, it tested in July the year that ended 15 months earlier where the rerun
+tests the one that ended 3 months earlier. Its cash years differ from the rerun's in 9 of
+17 markets and its counts by up to 2 a market (224 against 227 in all), and it is weakest
+for India and Japan, the two largest CAGR moves among the eight markets still tested.
 
-**pe-mean-revert: the band is tested on the latest filing (fixed 2026-10, #11; not rerun
-yet).** The P/E band (3 to 50) was applied before the latest-row pick, so the row used was
+**pe-mean-revert: the band is tested on the latest filing (fixed 2026-10, #11; rerun).** The
+P/E band (3 to 50) was applied before the latest-row pick, so the row used was
 the latest filing with an in-band P/E: 21% of US top-30 slots were not the company's latest
 filing. Now the latest row within 540 days is picked first and the band tested on it. The
-sector median still counts same-ISIN twins twice.
+sector median still counts same-ISIN twins twice. In the rerun CAGR fell in 11 of 13
+markets and cash years went from 76 to 136 of 325 market-years. By the audit's replay of
+the screen the fix replaces 760 of 5,501 top-30 slots (13.8%; 165 of 750 in the US) and
+accounts for 5 of the 60 added cash years (China 2, Germany 1, Sweden 2). Germany, Sweden
+and Switzerland became too thin to test (17, 16 and 24 cash years of 25). Germany's and
+Switzerland's come mostly from the listing rule: 10 or more home-country names pass the
+screen in 10 of 25 years in Germany and in 4 in Switzerland. Of Sweden's 6 added cash years
+2 are the fix by the replay (2015 and 2016) and one is the cash guard (2009: 9 of 10
+screened names buyable before the fix). The other 3 (2007, 2012 and 2014) screen 6, 6 and
+7 names on the replay's code without the fix, with no twin removed, where the published
+screen passed 10 or more. Taiwan 2012 is the same case on a leg already too thin. Those 4
+years come from data revised since August or another code change between the published
+commit and the rerun; which isn't determined.
 
 **dogs-of-dow: yield on the latest filing, size in one currency (fixed 2026-10, #11 and #13;
-not rerun yet).** Yield: a company that cut its dividend to zero kept ranking on its last
+rerun).** Yield: a company that cut its dividend to zero kept ranking on its last
 positive-yield filing. The latest ratios filing within 540 days must now show a yield above
 zero, on the Dow 30 leg and the non-US legs. Size: the non-US legs took the top 30 by raw
 `key_metrics.marketCap`, which is in each filer's reporting currency and contains corrupt
@@ -649,22 +686,59 @@ size is about 7,100 times its floor, the smallest corrupt one about 27,000 times
 screen emulation over today's data, not a backtest, 3,177 of 10,868 blue-chip slots and
 1,164 of 3,753 dog slots change, every slot is priced, cash leg-years go from 36 to 30, and
 the ceiling removes 73 slots (Japan 71, India 1, Korea 1). 16 slots keep a size that looks
-inflated but sits under the ceiling (13 in the UK), none of them a held dog.
+inflated but sits under the ceiling (13 in the UK), none of them a held dog. The rerun
+matches the emulation: 30 cash market-years (25 in the published files), and `size_excluded`
+records 73 line-years above the ceiling (Japan 71, India on BSE 1, Korea 1) and 29,990 that
+took no slot for want of an entry price. The average number of lines held when invested
+rose on all 16 non-US legs (3.6 to 9.8 in the published files, 9.3 to 10.0 now), and
+`entry_buyable` equals `screened` in every one of the 395 invested market-years, so the
+cash guard decides no year. All 5 added cash years have fewer than 5 names passing the
+screen (the topic's floor is 5). On the non-US legs a line now needs an entry price to take
+a blue-chip slot and so to count toward the screen, which the published code didn't
+require, so the files don't show why those counts fell. By the size-rule emulation the
+five were cash before the size rule too, and an emulation of the screen before that rule
+found, at the January 2001 rebalance, 5 BSE lines above the floor, 4 of them with no entry
+price, which points to the cash guard. Five legs moved by more than 2
+points of CAGR: UK 2.01% to 7.62%, South Africa 10.29% to 6.52%, Germany 3.15% to 6.09%,
+Canada 5.97% to 8.70% and India on BSE 14.60% to 12.50%. Why a book differs in a year
+invested both times isn't determined from the files: the size rule, the yield fix, the
+dedup, the listing rule (on XETRA, SIX and LSE) and six months of revised data all act on
+the same top 30. The published per-market files for Germany, Switzerland, South Africa and
+Saudi Arabia were never committed to this repository. Their published figures here come
+from files of the same April 2026 run kept outside it, dated 2026-04-12 like the 13
+committed files.
 
-**low-debt: the prior year is the company's own (fixed 2026-10, #11; not rerun yet).** The
+**low-debt: the prior year is the company's own (fixed 2026-10, #11; rerun).** The
 prior-year filing window was 185 days wide and fixed to the rebalance date, so companies
 with fiscal years ending between May 18 and November 13 were never screened on any leg: 55%
 of size-eligible company-years on JNB, 20% on LSE pence lines, 12% in the US. The prior row
-is now the company's own previous fiscal year, 300 to 430 days before its current row.
+is now the company's own previous fiscal year, 300 to 430 days before its current row. In
+the rerun the US book averages 232.4 names against 196.0 in the published file, and its
+CAGR went from 7.57% to 7.64%. By a replay of the screen the fix changes the cash-year
+count in 3 of 15 markets and no other: Germany 8 to 6, Canada 3 to 2 and South Africa 25 to
+22, where 2016, 2018 and 2022 are now invested on 11, 12 and 10 names. The topic's moves
+above 2 points (Germany -2.55, Sweden -2.68, Switzerland -5.85) come mostly from elsewhere:
+by the replay the fix moves no cash year in Sweden or Switzerland and takes two out of
+cash in Germany. 40 market-years went from invested to cash, 31 on the cash guard and 9 on
+the screen count on the German and Swiss legs, and Singapore is now in cash in 23 of 25
+years and too thin to test.
 
-**dividend-growth: the streak ends at the last complete year (fixed 2026-10, #11; not rerun
-yet).** The streak counted increases since the last recorded cut and ignored missing years,
-so a company that stopped paying kept its streak: 13 of Sweden's top 30 in July 2021 had
-paid nothing in 2020. The streak now has to end at the last complete calendar year, and a
-year with no dividend, a cut, a flat year or a gap breaks it.
+**dividend-growth: the streak ends at the last complete year (fixed 2026-10, #11;
+rerun).** The streak counted increases since the last recorded cut and ignored missing
+years, so a company that stopped paying kept its streak: 13 of Sweden's top 30 in July
+2021 had paid nothing in 2020. The streak now has to end at the last complete calendar
+year, and a year with no dividend, a cut, a flat year or a gap breaks it. By a replay of
+the screen the fix alone sends three market-years to cash (Germany 2024, Sweden 2023,
+Switzerland 2021) and none out, and it changes Sweden's book most: 54 of 320 top-30 slots
+replaced. In the rerun Sweden's 2021 book holds 12 names of 17 screened, and that year's
+return moved from -16.01% to -15.93%, which suggests the names that had stopped paying
+returned about what the rest did that year. Germany, Switzerland and Sweden became too thin
+to test (17, 20 and 15 cash years of 25): Germany through the listing rule, Switzerland
+through the listing rule and the cash guard together, Sweden through the cash guard in
+three years and the fix in one. South Africa is in cash in all 25 years.
 
-**What the second wave's rerun showed (2026-10-13, six topics, 96 market legs).** The
-published files of deleveraging, fcf-compounders, fcf-yield, revenue-accel,
+**What the second wave's rerun showed (2026-10-13): the first six topics, 96 market
+legs.** The published files of deleveraging, fcf-compounders, fcf-yield, revenue-accel,
 dividend-sustainability and price-to-sales were written between March and August 2026. They
 predate the entry-side cash guard (2026-09-03), the fix to the price oscillation filter
 (2026-08-21, see that section below), the deterministic tie-breaks (2026-10-10), the listing
@@ -687,10 +761,59 @@ alone, and it is small:
   fcf-compounders 17 of 18 (every market but the US), fcf-yield 7, price-to-sales 7,
   deleveraging 3, revenue-accel 2, dividend-sustainability 2.
 
+**The other six topics, 93 market legs (2026-10-13).** The published files of low-debt,
+dividend-growth, graham-number, pe-mean-revert, rising-yield and dogs-of-dow were written
+between March and August 2026 as well, the oldest on 2026-03-09 (three graham-number
+markets) and the newest on 2026-08-14 (pe-mean-revert). They predate the same list of
+changes, and each also predates its own selection fix (entries above). Both vintages
+cover the same 25 annual periods on every leg, so no difference below is a new period.
+
+- Exit rule alone, on identical selection: 0.14 points of CAGR or less on 86 of the 93 legs,
+  with 230 exits filled and none left unpriced (per-topic ranges under "Exit-side
+  survivorship" below).
+- Entry-side cash guard: 128 of the 755 cash years in the new files are years where enough
+  names passed the screen and too few of them could be bought (rising-yield 46, low-debt
+  38, dividend-growth 20, pe-mean-revert 17, graham-number 7, dogs-of-dow 0). The floor is
+  10 names, and 5 in dogs-of-dow, where a line needs an entry price to take a blue-chip
+  slot in the first place.
+- Listing rules: German and Swiss legs lose years to the screen count. Cash years of 25,
+  published to rerun, XETRA then SIX: dividend-growth 7 to 17 and 7 to 20, pe-mean-revert 0
+  to 17 and 3 to 24, rising-yield 0 to 15 and 0 to 21, low-debt 0 to 6 and 1 to 8,
+  graham-number 0 to 1 and 2 to 3. dogs-of-dow has no cash year on either leg in either
+  file. Those counts include each topic's selection fix and the cash guard: in rising-yield
+  the replay has 6 of XETRA's 15 added years and 6 of SIX's 21 appearing without the fix.
+  On LSE cash years went from 0 to 5 in low-debt and in pe-mean-revert, from 0 to 8 in
+  rising-yield (the replay credits all 8 to the selection fix, acting through the guard)
+  and from 5 to 0 in graham-number, where no pence line could pass before.
+- Not separable from the files: inside years invested both times, a topic's selection fix,
+  the dedup, the price-filter fix, the tie-breaks and data revised since the published run.
+  The published files hold no holdings and no per-year screen counts.
+- 24 of the 93 legs are invested in fewer than half their years and are too thin to test:
+  rising-yield 9 of 17 (Germany, Sweden, Switzerland, Australia, Korea, South Africa,
+  Singapore, Brazil and Thailand, all nine newly), dividend-growth 7 of 14 (Germany,
+  Switzerland and Sweden newly; Taiwan, China, Korea and South Africa already),
+  pe-mean-revert 5 of 13 (Germany, Sweden and Switzerland newly; Taiwan and Thailand
+  already), low-debt 2 of 15 (Singapore newly; South Africa already), graham-number 1 of 17
+  (France, in cash in all 25 years in both files) and dogs-of-dow none of 17. Four of the
+  24 have no invested year at all: South Africa in dividend-growth and in rising-yield,
+  Singapore in rising-yield and France in graham-number. A too-thin leg's file still
+  carries a CAGR, a Sharpe ratio and a drawdown. They mostly measure cash years and must
+  not be read as results: pe-mean-revert Switzerland's 0.97% a year and 0.00% drawdown
+  describe one invested year of 25.
+- graham-number's Norway leg is window-truncated, not too thin. It is invested in 17 of its
+  25 years, but its benchmark starts in 2014, so its metrics cover 11 of the 25 rebalances,
+  and its record says so (`window_truncated: true`). The leg isn't in the topic's
+  comparison file.
+- Benchmarks: the 25-year benchmark CAGR is the same to two decimals in both vintages on 92
+  of the 93 legs. The exception is graham-number Singapore, whose benchmark changed from
+  the S&P 500 to the STI. Single benchmark years did move (under "Not fixed yet").
+
 Not fixed yet:
 - `7386.T` (an LTP fill in cyclical-timing and fcf-conversion's JPX results, held in
   fcf-conversion's 2024 book) has price levels around 4 billion in `stock_eod`. Entry and exit
   are on the same scale, so its period return is sane, but the levels are corrupt upstream.
+  `4298.T`, an LTP fill in low-debt's JPX results, has levels of the same kind: bought in
+  July 2024 at about 19.3 billion and filled in June 2025 at about 28.5 billion.
 - `graham-net-net/screen.py`, the live screen, still compares `adjClose` with
   `grahamNetNetTTM` across currencies.
 - Each second-wave topic's live `screen.py` has the pre-fix shape. None of the 12 has
@@ -715,8 +838,34 @@ Not fixed yet:
   line); dividend-sustainability STO 2009 met its 10-name floor with 8 companies (SSAB-A
   with SSAB-B, ATCO-A with ATCO-B); dividend-sustainability TSX 2016 held GWO.TO with three
   of its preference lines; price-to-sales US has mutual-fund share classes (PRGTX, JTSSX
-  and others) among its ten recorded names in 38 of 103 quarters. Book sizes in the results
-  count lines, not companies.
+  and others) among its ten recorded names in 38 of 103 quarters. In the six topics rerun
+  last, counted by ticker root, which is a lower bound and not an identity check:
+  dogs-of-dow SET fills 81 of its 210 slots with a second line of a company already in the
+  book (92 of the 210 are `-R` lines), dogs-of-dow Canada holds preferred-share lines
+  in 96 of 249 slots, in all 25 years, and dogs-of-dow UK holds four preference lines
+  (GACA.L, GACB.L, BP-A.L and BP-B.L) in 52 of 250 slots, in every year from 2005 and 4 of
+  the 10 in six years; dividend-growth TSX holds CCL-A.TO with CCL-B.TO in 17 of 20
+  invested years; rising-yield TSX holds two or more lines on one root in all 18 invested
+  years (2019: 20 lines on 11 roots); pe-mean-revert STO has two lines on one root among
+  its ten recorded names in all 9 invested years. The dogs-of-dow UK leg is that topic's
+  largest move (+5.61 points), and its drawdown and volatility describe a book that is
+  partly fixed-coupon preference shares. Book sizes in the results count lines, not
+  companies.
+- graham-number tends to rank such lines first. A preference line, a fund share class or a
+  second share class that carries the company's Graham number against its own, lower price
+  ranks below the ordinary share on price over Graham number and can rank first in its
+  market. Among the ten cheapest names each results file records per year: tickers in the
+  mutual-fund format (five letters ending in X) in the US in every year from 2014 to 2024,
+  5 to 7 of the ten and 63 of 250 recorded slots; preferred-share series in Canada in 18 of
+  25 years, up to 9 of the ten and 92 of 250 slots; Aviva and BP preference lines in the UK
+  in 19 of 25 years, 44 of 250 slots; preferred-share codes in Korea in all 19 invested
+  years, 123 of 190 slots; 0087.HK (Swire Pacific B) in Hong Kong in 24 of 25 years; and
+  AMC.AX in Australia in 21 of 25 years, first in 9 of them, which the fix review traced to
+  a per-share basis mismatch. The lines were recognised by ticker pattern and weren't
+  checked against `profile`. The files record the ten cheapest of a
+  year's names (the US book averages 29.2) and no name's return, so what these lines add to
+  or take from a CAGR isn't determined. The topic has no fund-exclusion flag, and no run
+  has left them out.
 - The 45-day lag counts from the fiscal period end, not from a filing date, in every rerun
   topic. The screens read statements by `dateEpoch` (the period end), and no backtest or
   screen in this repository reads the date a financial statement was filed or accepted, so
@@ -734,13 +883,62 @@ Not fixed yet:
   since #10 and no run has used it (see "Closed-end funds" below).
 - dogs-of-dow's US leg ranks today's Dow 30 members in every year. Its non-US legs lose
   some large companies that have no price history before 2026, and their blue-chip slots
-  go to smaller names (#13).
+  go to smaller names (#13). In the rerun 22 different tickers fill the US leg's 250 slots,
+  and on JNB NPN.JO and MTN.JO fill none. The non-US books aren't always what "blue chips"
+  suggests: Canada's slots are 39% preferred-share lines (above), and Hong Kong's book
+  holds lines numbered 43xx.HK in 10 slots (HKSE has no listing rule). 7 of them are
+  4335.HK and 4338.HK, which the size-rule audit identified as Intel's and Microsoft's Hong
+  Kong lines; the other 3 are 4333.HK, which it didn't identify. dividend-growth's Hong Kong
+  book holds 4333.HK, 4335.HK and 4338.HK in 7, 9 and 11 of its 16 invested years; the
+  same numbering, not checked against `profile`.
+- The 200% return cap removes a name from a year's average without replacing it, so a book
+  that cleared the floor at entry can average fewer names than the floor. In dogs-of-dow's
+  rerun it removed 25 names in 12 market-years: South Africa's +59.16% for 2005 is the
+  average of 4 names, under the floor of 5, and Shenzhen's +139.50% for 2007 the average of
+  6 of 10.
 - cyclical-timing's expansion signal counts same-ISIN twins twice (the signal, not the
   holdings).
 - A reused ticker can carry its current holder's ISIN across the previous company's
   whole price history (OSG bars are Overseas Shipholding but carry Ambac's ISIN; ACH bars
   are the Aluminum Corp of China ADR but carry Owens & Minor's). If both lines pass the
   same screen on the same date, the ISIN rule treats two companies as one.
+- The reverse also happens: a renamed line can be held twice when its old and new tickers
+  don't share an ISIN. graham-number's Brazil book has AXIA6.SA with ELET6.SA among its ten
+  recorded names in 6 years, and MBRF3.SA with MRFG3.SA in 2024. Each pair looks like the
+  old and the new ticker of one line (Eletrobras, Marfrig); that wasn't checked against
+  the warehouse.
+- A line whose price rows keep printing one price can be bought and then exits at that
+  price. pe-mean-revert has three last-traded-price fills at exactly the entry price:
+  GBGLOBAL.NS (bought January 2023 at 930.00, last bar 2023-05-23), CO (2.99, last bar and
+  delisting 2023-06-09) and EVR.L (81.00, last bar 2023-08-11). EVR.L's delisting record is
+  dated 2022-03-10, more than 30 days before the entry, so the fill ignores it, and the
+  same fill is in graham-number's UK book. An unchanged price suggests a suspended or stale
+  line. That wasn't checked against a source.
+- A company's filings can start before its price rows do. A screen that picks on the
+  latest filing surfaces such names, and the cash guard then sends the year to cash. In
+  the replay of rising-yield's fixed LSE screen 342 of 604 top-30 slots were buyable, 159
+  had no `stock_eod` row at all and 99 had a first bar after the entry window; all 8 of
+  that leg's cash years are guard years. In its installed LSE file 304 of the 484 names
+  screened in its 17 invested years (63%) had an entry price, so its book averages 17.9
+  lines although 10 or more pence-quoted names pass the screen in all 25 years and the full
+  top 30 in 12 of them. In pe-mean-revert 9 of 30 screened names had an entry price in
+  China at the January 2009 rebalance, one short of the floor of 10, so the year is cash
+  where the published file reported +100.79%. In Hong Kong 10 of 30 had one, and the year
+  is invested at the floor (+62.62%). Why the rest had no price in the entry window wasn't
+  checked.
+- Single benchmark years differ between the published and the rerun files on four or five
+  indices per topic, in offsetting neighbours that leave the 25-year CAGR the same: the
+  Sensex, Nikkei 225, SSE Composite, KOSPI and OMX Stockholm 30 in the three topics that
+  rebalance in July, the Sensex, Hang Seng, SSE Composite, KOSPI and SET Index in
+  dogs-of-dow and pe-mean-revert, and the Sensex, Bovespa, KOSPI and Hang Seng in
+  graham-number. The Sensex's 2000 reads -29.29% in low-debt's new file and -31.63% in the
+  published one. That is the pattern of a different index bar being picked at a rebalance
+  date. Whether the cause is the price-filter fix (the index passes through the same
+  filter), the wider price window, the UTC date bounds or a revised row isn't determined.
+- A leg with no local index in the price data is measured against the S&P 500 in USD, a
+  local-currency return against a dollar index. In the six topics rerun last that is
+  South Africa (JNB) in the five that run it, Shenzhen and Saudi Arabia in dogs-of-dow,
+  and France in graham-number. Their excess figures aren't verdicts on the screen.
 
 **Same security, two tickers.** One ISIN keeps one line, before the top-N cut, so a
 collapsed twin frees its slot for the next name. Per ISIN, the line buyable at entry
@@ -765,15 +963,15 @@ Caveats:
   The second wave shows both: fcf-yield XETRA is at 22 cash years of 25 after its rerun,
   while deleveraging LSE has no cash quarter in either file and its average book grew from
   13.2 to 20.8 lines (the price-filter fix can fill that book too, and the split between
-  the two isn't determined).
+  the two isn't determined). In the six topics rerun last, dogs-of-dow's XETRA, SIX and LSE
+  legs have no cash year in either file and their average books grew from 6.1, 3.6 and 5.0
+  lines to 10.0, 9.9 and 10.0 (with the topic's size rule), and graham-number LSE went from
+  5 cash years to none (with its unit fix).
 - Stockholm is left as listed. Its books are almost entirely domestic, and a country
   filter would wrongly drop ABB, AstraZeneca and Nokia.
 
 **Topics outside the two waves have not been changed.** Their XETRA, SIX and LSE legs
-still hold every listed line; read them with the measurements earlier in this section. The
-same goes for the committed results of the six second-wave topics still to be rerun
-(dogs-of-dow, low-debt, dividend-growth, pe-mean-revert, rising-yield and graham-number),
-until their rerun lands.
+still hold every listed line; read them with the measurements earlier in this section.
 
 ---
 
@@ -910,11 +1108,12 @@ each row with neighbours a whole rebalance interval away, and where it emptied a
 window that stock dropped out of the rebalance: fcf-growth XETRA 2000 read -3.3% with the
 bug and +27.9% without it. Neighbours must now sit within 10 days of each other
 (`max_neighbor_gap_days`). Every windowed-fetch result produced between 2026-04-09, when
-the filter landed, and the fix carries the bug. Most published files of the six second-wave
-topics rerun in October 2026 were written in that window, so the fix is one candidate cause
-of their published-to-rerun differences, and no run isolates it for them. A few of their
-files are older, from March 2026, and predate the filter itself (six fcf-compounders
-markets among them).
+the filter landed, and the fix carries the bug. Most published files of the twelve
+second-wave topics rerun in October 2026 were written in that window, so the fix is one
+candidate cause of their published-to-rerun differences, and no run isolates it for them.
+A few of their files are older, from March 2026, and predate the filter itself (six
+fcf-compounders markets and graham-number's Australia, France, South Africa and Singapore
+among them).
 
 ---
 
@@ -1042,13 +1241,19 @@ What that means:
   companies that survived at least to 2015 or 2020. The 2003 book of any screen could only
   pick companies still trading more than a decade later.
 - Last-traded-price exits (next section) can only capture a company that stopped trading
-  from about 2015 in the US and 2020 elsewhere. The second wave's fills agree: of 142 exits
-  filled on its 96 market legs, all 27 US fills were priced at a last bar in 2017 or later
-  and 89 of the 115 others at one in 2021 or later. The remaining 26 (17 on China legs)
-  have no delisting recorded at the time of the fill: 24 have no delisting record at all,
-  and two (RSAB.L, filled at a 2006 bar in deleveraging and in price-to-sales) have a
-  delisting dated 2024. They may be suspensions, gaps in the price rows or delistings the
-  list doesn't hold; that wasn't checked symbol by symbol.
+  from about 2015 in the US and 2020 elsewhere. The second wave's fills agree. Of 142 exits
+  filled on its first six topics' 96 market legs, all 27 US fills were priced at a last bar
+  in 2017 or later and 89 of the 115 others at one in 2021 or later. The remaining 26 (17
+  on China legs) have no delisting recorded at the time of the fill: 24 have no delisting
+  record at all, and two (RSAB.L, filled at a 2006 bar in deleveraging and in
+  price-to-sales) have a delisting dated 2024. Of 230 exits filled on the other six
+  topics' 93 legs, 59 of the 60 US fills were priced at a last bar in 2017 or later and one
+  in May 2016 (EMQ, in pe-mean-revert), and 134 of the 170 others at one in 2021 or later.
+  The remaining 36 (26 on China legs) have no delisting recorded at the time of the fill
+  either: 34 have no delisting record at all, and two (87IP.L, filled at a December 2007
+  bar in graham-number and in pe-mean-revert) have a delisting dated 2024. The earliest is
+  WTB.L, filled at a December 2000 bar in graham-number. They may be suspensions, gaps in
+  the price rows or delistings the list doesn't hold; that wasn't checked symbol by symbol.
 - The US count for 2015-2019 (174) is well under the count for 2020-2025 (470), so the
   record for those years may be partial too. Not established.
 - The price-table count covers the US and six other markets. Other markets weren't counted
@@ -1071,11 +1276,11 @@ US leg uses today's Dow 30 members in every year.
 here. A committed result carries the fix only once its topic is rerun, and it then writes
 `"exit_method": "ltp"`. A results file with
 no `exit_method` key used the drop rule. The first rerun wave is cyclical-timing, asset-growth,
-fcf-conversion, cash-conversion and graham-net-net. Of the second, deleveraging,
-fcf-compounders, fcf-yield, revenue-accel, dividend-sustainability and price-to-sales have
-been rerun; dogs-of-dow, low-debt, dividend-growth, pe-mean-revert, rising-yield and
-graham-number follow. The fix reaches only as far back as the data holds delisted
-companies: about 2015 in the US and 2020 elsewhere (previous section).
+fcf-conversion, cash-conversion and graham-net-net. The second is deleveraging,
+fcf-compounders, fcf-yield, revenue-accel, dividend-sustainability, price-to-sales,
+dogs-of-dow, low-debt, dividend-growth, pe-mean-revert, rising-yield and graham-number. All
+seventeen have been rerun and carry the key. The fix reaches only as far back as the data
+holds delisted companies: about 2015 in the US and 2020 elsewhere (previous section).
 **Affects:** all 66 floor topics, and every topic that averages `filter_returns`'
 output. LTP is wired into all 75 topics that drop a held name for a missing exit price.
 
@@ -1115,7 +1320,7 @@ graham-net-net US -0.59pp. Direction is strategy-specific: distress and net-net 
 lose (their dead names were real wipeouts), US momentum gains (acquired names sat
 flat through bad quarters).
 
-Measured again 2026-10-13 on the second wave's 96 market legs, both methods on identical
+Measured again 2026-10-13 on the second wave's 189 market legs, both methods on identical
 selection in one run per leg (`ltp_portfolio.cagr` minus `drop_portfolio.cagr`):
 
 | Topic | Legs | Exit rule alone, CAGR points | Exits filled | Left unpriced |
@@ -1126,13 +1331,37 @@ selection in one run per leg (`ltp_portfolio.cagr` minus `drop_portfolio.cagr`):
 | revenue-accel | 15 | -0.21 to +0.45 | 20 | 0 |
 | dividend-sustainability | 15 | -0.09 to +0.08 | 23 | 1 |
 | price-to-sales | 16 | -0.10 to +0.26 | 28 | 0 |
+| low-debt | 15 | -0.27 to +0.07 | 125 | 0 |
+| dividend-growth | 14 | -0.14 to +0.21 | 10 | 0 |
+| graham-number | 17 | -0.29 to +0.12 | 32 | 0 |
+| pe-mean-revert | 13 | -0.19 to +0.19 | 27 | 0 |
+| rising-yield | 17 | -0.10 to +0.12 | 29 | 0 |
+| dogs-of-dow | 17 | -0.12 to +0.46 | 7 | 0 |
 
-93 of the 96 legs move by 0.14 points or less. The three that move more are revenue-accel
-XETRA +0.45 (7 exits filled, entered 2018 and 2021-2023), price-to-sales China +0.26 (6)
-and revenue-accel SES -0.21 (1 fill, on a book invested in 6 of 25 years, too thin to
-test). No leg moves by more than 0.45 points on the exit rule, so the larger moves between
-the published and the rerun files come from the other changes; see "What the second
-wave's rerun showed" above.
+In the first six topics 93 of the 96 legs move by 0.14 points or less. The three that move
+more are revenue-accel XETRA +0.45 (7 exits filled, entered 2018 and 2021-2023),
+price-to-sales China +0.26 (6) and revenue-accel SES -0.21 (1 fill, on a book invested in 6
+of 25 years, too thin to test).
+
+In the other six, 86 of the 93 legs move by 0.14 points or less. The seven that move more:
+
+- dogs-of-dow SHZ +0.46, from two fills of one stock. 000002.SZ was bought in January 2012
+  and January 2015 and has its last bar on 2012-12-25 and 2015-12-18. Neither fill has a
+  delisting record, and the stock is in the book in 13 years, the last 2024, so these
+  aren't delistings. They look like trading suspensions or gaps in the price rows over the
+  year end. Which of the two wasn't checked against a source.
+- graham-number SES -0.29 and low-debt SES -0.27, one fill each of the same stock. HKB.SI
+  was bought in January 2024 at 12.93 and in July 2024 at 10.00, and its last bar is
+  2024-08-12 at 3.60, with no delisting record. The low-debt leg is invested in 2 of 25
+  years and is too thin to test.
+- dividend-growth China +0.21, from one fill: 000786.SZ, bought in July 2014 at 5.62, last
+  bar 2015-04-09 at 15.29, no delisting record. It lifts that year from 77.61% to 87.04% on
+  a book of 10 names, in a market invested in 11 of 25 years and too thin to test.
+- pe-mean-revert Canada +0.19 (6 fills), Hong Kong +0.19 (2) and India -0.19 (4).
+
+rising-yield has no leg above 0.12 points. No leg in the wave moves by more than 0.46
+points on the exit rule, so the larger moves between the published and the rerun files come
+from the other changes; see "What the second wave's rerun showed" above.
 
 **Still open after the fix.**
 - `max_single_return` is still upside-only, so an acquisition premium above the cap
@@ -1187,16 +1416,19 @@ because the surrounding argument is entirely about precision of claims.
 **Affects:** every committed result that has not been rerun. When recorded, that was the
 whole corpus: 2,884 period records, of which **0** carried the entry funnel.
 
-> **Update 2026-10-13.** `scripts/scan_results_invariant.py` now checks 15,153 period
-> records that carry the funnel, in 12 topics: the first rerun wave except cash-conversion
-> (asset-growth, cyclical-timing, fcf-conversion, graham-net-net), the six second-wave topics
-> rerun so far (deleveraging, dividend-sustainability, fcf-compounders, fcf-yield,
-> price-to-sales, revenue-accel), and volume-confirmed-momentum and yield-gap from their own
-> reruns. All pass. The 2,884 records still without it are all graham-timing's. In those 12
-> topics a cash period can now be attributed from the file: on the second wave's 96 market
-> legs, 338 of 2,023 cash periods are guard cash (10 or more names passed the screen, fewer
-> than 10 buyable) and the other 1,685 had fewer than 10 names passing. Every other topic is
-> as described below.
+> **Update 2026-10-13.** `scripts/scan_results_invariant.py` now checks 19,653 period
+> records that carry the funnel, in 18 topics: the first rerun wave except cash-conversion
+> (asset-growth, cyclical-timing, fcf-conversion, graham-net-net), the twelve second-wave
+> topics (deleveraging, dividend-growth, dividend-sustainability, dogs-of-dow,
+> fcf-compounders, fcf-yield, graham-number, low-debt, pe-mean-revert, price-to-sales,
+> revenue-accel, rising-yield), and volume-confirmed-momentum and yield-gap from their own
+> reruns. All pass. The 2,884 records still without it are all graham-timing's. In those 18
+> topics a cash period can now be attributed from the file. On the first six second-wave
+> topics' 96 market legs, 338 of 2,023 cash periods are guard cash (10 or more names passed
+> the screen, fewer than 10 buyable) and the other 1,685 had fewer than 10 names passing.
+> On the other six topics' 93 legs, 128 of 755 cash years are guard cash and the other 627
+> had fewer names passing than the topic's floor (10 names, and 5 in dogs-of-dow, which has
+> no guard cash). Every other topic is as described below.
 
 > **2,884, not 2,987.** A working tree can report 2,987 because
 > `graham-timing/results/us.json` holds 103 more and is UNTRACKED — `.gitignore`

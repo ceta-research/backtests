@@ -36,14 +36,16 @@ its own pair, against SYNTHETIC in-memory fixtures rather than corpus files, so
 that it cannot silently degrade into agreeing with whatever the corpus says.
 
 M5, THE FALSE-POSITIVE CONTROL (reproduced on real data during planning): swap the
-legacy branch for the naive `i < 0 or c + i != n or c > n` and the scan flags 26
-nodes (measured 2026-10-13) -- the 15 true bads PLUS 11 CORRECT records of
+legacy branch for the naive `i < 0 or c + i != n or c > n` and the scan flags 27
+nodes (measured 2026-10-13) -- the 15 true bads PLUS 12 CORRECT records of
 benchmark-truncated Norway legs: both 52-week-low OSL nodes (n=50, cash=84,
 invested=11), prior art from commit 3c39bcb, and the rerun records of
-deleveraging, fcf-compounders, fcf-yield, volume-confirmed-momentum and yield-gap.
-(At 037ad42 it was 24: the 22 true bads plus the two 52-week-low nodes.) 84 > 50
-fires because cash is a full-window count and n_periods is a metrics-window count.
-They are different populations on purpose.
+deleveraging, fcf-compounders, fcf-yield, graham-number, volume-confirmed-momentum
+and yield-gap. (At 037ad42 it was 24: the 22 true bads plus the two 52-week-low
+nodes; 26 before graham-number's rerun rewrote norway_results.json from a legacy
+record, n=11, cash=9, invested=2, into one with n=11, cash=8, invested=17, which
+trips `c + i != n` alone.) 84 > 50 fires because cash is a full-window count and
+n_periods is a metrics-window count. They are different populations on purpose.
 
 Usage:  python scripts/scan_results_invariant.py [--naive]
         --naive runs mutation M5 and is expected to FAIL the self-test.
@@ -88,10 +90,11 @@ EXPECT_FLAGGED = {
 }
 # 9 topic/universe pairs, for the human-readable summary.
 EXPECT_PAIRS = 9
-# Nodes that carry total_rebalances. 20 at 037ad42 (all 52-week-low); 395 on
-# 2026-10-13, after the reruns to date. A mismatch prints a note, not a failure:
-# it rises with every rerun.
-EXPECT_B006_REGIME = 395
+# Nodes that carry total_rebalances. 20 at 037ad42 (all 52-week-low); 395 after
+# the first six wave 2 topics; 575 on 2026-10-13 with the other six (180 nodes: 93
+# per-market files and 87 comparison nodes). A mismatch prints a note, not a
+# failure: it rises with every rerun.
+EXPECT_B006_REGIME = 575
 
 
 def check(rec, naive=False):
@@ -110,7 +113,7 @@ def check(rec, naive=False):
         # (52-week-low) is precisely the data that already carries
         # total_rebalances. Verified at 037ad42: regime-gated M5 flagged 22 and
         # passed; this ungated form flagged 24 and correctly failed the self-test
-        # (26 on 2026-10-13: 15 true bads plus 11 correct truncated records).
+        # (27 on 2026-10-13: 15 true bads plus 12 correct truncated records).
         regime = "b006" if isinstance(tr, int) else "legacy"
         if i < 0 or c + i != n or c > n:
             return regime, f"impossible (naive: n={n} c={c} i={i})"
@@ -165,6 +168,9 @@ def walk(obj, ptr, rel, hits, counts, naive):
 # comparison at all -- yield-gap was the live example until its rerun (bf2047d,
 # 2026-09-11): its returns_OSL.json said n=25 while its exchange_comparison node
 # said n=11, and only the latter (the one the charts read) was truncated.
+# graham-number's norway_results.json (n=11 of 25, labelled window_truncated) is
+# the current solo case: its comparison file has no OSL node, so it is not in
+# EXPECT_TRUNCATED.
 TRUNCATION_RATIO = 0.75
 MIN_SIBLINGS = 3
 
@@ -229,7 +235,7 @@ def truncated_legs(data):
 # fields, so REQUIRING them would fail every results file not yet re-run and say
 # nothing about anything. Records that carry the funnel get checked; records that
 # do not are counted and skipped. The count is the honest progress meter for the
-# re-run: it read 0 when this was written and 15,153 on 2026-10-13 (12 topics).
+# re-run: it read 0 when this was written and 19,653 on 2026-10-13 (18 topics).
 #
 # The detector was VACUOUS against the corpus until the first re-run landed, and
 # is again on any checkout without re-run results. Its self-test is therefore not
