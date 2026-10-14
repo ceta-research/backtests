@@ -1,0 +1,94 @@
+{
+ "_note": "Stage B wave 3, Norway repairs: the OSL leg of 13 topics whose other markets are not rerun. Each is rerun with --exit-method drop so it matches its sibling markets (no exit_method key anywhere in the topic), on today's period accounting and truncation labels. Gate: --check det --det-mode drop, 2 runs a leg (drop, drop.rep). Install the drop run under the _outputs name, then fold it into the comparison file with scripts/rebuild_comparison.py <topic> --only OSL: every chart script here reads Norway from the OSL node of exchange_comparison.json, and --only reads results/returns_OSL.json and leaves every other node byte-identical. _outputs is a list where the same run is installed under two names. pairs is unused by det (load_legs needs one). See scripts/LTP_GATE.md.",
+ "earnings-consistency": {
+  "_source": "--exchange OSL (no longer in --global presets_to_run). Live: returns_OSL.json equals the OSL node; the comparison post cites it as 100% cash",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "etf-underowned": {
+  "_source": "--global presets_to_run norway. Live: the OSL node (20 periods, all cash, what the comparison post cites) differs from returns_OSL.json (12 periods, invested_periods -8), which generate_charts.py also reads directly for a Norway chart",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "ev-ebitda": {
+  "_source": "--global list norway. Live: returns_OSL.json equals the OSL node; the comparison post has a Norway row",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "ev-ebitda-relative": {
+  "_source": "--global list norway. Live: returns_OSL.json equals the OSL node; the comparison post cites it as all cash",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "garp": {
+  "_source": "--global presets_to_run norway. Live: the OSL node (the comparison post's Norway rows) and returns_OSL.json hold the same returns and differ in the cash counts (the file has invested_periods -23)",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "oversold-quality": {
+  "_source": "--global presets_to_run norway. Live: the OSL node equals oversold_quality_osl.json (the comparison post's Norway row); returns_OSL.json is an older run of another window. --only OSL reads returns_OSL.json, so the run goes under both names",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": ["returns_OSL.json", "oversold_quality_osl.json"]}
+ },
+ "relative-strength": {
+  "_source": "--global presets_to_run norway. Live: returns_OSL.json equals the OSL node; the comparison post names Norway as excluded",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "value-momentum": {
+  "_source": "--global presets_to_run norway. Live: returns_OSL.json equals the OSL node; the comparison post has Norway rows",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "etf-rebalancing": {
+  "_source": "--global presets_to_run norway. Live: returns_OSL.json equals the OSL node; the comparison post has a Norway row and section",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "pe-compression": {
+  "_source": "--global presets_to_run norway. Live: returns_OSL.json equals the OSL node; the comparison post lists Norway as too thin to quote",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "peg-ratio": {
+  "_source": "--global presets_to_run norway. Live: returns_OSL.json equals the OSL node; the comparison post has a Norway row",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "price-momentum": {
+  "_source": "--global presets_to_run norway. Live: returns_OSL.json equals the OSL node; the comparison post cites Norway in a footnote, outside its table",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ },
+ "price-to-book": {
+  "_source": "--global presets_to_run norway. Live: returns_OSL.json equals the OSL node; the comparison post cites Norway and leaves it out of the ranking",
+  "_checks": "det, --det-mode drop",
+  "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
+  "legs": {"norway": ["--exchange", "OSL"]},
+  "_outputs": {"norway": "returns_OSL.json"}
+ }
+}

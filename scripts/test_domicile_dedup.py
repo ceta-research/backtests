@@ -8,12 +8,14 @@ EVERY leg, with a home-currency flag. isin_dedup_sql(): one row per security (no
 else symbol): the line buyable at entry first (get_prices' FIRST bar in [d+off, d+off+10] against
 the floor), then the line profile marks isActivelyTrading, then the line quoted in the leg's home
 currency, then alphabetical. A symbol fanned out by a join keeps one row, symbols without ISINs
-never merge, a collapsed twin frees its top-N slot. Then each campaign topic (TOPICS: wave 1 and
-wave 2) runs its real fetch_data_via_api + screen (screen_stocks; dogs-of-dow's screen_dogs) against
+never merge, a collapsed twin frees its top-N slot. Then each campaign topic (TOPICS: waves 1 to
+3) runs its real fetch_data_via_api + screen (screen_stocks; dogs-of-dow's screen_dogs) against
 a fake client on XETRA, SIX, STO, LSE and NYSE legs, run_backtest's offset_days is followed through
-the screen into the dedup, and the two topics whose top-N cut is not one query around the dedup
-show the cut running after it. Each check is re-run against mutants of the rule and must fail.
-Checks survive python -O.
+the screen into the dedup, and the topics in SLOT_BOOK show the top-N cut running after it. The
+wave 3 screens need rows the shared fixture lacks (WAVE3_ROWS): each runs on its own copy, placed
+on the edge of its rule (52-week-high on exactly MIN_HISTORY_ROWS bars, dcf-discount at the yield
+cap), and one step outside no longer holds the leg's lines. Each check is re-run against mutants
+of the rule and must fail. Checks survive python -O.
 """
 import contextlib
 import importlib.util
@@ -341,7 +343,8 @@ def mutant(old, new):
 TOPICS = ["cyclical-timing", "asset-growth", "fcf-conversion", "cash-conversion", "graham-net-net",       # wave 1
           "dogs-of-dow", "low-debt", "fcf-compounders", "fcf-yield", "price-to-sales", "revenue-accel",  # wave 2
           "dividend-growth", "deleveraging", "pe-mean-revert", "dividend-sustainability", "rising-yield",
-          "graham-number"]
+          "graham-number",
+          "52-week-high", "dcf-discount", "defensive-quality"]                                             # wave 3
 TOPIC_FLOOR = {"graham-net-net": 0.50}      # entry floor each topic's dedup must use; others 1.0
 # Screen entry point: (name, call, legs that reach every dedup site). Topics not listed use SCREEN_STOCKS.
 SCREEN_STOCKS = ("screen_stocks", lambda mod, con, _ex, **k: mod.screen_stocks(con, D, 1e6, **k), ("XETRA",))
@@ -352,13 +355,17 @@ SCREENS = {"dogs-of-dow": ("screen_dogs",   # the NYSE leg is its Dow branch, ev
                            ("XETRA", "NYSE"))}
 RESULT_FILES = {"dogs-of-dow": ("backtest.py", "run_all_exchanges.py")}   # files that write results; others backtest.py
 RESULT_KEYS = ('"listing_filter": campaign_listing_label(exchanges)', '"isin_dedup": True')
-FANNED_TOPICS = ("cyclical-timing", "pe-mean-revert")   # screens that join profile_cache: a fan-out reaches only them
-# A sixth leg (no listing rule) for top-N cuts that are not `FROM (dedup) ORDER BY .. LIMIT`: 31 securities ranked
-# S00 (largest, deepest value, lowest yield) to S30, and S00's twin ranked second. topic -> the book it must hold.
+# Screens that join a table built from profile rows (profile_cache; defensive-quality's sector_map): a fan-out
+# reaches only them.
+FANNED_TOPICS = ("cyclical-timing", "pe-mean-revert", "defensive-quality")
+# A sixth leg (no listing rule) for top-N cuts that are not `FROM (dedup) ORDER BY .. LIMIT`, and for 52-week-high,
+# whose lines all tie on the signal here: 31 securities ranked S00 (largest, deepest value, lowest yield) to S30,
+# and S00's twin ranked second. topic -> the book it must hold.
 SLOT_LEG, SLOT_NAMES = "OSL", [f"S{i:02d}.OL" for i in range(31)]
 SLOT_LINES = [(s, i) for i, s in enumerate(SLOT_NAMES)] + [("S00B.OL", 0.5)]
 SLOT_BOOK = {"dogs-of-dow": SLOT_NAMES[29:19:-1],      # 30 largest securities, then the 10 highest yields
-             "graham-number": SLOT_NAMES[:30]}         # 30 deepest discounts
+             "graham-number": SLOT_NAMES[:30],         # 30 deepest discounts
+             "52-week-high": SLOT_NAMES[:30]}          # all at their high: the tie-break's 30 largest securities
 LEGS = {"XETRA": ".DE", "SIX": ".SW", "STO": ".ST", "LSE": ".L", "NYSE": ""}
 HOME = {"XETRA": "DE", "SIX": "CH", "STO": "SE", "LSE": "GB", "NYSE": "US"}
 FOREIGN = {"XETRA": "US", "SIX": "US", "STO": "CH", "LSE": "IE", "NYSE": "IE"}  # STO/LSE/NYSE's must stay
@@ -485,6 +492,60 @@ def source_db():
                 src.execute("INSERT INTO profile VALUES (?, ?, ?, NULL, ?, 1e9, TRUE, ?, FALSE)",
                             [sym, ex, HOME[ex], sector, QUOTE[ex]])
                 fy_rows(src, sym, ("key_metrics", "financial_ratios"), **dear)
+    return src
+
+
+HISTORY_BARS = 100      # 52-week-high's MIN_HISTORY_ROWS: exactly enough bars
+YIELD_CAP = 0.50        # dcf-discount's FCF_YIELD_MAX: a yield of exactly this is still held
+
+
+def rows_52wh(src, bars=HISTORY_BARS):
+    """`bars` daily bars ending at D-1 with close = high: every line is at its 52-week high and ranks by the
+    tie-break (larger market cap, then symbol). adjClose runs lower, by more on S29, where it also stood twice
+    as high early on: a signal read from adjClose ranks S29 last or puts every line over MAX_PROXIMITY."""
+    src.execute("INSERT INTO stock_eod (symbol, date, dateEpoch, adjClose, volume)"
+                " SELECT symbol, date - CAST(i AS INTEGER), dateEpoch - 86400 * i, adjClose, volume"
+                f" FROM stock_eod, range(2, {bars + 2}) t(i) WHERE date = ?", [BAR])
+    for col in ("close", "high"):
+        src.execute(f"ALTER TABLE stock_eod ADD COLUMN IF NOT EXISTS {col} DOUBLE")
+    src.execute("UPDATE stock_eod SET close = adjClose * CASE WHEN symbol = ? THEN 2 ELSE 1.25 END", [SLOT_NAMES[29]])
+    src.execute("UPDATE stock_eod SET high = close")
+    src.execute("UPDATE stock_eod SET adjClose = adjClose * 2 WHERE symbol = ? AND date < ?",
+                [SLOT_NAMES[29], D - timedelta(days=bars // 2)])
+
+
+def rows_dcf(src, latest=YIELD_CAP):
+    """Free cash flow yield `latest` on the newest filing and 60%, over the cap, on every earlier one. Every line
+    reports in its leg's currency: the currency rule keeps the twin quoted in another one."""
+    for col in ("isFund", "isEtf"):
+        src.execute(f"ALTER TABLE profile ADD COLUMN {col} BOOLEAN DEFAULT FALSE")
+    src.execute("ALTER TABLE cash_flow_statement ADD COLUMN reportedCurrency VARCHAR")
+    for ex in (*LEGS, SLOT_LEG):
+        src.execute("UPDATE cash_flow_statement SET reportedCurrency = ? WHERE symbol IN"
+                    " (SELECT symbol FROM profile WHERE exchange = ?)", [get_local_currency([ex]), ex])
+    src.execute("UPDATE cash_flow_statement AS c SET freeCashFlow = k.marketCap * CASE WHEN c.date = ? THEN ?"
+                " ELSE 0.60 END FROM key_metrics AS k WHERE k.symbol = c.symbol AND k.date = c.date",
+                [FYS[-1], latest])
+
+
+def rows_defensive(src, first="Utilities"):
+    """Every line in a defensive sector (`first`), NOI1's second profile row in another: sector_map fans NOI1 out."""
+    src.execute("UPDATE profile SET sector = CASE sector WHEN 'Energy' THEN 'Healthcare' ELSE ? END", [first])
+
+
+# Wave 3: what a screen needs that the shared fixture lacks. Each topic runs on its own source_db() plus these rows.
+WAVE3_ROWS = {"52-week-high": rows_52wh, "dcf-discount": rows_dcf, "defensive-quality": rows_defensive}
+# The same rows one step outside the topic's rule: the screen must stop holding the leg's lines.
+ROW_MUTANTS = {
+    "52-week-high": ("a bar short", lambda src: rows_52wh(src, HISTORY_BARS - 1)),
+    "dcf-discount": ("latest filing just over the yield cap", lambda src: rows_dcf(src, YIELD_CAP * (1 + 1e-9))),
+    "defensive-quality": ("only NOI1's second row is defensive", lambda src: rows_defensive(src, "Industrials")),
+}
+
+
+def wave3_source(topic, rows=None):
+    src = source_db()
+    (rows or WAVE3_ROWS[topic])(src)
     return src
 
 
@@ -650,11 +711,12 @@ check(ranked(con, isin_dedup_sql, n=3, where=" WHERE symbol LIKE '%.ST'") == pla
 
 SRC = source_db()
 MODS = {t: load_topic(t) for t in TOPICS}
+SRCS = {t: wave3_source(t) if t in WAVE3_ROWS else SRC for t in TOPICS}
 for t, mod in MODS.items():
-    fails = leg_failures(mod, t, SRC) + forwarding_failures(mod, t, SRC) + results_key_failures(t)
+    fails = leg_failures(mod, t, SRCS[t]) + forwarding_failures(mod, t, SRCS[t]) + results_key_failures(t)
     check(fails == [], f"{t} wiring: {fails}")
 for t in SLOT_BOOK:
-    check(slot_failures(MODS[t], t, SRC) == [], f"{t} top-N cut: {slot_failures(MODS[t], t, SRC)}")
+    check(slot_failures(MODS[t], t, SRCS[t]) == [], f"{t} top-N cut: {slot_failures(MODS[t], t, SRCS[t])}")
 
 # ---- 3. every check can fail: each broken rule trips its own check ----
 real = campaign_listing_condition
@@ -780,13 +842,13 @@ drops_offset = lambda fn: lambda *a, offset_days=1, **k: fn(*a, **k)
 for t, mod in MODS.items():
     for name, (attrs, legs, expect) in TOPIC_MUTANTS.items():
         with patched(mod, **attrs):
-            fails = leg_failures(mod, t, SRC, legs)
+            fails = leg_failures(mod, t, SRCS[t], legs)
         check(any(expect in x for x in fails), f"{t} mutant '{name}' not caught: {fails}")
     for what, expect in FORWARD_MUTANTS.items():
         name, _call, legs = SCREENS.get(t, SCREEN_STOCKS)
         name = name if what == "screen" else what
         with patched(mod, **{name: drops_offset(getattr(mod, name))}):
-            fails = forwarding_failures(mod, t, SRC)
+            fails = forwarding_failures(mod, t, SRCS[t])
         check(sum(expect in x for x in fails) == len(legs),      # on every leg, so at every dedup site
               f"{t} mutant '{what} drops offset_days' not caught: {fails}")
     for key in RESULT_KEYS:
@@ -796,15 +858,19 @@ for t, mod in MODS.items():
 # Only these screens join profile, so only they can hold a fanned-out symbol twice.
 for t in FANNED_TOPICS:
     with patched(MODS[t], isin_dedup_sql=DEDUP_MUTANTS["fanned-out rows kept (no-ISIN rows pass untouched)"][0]):
-        fails = leg_failures(MODS[t], t, SRC, ("STO",))
+        fails = leg_failures(MODS[t], t, SRCS[t], ("STO",))
     check(any("STO: a symbol held twice" in x for x in fails), f"{t} fan-out mutant not caught: {fails}")
 # No dedup: the twin takes a slot and the 30th security is cut.
 for t in SLOT_BOOK:
     with patched(MODS[t], **TOPIC_MUTANTS["dedup wrapper removed"][0]):
-        fails = slot_failures(MODS[t], t, SRC)
+        fails = slot_failures(MODS[t], t, SRCS[t])
     check(any("top-N book" in x for x in fails), f"{t} top-N mutant not caught: {fails}")
+# The wave 3 rows are on the edge of each rule: one step outside, the leg's lines are no longer held.
+for t, (name, rows) in ROW_MUTANTS.items():
+    fails = leg_failures(MODS[t], t, wave3_source(t, rows), ("STO",))
+    check(any("STO: screen keeps" in x for x in fails), f"{t} rows '{name}' not caught: {fails}")
 
 n_mut = (len(LISTING_MUTANTS) + len(GATE_MUTANTS) + 1 + len(DEDUP_MUTANTS)
          + (len(TOPIC_MUTANTS) + len(FORWARD_MUTANTS) + len(RESULT_KEYS)) * len(MODS) + len(FANNED_TOPICS)
-         + len(SLOT_BOOK))
+         + len(SLOT_BOOK) + len(ROW_MUTANTS))
 print(f"test_domicile_dedup: PASS ({len(MODS)} topics x {len(LEGS)} legs wired; {n_mut} mutants caught)")

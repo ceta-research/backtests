@@ -99,17 +99,19 @@ def stub_metrics(port, spy):
 def t_pairs_fundamentals():
     m = load("pairs-fundamentals/backtest.py")
     results = ([{"year": 2002 + i, "portfolio_return": 0.05, "spy_return": None,
-                 "pairs_formed": 10, "pairs_active": 0} for i in range(4)]
+                 "pairs_formed": 10, "pairs_entered": 0, "pairs_active": 0} for i in range(4)]
                + [{"year": 2006 + i, "portfolio_return": 0.05, "spy_return": 0.03,
-                   "pairs_formed": 10, "pairs_active": 0} for i in range(3)]
+                   "pairs_formed": 10, "pairs_entered": 0, "pairs_active": 0} for i in range(3)]
                + [{"year": 2009 + i, "portfolio_return": 0.05, "spy_return": 0.03,
-                   "pairs_formed": 10, "pairs_active": 8} for i in range(13)])
+                   "pairs_formed": 10, "pairs_entered": 8, "pairs_active": 8} for i in range(13)])
+    for r in results:
+        r.update({"legs_capped": 0, "same_company_pairs": 0, "pairs": []})
     valid = [r for r in results if r["spy_return"] is not None]
     port = [r["portfolio_return"] for r in valid]
     spy = [r["spy_return"] for r in valid]
     out, log = quiet(m.build_output, stub_metrics(port, spy), [], valid, results, "OSL")
-    # executed == results (20); cash = pairs_active < MIN_PAIRS_ACTIVE
-    cash = sum(1 for r in results if r["pairs_active"] < m.MIN_PAIRS_ACTIVE)
+    # executed == results (20); cash = pairs_entered < MIN_PAIRS_ACTIVE
+    cash = sum(1 for r in results if r["pairs_entered"] < m.MIN_PAIRS_ACTIVE)
     assert_counts(out, 20, 16, cash, 20 - cash, "pairs-fundamentals")
     assert out["measured_start"] == "2006", out["measured_start"]
     assert out["requested_start"] == "2002", out["requested_start"]
@@ -121,17 +123,19 @@ def t_pairs_fundamentals():
 def t_pairs_zscore():
     m = load("pairs-zscore/backtest.py")
     results = ([{"year": 2002 + i, "portfolio_return": 0.05, "spy_return": None,
-                 "pairs_formed": 10, "pairs_with_trades": 0, "total_trades": 0}
+                 "pairs_formed": 10, "pairs_entered": 0, "pairs_with_trades": 0, "total_trades": 0}
                 for i in range(4)]
                + [{"year": 2006 + i, "portfolio_return": 0.05, "spy_return": 0.03,
-                   "pairs_formed": 10, "pairs_with_trades": 8, "total_trades": 12}
+                   "pairs_formed": 10, "pairs_entered": 8, "pairs_with_trades": 8, "total_trades": 12}
                   for i in range(16)])
+    for r in results:
+        r.update({"same_company_pairs": 0, "pairs": []})
     valid = [r for r in results if r["spy_return"] is not None]
     port = [r["portfolio_return"] for r in valid]
     spy = [r["spy_return"] for r in valid]
     out, log = quiet(m.build_output, stub_metrics(port, spy), [], valid, results,
                      {"total_trades": 192}, "OSL")
-    cash = sum(1 for r in results if r["pairs_with_trades"] < m.MIN_PAIRS_ACTIVE)
+    cash = sum(1 for r in results if r["pairs_entered"] < m.MIN_PAIRS_ACTIVE)
     assert_counts(out, 20, 16, cash, 20 - cash, "pairs-zscore")
     assert "WARNING" in log, "no truncation warning"
     print(f"        total=20 n=16 cash={cash} invested={20-cash} | {out['window_label']}")
@@ -144,13 +148,18 @@ def t_pairs_multi_pair():
                  "n_active": 0, "is_cash": True} for i in range(4)]
                + [{"year": 2006 + i, "portfolio_return": 0.05, "spy_return": 0.03,
                    "n_active": 20, "is_cash": False} for i in range(16)])
-    per_year = [{"year": y["year"], "pairs": [1] * 20} for y in primary]
+    per_year = [{"year": y["year"], "pairs": [1] * 20,
+                 "formation": {"pairs_formed": 20, "pairs_entered": y["n_active"],
+                               "same_company_pairs": 0, "pairs": []}} for y in primary]
     valid = [y for y in primary if y["spy_return"] is not None]
     port = [y["portfolio_return"] for y in valid]
     spy = [y["spy_return"] for y in valid]
     out, log = quiet(m.build_output, stub_metrics(port, spy), per_year, primary,
                      [], {"total_trades": 100}, "OSL")
     assert_counts(out, 20, 16, 4, 16, "pairs-multi-pair")
+    # each published year carries its formation record
+    assert all(r.get("pairs_entered") == r["n_active"] and r.get("pairs") == []
+               for r in out["annual_returns"]), "pairs-multi-pair: a year without its formation record"
     assert "WARNING" in log, "no truncation warning"
     print(f"        total=20 n=16 cash=4 invested=16 | {out['window_label']}")
 

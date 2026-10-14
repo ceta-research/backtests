@@ -67,7 +67,10 @@ RERUN_TOPICS = {"cyclical-timing", "asset-growth", "fcf-conversion", "cash-conve
                 # wave 2
                 "dogs-of-dow", "low-debt", "fcf-compounders", "fcf-yield", "price-to-sales",
                 "revenue-accel", "dividend-growth", "deleveraging", "pe-mean-revert",
-                "dividend-sustainability", "rising-yield", "graham-number"}
+                "dividend-sustainability", "rising-yield", "graham-number",
+                # wave 3
+                "52-week-high", "dcf-discount", "defensive-quality",
+                "pairs-fundamentals", "pairs-zscore", "pairs-multi-pair"}
 # Files outside */backtest.py and scripts/ that this change is allowed to touch.
 SCOPE_ALLOW = {
     # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
@@ -143,6 +146,15 @@ SCOPE_ALLOW = {
     # .py files match none of the allow rules below, so without this entry the
     # scope gate rejects its own dependency.
     "metrics.py",
+    # B041: the three pairs topics' shared per-year universe and pair-level exits (a root .py file).
+    "pairs_universe.py",
+    # Wave 3 rerun: each rerun topic's README restates its results.
+    "52-week-high/README.md",
+    "dcf-discount/README.md",
+    "defensive-quality/README.md",
+    "pairs-fundamentals/README.md",
+    "pairs-zscore/README.md",
+    "pairs-multi-pair/README.md",
     # B006: both carry their own copy of the per-exchange accounting block
     # rather than importing the topic's build_output, so the counting fix has to
     # land in them directly.

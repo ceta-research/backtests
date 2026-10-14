@@ -181,6 +181,51 @@ A per-market file that does not parse stops the rebuild with nothing written.
 
 When a topic's market list changes, change its legs to match; `plan` validates the file.
 
+Wave 3 has two legs files, and no single `--check` list fits either whole: each topic's `_checks` note
+says what applies. Results are installed from the gate's outputs, as in wave 2.
+
+```bash
+# both, drop, ltp, default, ltp.rep = 5 runs/leg, 330 backtests for 66 legs
+python3 scripts/gate_ltp.py run scripts/gate_legs/wave3.json --check stage-a,det,flip \
+    --topic 52-week-high,dcf-discount,defensive-quality,pairs-fundamentals --out-dir results/ltp_gate_w3
+# ltp, default, ltp.rep = 3 runs/leg, 72 backtests for 24 legs
+python3 scripts/gate_ltp.py run scripts/gate_legs/wave3.json --check det,flip \
+    --topic pairs-zscore,pairs-multi-pair --out-dir results/ltp_gate_w3
+# drop, drop.rep = 2 runs/leg, 26 backtests for 13 legs
+python3 scripts/gate_ltp.py run scripts/gate_legs/wave3_osl.json --check det --det-mode drop \
+    --out-dir results/ltp_gate_w3_osl
+```
+
+- `wave3.json` holds 52-week-high (18 legs), dcf-discount (16), defensive-quality (17),
+  pairs-fundamentals (15), pairs-zscore (12) and pairs-multi-pair (12), 90 legs. The first four take
+  all three checks; pairs-fundamentals' pair-level block has the `LtpExits` shape, so stage-a reads it
+  unchanged.
+- pairs-zscore and pairs-multi-pair take `det,flip` only. A pair is one position and closes at the
+  last bar both legs traded, so there is no drop book: `--exit-method drop` and `both` stop at the
+  parser (exit 2). `flip` proves a flagless run is the `ltp` run and `det` that it repeats; nothing in
+  the gate compares their book with another one (`scripts/test_pairs_exits.py` covers the exits
+  offline). The gate does not read `_checks`: run on the whole file with `stage-a`, these 24 legs get
+  48 runs that fail all four attempts and report "both run missing". Always pass `--topic`.
+- dcf-discount is run per region, `--preset <region>` to `<region>.json`, the 16 files its charts
+  read. Its `--global` runs canada as TSX alone and singapore as SGX (no rows) and writes
+  `returns_<KEY>.json`, which the charts read only when no region file exists.
+- `wave3_osl.json` is the Norway leg of 13 topics whose other markets are not rerun. Each is a
+  drop-mode repair: `--exit-method drop`, so the file matches its sibling markets, on today's period
+  accounting. `--det-mode drop` is required: without it the gate repeats the `ltp` run and passes.
+  Install `<leg>.drop.json` under the `_outputs` name (it must hold no `exit_method`), then
+  `python3 scripts/rebuild_comparison.py <topic> --only OSL` and the same with `--check`. `--only`
+  replaces the OSL node from `results/returns_OSL.json` and leaves every other node byte-identical;
+  a plain rebuild would not (etf-underowned's and oversold-quality's other per-market files are older
+  than their nodes). oversold-quality's run goes under two names, `returns_OSL.json` and
+  `oversold_quality_osl.json`: its `returns_OSL.json` is an older run today, and with only the second
+  name installed `--only OSL` folds that older run into the node and `--check` still passes. Eight of
+  the 13 (the ones with a negative `invested_periods`) are on the known-bad list of
+  `scripts/scan_results_invariant.py` (`EXPECT_FLAGGED`, `EXPECT_PAIRS`), which its self-test checks
+  node by node: a repair makes the list stale, so update it with the install.
+- After installing a pairs topic: `python3 scripts/check_pairs_results.py <topic>` (every per-market
+  file and comparison node is an `ltp` run of the per-year universe, with no same-company pair, no
+  non-finite correlation and no `error` node). It fails on any file left from before the rerun.
+
 ## Per-topic adapters (kept from stage A)
 
 - **capex-efficiency** ignores the `--output` file name and writes `save_results` files (metrics JSON
