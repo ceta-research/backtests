@@ -10,8 +10,9 @@ loss-stop exits. Equal-dollar weight across all active trades.
 Universe (pairs_universe.py): for each trading year, the lines listed and traded
 through the formation year before it, one per security and per company, the top
 30 of each sector by that year's median daily traded value in USD. No size
-look-ahead. Survivorship is reduced, not removed: the price data holds almost no
-name that stopped trading before 2015 (US) or 2020 (elsewhere).
+look-ahead. A line needs an FY filing of any date, a later one included: that
+test is not point-in-time. Survivorship is reduced, not removed: the price data
+holds almost no name that stopped trading before 2015 (US) or 2020 (elsewhere).
 
 Key output beyond CAGR/Sharpe: convergence_rate and avg_holding_days expose
 the disconnect between "convergence" (spread returns to mean) and actual P&L

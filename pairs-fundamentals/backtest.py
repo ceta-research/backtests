@@ -10,8 +10,9 @@ Equal-dollar weighting across active pairs. Annual rebalance.
 Universe (pairs_universe.py): for each trading year, the lines listed and traded
 through the formation year before it, one per security and per company, the top
 30 of each sector by that year's median daily traded value in USD. No size
-look-ahead. Survivorship is reduced, not removed: the price data holds almost no
-name that stopped trading before 2015 (US) or 2020 (elsewhere).
+look-ahead. A line needs an FY filing of any date, a later one included: that
+test is not point-in-time. Survivorship is reduced, not removed: the price data
+holds almost no name that stopped trading before 2015 (US) or 2020 (elsewhere).
 
 Return model:
     - Spread = log(P_A) - beta * log(P_B), beta estimated by OLS on log-prices

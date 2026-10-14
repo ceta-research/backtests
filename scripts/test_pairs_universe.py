@@ -6,8 +6,9 @@ build_candidates, fetch_prices and check_pairs are driven end to end. Checked: a
 candidate of a trading year only if it was listed through the formation year before it (200 bars
 priced above zero, the last one inside the year's final 10 days) and traded; no isActivelyTrading
 test, and one list per year; funds, lines with no sector and lines with no FY filing are out; the
-campaign listing rule; size is the median daily close x volume (close, not adjClose) in USD at a
-rate dated on or before year end and at most 7 days old; one line per ISIN, then per company (ISIN,
+FY-filing test reads any date (a line first filing after both years is in both), and UNIVERSE_NOTES
+and each wired topic's docstring say so; the campaign listing rule; size is the median daily close x
+volume (close, not adjClose) in USD at a rate dated on or before year end and at most 7 days old; one line per ISIN, then per company (ISIN,
 cik, name, ticker root), both before the top-30 cut and both on the entry window of offset_days 0
 and 1; the cost cap is the latest FY filing 45 to 540 days before the year, in USD; same inputs in
 another order give the same lists. Every mutant of the module's source must trip a check.
@@ -39,6 +40,7 @@ YEARS = [2019, 2020]
 T20 = date(2020, 1, 1)
 F18_END, F19_END = date(2018, 12, 31), date(2019, 12, 31)
 FY17, FY18 = date(2017, 12, 31), date(2018, 12, 31)   # each 366 days before the next trading year
+LATE_FY = date(2021, 12, 31)                           # after both trading years
 TOP_N, MIN_DAYS, MIN_PX, OFFSET = 30, 200, 1.0, 1
 TABLES = ("profile", "key_metrics", "stock_eod", "forex_prices_daily", "delisted_companies")
 TOPICS = {"pairs-fundamentals": "compute_correlations", "pairs-zscore": "compute_pair_candidates",
@@ -82,6 +84,8 @@ def fixture():
     L += [line("OLD", "Era", live=False, caps=two, bars=[(F18_END, 250, 1000.0), (date(2019, 6, 30), 181, 1000.0)]),
           line("NEW", "Era"),
           line("STAY", "Era", caps=two, bars=[(F18_END, 250, 1000.0), (F19_END, 250, 1000.0)])]
+    # the FY-filing test is not point-in-time: a first filing dated after both years admits the line to both
+    L += [line("LATEFY", "Era", caps=[(LATE_FY, 5e9, "USD", "FY")], bars=[(F18_END, 250, 1000.0), (F19_END, 250, 1000.0)])]
     # f: 31 names, the 31st is out
     L += [line(f"D{i:02d}", "Cut31", tv=10000.0 - 100 * i) for i in range(1, 32)]
     # 31 lines, two of them one security: the 31st by size gets the freed slot
@@ -181,7 +185,7 @@ def fixture():
 # 2020 candidates by sector on the NYSE leg, with size_usd where the scenario is about size
 EXPECT_2020 = {
     "Listed": ["L200", "LAST10", "ZMED"],
-    "Era": ["NEW", "STAY"],
+    "Era": ["LATEFY", "NEW", "STAY"],
     "Cut31": [f"D{i:02d}" for i in range(1, 31)],
     "CutTwin": [f"T{i:02d}" for i in range(1, 31)],
     "Isin": ["ISB", "RETDX", "TWIN_B"],
@@ -194,19 +198,19 @@ EXPECT_2020 = {
     "Cap": ["CAP44", "CAP45", "CAP540", "CAP541", "CAPKRW", "CAPNEW", "CAPNOFX", "CAPTIE"],
     **{f"Tie{k}": [f"TI{k}A", f"TI{k}B"] for k in range(1, 9)},
 }
-EXPECT_2019 = {"Era": ["OLD", "STAY"]}
+EXPECT_2019 = {"Era": ["LATEFY", "OLD", "STAY"]}
 # the sectors that change at offset_days 0, where the entry window is [1 January, 11 January]
 EXPECT_2020_OFFSET0 = {"Isin": ["ISA", "RETDX", "TWIN_B"],
                        "Window": ["FALONG", "WA", "WB", "WCLONG", "WDLONG", "WZLONG"]}
 SIZES = {"GBPENCE": 100.0, "USDLINE": 150.0, "EDGEFX": 160.0, "LATEFX": 110.0, "NEWEST": 120.0, "F5": 7.0,
          "EOYFX": 190.0, "JANFX": 70.0, "SPLIT": 260.0, "ZMED": 2000.0}
 CAPS = {"CAP44": None, "CAP45": 3e9, "CAP540": 4e9, "CAP541": None, "CAPNEW": 2e9, "CAPKRW": 1e10,
-        "CAPNOFX": None, "CAPTIE": 7e9, "L200": 5e9}
-COUNTS_2020 = {"listed": 150, "no_fx": 2, "same_isin": 4, "same_company": 16, "eligible": 128,
-               "candidates": 127, "sectors": 19, "min_size_usd": 7.0,
-               "sector_cut_usd": {"Cut31": 7000.0, "CutTwin": 17000.0}, "no_cost_cap": 3}
-COUNTS_2019 = {"listed": 2, "no_fx": 0, "same_isin": 0, "same_company": 0, "eligible": 2, "candidates": 2,
-               "sectors": 1, "min_size_usd": 1000.0, "sector_cut_usd": {}, "no_cost_cap": 0}
+        "CAPNOFX": None, "CAPTIE": 7e9, "L200": 5e9, "LATEFY": None}
+COUNTS_2020 = {"listed": 151, "no_fx": 2, "same_isin": 4, "same_company": 16, "eligible": 129,
+               "candidates": 128, "sectors": 19, "min_size_usd": 7.0,
+               "sector_cut_usd": {"Cut31": 7000.0, "CutTwin": 17000.0}, "no_cost_cap": 4}
+COUNTS_2019 = {"listed": 3, "no_fx": 0, "same_isin": 0, "same_company": 0, "eligible": 3, "candidates": 3,
+               "sectors": 1, "min_size_usd": 1000.0, "sector_cut_usd": {}, "no_cost_cap": 1}
 COMPANY = {"CIKBB": "CIKA", "NAMEBB": "NAMEA", "PUNBB": "PUNA", "ONECIKX": "ONECIK", "SAME2": "SAME2",
            "ROOT-PFA": "ROOT", "005935.KS": "005930.KS", "005940.KS": "005940.KS", "T01Z": "T01",
            "TWIN_B": "TWIN_A", "L200": "L200"}
@@ -325,6 +329,24 @@ def keys_checks(mod):
     if mod.company_keys([{"symbol": "A", "isin": None, "cik": None, "companyName": None},
                          {"symbol": "B", "isin": " ", "cik": "", "companyName": "()"}]) != {"A": "A", "B": "B"}:
         yield "lines with no ISIN, cik or name were merged"
+
+
+ANY_DATE = "FY filing of any date (not point-in-time)"
+ANY_DATE_DOC = (re.compile(r"FY\s+filing\s+of\s+any\s+date"), re.compile(r"not\s+point-in-time"))
+
+
+def says_any_date(doc):
+    return all(p.search(doc or "") for p in ANY_DATE_DOC)
+
+
+def notes_checks(mod):
+    """The universe_rule every results JSON carries says the FY-filing test reads any date (LATEFY)."""
+    if ANY_DATE not in mod.UNIVERSE_NOTES.get("rule", ""):
+        yield f"UNIVERSE_NOTES rule does not say {ANY_DATE!r}"
+    if "after the formation year" not in mod.UNIVERSE_NOTES.get("filing", ""):
+        yield "UNIVERSE_NOTES has no filing note saying a later filing admits a line"
+    if not says_any_date(mod.__doc__):
+        yield "the module docstring does not say the FY-filing test reads any date"
 
 
 def leg_checks(mod):
@@ -463,7 +485,7 @@ def failures(src, first_only=False):
     out = []
     try:
         mod = load(src)
-        for check in (keys_checks, leg_checks):
+        for check in (notes_checks, keys_checks, leg_checks):
             for f in check(mod):
                 out.append(f)
                 if first_only:
@@ -537,6 +559,15 @@ MUTANTS = {
     "one list built and reused": ("candidates_sql(y, offset_days", "candidates_sql(years[0], offset_days"),
     # the static universe
     "no FY-filing test": (HAS_FILING, 'has_filing = "1=1"'),
+    "FY-filing test point-in-time (a filing after the years refused)": (
+        HAS_FILING, HAS_FILING.replace("k.marketCap > 0)", "k.marketCap > 0 AND k.dateEpoch <= 1577836800)")),
+    "rule hides the any-date filing test": (
+        '"rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), "',
+        '"rule": "per formation year: lines with a sector and an FY filing, "'),
+    "no filing note": ('    "filing": "operating-company test:', '    "_filing": "operating-company test:'),
+    "docstring hides the any-date filing test": (
+        "The operating-company test is not point-in-time: a line needs an FY filing of any date, so a line\n"
+        "whose first filing is dated years after a formation year is still a candidate in it.\n", ""),
     "a quarterly filing counts": ("WHERE k.period = 'FY' AND k.marketCap > 0)", "WHERE k.marketCap > 0)"),
     "a zero cap counts": ("k.period = 'FY' AND k.marketCap > 0)", "k.period = 'FY')"),
     "funds kept": ("\n          AND COALESCE(isEtf, false) = false AND COALESCE(isFund, false) = false", ""),
@@ -640,6 +671,8 @@ def main():
             continue
         wired += 1
         problems = topic_failures(topic, src)
+        if not problems and not says_any_date(src.split('"""')[1]):
+            problems = ["the module docstring does not say the FY-filing test reads any date"]
         if not problems and not NAN_GUARD.search(src):
             problems = ["the correlation query has no 'AND NOT isnan(correlation)' guard to mutate"]
         if not problems and not topic_failures(topic, NAN_GUARD.sub("", src)):

@@ -182,7 +182,8 @@ A per-market file that does not parse stops the rebuild with nothing written.
 When a topic's market list changes, change its legs to match; `plan` validates the file.
 
 Wave 3 has two legs files, and no single `--check` list fits either whole: each topic's `_checks` note
-says what applies. Results are installed from the gate's outputs, as in wave 2.
+says what applies. Results are installed from the gate's outputs, with a per-topic comparison rebuild
+(Installing `wave3.json`, below).
 
 ```bash
 # both, drop, ltp, default, ltp.rep = 5 runs/leg, 330 backtests for 66 legs
@@ -222,9 +223,55 @@ python3 scripts/gate_ltp.py run scripts/gate_legs/wave3_osl.json --check det --d
   the 13 (the ones with a negative `invested_periods`) are on the known-bad list of
   `scripts/scan_results_invariant.py` (`EXPECT_FLAGGED`, `EXPECT_PAIRS`), which its self-test checks
   node by node: a repair makes the list stale, so update it with the install.
-- After installing a pairs topic: `python3 scripts/check_pairs_results.py <topic>` (every per-market
-  file and comparison node is an `ltp` run of the per-year universe, with no same-company pair, no
-  non-finite correlation and no `error` node). It fails on any file left from before the rerun.
+
+Installing `wave3.json`: per leg, copy `<out-dir>/<topic>/<leg>.ltp.json` to `<topic>/results/` under
+its `_outputs` name, as in wave 2 (never `both`). `git add -f` the two files with no earlier version,
+`pairs-fundamentals/results/returns_NSE.json` and `pairs-multi-pair/results/returns_NSE.json`. Then
+remove the pre-LTP per-market files no leg replaces and rebuild each comparison, each rebuild followed
+by the same command with `--check`:
+
+```bash
+git rm defensive-quality/results/returns_BSE_NSE.json defensive-quality/results/returns_SHZ.json defensive-quality/results/returns_US_MAJOR.json
+git rm pairs-fundamentals/results/returns_BSE_NSE.json pairs-fundamentals/results/returns_US.json
+git rm pairs-zscore/results/returns_BSE_NSE.json
+git rm pairs-multi-pair/results/returns_BSE_NSE.json
+python3 scripts/rebuild_comparison.py 52-week-high
+python3 scripts/rebuild_comparison.py 52-week-high --check
+python3 scripts/rebuild_comparison.py defensive-quality --keep NYSE_NASDAQ_AMEX NSE SHZ_SHH HKSE SET JPX LSE XETRA TAI_TWO KSC TSX SIX STO JNB KLS JKT
+python3 scripts/rebuild_comparison.py defensive-quality --keep NYSE_NASDAQ_AMEX NSE SHZ_SHH HKSE SET JPX LSE XETRA TAI_TWO KSC TSX SIX STO JNB KLS JKT --check
+python3 scripts/rebuild_comparison.py pairs-fundamentals --keep NYSE_NASDAQ_AMEX JPX LSE HKSE KSC SHZ_SHH TAI_TWO TSX STO XETRA JNB NSE
+python3 scripts/rebuild_comparison.py pairs-fundamentals --keep NYSE_NASDAQ_AMEX JPX LSE HKSE KSC SHZ_SHH TAI_TWO TSX STO XETRA JNB NSE --check
+python3 scripts/rebuild_comparison.py pairs-zscore --keep NYSE_NASDAQ_AMEX JPX TSX HKSE SHZ_SHH KSC TAI_TWO STO JNB NSE LSE XETRA
+python3 scripts/rebuild_comparison.py pairs-zscore --keep NYSE_NASDAQ_AMEX JPX TSX HKSE SHZ_SHH KSC TAI_TWO STO JNB NSE LSE XETRA --check
+python3 scripts/rebuild_comparison.py pairs-multi-pair
+python3 scripts/rebuild_comparison.py pairs-multi-pair --check
+```
+
+- 52-week-high and pairs-multi-pair: a plain rebuild. Their 18 and 12 installed files are the live
+  comparison's keys one to one (pairs-multi-pair's `NSE` node has had no file until now).
+- defensive-quality: `--keep`, the live 16 with `NSE` in `BSE_NSE`'s place (its charts label `NSE`, and
+  the India charts read `returns_NSE.json`). `SHH` is installed but not kept: `returns_SHH.json` is the
+  comparison post's China row, and the charts' China is `SHZ_SHH`. A plain rebuild would add it, and
+  the two comparison charts draw every node with `invested_periods > 0` and no truncated window,
+  labelled by key where they set no label. Nothing else catches that: `check_pairs_results.py` is pairs-only, and the `SHH` node is an
+  `ltp` run. The removed `BSE_NSE`, `SHZ` and `US_MAJOR` files are pre-LTP runs no leg repeats.
+- pairs-fundamentals: `--keep`, the live 12, which are its charts' `VALID_EXCHANGES` (read with no
+  fallback). `SIX`, `SET` and `SES` are installed but not kept: the posts name them as excluded.
+- pairs-zscore: `--keep`, the live 12 with `NSE` in `BSE_NSE`'s place. No chart draws India
+  (`CONTENT_EXCHANGES` leaves it out).
+- The pairs `git rm`s are required, not tidying: `check_pairs_results.py <topic>` reads every
+  `results/returns_*.json` and fails on a pre-LTP one, kept or not.
+- dcf-discount: no rebuild. While one region file exists its charts read the 16 region files and
+  nothing else; `rebuild_comparison.py` would write an `exchange_comparison.json` from the March
+  `returns_*.json`. Check instead that each region file carries `exit_method` `ltp`.
+
+`scripts/test_wave3_install.py` runs this block as written on copies of the six results directories,
+with a stand-in `ltp` run under every `_outputs` name.
+
+After installing a pairs topic: `python3 scripts/check_pairs_results.py <topic>` (every per-market file
+and comparison node is an `ltp` run of the per-year universe with the current `universe_rule` text, no
+same-company pair, no non-finite correlation and no `error` node). It fails on any file left from
+before the rerun.
 
 ## Per-topic adapters (kept from stage A)
 

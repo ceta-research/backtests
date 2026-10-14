@@ -5,6 +5,8 @@ trading year, the lines listed and traded through the formation year before it, 
 security and per company, the top N of each sector by that year's median daily traded value in USD.
 The size look-ahead of a fixed "largest today" list is gone. Survivorship is reduced, not removed:
 stock_eod holds almost no name that stopped trading before 2015 (US) or 2020 (elsewhere).
+The operating-company test is not point-in-time: a line needs an FY filing of any date, so a line
+whose first filing is dated years after a formation year is still a candidate in it.
 
 Usage:
     from pairs_universe import fetch_universe, build_candidates, fetch_prices
@@ -36,8 +38,11 @@ MAX_IN_CHARS = 30000          # literal IN-list budget of one query (the API rej
 SUB_UNITS = {"GBp": ("GBP", 0.01), "ZAc": ("ZAR", 0.01), "ILA": ("ILS", 0.01)}
 # The `universe` block of a results JSON; the topic adds top_n_per_sector and min_formation_bars.
 UNIVERSE_NOTES = {
-    "rule": "per formation year: lines with a sector and an FY filing, funds out, listed through the "
-            "year and traded; one line per security and per company; top N per sector by size",
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), "
+            "funds out, listed through the year and traded; one line per security and per company; "
+            "top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any "
+              "time, so a filing first made after the formation year admits a line to that year",
     "size": "formation-year median of daily close x volume, in USD at the year-end rate",
     "cost_cap": f"latest FY market cap dated {COST_CAP_LAG_DAYS} to {COST_CAP_MAX_AGE_DAYS} days before "
                 "the trading year, in USD at the same rate; none: the smallest-cap cost tier",
@@ -172,6 +177,7 @@ def fetch_universe(cr, con, exchanges, years, verbose=False):
     if listing:
         print(f"  Listing filter: {listing}")
     # Operating-company test: notes, preferreds, warrants and when-issued lines file no FY key metrics.
+    # Any filing date, a later one included: not point-in-time (UNIVERSE_NOTES says so).
     has_filing = "symbol IN (SELECT k.symbol FROM key_metrics k WHERE k.period = 'FY' AND k.marketCap > 0)"
     # Always a subquery: a literal list of the US universe would pass the SQL length limit.
     sym_filter = f"symbol IN (SELECT p.symbol FROM profile p WHERE {profile_where}) AND {has_filing}"

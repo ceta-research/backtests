@@ -4,7 +4,8 @@
 For pairs-fundamentals, pairs-zscore and pairs-multi-pair, whose rerun trades the per-year
 universe of pairs_universe.py. A per-market file is one node; exchange_comparison.json is
 {key: node}. A node fails when:
-  - it is an error node, or has no universe_rule block saying top 30 per sector
+  - it is an error node, or has no universe_rule block saying top 30 per sector, or the block's
+    text is not pairs_universe.UNIVERSE_NOTES as it stands (a run made before a wording fix)
   - exit_method is not ltp, at the top or in the ltp block (never install a both or drop run)
   - a year has no candidates/sectors count, or more than 30 candidates per sector
   - a year's same_company_pairs is not 0
@@ -26,6 +27,9 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+from pairs_universe import UNIVERSE_NOTES  # noqa: E402
+
 TOPICS = ("pairs-fundamentals", "pairs-zscore", "pairs-multi-pair")
 TOP_N = 30   # names per sector: TOP_N_PER_SECTOR in the three topics
 
@@ -53,6 +57,9 @@ def problems(node):
     rule = node.get("universe_rule")
     if not isinstance(rule, dict) or rule.get("top_n_per_sector") != TOP_N:
         out.append(f"no universe_rule block with top_n_per_sector {TOP_N}")
+    elif any(rule.get(k) != v for k, v in UNIVERSE_NOTES.items()):
+        out.append("universe_rule text is not the current UNIVERSE_NOTES: "
+                   + ", ".join(k for k, v in UNIVERSE_NOTES.items() if rule.get(k) != v))
     modes = exit_methods(node)
     if node.get("exit_method") != "ltp" or any(m != "ltp" for m in modes):
         out.append(f"exit_method is {sorted({str(m) for m in modes}) or 'missing'}, not ltp")
@@ -177,6 +184,10 @@ def self_test():
         ("no universe_rule", lambda n: n.pop("universe_rule"), "universe_rule"),
         ("rule under the old key", lambda n: n.__setitem__("universe", n.pop("universe_rule")), "universe_rule"),
         ("another top N", lambda n: n["universe_rule"].__setitem__("top_n_per_sector", TOP_N + 1), "universe_rule"),
+        ("rule text from before the any-date wording", lambda n: n["universe_rule"].__setitem__(
+            "rule", "per formation year: lines with a sector and an FY filing, funds out, listed through the "
+                    "year and traded; one line per security and per company; top N per sector by size"), "UNIVERSE_NOTES: rule"),
+        ("no filing note", lambda n: n["universe_rule"].pop("filing"), "UNIVERSE_NOTES: filing"),
         ("one candidate over the cap", year("candidates", cap + 1), "candidates in 11 sectors"),
         ("no candidates count", lambda n: n["annual_returns"][3].pop("candidates"), "no candidates/sectors"),
         ("no sectors count", lambda n: n["annual_returns"][3].pop("sectors"), "no candidates/sectors"),
