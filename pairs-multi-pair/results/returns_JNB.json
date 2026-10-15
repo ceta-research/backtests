@@ -1,32 +1,43 @@
 {
-  "universe": "JSE",
+  "universe": "JNB",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 9,
+  "invested_periods": 11,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": "SPY",
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
   "n_years": 20,
   "years": "2005-2024",
   "frequency": "daily_zscore",
   "portfolio_config": "20-pair inverse_vol",
   "benchmark_name": "S&P 500",
-  "benchmark_symbol": "SPY",
-  "cash_periods": 1,
-  "invested_periods": 19,
-  "avg_active_pairs": 11.4,
-  "total_trades": 1735,
+  "avg_active_pairs": 8.9,
+  "total_trades": 681,
   "trade_stats": {
-    "total_trades": 1735,
-    "convergence_rate": 75.6,
+    "total_trades": 681,
+    "convergence_rate": 79.6,
     "time_stop_rate": 0.1,
-    "loss_stop_rate": 20.3,
-    "year_end_rate": 4.0,
-    "avg_holding_days": 10.0,
-    "avg_trade_return_pct": -1.74
+    "loss_stop_rate": 12.9,
+    "year_end_rate": 7.2,
+    "last_bar_rate": 0.1,
+    "avg_holding_days": 13.1,
+    "avg_trade_return_pct": -0.262
   },
   "portfolio": {
-    "cagr": -13.18,
-    "max_drawdown": -94.09,
-    "annualized_volatility": 18.97,
-    "sharpe_ratio": -1.169,
-    "sortino_ratio": -0.852,
-    "calmar_ratio": -0.14,
-    "total_return": -94.09
+    "cagr": -0.45,
+    "max_drawdown": -16.02,
+    "annualized_volatility": 2.94,
+    "sharpe_ratio": -3.208,
+    "sortino_ratio": -0.961,
+    "calmar_ratio": -0.028,
+    "total_return": -8.59
   },
   "spy": {
     "cagr": 9.81,
@@ -38,278 +49,1236 @@
     "total_return": 550.1
   },
   "comparison": {
-    "excess_cagr": -23.0,
-    "win_rate": 15.0,
-    "information_ratio": -0.823,
-    "up_capture": -63.13,
-    "down_capture": 10.9,
-    "beta": 0.04,
-    "alpha": -22.22
+    "excess_cagr": -10.26,
+    "win_rate": 20.0,
+    "information_ratio": -0.639,
+    "up_capture": -3.49,
+    "down_capture": -3.05,
+    "beta": -0.061,
+    "alpha": -9.4
   },
-  "excess_cagr": -23.0,
-  "win_rate_vs_spy": 15.0,
+  "excess_cagr": -10.26,
+  "win_rate_vs_spy": 20.0,
   "annual_returns": [
     {
       "year": 2005,
-      "portfolio": 0.0,
+      "portfolio": 7.85,
       "spy": 5.33,
-      "excess": -5.33,
-      "n_pairs_formed": 2,
-      "n_active": 2,
-      "is_cash": true
+      "excess": 2.53,
+      "n_active": 3,
+      "is_cash": false,
+      "listed": 63,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 0,
+      "eligible": 63,
+      "candidates": 63,
+      "sectors": 9,
+      "min_size_usd": 192.961336921116,
+      "sector_cut_usd": {},
+      "no_cost_cap": 8,
+      "pairs_formed": 3,
+      "pairs_entered": 3,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SBK.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.9927
+        },
+        {
+          "a": "NED.JO",
+          "b": "SNT.JO",
+          "sector": "Financial Services",
+          "corr": 0.9796
+        },
+        {
+          "a": "AMS.JO",
+          "b": "IMP.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7996
+        }
+      ]
     },
     {
       "year": 2006,
-      "portfolio": -80.74,
+      "portfolio": 0.0,
       "spy": 13.84,
-      "excess": -94.58,
-      "n_pairs_formed": 6,
-      "n_active": 6,
-      "is_cash": false
+      "excess": -13.84,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 69,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 0,
+      "eligible": 69,
+      "candidates": 69,
+      "sectors": 9,
+      "min_size_usd": 136.31406761177755,
+      "sector_cut_usd": {},
+      "no_cost_cap": 5,
+      "pairs_formed": 0,
+      "pairs_entered": 0,
+      "same_company_pairs": 0,
+      "pairs": []
     },
     {
       "year": 2007,
-      "portfolio": -1.82,
+      "portfolio": 0.0,
       "spy": 5.33,
-      "excess": -7.14,
-      "n_pairs_formed": 5,
-      "n_active": 5,
-      "is_cash": false
+      "excess": -5.33,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 69,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 0,
+      "eligible": 69,
+      "candidates": 69,
+      "sectors": 10,
+      "min_size_usd": 39.81333485557712,
+      "sector_cut_usd": {},
+      "no_cost_cap": 4,
+      "pairs_formed": 1,
+      "pairs_entered": 1,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "TKG.JO",
+          "b": "VOD.JO",
+          "sector": "Communication Services",
+          "corr": 0.7092
+        }
+      ]
     },
     {
       "year": 2008,
-      "portfolio": -11.8,
+      "portfolio": 0.0,
       "spy": -36.23,
-      "excess": 24.43,
-      "n_pairs_formed": 14,
-      "n_active": 14,
-      "is_cash": false
+      "excess": 36.23,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 78,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 0,
+      "eligible": 78,
+      "candidates": 78,
+      "sectors": 10,
+      "min_size_usd": 29.148342800257662,
+      "sector_cut_usd": {},
+      "no_cost_cap": 0,
+      "pairs_formed": 1,
+      "pairs_entered": 1,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "TKG.JO",
+          "b": "VOD.JO",
+          "sector": "Communication Services",
+          "corr": 0.9407
+        }
+      ]
     },
     {
       "year": 2009,
-      "portfolio": -7.2,
+      "portfolio": 0.0,
       "spy": 22.66,
-      "excess": -29.86,
-      "n_pairs_formed": 16,
-      "n_active": 16,
-      "is_cash": false
+      "excess": -22.66,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 83,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 0,
+      "eligible": 83,
+      "candidates": 83,
+      "sectors": 10,
+      "min_size_usd": 5.2938553713250665,
+      "sector_cut_usd": {},
+      "no_cost_cap": 4,
+      "pairs_formed": 1,
+      "pairs_entered": 1,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "TKG.JO",
+          "b": "VOD.JO",
+          "sector": "Communication Services",
+          "corr": 0.9433
+        }
+      ]
     },
     {
       "year": 2010,
-      "portfolio": -25.0,
+      "portfolio": 0.0,
       "spy": 13.13,
-      "excess": -38.14,
-      "n_pairs_formed": 13,
-      "n_active": 13,
-      "is_cash": false
+      "excess": -13.13,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 87,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 0,
+      "eligible": 87,
+      "candidates": 87,
+      "sectors": 10,
+      "min_size_usd": 12.903624599943882,
+      "sector_cut_usd": {},
+      "no_cost_cap": 2,
+      "pairs_formed": 2,
+      "pairs_entered": 2,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7214
+        },
+        {
+          "a": "AEG.JO",
+          "b": "MUR.JO",
+          "sector": "Industrials",
+          "corr": 0.7058
+        }
+      ]
     },
     {
       "year": 2011,
-      "portfolio": -12.07,
+      "portfolio": 0.0,
       "spy": 0.85,
-      "excess": -12.93,
-      "n_pairs_formed": 18,
-      "n_active": 18,
-      "is_cash": false
+      "excess": -0.85,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 93,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 92,
+      "candidates": 92,
+      "sectors": 10,
+      "min_size_usd": 15.679223796292082,
+      "sector_cut_usd": {},
+      "no_cost_cap": 2,
+      "pairs_formed": 1,
+      "pairs_entered": 1,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "AMS.JO",
+          "b": "IMP.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7279
+        }
+      ]
     },
     {
       "year": 2012,
-      "portfolio": 5.23,
+      "portfolio": 0.93,
       "spy": 14.17,
-      "excess": -8.94,
-      "n_pairs_formed": 7,
-      "n_active": 7,
-      "is_cash": false
+      "excess": -13.24,
+      "n_active": 5,
+      "is_cash": false,
+      "listed": 93,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 92,
+      "candidates": 92,
+      "sectors": 10,
+      "min_size_usd": 61.59125600327621,
+      "sector_cut_usd": {},
+      "no_cost_cap": 2,
+      "pairs_formed": 5,
+      "pairs_entered": 5,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "JSE.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.9741
+        },
+        {
+          "a": "AMS.JO",
+          "b": "PPC.JO",
+          "sector": "Basic Materials",
+          "corr": 0.8814
+        },
+        {
+          "a": "SUI.JO",
+          "b": "SUR.JO",
+          "sector": "Consumer Cyclical",
+          "corr": 0.873
+        },
+        {
+          "a": "BAW.JO",
+          "b": "RLO.JO",
+          "sector": "Industrials",
+          "corr": 0.8334
+        },
+        {
+          "a": "ARI.JO",
+          "b": "SOL.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7127
+        }
+      ]
     },
     {
       "year": 2013,
-      "portfolio": 1.07,
+      "portfolio": 0.0,
       "spy": 29.0,
-      "excess": -27.94,
-      "n_pairs_formed": 4,
-      "n_active": 4,
-      "is_cash": false
+      "excess": -29.0,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 93,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 92,
+      "candidates": 92,
+      "sectors": 10,
+      "min_size_usd": 45.21419482539234,
+      "sector_cut_usd": {},
+      "no_cost_cap": 1,
+      "pairs_formed": 0,
+      "pairs_entered": 0,
+      "same_company_pairs": 0,
+      "pairs": []
     },
     {
       "year": 2014,
-      "portfolio": 2.72,
+      "portfolio": 0.0,
       "spy": 14.56,
-      "excess": -11.84,
-      "n_pairs_formed": 10,
-      "n_active": 10,
-      "is_cash": false
+      "excess": -14.56,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 95,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 94,
+      "candidates": 94,
+      "sectors": 10,
+      "min_size_usd": 7.994077895516066,
+      "sector_cut_usd": {},
+      "no_cost_cap": 1,
+      "pairs_formed": 1,
+      "pairs_entered": 1,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "GPL.JO",
+          "b": "TSG.JO",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7244
+        }
+      ]
     },
     {
       "year": 2015,
-      "portfolio": -23.09,
+      "portfolio": 0.0,
       "spy": 1.29,
-      "excess": -24.38,
-      "n_pairs_formed": 13,
-      "n_active": 13,
-      "is_cash": false
+      "excess": -1.29,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 102,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 101,
+      "candidates": 101,
+      "sectors": 10,
+      "min_size_usd": 2.203042790866444,
+      "sector_cut_usd": {},
+      "no_cost_cap": 1,
+      "pairs_formed": 2,
+      "pairs_entered": 2,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "GPL.JO",
+          "b": "TSG.JO",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9211
+        },
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7038
+        }
+      ]
     },
     {
       "year": 2016,
-      "portfolio": -16.73,
+      "portfolio": -3.33,
       "spy": 13.58,
-      "excess": -30.31,
-      "n_pairs_formed": 14,
-      "n_active": 14,
-      "is_cash": false
+      "excess": -16.91,
+      "n_active": 7,
+      "is_cash": false,
+      "listed": 112,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 111,
+      "candidates": 111,
+      "sectors": 10,
+      "min_size_usd": 35.67135822573766,
+      "sector_cut_usd": {},
+      "no_cost_cap": 1,
+      "pairs_formed": 7,
+      "pairs_entered": 7,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "GPL.JO",
+          "b": "TSG.JO",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8235
+        },
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7771
+        },
+        {
+          "a": "ABG.JO",
+          "b": "FSR.JO",
+          "sector": "Financial Services",
+          "corr": 0.7531
+        },
+        {
+          "a": "ABG.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7476
+        },
+        {
+          "a": "GRT.JO",
+          "b": "HYP.JO",
+          "sector": "Real Estate",
+          "corr": 0.713
+        },
+        {
+          "a": "GRT.JO",
+          "b": "RDF.JO",
+          "sector": "Real Estate",
+          "corr": 0.7049
+        },
+        {
+          "a": "HYP.JO",
+          "b": "RDF.JO",
+          "sector": "Real Estate",
+          "corr": 0.7018
+        }
+      ]
     },
     {
       "year": 2017,
-      "portfolio": -13.93,
+      "portfolio": -2.8,
       "spy": 20.78,
-      "excess": -34.71,
-      "n_pairs_formed": 12,
-      "n_active": 12,
-      "is_cash": false
+      "excess": -23.58,
+      "n_active": 8,
+      "is_cash": false,
+      "listed": 120,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 119,
+      "candidates": 119,
+      "sectors": 10,
+      "min_size_usd": 129.02431385117418,
+      "sector_cut_usd": {},
+      "no_cost_cap": 2,
+      "pairs_formed": 8,
+      "pairs_entered": 8,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8145
+        },
+        {
+          "a": "ABG.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7917
+        },
+        {
+          "a": "ABG.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7717
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7653
+        },
+        {
+          "a": "ABG.JO",
+          "b": "FSR.JO",
+          "sector": "Financial Services",
+          "corr": 0.7404
+        },
+        {
+          "a": "SBK.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7245
+        },
+        {
+          "a": "AMS.JO",
+          "b": "IMP.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7241
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7059
+        }
+      ]
     },
     {
       "year": 2018,
-      "portfolio": 4.15,
+      "portfolio": 2.07,
       "spy": -5.25,
-      "excess": 9.4,
-      "n_pairs_formed": 11,
-      "n_active": 11,
-      "is_cash": false
+      "excess": 7.31,
+      "n_active": 6,
+      "is_cash": false,
+      "listed": 127,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 126,
+      "candidates": 126,
+      "sectors": 10,
+      "min_size_usd": 37.11142865937926,
+      "sector_cut_usd": {},
+      "no_cost_cap": 1,
+      "pairs_formed": 6,
+      "pairs_entered": 6,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "FSR.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7801
+        },
+        {
+          "a": "ABG.JO",
+          "b": "FSR.JO",
+          "sector": "Financial Services",
+          "corr": 0.7549
+        },
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7501
+        },
+        {
+          "a": "ABG.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7304
+        },
+        {
+          "a": "GPL.JO",
+          "b": "TSG.JO",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7233
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7163
+        }
+      ]
     },
     {
       "year": 2019,
-      "portfolio": -0.4,
+      "portfolio": -3.55,
       "spy": 31.09,
-      "excess": -31.48,
-      "n_pairs_formed": 19,
-      "n_active": 19,
-      "is_cash": false
+      "excess": -34.63,
+      "n_active": 8,
+      "is_cash": false,
+      "listed": 132,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 131,
+      "candidates": 131,
+      "sectors": 10,
+      "min_size_usd": 14.788082062224996,
+      "sector_cut_usd": {},
+      "no_cost_cap": 1,
+      "pairs_formed": 8,
+      "pairs_entered": 8,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8012
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7965
+        },
+        {
+          "a": "ABG.JO",
+          "b": "FSR.JO",
+          "sector": "Financial Services",
+          "corr": 0.7781
+        },
+        {
+          "a": "ABG.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7749
+        },
+        {
+          "a": "ABG.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7684
+        },
+        {
+          "a": "FSR.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7596
+        },
+        {
+          "a": "GRT.JO",
+          "b": "RDF.JO",
+          "sector": "Real Estate",
+          "corr": 0.7565
+        },
+        {
+          "a": "NRP.JO",
+          "b": "RES.JO",
+          "sector": "Real Estate",
+          "corr": 0.7082
+        }
+      ]
     },
     {
       "year": 2020,
-      "portfolio": 0.86,
+      "portfolio": 2.03,
       "spy": 17.23,
-      "excess": -16.38,
-      "n_pairs_formed": 10,
+      "excess": -15.2,
       "n_active": 10,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 134,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 133,
+      "candidates": 133,
+      "sectors": 10,
+      "min_size_usd": 7.585505237621805,
+      "sector_cut_usd": {},
+      "no_cost_cap": 0,
+      "pairs_formed": 10,
+      "pairs_entered": 10,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.83
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8264
+        },
+        {
+          "a": "ABG.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8151
+        },
+        {
+          "a": "FSR.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.8008
+        },
+        {
+          "a": "ABG.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7865
+        },
+        {
+          "a": "ABG.JO",
+          "b": "FSR.JO",
+          "sector": "Financial Services",
+          "corr": 0.7495
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7222
+        },
+        {
+          "a": "GRT.JO",
+          "b": "RDF.JO",
+          "sector": "Real Estate",
+          "corr": 0.7175
+        },
+        {
+          "a": "ABG.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7172
+        },
+        {
+          "a": "SBK.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7111
+        }
+      ]
     },
     {
       "year": 2021,
-      "portfolio": -0.58,
+      "portfolio": -0.97,
       "spy": 30.51,
-      "excess": -31.09,
-      "n_pairs_formed": 19,
+      "excess": -31.48,
       "n_active": 19,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 138,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 137,
+      "candidates": 137,
+      "sectors": 10,
+      "min_size_usd": 3.996723639837326,
+      "sector_cut_usd": {},
+      "no_cost_cap": 0,
+      "pairs_formed": 19,
+      "pairs_entered": 19,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "IMP.JO",
+          "b": "NPH.JO",
+          "sector": "Basic Materials",
+          "corr": 0.9112
+        },
+        {
+          "a": "ABG.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.8706
+        },
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8573
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8536
+        },
+        {
+          "a": "ABG.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8305
+        },
+        {
+          "a": "DRD.JO",
+          "b": "GFI.JO",
+          "sector": "Basic Materials",
+          "corr": 0.797
+        },
+        {
+          "a": "ABG.JO",
+          "b": "FSR.JO",
+          "sector": "Financial Services",
+          "corr": 0.785
+        },
+        {
+          "a": "FSR.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7803
+        },
+        {
+          "a": "NPH.JO",
+          "b": "SSW.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7644
+        },
+        {
+          "a": "MTM.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7565
+        },
+        {
+          "a": "GRT.JO",
+          "b": "RES.JO",
+          "sector": "Real Estate",
+          "corr": 0.7539
+        },
+        {
+          "a": "SBK.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7535
+        },
+        {
+          "a": "FFB.JO",
+          "b": "RES.JO",
+          "sector": "Real Estate",
+          "corr": 0.7393
+        },
+        {
+          "a": "MTM.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7246
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7237
+        },
+        {
+          "a": "NED.JO",
+          "b": "OMU.JO",
+          "sector": "Financial Services",
+          "corr": 0.7178
+        },
+        {
+          "a": "ARI.JO",
+          "b": "KIO.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7173
+        },
+        {
+          "a": "GFI.JO",
+          "b": "SSW.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7169
+        },
+        {
+          "a": "OMU.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7047
+        }
+      ]
     },
     {
       "year": 2022,
-      "portfolio": 1.09,
+      "portfolio": -0.23,
       "spy": -18.65,
-      "excess": 19.74,
-      "n_pairs_formed": 8,
-      "n_active": 8,
-      "is_cash": false
+      "excess": 18.41,
+      "n_active": 10,
+      "is_cash": false,
+      "listed": 143,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 142,
+      "candidates": 142,
+      "sectors": 10,
+      "min_size_usd": 3.993307505737141,
+      "sector_cut_usd": {},
+      "no_cost_cap": 0,
+      "pairs_formed": 10,
+      "pairs_entered": 10,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "ABG.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8423
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8161
+        },
+        {
+          "a": "ABG.JO",
+          "b": "FSR.JO",
+          "sector": "Financial Services",
+          "corr": 0.8157
+        },
+        {
+          "a": "AMS.JO",
+          "b": "IMP.JO",
+          "sector": "Basic Materials",
+          "corr": 0.8091
+        },
+        {
+          "a": "IMP.JO",
+          "b": "NPH.JO",
+          "sector": "Basic Materials",
+          "corr": 0.8037
+        },
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7987
+        },
+        {
+          "a": "ABG.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7768
+        },
+        {
+          "a": "FSR.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7457
+        },
+        {
+          "a": "AMS.JO",
+          "b": "NPH.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7206
+        },
+        {
+          "a": "IMP.JO",
+          "b": "SSW.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7137
+        }
+      ]
     },
     {
       "year": 2023,
-      "portfolio": -5.45,
+      "portfolio": -7.65,
       "spy": 26.71,
-      "excess": -32.16,
-      "n_pairs_formed": 9,
-      "n_active": 9,
-      "is_cash": false
+      "excess": -34.35,
+      "n_active": 13,
+      "is_cash": false,
+      "listed": 141,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 140,
+      "candidates": 140,
+      "sectors": 10,
+      "min_size_usd": 38.921579198557616,
+      "sector_cut_usd": {},
+      "no_cost_cap": 0,
+      "pairs_formed": 13,
+      "pairs_entered": 13,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "IMP.JO",
+          "b": "SSW.JO",
+          "sector": "Basic Materials",
+          "corr": 0.8043
+        },
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.8003
+        },
+        {
+          "a": "IMP.JO",
+          "b": "NPH.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7883
+        },
+        {
+          "a": "FSR.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7833
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7806
+        },
+        {
+          "a": "ABG.JO",
+          "b": "FSR.JO",
+          "sector": "Financial Services",
+          "corr": 0.7802
+        },
+        {
+          "a": "ABG.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7774
+        },
+        {
+          "a": "AMS.JO",
+          "b": "IMP.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7667
+        },
+        {
+          "a": "AMS.JO",
+          "b": "NPH.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7538
+        },
+        {
+          "a": "IMP.JO",
+          "b": "RBP.JO",
+          "sector": "Basic Materials",
+          "corr": 0.749
+        },
+        {
+          "a": "OMU.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.744
+        },
+        {
+          "a": "AMS.JO",
+          "b": "SSW.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7173
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SLM.JO",
+          "sector": "Financial Services",
+          "corr": 0.7057
+        }
+      ]
     },
     {
       "year": 2024,
-      "portfolio": -3.2,
+      "portfolio": -2.49,
       "spy": 25.59,
-      "excess": -28.79,
-      "n_pairs_formed": 8,
-      "n_active": 8,
-      "is_cash": false
+      "excess": -28.08,
+      "n_active": 9,
+      "is_cash": false,
+      "listed": 130,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 129,
+      "candidates": 129,
+      "sectors": 10,
+      "min_size_usd": 51.55428652696412,
+      "sector_cut_usd": {},
+      "no_cost_cap": 0,
+      "pairs_formed": 9,
+      "pairs_entered": 9,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "AMS.JO",
+          "b": "NPH.JO",
+          "sector": "Basic Materials",
+          "corr": 0.8176
+        },
+        {
+          "a": "FSR.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7947
+        },
+        {
+          "a": "NED.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7879
+        },
+        {
+          "a": "IMP.JO",
+          "b": "NPH.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7831
+        },
+        {
+          "a": "ABG.JO",
+          "b": "NED.JO",
+          "sector": "Financial Services",
+          "corr": 0.7807
+        },
+        {
+          "a": "FSR.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7767
+        },
+        {
+          "a": "ABG.JO",
+          "b": "SBK.JO",
+          "sector": "Financial Services",
+          "corr": 0.7651
+        },
+        {
+          "a": "ABG.JO",
+          "b": "FSR.JO",
+          "sector": "Financial Services",
+          "corr": 0.7254
+        },
+        {
+          "a": "IMP.JO",
+          "b": "SSW.JO",
+          "sector": "Basic Materials",
+          "corr": 0.7016
+        }
+      ]
     }
   ],
   "diversification_analysis": [
     {
       "n_pairs": 5,
       "allocation": "equal",
-      "cagr_pct": -6.41,
-      "excess_cagr_pct": -16.23,
-      "sharpe": -1.172,
-      "max_drawdown_pct": -73.44,
-      "cash_periods": 1,
-      "avg_active_pairs": 4.9
+      "cagr_pct": -0.29,
+      "excess_cagr_pct": -10.1,
+      "sharpe": -3.282,
+      "max_drawdown_pct": -12.59,
+      "cash_periods": 9,
+      "avg_active_pairs": 4.8
     },
     {
       "n_pairs": 5,
       "allocation": "inverse_vol",
-      "cagr_pct": -9.11,
-      "excess_cagr_pct": -18.92,
-      "sharpe": -1.002,
-      "max_drawdown_pct": -85.18,
-      "cash_periods": 1,
-      "avg_active_pairs": 4.9
+      "cagr_pct": -0.37,
+      "excess_cagr_pct": -10.18,
+      "sharpe": -3.019,
+      "max_drawdown_pct": -14.7,
+      "cash_periods": 9,
+      "avg_active_pairs": 4.8
     },
     {
       "n_pairs": 10,
       "allocation": "equal",
-      "cagr_pct": -9.52,
-      "excess_cagr_pct": -19.33,
-      "sharpe": -1.211,
-      "max_drawdown_pct": -86.48,
-      "cash_periods": 1,
-      "avg_active_pairs": 8.8
+      "cagr_pct": -0.4,
+      "excess_cagr_pct": -10.21,
+      "sharpe": -3.59,
+      "max_drawdown_pct": -14.5,
+      "cash_periods": 9,
+      "avg_active_pairs": 7.8
     },
     {
       "n_pairs": 10,
       "allocation": "inverse_vol",
-      "cagr_pct": -11.13,
-      "excess_cagr_pct": -20.95,
-      "sharpe": -1.056,
-      "max_drawdown_pct": -90.56,
-      "cash_periods": 1,
-      "avg_active_pairs": 8.8
+      "cagr_pct": -0.32,
+      "excess_cagr_pct": -10.13,
+      "sharpe": -3.246,
+      "max_drawdown_pct": -13.87,
+      "cash_periods": 9,
+      "avg_active_pairs": 7.8
     },
     {
       "n_pairs": 15,
       "allocation": "equal",
-      "cagr_pct": -13.32,
-      "excess_cagr_pct": -23.13,
-      "sharpe": -1.331,
-      "max_drawdown_pct": -94.26,
-      "cash_periods": 1,
-      "avg_active_pairs": 10.7
+      "cagr_pct": -0.46,
+      "excess_cagr_pct": -10.28,
+      "sharpe": -3.379,
+      "max_drawdown_pct": -15.61,
+      "cash_periods": 9,
+      "avg_active_pairs": 8.5
     },
     {
       "n_pairs": 15,
       "allocation": "inverse_vol",
-      "cagr_pct": -13.0,
-      "excess_cagr_pct": -22.81,
-      "sharpe": -1.156,
-      "max_drawdown_pct": -93.83,
-      "cash_periods": 1,
-      "avg_active_pairs": 10.7
+      "cagr_pct": -0.38,
+      "excess_cagr_pct": -10.19,
+      "sharpe": -3.184,
+      "max_drawdown_pct": -14.89,
+      "cash_periods": 9,
+      "avg_active_pairs": 8.5
     },
     {
       "n_pairs": 20,
       "allocation": "equal",
-      "cagr_pct": -13.52,
-      "excess_cagr_pct": -23.33,
-      "sharpe": -1.346,
-      "max_drawdown_pct": -94.53,
-      "cash_periods": 1,
-      "avg_active_pairs": 11.4
+      "cagr_pct": -0.55,
+      "excess_cagr_pct": -10.36,
+      "sharpe": -3.404,
+      "max_drawdown_pct": -17.1,
+      "cash_periods": 9,
+      "avg_active_pairs": 8.9
     },
     {
       "n_pairs": 20,
       "allocation": "inverse_vol",
-      "cagr_pct": -13.18,
-      "excess_cagr_pct": -23.0,
-      "sharpe": -1.169,
-      "max_drawdown_pct": -94.09,
-      "cash_periods": 1,
-      "avg_active_pairs": 11.4
+      "cagr_pct": -0.45,
+      "excess_cagr_pct": -10.26,
+      "sharpe": -3.208,
+      "max_drawdown_pct": -16.02,
+      "cash_periods": 9,
+      "avg_active_pairs": 8.9
     }
-  ]
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": null,
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "early_closes": 1,
+    "fills": [
+      {
+        "pair": [
+          "IMP.JO",
+          "RBP.JO"
+        ],
+        "year": 2023,
+        "entry_date": "2023-08-17",
+        "last_common_bar": "2023-08-29",
+        "delisted_date": [
+          null,
+          null
+        ],
+        "delisting_bound": [
+          "none",
+          "none"
+        ]
+      }
+    ]
+  }
 }

@@ -1,30 +1,42 @@
 {
-  "universe": "Canada",
+  "universe": "TSX",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 1,
+  "invested_periods": 19,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": null,
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
   "n_years": 20,
   "years": "2005-2024",
   "frequency": "daily_zscore",
-  "cash_periods": 1,
-  "invested_periods": 19,
-  "avg_pairs_with_trades": 16.8,
-  "total_trades": 2174,
-  "trades_per_year": 108.7,
+  "avg_pairs_with_trades": 18.7,
+  "total_trades": 2450,
+  "trades_per_year": 122.5,
   "trade_stats": {
-    "total_trades": 2174,
-    "convergence_rate": 79.7,
-    "time_stop_rate": 0.9,
-    "loss_stop_rate": 13.6,
+    "total_trades": 2450,
+    "convergence_rate": 76.3,
+    "time_stop_rate": 0.7,
+    "loss_stop_rate": 17.2,
     "year_end_rate": 5.8,
-    "avg_holding_days": 14.9,
-    "avg_trade_return_pct": -0.405
+    "last_bar_rate": 0.0,
+    "avg_holding_days": 14.5,
+    "avg_trade_return_pct": -0.472
   },
   "portfolio": {
-    "cagr": -2.52,
-    "max_drawdown": -41.36,
-    "annualized_volatility": 3.52,
-    "sharpe_ratio": -1.425,
-    "sortino_ratio": -0.84,
-    "calmar_ratio": -0.061,
-    "total_return": -39.97
+    "cagr": -2.96,
+    "max_drawdown": -45.76,
+    "annualized_volatility": 3.37,
+    "sharpe_ratio": -1.619,
+    "sortino_ratio": -0.863,
+    "calmar_ratio": -0.065,
+    "total_return": -45.2
   },
   "spy": {
     "cagr": 4.53,
@@ -36,16 +48,16 @@
     "total_return": 142.53
   },
   "comparison": {
-    "excess_cagr": -7.05,
-    "win_rate": 20.0,
-    "information_ratio": -0.485,
-    "up_capture": -20.11,
-    "down_capture": 13.02,
-    "beta": -0.079,
-    "alpha": -4.86
+    "excess_cagr": -7.49,
+    "win_rate": 25.0,
+    "information_ratio": -0.536,
+    "up_capture": -22.22,
+    "down_capture": 19.19,
+    "beta": -0.027,
+    "alpha": -5.41
   },
-  "excess_cagr": -7.05,
-  "win_rate_vs_spy": 20.0,
+  "excess_cagr": -7.49,
+  "win_rate_vs_spy": 25.0,
   "annual_returns": [
     {
       "year": 2005,
@@ -53,179 +65,2782 @@
       "spy": 23.29,
       "excess": -23.29,
       "pairs_formed": 2,
-      "pairs_with_trades": 2,
-      "total_trades": 14
+      "pairs_entered": 2,
+      "pairs_with_trades": 0,
+      "total_trades": 0,
+      "same_company_pairs": 0,
+      "listed": 305,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 10,
+      "eligible": 295,
+      "candidates": 225,
+      "sectors": 11,
+      "min_size_usd": 711.2588284171168,
+      "sector_cut_usd": {
+        "Basic Materials": 82718.73701703365,
+        "Energy": 218944.74449522226,
+        "Financial Services": 4347.179061071874,
+        "Industrials": 6065.641877856253
+      },
+      "no_cost_cap": 10,
+      "pairs": [
+        {
+          "a": "PAAS.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7957
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "OVV.TO",
+          "sector": "Energy",
+          "corr": 0.7054
+        }
+      ]
     },
     {
       "year": 2006,
-      "portfolio": -0.2,
+      "portfolio": 1.03,
       "spy": 12.82,
-      "excess": -13.02,
-      "pairs_formed": 7,
-      "pairs_with_trades": 7,
-      "total_trades": 50
+      "excess": -11.79,
+      "pairs_formed": 5,
+      "pairs_entered": 5,
+      "pairs_with_trades": 5,
+      "total_trades": 34,
+      "same_company_pairs": 0,
+      "listed": 329,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 11,
+      "eligible": 318,
+      "candidates": 231,
+      "sectors": 11,
+      "min_size_usd": 1203.3825503355704,
+      "sector_cut_usd": {
+        "Basic Materials": 143331.95663397005,
+        "Energy": 530418.1724315953,
+        "Financial Services": 25881.94802959904,
+        "Industrials": 10225.86473928756
+      },
+      "no_cost_cap": 11,
+      "pairs": [
+        {
+          "a": "PAAS.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7774
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.744
+        },
+        {
+          "a": "OVV.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.7261
+        },
+        {
+          "a": "IMO.TO",
+          "b": "OVV.TO",
+          "sector": "Energy",
+          "corr": 0.716
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "OVV.TO",
+          "sector": "Energy",
+          "corr": 0.7054
+        }
+      ]
     },
     {
       "year": 2007,
-      "portfolio": -3.19,
+      "portfolio": -7.47,
       "spy": 7.04,
-      "excess": -10.23,
-      "pairs_formed": 10,
-      "pairs_with_trades": 10,
-      "total_trades": 66
+      "excess": -14.51,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "pairs_with_trades": 20,
+      "total_trades": 132,
+      "same_company_pairs": 0,
+      "listed": 349,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 11,
+      "eligible": 338,
+      "candidates": 236,
+      "sectors": 11,
+      "min_size_usd": 1131.9783895034732,
+      "sector_cut_usd": {
+        "Basic Materials": 374262.9277077438,
+        "Energy": 1033222.708172541,
+        "Financial Services": 79958.8371494726,
+        "Industrials": 44980.70491381529
+      },
+      "no_cost_cap": 7,
+      "pairs": [
+        {
+          "a": "AEM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7876
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.7868
+        },
+        {
+          "a": "ARX.TO",
+          "b": "BTE.TO",
+          "sector": "Energy",
+          "corr": 0.7822
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7798
+        },
+        {
+          "a": "AEM.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7644
+        },
+        {
+          "a": "BTE.TO",
+          "b": "OBE.TO",
+          "sector": "Energy",
+          "corr": 0.7608
+        },
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7597
+        },
+        {
+          "a": "AEM.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7567
+        },
+        {
+          "a": "ABX.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.749
+        },
+        {
+          "a": "OBE.TO",
+          "b": "VET.TO",
+          "sector": "Energy",
+          "corr": 0.7339
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7318
+        },
+        {
+          "a": "AEM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7265
+        },
+        {
+          "a": "ARX.TO",
+          "b": "VET.TO",
+          "sector": "Energy",
+          "corr": 0.7252
+        },
+        {
+          "a": "BTE.TO",
+          "b": "VET.TO",
+          "sector": "Energy",
+          "corr": 0.7247
+        },
+        {
+          "a": "ARX.TO",
+          "b": "CPG.TO",
+          "sector": "Energy",
+          "corr": 0.7201
+        },
+        {
+          "a": "OBE.TO",
+          "b": "PMT.TO",
+          "sector": "Energy",
+          "corr": 0.718
+        },
+        {
+          "a": "ARX.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.7174
+        },
+        {
+          "a": "BTE.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.7155
+        },
+        {
+          "a": "BTE.TO",
+          "b": "CPG.TO",
+          "sector": "Energy",
+          "corr": 0.7154
+        },
+        {
+          "a": "CPG.TO",
+          "b": "OBE.TO",
+          "sector": "Energy",
+          "corr": 0.7147
+        }
+      ]
     },
     {
       "year": 2008,
-      "portfolio": 5.96,
+      "portfolio": 2.94,
       "spy": -35.46,
-      "excess": 41.42,
-      "pairs_formed": 13,
-      "pairs_with_trades": 13,
-      "total_trades": 113
+      "excess": 38.4,
+      "pairs_formed": 16,
+      "pairs_entered": 16,
+      "pairs_with_trades": 16,
+      "total_trades": 140,
+      "same_company_pairs": 0,
+      "listed": 380,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 13,
+      "eligible": 367,
+      "candidates": 246,
+      "sectors": 11,
+      "min_size_usd": 435.1222619986651,
+      "sector_cut_usd": {
+        "Basic Materials": 729637.6635721943,
+        "Energy": 1891841.1099650103,
+        "Financial Services": 155600.89395869992,
+        "Industrials": 129874.50195174241
+      },
+      "no_cost_cap": 6,
+      "pairs": [
+        {
+          "a": "L.TO",
+          "b": "WN.TO",
+          "sector": "Consumer Defensive",
+          "corr": 0.8773
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.8112
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7929
+        },
+        {
+          "a": "SSRM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7834
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.769
+        },
+        {
+          "a": "AEM.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7627
+        },
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7621
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7565
+        },
+        {
+          "a": "K.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7515
+        },
+        {
+          "a": "AEM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7443
+        },
+        {
+          "a": "BNS.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.7422
+        },
+        {
+          "a": "ABX.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7296
+        },
+        {
+          "a": "ABX.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.728
+        },
+        {
+          "a": "K.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7067
+        },
+        {
+          "a": "AEM.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7055
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "OVV.TO",
+          "sector": "Energy",
+          "corr": 0.7055
+        }
+      ]
     },
     {
       "year": 2009,
-      "portfolio": -5.39,
+      "portfolio": -4.4,
       "spy": 27.2,
-      "excess": -32.59,
+      "excess": -31.6,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 144
+      "total_trades": 143,
+      "same_company_pairs": 0,
+      "listed": 413,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 17,
+      "eligible": 396,
+      "candidates": 252,
+      "sectors": 11,
+      "min_size_usd": 147.5415890419953,
+      "sector_cut_usd": {
+        "Basic Materials": 767831.7890469196,
+        "Energy": 1674885.7173340337,
+        "Financial Services": 80963.83169056276,
+        "Industrials": 82494.02939752313
+      },
+      "no_cost_cap": 5,
+      "pairs": [
+        {
+          "a": "BNS.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.8937
+        },
+        {
+          "a": "RY.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8816
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "OVV.TO",
+          "sector": "Energy",
+          "corr": 0.8794
+        },
+        {
+          "a": "AEM.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.877
+        },
+        {
+          "a": "ABX.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8768
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.8764
+        },
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8583
+        },
+        {
+          "a": "OVV.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.8546
+        },
+        {
+          "a": "AEM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.849
+        },
+        {
+          "a": "AEM.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8479
+        },
+        {
+          "a": "CM.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8456
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8452
+        },
+        {
+          "a": "IMO.TO",
+          "b": "OVV.TO",
+          "sector": "Energy",
+          "corr": 0.8388
+        },
+        {
+          "a": "CM.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.835
+        },
+        {
+          "a": "ABX.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8345
+        },
+        {
+          "a": "AEM.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8316
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.829
+        },
+        {
+          "a": "IMG.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8287
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "OBE.TO",
+          "sector": "Energy",
+          "corr": 0.827
+        },
+        {
+          "a": "K.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8269
+        }
+      ]
     },
     {
       "year": 2010,
-      "portfolio": 1.05,
+      "portfolio": 0.73,
       "spy": 13.28,
-      "excess": -12.23,
+      "excess": -12.56,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 125
+      "total_trades": 126,
+      "same_company_pairs": 0,
+      "listed": 431,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 19,
+      "eligible": 412,
+      "candidates": 257,
+      "sectors": 11,
+      "min_size_usd": 439.69990920820004,
+      "sector_cut_usd": {
+        "Basic Materials": 786272.3849572324,
+        "Consumer Cyclical": 6871.505710326373,
+        "Energy": 1213341.6160940414,
+        "Financial Services": 90830.02819324318,
+        "Industrials": 86013.28427390453
+      },
+      "no_cost_cap": 9,
+      "pairs": [
+        {
+          "a": "RY.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8534
+        },
+        {
+          "a": "BNS.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8517
+        },
+        {
+          "a": "MFC.TO",
+          "b": "SLF.TO",
+          "sector": "Financial Services",
+          "corr": 0.8516
+        },
+        {
+          "a": "AEM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8477
+        },
+        {
+          "a": "BMO.TO",
+          "b": "BNS.TO",
+          "sector": "Financial Services",
+          "corr": 0.8461
+        },
+        {
+          "a": "BNS.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.8454
+        },
+        {
+          "a": "BNS.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.8377
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8366
+        },
+        {
+          "a": "BMO.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8339
+        },
+        {
+          "a": "ABX.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8247
+        },
+        {
+          "a": "CNR.TO",
+          "b": "CP.TO",
+          "sector": "Industrials",
+          "corr": 0.8202
+        },
+        {
+          "a": "ABX.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8176
+        },
+        {
+          "a": "AEM.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8123
+        },
+        {
+          "a": "ELD.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8074
+        },
+        {
+          "a": "BMO.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.8036
+        },
+        {
+          "a": "CM.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7966
+        },
+        {
+          "a": "BMO.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.7955
+        },
+        {
+          "a": "BNS.TO",
+          "b": "SLF.TO",
+          "sector": "Financial Services",
+          "corr": 0.7947
+        },
+        {
+          "a": "IMG.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7926
+        },
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7921
+        }
+      ]
     },
     {
       "year": 2011,
-      "portfolio": -4.38,
+      "portfolio": -5.86,
       "spy": -10.8,
-      "excess": 6.42,
-      "pairs_formed": 18,
-      "pairs_with_trades": 18,
-      "total_trades": 127
+      "excess": 4.94,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "pairs_with_trades": 20,
+      "total_trades": 146,
+      "same_company_pairs": 0,
+      "listed": 451,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 20,
+      "eligible": 431,
+      "candidates": 264,
+      "sectors": 11,
+      "min_size_usd": 361.92180478339986,
+      "sector_cut_usd": {
+        "Basic Materials": 1723712.915581739,
+        "Consumer Cyclical": 10516.7338567795,
+        "Energy": 2098760.3756748335,
+        "Financial Services": 137213.60423850646,
+        "Industrials": 175221.4257708432
+      },
+      "no_cost_cap": 2,
+      "pairs": [
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8341
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8189
+        },
+        {
+          "a": "AEM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8054
+        },
+        {
+          "a": "ABX.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7958
+        },
+        {
+          "a": "ELD.TO",
+          "b": "IMG.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7804
+        },
+        {
+          "a": "SVM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7782
+        },
+        {
+          "a": "ABX.TO",
+          "b": "ELD.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7689
+        },
+        {
+          "a": "CNR.TO",
+          "b": "CP.TO",
+          "sector": "Industrials",
+          "corr": 0.7636
+        },
+        {
+          "a": "WPM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7626
+        },
+        {
+          "a": "AEM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7594
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7586
+        },
+        {
+          "a": "AEM.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.752
+        },
+        {
+          "a": "IMG.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7505
+        },
+        {
+          "a": "ABX.TO",
+          "b": "IMG.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7503
+        },
+        {
+          "a": "SSRM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7464
+        },
+        {
+          "a": "RY.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7461
+        },
+        {
+          "a": "MFC.TO",
+          "b": "SLF.TO",
+          "sector": "Financial Services",
+          "corr": 0.7455
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7446
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7336
+        },
+        {
+          "a": "ABX.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7225
+        }
+      ]
     },
     {
       "year": 2012,
-      "portfolio": -0.79,
+      "portfolio": 0.37,
       "spy": 1.84,
-      "excess": -2.63,
+      "excess": -1.47,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 122
+      "total_trades": 120,
+      "same_company_pairs": 0,
+      "listed": 473,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 23,
+      "eligible": 450,
+      "candidates": 268,
+      "sectors": 11,
+      "min_size_usd": 325.62922338654397,
+      "sector_cut_usd": {
+        "Basic Materials": 2885084.7125648814,
+        "Consumer Cyclical": 5736.460679659192,
+        "Energy": 2970891.048868867,
+        "Financial Services": 164210.25364802664,
+        "Industrials": 276095.17187346984
+      },
+      "no_cost_cap": 3,
+      "pairs": [
+        {
+          "a": "CNQ.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.8524
+        },
+        {
+          "a": "GWO.TO",
+          "b": "POW.TO",
+          "sector": "Financial Services",
+          "corr": 0.8484
+        },
+        {
+          "a": "EDR.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8356
+        },
+        {
+          "a": "BNS.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8306
+        },
+        {
+          "a": "RY.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8286
+        },
+        {
+          "a": "EDR.TO",
+          "b": "FR.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8186
+        },
+        {
+          "a": "ABX.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8132
+        },
+        {
+          "a": "CVE.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.8062
+        },
+        {
+          "a": "BMO.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7996
+        },
+        {
+          "a": "ABX.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7962
+        },
+        {
+          "a": "CM.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7896
+        },
+        {
+          "a": "FR.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7863
+        },
+        {
+          "a": "BNS.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.7821
+        },
+        {
+          "a": "IMO.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.7814
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "CVE.TO",
+          "sector": "Energy",
+          "corr": 0.779
+        },
+        {
+          "a": "BMO.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.7747
+        },
+        {
+          "a": "MFC.TO",
+          "b": "POW.TO",
+          "sector": "Financial Services",
+          "corr": 0.7713
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7662
+        },
+        {
+          "a": "ABX.TO",
+          "b": "ELD.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7657
+        },
+        {
+          "a": "BMO.TO",
+          "b": "BNS.TO",
+          "sector": "Financial Services",
+          "corr": 0.7653
+        }
+      ]
     },
     {
       "year": 2013,
-      "portfolio": -1.92,
+      "portfolio": -1.35,
       "spy": 8.62,
-      "excess": -10.54,
-      "pairs_formed": 17,
-      "pairs_with_trades": 17,
-      "total_trades": 107
+      "excess": -9.97,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "pairs_with_trades": 20,
+      "total_trades": 133,
+      "same_company_pairs": 0,
+      "listed": 483,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 24,
+      "eligible": 459,
+      "candidates": 267,
+      "sectors": 11,
+      "min_size_usd": 361.8854230541119,
+      "sector_cut_usd": {
+        "Basic Materials": 2144985.373797485,
+        "Consumer Cyclical": 7262.839393238774,
+        "Energy": 3895057.2482634527,
+        "Financial Services": 163764.7041084048,
+        "Industrials": 240951.35656771783
+      },
+      "no_cost_cap": 5,
+      "pairs": [
+        {
+          "a": "GWO.TO",
+          "b": "POW.TO",
+          "sector": "Financial Services",
+          "corr": 0.8139
+        },
+        {
+          "a": "FR.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8137
+        },
+        {
+          "a": "RY.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7992
+        },
+        {
+          "a": "WPM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7986
+        },
+        {
+          "a": "SSRM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.786
+        },
+        {
+          "a": "BNS.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7704
+        },
+        {
+          "a": "BMO.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.7652
+        },
+        {
+          "a": "BMO.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7571
+        },
+        {
+          "a": "FR.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7503
+        },
+        {
+          "a": "BMO.TO",
+          "b": "BNS.TO",
+          "sector": "Financial Services",
+          "corr": 0.7471
+        },
+        {
+          "a": "BMO.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.7396
+        },
+        {
+          "a": "BNS.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.7313
+        },
+        {
+          "a": "ABX.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7269
+        },
+        {
+          "a": "MFC.TO",
+          "b": "SLF.TO",
+          "sector": "Financial Services",
+          "corr": 0.7269
+        },
+        {
+          "a": "ELD.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7195
+        },
+        {
+          "a": "BNS.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.7193
+        },
+        {
+          "a": "NGD.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7182
+        },
+        {
+          "a": "IMG.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7142
+        },
+        {
+          "a": "CM.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7112
+        },
+        {
+          "a": "CM.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.71
+        }
+      ]
     },
     {
       "year": 2014,
-      "portfolio": -4.27,
+      "portfolio": -9.89,
       "spy": 7.64,
-      "excess": -11.91,
+      "excess": -17.52,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 143
+      "total_trades": 156,
+      "same_company_pairs": 0,
+      "listed": 516,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 33,
+      "eligible": 483,
+      "candidates": 273,
+      "sectors": 11,
+      "min_size_usd": 465.42678225548644,
+      "sector_cut_usd": {
+        "Basic Materials": 1463459.7664403787,
+        "Consumer Cyclical": 11474.88575888072,
+        "Energy": 3223397.521484853,
+        "Financial Services": 233371.5704157813,
+        "Industrials": 182281.71954040282,
+        "Real Estate": 27801.49312672772
+      },
+      "no_cost_cap": 3,
+      "pairs": [
+        {
+          "a": "ELD.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.887
+        },
+        {
+          "a": "WPM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8825
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8671
+        },
+        {
+          "a": "ELD.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8572
+        },
+        {
+          "a": "FR.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8568
+        },
+        {
+          "a": "ABX.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8559
+        },
+        {
+          "a": "FR.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8555
+        },
+        {
+          "a": "ELD.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8545
+        },
+        {
+          "a": "K.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8453
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8446
+        },
+        {
+          "a": "AEM.TO",
+          "b": "ELD.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8421
+        },
+        {
+          "a": "AEM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8378
+        },
+        {
+          "a": "ABX.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8377
+        },
+        {
+          "a": "ABX.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.834
+        },
+        {
+          "a": "FR.TO",
+          "b": "NGD.TO",
+          "sector": "Basic Materials",
+          "corr": 0.834
+        },
+        {
+          "a": "AEM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8272
+        },
+        {
+          "a": "FR.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8227
+        },
+        {
+          "a": "AR.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8188
+        },
+        {
+          "a": "ELD.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8188
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8187
+        }
+      ]
     },
     {
       "year": 2015,
-      "portfolio": 3.68,
+      "portfolio": -0.13,
       "spy": -11.82,
-      "excess": 15.5,
+      "excess": 11.69,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 135
+      "total_trades": 141,
+      "same_company_pairs": 0,
+      "listed": 543,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 39,
+      "eligible": 504,
+      "candidates": 279,
+      "sectors": 11,
+      "min_size_usd": 232.4920565214022,
+      "sector_cut_usd": {
+        "Basic Materials": 1643440.6827516726,
+        "Consumer Cyclical": 19180.59466301568,
+        "Energy": 5155709.402150982,
+        "Financial Services": 322044.552366683,
+        "Industrials": 577670.6362532614,
+        "Real Estate": 104638.64706844739
+      },
+      "no_cost_cap": 3,
+      "pairs": [
+        {
+          "a": "FR.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8636
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8544
+        },
+        {
+          "a": "ABX.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8538
+        },
+        {
+          "a": "FR.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8277
+        },
+        {
+          "a": "BTE.TO",
+          "b": "CPG.TO",
+          "sector": "Energy",
+          "corr": 0.8244
+        },
+        {
+          "a": "BTE.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.8244
+        },
+        {
+          "a": "NGD.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8244
+        },
+        {
+          "a": "AEM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8232
+        },
+        {
+          "a": "ELD.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8218
+        },
+        {
+          "a": "MFC.TO",
+          "b": "SLF.TO",
+          "sector": "Financial Services",
+          "corr": 0.8185
+        },
+        {
+          "a": "ABX.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8154
+        },
+        {
+          "a": "ELD.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8153
+        },
+        {
+          "a": "NGD.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8123
+        },
+        {
+          "a": "CFP.TO",
+          "b": "WFG.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8122
+        },
+        {
+          "a": "ELD.TO",
+          "b": "FNV.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8111
+        },
+        {
+          "a": "FR.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8076
+        },
+        {
+          "a": "WPM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8038
+        },
+        {
+          "a": "AEM.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8034
+        },
+        {
+          "a": "ABX.TO",
+          "b": "FR.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8033
+        },
+        {
+          "a": "FNV.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.802
+        }
+      ]
     },
     {
       "year": 2016,
-      "portfolio": -4.51,
+      "portfolio": -4.85,
       "spy": 18.26,
-      "excess": -22.76,
+      "excess": -23.11,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 133
+      "total_trades": 131,
+      "same_company_pairs": 0,
+      "listed": 565,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 43,
+      "eligible": 521,
+      "candidates": 283,
+      "sectors": 11,
+      "min_size_usd": 506.04239439369945,
+      "sector_cut_usd": {
+        "Basic Materials": 1115992.970428066,
+        "Consumer Cyclical": 18185.03974022405,
+        "Energy": 2679503.5907227006,
+        "Financial Services": 227092.05701763902,
+        "Industrials": 618779.5158852416,
+        "Real Estate": 98306.5385143882
+      },
+      "no_cost_cap": 4,
+      "pairs": [
+        {
+          "a": "BMO.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8567
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8415
+        },
+        {
+          "a": "ACO-X.TO",
+          "b": "CU.TO",
+          "sector": "Utilities",
+          "corr": 0.8404
+        },
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.829
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8269
+        },
+        {
+          "a": "RY.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8257
+        },
+        {
+          "a": "BNS.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.8227
+        },
+        {
+          "a": "CFP.TO",
+          "b": "WFG.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8211
+        },
+        {
+          "a": "AEM.TO",
+          "b": "FNV.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8192
+        },
+        {
+          "a": "BMO.TO",
+          "b": "BNS.TO",
+          "sector": "Financial Services",
+          "corr": 0.8175
+        },
+        {
+          "a": "ABX.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8173
+        },
+        {
+          "a": "GWO.TO",
+          "b": "POW.TO",
+          "sector": "Financial Services",
+          "corr": 0.8144
+        },
+        {
+          "a": "CM.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8098
+        },
+        {
+          "a": "ABX.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8011
+        },
+        {
+          "a": "BNS.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.798
+        },
+        {
+          "a": "AEM.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7952
+        },
+        {
+          "a": "FNV.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7934
+        },
+        {
+          "a": "BMO.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.7926
+        },
+        {
+          "a": "ABX.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7905
+        },
+        {
+          "a": "AEM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7905
+        }
+      ]
     },
     {
       "year": 2017,
-      "portfolio": -2.53,
+      "portfolio": -5.98,
       "spy": 5.23,
-      "excess": -7.76,
+      "excess": -11.21,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 126
+      "total_trades": 133,
+      "same_company_pairs": 0,
+      "listed": 588,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 44,
+      "eligible": 543,
+      "candidates": 288,
+      "sectors": 11,
+      "min_size_usd": 298.03197665763537,
+      "sector_cut_usd": {
+        "Basic Materials": 2247138.77393039,
+        "Consumer Cyclical": 48535.891862923156,
+        "Energy": 2563648.1376723135,
+        "Financial Services": 295299.92258909694,
+        "Industrials": 409472.3553755918,
+        "Real Estate": 138966.34858725104
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8779
+        },
+        {
+          "a": "RY.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.858
+        },
+        {
+          "a": "BMO.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.8476
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8476
+        },
+        {
+          "a": "MFC.TO",
+          "b": "SLF.TO",
+          "sector": "Financial Services",
+          "corr": 0.8445
+        },
+        {
+          "a": "ACO-X.TO",
+          "b": "CU.TO",
+          "sector": "Utilities",
+          "corr": 0.8438
+        },
+        {
+          "a": "AEM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8336
+        },
+        {
+          "a": "L.TO",
+          "b": "WN.TO",
+          "sector": "Consumer Defensive",
+          "corr": 0.8289
+        },
+        {
+          "a": "AEM.TO",
+          "b": "FNV.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8279
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8255
+        },
+        {
+          "a": "BMO.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.8232
+        },
+        {
+          "a": "FVI.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8225
+        },
+        {
+          "a": "CM.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.8117
+        },
+        {
+          "a": "CFP.TO",
+          "b": "IFP.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8104
+        },
+        {
+          "a": "BNS.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.8093
+        },
+        {
+          "a": "BMO.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.8089
+        },
+        {
+          "a": "AEM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8087
+        },
+        {
+          "a": "FR.TO",
+          "b": "FVI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8036
+        },
+        {
+          "a": "ABX.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8005
+        },
+        {
+          "a": "FVI.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8004
+        }
+      ]
     },
     {
       "year": 2018,
-      "portfolio": -6.53,
+      "portfolio": -6.79,
       "spy": -12.18,
-      "excess": 5.65,
-      "pairs_formed": 7,
-      "pairs_with_trades": 7,
-      "total_trades": 54
+      "excess": 5.39,
+      "pairs_formed": 15,
+      "pairs_entered": 15,
+      "pairs_with_trades": 15,
+      "total_trades": 124,
+      "same_company_pairs": 0,
+      "listed": 610,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 49,
+      "eligible": 560,
+      "candidates": 292,
+      "sectors": 11,
+      "min_size_usd": 463.618802318094,
+      "sector_cut_usd": {
+        "Basic Materials": 2550046.3976532873,
+        "Consumer Cyclical": 76171.50397875876,
+        "Energy": 2702923.4536102964,
+        "Financial Services": 469431.9079758015,
+        "Industrials": 672647.9215854618,
+        "Real Estate": 200485.71860119404
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "CCA.TO",
+          "b": "CGO.TO",
+          "sector": "Communication Services",
+          "corr": 0.7836
+        },
+        {
+          "a": "FM.TO",
+          "b": "HBM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.759
+        },
+        {
+          "a": "FR.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7545
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7474
+        },
+        {
+          "a": "BTE.TO",
+          "b": "CPG.TO",
+          "sector": "Energy",
+          "corr": 0.7472
+        },
+        {
+          "a": "BTE.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.7471
+        },
+        {
+          "a": "BTE.TO",
+          "b": "MEG.TO",
+          "sector": "Energy",
+          "corr": 0.7333
+        },
+        {
+          "a": "MEG.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.7176
+        },
+        {
+          "a": "BTO.TO",
+          "b": "EDV.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7168
+        },
+        {
+          "a": "VRN.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.7135
+        },
+        {
+          "a": "CPG.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.7133
+        },
+        {
+          "a": "ARX.TO",
+          "b": "TOU.TO",
+          "sector": "Energy",
+          "corr": 0.7117
+        },
+        {
+          "a": "ARX.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.7043
+        },
+        {
+          "a": "BNS.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.7035
+        },
+        {
+          "a": "BTO.TO",
+          "b": "MAG.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7025
+        }
+      ]
     },
     {
       "year": 2019,
-      "portfolio": -3.6,
+      "portfolio": -3.48,
       "spy": 18.93,
-      "excess": -22.53,
-      "pairs_formed": 17,
-      "pairs_with_trades": 17,
-      "total_trades": 108
+      "excess": -22.41,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "pairs_with_trades": 20,
+      "total_trades": 128,
+      "same_company_pairs": 0,
+      "listed": 638,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 55,
+      "eligible": 582,
+      "candidates": 294,
+      "sectors": 11,
+      "min_size_usd": 1056.3018005144324,
+      "sector_cut_usd": {
+        "Basic Materials": 1589054.0154329808,
+        "Consumer Cyclical": 112177.70645092736,
+        "Energy": 2806627.534606957,
+        "Financial Services": 484038.58978023025,
+        "Healthcare": 6469.980433970145,
+        "Industrials": 691164.5085409017,
+        "Real Estate": 182616.27864371505
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "CFP.TO",
+          "b": "WFG.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8128
+        },
+        {
+          "a": "ACO-X.TO",
+          "b": "CU.TO",
+          "sector": "Utilities",
+          "corr": 0.7989
+        },
+        {
+          "a": "CFP.TO",
+          "b": "IFP.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7945
+        },
+        {
+          "a": "BMO.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.7667
+        },
+        {
+          "a": "CM.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.7651
+        },
+        {
+          "a": "RY.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7603
+        },
+        {
+          "a": "CM.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7504
+        },
+        {
+          "a": "IFP.TO",
+          "b": "WFG.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7474
+        },
+        {
+          "a": "CNR.TO",
+          "b": "CP.TO",
+          "sector": "Industrials",
+          "corr": 0.7395
+        },
+        {
+          "a": "NA.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7334
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "CVE.TO",
+          "sector": "Energy",
+          "corr": 0.7326
+        },
+        {
+          "a": "BMO.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.7293
+        },
+        {
+          "a": "BMO.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.729
+        },
+        {
+          "a": "CM.TO",
+          "b": "NA.TO",
+          "sector": "Financial Services",
+          "corr": 0.7264
+        },
+        {
+          "a": "BTE.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.7258
+        },
+        {
+          "a": "BTE.TO",
+          "b": "CPG.TO",
+          "sector": "Energy",
+          "corr": 0.7254
+        },
+        {
+          "a": "BNS.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.7246
+        },
+        {
+          "a": "BNS.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.7205
+        },
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7189
+        },
+        {
+          "a": "VRN.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.7074
+        }
+      ]
     },
     {
       "year": 2020,
-      "portfolio": 0.07,
+      "portfolio": -0.56,
       "spy": 1.95,
-      "excess": -1.88,
-      "pairs_formed": 11,
-      "pairs_with_trades": 11,
-      "total_trades": 76
+      "excess": -2.51,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "pairs_with_trades": 20,
+      "total_trades": 141,
+      "same_company_pairs": 0,
+      "listed": 682,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 60,
+      "eligible": 620,
+      "candidates": 302,
+      "sectors": 11,
+      "min_size_usd": 215.794625172443,
+      "sector_cut_usd": {
+        "Basic Materials": 2629360.7084229263,
+        "Consumer Cyclical": 104404.52243878754,
+        "Energy": 1782227.7712268694,
+        "Financial Services": 494022.9512997772,
+        "Healthcare": 30054.796420892002,
+        "Industrials": 835574.5146547671,
+        "Real Estate": 276619.5771966736,
+        "Technology": 2728.3762225150863
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "CNQ.TO",
+          "b": "CVE.TO",
+          "sector": "Energy",
+          "corr": 0.7796
+        },
+        {
+          "a": "FR.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7719
+        },
+        {
+          "a": "AEM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7659
+        },
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.762
+        },
+        {
+          "a": "CPG.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.7595
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7588
+        },
+        {
+          "a": "VRN.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.7588
+        },
+        {
+          "a": "FR.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7482
+        },
+        {
+          "a": "AEM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7481
+        },
+        {
+          "a": "FR.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7446
+        },
+        {
+          "a": "SSRM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7436
+        },
+        {
+          "a": "IFP.TO",
+          "b": "WFG.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7433
+        },
+        {
+          "a": "AEM.TO",
+          "b": "FR.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7414
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.737
+        },
+        {
+          "a": "BMO.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.7316
+        },
+        {
+          "a": "AEM.TO",
+          "b": "FNV.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7307
+        },
+        {
+          "a": "FR.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7306
+        },
+        {
+          "a": "AEM.TO",
+          "b": "SSRM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7274
+        },
+        {
+          "a": "PAAS.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7264
+        },
+        {
+          "a": "MFC.TO",
+          "b": "SLF.TO",
+          "sector": "Financial Services",
+          "corr": 0.7242
+        }
+      ]
     },
     {
       "year": 2021,
-      "portfolio": -4.67,
+      "portfolio": -3.75,
       "spy": 21.08,
-      "excess": -25.75,
+      "excess": -24.83,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 121
+      "total_trades": 125,
+      "same_company_pairs": 0,
+      "listed": 695,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 59,
+      "eligible": 634,
+      "candidates": 304,
+      "sectors": 11,
+      "min_size_usd": 622.0602069614299,
+      "sector_cut_usd": {
+        "Basic Materials": 4373288.942458451,
+        "Consumer Cyclical": 150419.18704923172,
+        "Energy": 1304098.0714957665,
+        "Financial Services": 817806.5224208215,
+        "Healthcare": 39237.61367199749,
+        "Industrials": 1188630.4562558795,
+        "Real Estate": 422564.0874882408,
+        "Technology": 17342.975854499844
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "BNS.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.951
+        },
+        {
+          "a": "BMO.TO",
+          "b": "BNS.TO",
+          "sector": "Financial Services",
+          "corr": 0.935
+        },
+        {
+          "a": "RY.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.935
+        },
+        {
+          "a": "BMO.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.9343
+        },
+        {
+          "a": "CCA.TO",
+          "b": "CGO.TO",
+          "sector": "Communication Services",
+          "corr": 0.932
+        },
+        {
+          "a": "BNS.TO",
+          "b": "CM.TO",
+          "sector": "Financial Services",
+          "corr": 0.9282
+        },
+        {
+          "a": "BMO.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.923
+        },
+        {
+          "a": "CM.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.9226
+        },
+        {
+          "a": "AQN.TO",
+          "b": "EMA.TO",
+          "sector": "Utilities",
+          "corr": 0.9202
+        },
+        {
+          "a": "ACO-X.TO",
+          "b": "CU.TO",
+          "sector": "Utilities",
+          "corr": 0.9151
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.913
+        },
+        {
+          "a": "BNS.TO",
+          "b": "NA.TO",
+          "sector": "Financial Services",
+          "corr": 0.9092
+        },
+        {
+          "a": "GWO.TO",
+          "b": "POW.TO",
+          "sector": "Financial Services",
+          "corr": 0.9086
+        },
+        {
+          "a": "NA.TO",
+          "b": "TD.TO",
+          "sector": "Financial Services",
+          "corr": 0.908
+        },
+        {
+          "a": "BNS.TO",
+          "b": "RY.TO",
+          "sector": "Financial Services",
+          "corr": 0.9067
+        },
+        {
+          "a": "L.TO",
+          "b": "WN.TO",
+          "sector": "Consumer Defensive",
+          "corr": 0.9061
+        },
+        {
+          "a": "AQN.TO",
+          "b": "FTS.TO",
+          "sector": "Utilities",
+          "corr": 0.9035
+        },
+        {
+          "a": "BMO.TO",
+          "b": "NA.TO",
+          "sector": "Financial Services",
+          "corr": 0.8961
+        },
+        {
+          "a": "CM.TO",
+          "b": "NA.TO",
+          "sector": "Financial Services",
+          "corr": 0.896
+        },
+        {
+          "a": "ENB.TO",
+          "b": "TRP.TO",
+          "sector": "Energy",
+          "corr": 0.894
+        }
+      ]
     },
     {
       "year": 2022,
-      "portfolio": -9.0,
+      "portfolio": -5.32,
       "spy": -8.72,
-      "excess": -0.28,
+      "excess": 3.4,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 144
+      "total_trades": 146,
+      "same_company_pairs": 0,
+      "listed": 734,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 59,
+      "eligible": 673,
+      "candidates": 310,
+      "sectors": 11,
+      "min_size_usd": 498.39012080027214,
+      "sector_cut_usd": {
+        "Basic Materials": 4542270.602102731,
+        "Consumer Cyclical": 244226.19000530033,
+        "Energy": 2856819.6381529504,
+        "Financial Services": 1781584.3268173442,
+        "Healthcare": 106593.85951727357,
+        "Industrials": 1609859.4223421172,
+        "Real Estate": 414495.6845744302,
+        "Technology": 123133.21255943103
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "CFP.TO",
+          "b": "IFP.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8902
+        },
+        {
+          "a": "FR.TO",
+          "b": "PAAS.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8539
+        },
+        {
+          "a": "K.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8331
+        },
+        {
+          "a": "BTO.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8281
+        },
+        {
+          "a": "ABX.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8261
+        },
+        {
+          "a": "REI-UN.TO",
+          "b": "SRU-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.8238
+        },
+        {
+          "a": "BEP-UN.TO",
+          "b": "BEPC.TO",
+          "sector": "Utilities",
+          "corr": 0.8173
+        },
+        {
+          "a": "AGI.TO",
+          "b": "BTO.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8172
+        },
+        {
+          "a": "AGI.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8146
+        },
+        {
+          "a": "ABX.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8096
+        },
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8036
+        },
+        {
+          "a": "BTO.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8014
+        },
+        {
+          "a": "FM.TO",
+          "b": "HBM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.798
+        },
+        {
+          "a": "SSRM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7916
+        },
+        {
+          "a": "WPM.TO",
+          "b": "YRI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7914
+        },
+        {
+          "a": "CCO.TO",
+          "b": "EFR.TO",
+          "sector": "Energy",
+          "corr": 0.7912
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "OVV.TO",
+          "sector": "Energy",
+          "corr": 0.7888
+        },
+        {
+          "a": "AGI.TO",
+          "b": "ELD.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7886
+        },
+        {
+          "a": "MEG.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.7878
+        },
+        {
+          "a": "ABX.TO",
+          "b": "AGI.TO",
+          "sector": "Basic Materials",
+          "corr": 0.7866
+        }
+      ]
     },
     {
       "year": 2023,
-      "portfolio": -4.83,
+      "portfolio": -1.87,
       "spy": 7.79,
-      "excess": -12.62,
+      "excess": -9.66,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 132
+      "total_trades": 133,
+      "same_company_pairs": 0,
+      "listed": 767,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 55,
+      "eligible": 710,
+      "candidates": 313,
+      "sectors": 11,
+      "min_size_usd": 44.308237639847874,
+      "sector_cut_usd": {
+        "Basic Materials": 3525556.9914706643,
+        "Consumer Cyclical": 147653.16988516782,
+        "Energy": 6040141.786360447,
+        "Financial Services": 1574352.9151128014,
+        "Healthcare": 31409.44503932356,
+        "Industrials": 1306220.6697928591,
+        "Real Estate": 422383.70564560796,
+        "Technology": 125454.34405346528
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "BEP-UN.TO",
+          "b": "BEPC.TO",
+          "sector": "Utilities",
+          "corr": 0.9032
+        },
+        {
+          "a": "CPG.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.9004
+        },
+        {
+          "a": "VRN.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.8994
+        },
+        {
+          "a": "CPG.TO",
+          "b": "TVE.TO",
+          "sector": "Energy",
+          "corr": 0.8753
+        },
+        {
+          "a": "TVE.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.8748
+        },
+        {
+          "a": "MEG.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.8711
+        },
+        {
+          "a": "CPG.TO",
+          "b": "MEG.TO",
+          "sector": "Energy",
+          "corr": 0.8709
+        },
+        {
+          "a": "TVE.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.8686
+        },
+        {
+          "a": "BTE.TO",
+          "b": "TVE.TO",
+          "sector": "Energy",
+          "corr": 0.8682
+        },
+        {
+          "a": "FNV.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8678
+        },
+        {
+          "a": "CPG.TO",
+          "b": "FRU.TO",
+          "sector": "Energy",
+          "corr": 0.8672
+        },
+        {
+          "a": "FRU.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.867
+        },
+        {
+          "a": "REI-UN.TO",
+          "b": "SRU-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.8665
+        },
+        {
+          "a": "CVE.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.8662
+        },
+        {
+          "a": "BTE.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.8661
+        },
+        {
+          "a": "OR.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8661
+        },
+        {
+          "a": "BTE.TO",
+          "b": "CPG.TO",
+          "sector": "Energy",
+          "corr": 0.8659
+        },
+        {
+          "a": "ABX.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8625
+        },
+        {
+          "a": "BTO.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8612
+        },
+        {
+          "a": "AEM.TO",
+          "b": "WPM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8583
+        }
+      ]
     },
     {
       "year": 2024,
-      "portfolio": -4.12,
+      "portfolio": -1.52,
       "spy": 18.47,
-      "excess": -22.6,
+      "excess": -19.99,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 134
+      "total_trades": 118,
+      "same_company_pairs": 0,
+      "listed": 732,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 54,
+      "eligible": 677,
+      "candidates": 304,
+      "sectors": 11,
+      "min_size_usd": 432.99444075170703,
+      "sector_cut_usd": {
+        "Basic Materials": 3250170.7051785607,
+        "Consumer Cyclical": 71824.58154571273,
+        "Energy": 3902389.204030455,
+        "Financial Services": 1031718.6839083933,
+        "Healthcare": 16291.769895461961,
+        "Industrials": 733263.3391745725,
+        "Real Estate": 202961.85570125084,
+        "Technology": 42483.68481479243
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "ABX.TO",
+          "b": "AEM.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8682
+        },
+        {
+          "a": "FCR-UN.TO",
+          "b": "SRU-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.8581
+        },
+        {
+          "a": "REI-UN.TO",
+          "b": "SRU-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.8543
+        },
+        {
+          "a": "ACO-X.TO",
+          "b": "CU.TO",
+          "sector": "Utilities",
+          "corr": 0.851
+        },
+        {
+          "a": "FCR-UN.TO",
+          "b": "REI-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.8476
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.8414
+        },
+        {
+          "a": "CPG.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.8397
+        },
+        {
+          "a": "VRN.TO",
+          "b": "WCP.TO",
+          "sector": "Energy",
+          "corr": 0.8397
+        },
+        {
+          "a": "CAR-UN.TO",
+          "b": "KMP-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.8351
+        },
+        {
+          "a": "BTE.TO",
+          "b": "CPG.TO",
+          "sector": "Energy",
+          "corr": 0.8321
+        },
+        {
+          "a": "BTE.TO",
+          "b": "VRN.TO",
+          "sector": "Energy",
+          "corr": 0.8314
+        },
+        {
+          "a": "CRR-UN.TO",
+          "b": "SRU-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.83
+        },
+        {
+          "a": "CHP-UN.TO",
+          "b": "CRR-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.8266
+        },
+        {
+          "a": "AEM.TO",
+          "b": "K.TO",
+          "sector": "Basic Materials",
+          "corr": 0.8265
+        },
+        {
+          "a": "CHP-UN.TO",
+          "b": "SRU-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.8265
+        },
+        {
+          "a": "EMA.TO",
+          "b": "FTS.TO",
+          "sector": "Utilities",
+          "corr": 0.8255
+        },
+        {
+          "a": "CVE.TO",
+          "b": "MEG.TO",
+          "sector": "Energy",
+          "corr": 0.823
+        },
+        {
+          "a": "CNQ.TO",
+          "b": "MEG.TO",
+          "sector": "Energy",
+          "corr": 0.8173
+        },
+        {
+          "a": "CVE.TO",
+          "b": "SU.TO",
+          "sector": "Energy",
+          "corr": 0.8171
+        },
+        {
+          "a": "CRR-UN.TO",
+          "b": "CRT-UN.TO",
+          "sector": "Real Estate",
+          "corr": 0.8169
+        }
+      ]
     }
-  ]
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": null,
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "early_closes": 1,
+    "fills": [
+      {
+        "pair": [
+          "BTE.TO",
+          "CPG.TO"
+        ],
+        "year": 2024,
+        "entry_date": "2024-05-13",
+        "last_common_bar": "2024-05-22",
+        "delisted_date": [
+          null,
+          "2024-05-15"
+        ],
+        "delisting_bound": [
+          "none",
+          "applied"
+        ]
+      }
+    ]
+  }
 }

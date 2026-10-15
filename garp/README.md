@@ -65,18 +65,20 @@ python3 garp/backtest.py --no-costs
 | Switzerland (SIX) | 3.78% | -4.23% | 0.168 | -67.71% | 5% | 15.7 |
 | Japan (JPX) | 3.19% | -4.82% | 0.143 | -67.77% | 23% | 27.5 |
 | Hong Kong (HKSE) | 2.88% | -5.13% | -0.004 | -70.25% | 3% | 20.1 |
-| Norway (OSL) | 2.40% | -5.61% | -0.039 | -50.04% | 71% | 11.3 |
 | Taiwan (TAI+TWO) | 1.55% | -6.47% | 0.029 | -53.93% | 28% | 28.4 |
 | Singapore (SES) | 0.71% | -7.30% | -0.091 | -64.96% | 21% | 10.6 |
+| Norway (OSL)\* | 3.56% | n/a | 0.064 | -21.26% | 86% | 15.0 |
 
 *SPY benchmark: 8.01% CAGR, -45.53% MaxDD, Sharpe 0.354 over same period.*
+
+\* Not ranked: truncated window, and too thin to test. The Oslo All Share series starts in 2013, so Norway's CAGR, Sharpe and drawdown cover the 50 quarters from April 2013 to October 2025. Over them it returned 3.56% a year against 10.91% for the Oslo All Share (-7.35 points), an index that includes dividends. An excess against SPY's 2000-2025 figure would compare different windows, so none is shown. The book held cash in 89 of all 103 quarters (86%) and in 36 of the 50 measured ones; it was invested only from April 2022 to July 2025. This row is the October 2026 rerun of the Norway leg, with fewer than 10 names buyable at entry meaning cash; the other rows predate it.
 
 **Key finding:** India is the only market where GARP meaningfully outperforms (+3.11% excess CAGR). Growth-oriented screens consistently underperform value benchmarks in developed markets, particularly in the post-2012 era when growth stocks became expensive relative to their growth rates.
 
 ## Data Notes
 
 - **China 2007:** Annual return of +223.9% (portfolio) vs +4.4% (SPY). China's Shanghai Composite rose ~97% in 2007 during the pre-Olympics bull market. The GARP screen, concentrated in high-growth stocks, amplified this significantly. This is the speculative bubble effect, not a data artifact.
-- **Norway:** 71% cash periods. The GARP signal rarely fires historically — few Norwegian companies combine PEG < 1.5, ROE > 10%, and 15%+ revenue growth. Comparison-only exchange.
+- **Norway:** in cash 89 of 103 quarters (86%). Before April 2022, no quarter had 10 Norwegian companies that passed the screen (PEG < 1.5, ROE > 10%, 15%+ revenue growth) and were buyable at entry. Too thin to test; comparison-only exchange.
 - **ASX/SAO:** Excluded (adjusted close price artifacts, per `DATA_QUALITY_ISSUES.md`).
 
 ## Files

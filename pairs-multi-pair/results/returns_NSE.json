@@ -1,0 +1,2762 @@
+{
+  "universe": "NSE",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 0,
+  "invested_periods": 20,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": "^BSESN",
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
+  "n_years": 20,
+  "years": "2005-2024",
+  "frequency": "daily_zscore",
+  "portfolio_config": "20-pair inverse_vol",
+  "benchmark_name": "Sensex",
+  "avg_active_pairs": 15.7,
+  "total_trades": 2273,
+  "trade_stats": {
+    "total_trades": 2273,
+    "convergence_rate": 76.6,
+    "time_stop_rate": 0.0,
+    "loss_stop_rate": 18.2,
+    "year_end_rate": 5.1,
+    "last_bar_rate": 0.1,
+    "avg_holding_days": 12.7,
+    "avg_trade_return_pct": -0.264
+  },
+  "portfolio": {
+    "cagr": -1.25,
+    "max_drawdown": -31.03,
+    "annualized_volatility": 3.73,
+    "sharpe_ratio": -2.076,
+    "sortino_ratio": -0.919,
+    "calmar_ratio": -0.04,
+    "total_return": -22.2
+  },
+  "spy": {
+    "cagr": 12.64,
+    "max_drawdown": -52.48,
+    "annualized_volatility": 27.08,
+    "sharpe_ratio": 0.227,
+    "sortino_ratio": 0.403,
+    "calmar_ratio": 0.241,
+    "total_return": 980.17
+  },
+  "comparison": {
+    "excess_cagr": -13.88,
+    "win_rate": 10.0,
+    "information_ratio": -0.606,
+    "up_capture": -7.41,
+    "down_capture": -7.84,
+    "beta": -0.051,
+    "alpha": -7.44
+  },
+  "excess_cagr": -13.88,
+  "win_rate_vs_spy": 10.0,
+  "annual_returns": [
+    {
+      "year": 2005,
+      "portfolio": -0.19,
+      "spy": 40.7,
+      "excess": -40.9,
+      "n_active": 9,
+      "is_cash": false,
+      "listed": 498,
+      "no_fx": 0,
+      "same_isin": 7,
+      "same_company": 0,
+      "eligible": 491,
+      "candidates": 259,
+      "sectors": 11,
+      "min_size_usd": 80.04009649021863,
+      "sector_cut_usd": {
+        "Basic Materials": 98654.38204833142,
+        "Consumer Cyclical": 41159.186075949365,
+        "Consumer Defensive": 2896.506329113924,
+        "Financial Services": 19028.13670886076,
+        "Healthcare": 47478.44879171461,
+        "Industrials": 88329.23452243958,
+        "Technology": 32686.804537767548
+      },
+      "no_cost_cap": 177,
+      "pairs_formed": 9,
+      "pairs_entered": 9,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8358
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.7758
+        },
+        {
+          "a": "HINDPETRO.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.748
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.737
+        },
+        {
+          "a": "MARUTI.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7171
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7113
+        },
+        {
+          "a": "NATIONALUM.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7063
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7058
+        },
+        {
+          "a": "CUB.NS",
+          "b": "SOUTHBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7025
+        }
+      ]
+    },
+    {
+      "year": 2006,
+      "portfolio": 0.7,
+      "spy": 46.82,
+      "excess": -46.12,
+      "n_active": 4,
+      "is_cash": false,
+      "listed": 544,
+      "no_fx": 0,
+      "same_isin": 7,
+      "same_company": 0,
+      "eligible": 537,
+      "candidates": 267,
+      "sectors": 11,
+      "min_size_usd": 831.8178789561355,
+      "sector_cut_usd": {
+        "Basic Materials": 427971.52692948363,
+        "Consumer Cyclical": 87239.99815179345,
+        "Consumer Defensive": 29629.826762909495,
+        "Financial Services": 85422.20410882843,
+        "Healthcare": 85388.0149916713,
+        "Industrials": 299504.915047196,
+        "Technology": 95072.88839533592
+      },
+      "no_cost_cap": 42,
+      "pairs_formed": 4,
+      "pairs_entered": 4,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "HEIDELBERG.NS",
+          "b": "PRSMJOHNSN.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8043
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.7196
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7183
+        },
+        {
+          "a": "CHAMBLFERT.NS",
+          "b": "NAGAFERT.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7023
+        }
+      ]
+    },
+    {
+      "year": 2007,
+      "portfolio": 0.77,
+      "spy": 45.51,
+      "excess": -44.74,
+      "n_active": 17,
+      "is_cash": false,
+      "listed": 621,
+      "no_fx": 0,
+      "same_isin": 8,
+      "same_company": 0,
+      "eligible": 613,
+      "candidates": 278,
+      "sectors": 11,
+      "min_size_usd": 77.01010192525482,
+      "sector_cut_usd": {
+        "Basic Materials": 376002.4110985278,
+        "Consumer Cyclical": 93990.30373725934,
+        "Consumer Defensive": 40852.27859569649,
+        "Financial Services": 193134.56045300115,
+        "Healthcare": 55138.301245753115,
+        "Industrials": 536684.6238958099,
+        "Technology": 81463.4201585504
+      },
+      "no_cost_cap": 14,
+      "pairs_formed": 17,
+      "pairs_entered": 17,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "HARRMALAYA.NS",
+          "b": "JAYSREETEA.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8036
+        },
+        {
+          "a": "ACC.NS",
+          "b": "INDIACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7741
+        },
+        {
+          "a": "CENTURYTEX.NS",
+          "b": "INDIACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7726
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7616
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.7563
+        },
+        {
+          "a": "GRASIM.NS",
+          "b": "INDIACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7498
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7436
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.742
+        },
+        {
+          "a": "JYOTISTRUC.NS",
+          "b": "SCI.NS",
+          "sector": "Industrials",
+          "corr": 0.7408
+        },
+        {
+          "a": "JAYSREETEA.NS",
+          "b": "MCLEODRUSS.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7283
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7228
+        },
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7223
+        },
+        {
+          "a": "ACC.NS",
+          "b": "GRASIM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7183
+        },
+        {
+          "a": "CENTURYTEX.NS",
+          "b": "GRASIM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7102
+        },
+        {
+          "a": "MARUTI.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.71
+        },
+        {
+          "a": "INDSWFTLAB.NS",
+          "b": "INDSWFTLTD.NS",
+          "sector": "Healthcare",
+          "corr": 0.7068
+        },
+        {
+          "a": "INFY.NS",
+          "b": "TCS.NS",
+          "sector": "Technology",
+          "corr": 0.7058
+        }
+      ]
+    },
+    {
+      "year": 2008,
+      "portfolio": 11.37,
+      "spy": -52.48,
+      "excess": 63.85,
+      "n_active": 8,
+      "is_cash": false,
+      "listed": 755,
+      "no_fx": 0,
+      "same_isin": 13,
+      "same_company": 0,
+      "eligible": 742,
+      "candidates": 291,
+      "sectors": 11,
+      "min_size_usd": 3392.7232955942104,
+      "sector_cut_usd": {
+        "Basic Materials": 448933.07516505837,
+        "Communication Services": 11602.800914169628,
+        "Consumer Cyclical": 80706.30647293042,
+        "Consumer Defensive": 31395.923692229557,
+        "Financial Services": 314982.02513966477,
+        "Healthcare": 60393.27069578466,
+        "Industrials": 749677.8809040121,
+        "Technology": 166496.85119349923
+      },
+      "no_cost_cap": 8,
+      "pairs_formed": 8,
+      "pairs_entered": 8,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "DHAMPURSUG.NS",
+          "b": "UTTAMSUGAR.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8097
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.7553
+        },
+        {
+          "a": "BAJAJHIND.NS",
+          "b": "TRIVENI.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7216
+        },
+        {
+          "a": "TCS.NS",
+          "b": "WIPRO.NS",
+          "sector": "Technology",
+          "corr": 0.7184
+        },
+        {
+          "a": "DHAMPURSUG.NS",
+          "b": "RANASUG.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7178
+        },
+        {
+          "a": "PNB.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7113
+        },
+        {
+          "a": "INFY.NS",
+          "b": "TCS.NS",
+          "sector": "Technology",
+          "corr": 0.7108
+        },
+        {
+          "a": "DHAMPURSUG.NS",
+          "b": "KOTARISUG.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7049
+        }
+      ]
+    },
+    {
+      "year": 2009,
+      "portfolio": -2.58,
+      "spy": 76.35,
+      "excess": -78.93,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 876,
+      "no_fx": 0,
+      "same_isin": 16,
+      "same_company": 1,
+      "eligible": 859,
+      "candidates": 306,
+      "sectors": 11,
+      "min_size_usd": 946.4462292561983,
+      "sector_cut_usd": {
+        "Basic Materials": 258619.96074380164,
+        "Communication Services": 4632.999483471074,
+        "Consumer Cyclical": 21319.51394628099,
+        "Consumer Defensive": 12179.212809917357,
+        "Financial Services": 313086.75619834714,
+        "Healthcare": 28520.94318181818,
+        "Industrials": 471423.14049586776,
+        "Technology": 50894.67082845041
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "JPPOWER.NS",
+          "b": "NLCINDIA.NS",
+          "sector": "Utilities",
+          "corr": 0.8663
+        },
+        {
+          "a": "CHAMBLFERT.NS",
+          "b": "NAGAFERT.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8449
+        },
+        {
+          "a": "HARRMALAYA.NS",
+          "b": "MCLEODRUSS.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8246
+        },
+        {
+          "a": "HINDPETRO.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.8204
+        },
+        {
+          "a": "OMAXE.NS",
+          "b": "PARSVNATH.NS",
+          "sector": "Real Estate",
+          "corr": 0.819
+        },
+        {
+          "a": "HARRMALAYA.NS",
+          "b": "JAYSREETEA.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8045
+        },
+        {
+          "a": "DISHTV.NS",
+          "b": "SITINET.NS",
+          "sector": "Communication Services",
+          "corr": 0.8042
+        },
+        {
+          "a": "JAYSREETEA.NS",
+          "b": "MCLEODRUSS.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8034
+        },
+        {
+          "a": "CENTRALBK.NS",
+          "b": "IDBI.NS",
+          "sector": "Financial Services",
+          "corr": 0.7931
+        },
+        {
+          "a": "OMAXE.NS",
+          "b": "PENINLAND.NS",
+          "sector": "Real Estate",
+          "corr": 0.7806
+        },
+        {
+          "a": "PNB.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7769
+        },
+        {
+          "a": "MRPL.NS",
+          "b": "PETRONET.NS",
+          "sector": "Energy",
+          "corr": 0.7767
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7746
+        },
+        {
+          "a": "SITINET.NS",
+          "b": "TTML.NS",
+          "sector": "Communication Services",
+          "corr": 0.7733
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.7648
+        },
+        {
+          "a": "MTNL.NS",
+          "b": "TTML.NS",
+          "sector": "Communication Services",
+          "corr": 0.7587
+        },
+        {
+          "a": "AXISBANK.NS",
+          "b": "ICICIBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7563
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7554
+        },
+        {
+          "a": "JPPOWER.NS",
+          "b": "RPOWER.NS",
+          "sector": "Utilities",
+          "corr": 0.7542
+        },
+        {
+          "a": "DCBBANK.NS",
+          "b": "IDBI.NS",
+          "sector": "Financial Services",
+          "corr": 0.754
+        }
+      ]
+    },
+    {
+      "year": 2010,
+      "portfolio": -3.37,
+      "spy": 16.8,
+      "excess": -20.17,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 901,
+      "no_fx": 0,
+      "same_isin": 17,
+      "same_company": 1,
+      "eligible": 883,
+      "candidates": 310,
+      "sectors": 11,
+      "min_size_usd": 8.157327586206897,
+      "sector_cut_usd": {
+        "Basic Materials": 415155.6174568965,
+        "Communication Services": 8352.866379310346,
+        "Consumer Cyclical": 43309.15187043104,
+        "Consumer Defensive": 33428.02155172414,
+        "Financial Services": 560760.786637931,
+        "Healthcare": 41149.36511094828,
+        "Industrials": 1045998.7357050001,
+        "Technology": 88342.56465517242
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "CHAMBLFERT.NS",
+          "b": "NAGAFERT.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8524
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.8512
+        },
+        {
+          "a": "BAJAJHIND.NS",
+          "b": "TRIVENI.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8066
+        },
+        {
+          "a": "HINDPETRO.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.8038
+        },
+        {
+          "a": "DLF.NS",
+          "b": "HDIL.NS",
+          "sector": "Real Estate",
+          "corr": 0.8021
+        },
+        {
+          "a": "AXISBANK.NS",
+          "b": "ICICIBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7864
+        },
+        {
+          "a": "HARRMALAYA.NS",
+          "b": "JAYSREETEA.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7825
+        },
+        {
+          "a": "OMAXE.NS",
+          "b": "PARSVNATH.NS",
+          "sector": "Real Estate",
+          "corr": 0.781
+        },
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7779
+        },
+        {
+          "a": "JSWSTEEL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7685
+        },
+        {
+          "a": "RELINFRA.NS",
+          "b": "RPOWER.NS",
+          "sector": "Utilities",
+          "corr": 0.7625
+        },
+        {
+          "a": "HDFCBANK.NS",
+          "b": "ICICIBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7542
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "IFCI.NS",
+          "sector": "Financial Services",
+          "corr": 0.7513
+        },
+        {
+          "a": "CHAMBLFERT.NS",
+          "b": "RCF.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7504
+        },
+        {
+          "a": "ANSALAPI.NS",
+          "b": "PARSVNATH.NS",
+          "sector": "Real Estate",
+          "corr": 0.7469
+        },
+        {
+          "a": "NAGAFERT.NS",
+          "b": "RCF.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7463
+        },
+        {
+          "a": "ICICIBANK.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7389
+        },
+        {
+          "a": "IFCI.NS",
+          "b": "RELCAPITAL.NS",
+          "sector": "Financial Services",
+          "corr": 0.7361
+        },
+        {
+          "a": "ANSALAPI.NS",
+          "b": "HDIL.NS",
+          "sector": "Real Estate",
+          "corr": 0.7356
+        },
+        {
+          "a": "INFY.NS",
+          "b": "TCS.NS",
+          "sector": "Technology",
+          "corr": 0.7347
+        }
+      ]
+    },
+    {
+      "year": 2011,
+      "portfolio": 0.23,
+      "spy": -24.83,
+      "excess": 25.06,
+      "n_active": 8,
+      "is_cash": false,
+      "listed": 967,
+      "no_fx": 0,
+      "same_isin": 17,
+      "same_company": 1,
+      "eligible": 949,
+      "candidates": 320,
+      "sectors": 11,
+      "min_size_usd": 1388.6753587583892,
+      "sector_cut_usd": {
+        "Basic Materials": 616740.4552572707,
+        "Communication Services": 28532.515676800896,
+        "Consumer Cyclical": 305401.0268456376,
+        "Consumer Defensive": 204118.03970917224,
+        "Financial Services": 1859071.4825503353,
+        "Healthcare": 96992.54049217002,
+        "Industrials": 2098217.1819425724,
+        "Real Estate": 1388.6753587583892,
+        "Technology": 265672.74608501117
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 8,
+      "pairs_entered": 8,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.8357
+        },
+        {
+          "a": "NFL.NS",
+          "b": "RCF.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8295
+        },
+        {
+          "a": "HINDPETRO.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.7677
+        },
+        {
+          "a": "BAJAJHIND.NS",
+          "b": "DHAMPURSUG.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7389
+        },
+        {
+          "a": "JSWSTEEL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7371
+        },
+        {
+          "a": "DLF.NS",
+          "b": "HDIL.NS",
+          "sector": "Real Estate",
+          "corr": 0.7227
+        },
+        {
+          "a": "INFY.NS",
+          "b": "TCS.NS",
+          "sector": "Technology",
+          "corr": 0.7085
+        },
+        {
+          "a": "HINDCOPPER.NS",
+          "b": "NMDC.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7064
+        }
+      ]
+    },
+    {
+      "year": 2012,
+      "portfolio": -0.29,
+      "spy": 25.19,
+      "excess": -25.48,
+      "n_active": 8,
+      "is_cash": false,
+      "listed": 1047,
+      "no_fx": 0,
+      "same_isin": 17,
+      "same_company": 3,
+      "eligible": 1027,
+      "candidates": 324,
+      "sectors": 11,
+      "min_size_usd": 1034.8388616660384,
+      "sector_cut_usd": {
+        "Basic Materials": 418047.28137957025,
+        "Communication Services": 13566.384823162454,
+        "Consumer Cyclical": 162813.9684319638,
+        "Consumer Defensive": 90377.59841696193,
+        "Financial Services": 832031.6688728231,
+        "Healthcare": 40768.95589898229,
+        "Industrials": 1116405.981861911,
+        "Real Estate": 1222.1753675084808,
+        "Technology": 71363.29306445533
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 8,
+      "pairs_entered": 8,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.832
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.7548
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7529
+        },
+        {
+          "a": "CENTRALBK.NS",
+          "b": "IDBI.NS",
+          "sector": "Financial Services",
+          "corr": 0.7453
+        },
+        {
+          "a": "AXISBANK.NS",
+          "b": "ICICIBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7324
+        },
+        {
+          "a": "PFC.NS",
+          "b": "RECLTD.NS",
+          "sector": "Financial Services",
+          "corr": 0.7244
+        },
+        {
+          "a": "HINDPETRO.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.7208
+        },
+        {
+          "a": "JPASSOCIAT.NS",
+          "b": "PUNJLLOYD.NS",
+          "sector": "Industrials",
+          "corr": 0.706
+        }
+      ]
+    },
+    {
+      "year": 2013,
+      "portfolio": -3.76,
+      "spy": 8.12,
+      "excess": -11.88,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 1101,
+      "no_fx": 0,
+      "same_isin": 18,
+      "same_company": 4,
+      "eligible": 1079,
+      "candidates": 327,
+      "sectors": 11,
+      "min_size_usd": 63.9615006015531,
+      "sector_cut_usd": {
+        "Basic Materials": 366717.14389879326,
+        "Communication Services": 7651.77367020307,
+        "Consumer Cyclical": 193690.08968609865,
+        "Consumer Defensive": 84194.35178096176,
+        "Energy": 228.49447664880236,
+        "Financial Services": 843352.7671442633,
+        "Healthcare": 69901.83309635786,
+        "Industrials": 780249.5625068359,
+        "Real Estate": 1454.645684512742,
+        "Technology": 65755.24809508186
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "PFC.NS",
+          "b": "RECLTD.NS",
+          "sector": "Financial Services",
+          "corr": 0.8282
+        },
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7968
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7732
+        },
+        {
+          "a": "SBIN.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7723
+        },
+        {
+          "a": "AXISBANK.NS",
+          "b": "ICICIBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7705
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7584
+        },
+        {
+          "a": "RELINFRA.NS",
+          "b": "RPOWER.NS",
+          "sector": "Utilities",
+          "corr": 0.7555
+        },
+        {
+          "a": "PNB.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7547
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7498
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "IOB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7443
+        },
+        {
+          "a": "NETWORK18.NS",
+          "b": "TV18BRDCST.NS",
+          "sector": "Communication Services",
+          "corr": 0.7439
+        },
+        {
+          "a": "IOB.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7423
+        },
+        {
+          "a": "DCBBANK.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7416
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7368
+        },
+        {
+          "a": "CENTRALBK.NS",
+          "b": "IOB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7312
+        },
+        {
+          "a": "HDIL.NS",
+          "b": "IBREALEST.NS",
+          "sector": "Real Estate",
+          "corr": 0.7258
+        },
+        {
+          "a": "CENTRALBK.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7239
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7235
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.7233
+        },
+        {
+          "a": "DCBBANK.NS",
+          "b": "IDBI.NS",
+          "sector": "Financial Services",
+          "corr": 0.7206
+        }
+      ]
+    },
+    {
+      "year": 2014,
+      "portfolio": -2.13,
+      "spy": 30.08,
+      "excess": -32.21,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 1066,
+      "no_fx": 0,
+      "same_isin": 20,
+      "same_company": 4,
+      "eligible": 1042,
+      "candidates": 324,
+      "sectors": 11,
+      "min_size_usd": 34.72157116301625,
+      "sector_cut_usd": {
+        "Basic Materials": 185651.19211185645,
+        "Communication Services": 27901.898732158734,
+        "Consumer Cyclical": 101189.42835205689,
+        "Consumer Defensive": 54678.58239715509,
+        "Financial Services": 553236.5634850076,
+        "Healthcare": 69919.9468395377,
+        "Industrials": 399923.60506973247,
+        "Real Estate": 959.671219591045,
+        "Technology": 28277.35343085751
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "RELINFRA.NS",
+          "b": "RPOWER.NS",
+          "sector": "Utilities",
+          "corr": 0.8417
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.8108
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "IOB.NS",
+          "sector": "Financial Services",
+          "corr": 0.8077
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7953
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7916
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.788
+        },
+        {
+          "a": "PNB.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7837
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7799
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7777
+        },
+        {
+          "a": "PFC.NS",
+          "b": "RECLTD.NS",
+          "sector": "Financial Services",
+          "corr": 0.7768
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7746
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "IDBI.NS",
+          "sector": "Financial Services",
+          "corr": 0.7726
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7589
+        },
+        {
+          "a": "UCOBANK.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7581
+        },
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7554
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7531
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "RELCAPITAL.NS",
+          "sector": "Financial Services",
+          "corr": 0.7503
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7427
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7398
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "IOB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7392
+        }
+      ]
+    },
+    {
+      "year": 2015,
+      "portfolio": -5.14,
+      "spy": -5.05,
+      "excess": -0.09,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 1142,
+      "no_fx": 0,
+      "same_isin": 22,
+      "same_company": 4,
+      "eligible": 1116,
+      "candidates": 326,
+      "sectors": 11,
+      "min_size_usd": 46.7204991807153,
+      "sector_cut_usd": {
+        "Basic Materials": 564175.2591775642,
+        "Communication Services": 92260.43170001576,
+        "Consumer Cyclical": 405786.261225776,
+        "Consumer Defensive": 129350.1473136915,
+        "Financial Services": 1176942.6343154246,
+        "Healthcare": 244771.81119454862,
+        "Industrials": 1178455.413078872,
+        "Real Estate": 3163.22278241689,
+        "Technology": 199236.1044587994
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.8198
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8176
+        },
+        {
+          "a": "PFC.NS",
+          "b": "RECLTD.NS",
+          "sector": "Financial Services",
+          "corr": 0.8128
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.8066
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8021
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7991
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7858
+        },
+        {
+          "a": "UCOBANK.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7808
+        },
+        {
+          "a": "ACC.NS",
+          "b": "AMBUJACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7728
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7699
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7667
+        },
+        {
+          "a": "PNB.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7561
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7518
+        },
+        {
+          "a": "IDBI.NS",
+          "b": "IOB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7517
+        },
+        {
+          "a": "ADANIPOWER.NS",
+          "b": "RPOWER.NS",
+          "sector": "Utilities",
+          "corr": 0.7372
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.7311
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7301
+        },
+        {
+          "a": "IOB.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7162
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7147
+        },
+        {
+          "a": "PNB.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7112
+        }
+      ]
+    },
+    {
+      "year": 2016,
+      "portfolio": -2.01,
+      "spy": 1.78,
+      "excess": -3.79,
+      "n_active": 18,
+      "is_cash": false,
+      "listed": 1171,
+      "no_fx": 0,
+      "same_isin": 22,
+      "same_company": 4,
+      "eligible": 1145,
+      "candidates": 326,
+      "sectors": 11,
+      "min_size_usd": 332.6740434769499,
+      "sector_cut_usd": {
+        "Basic Materials": 578925.6851689932,
+        "Communication Services": 58852.77534899146,
+        "Consumer Cyclical": 556041.3020472156,
+        "Consumer Defensive": 162656.58184339854,
+        "Financial Services": 999646.5170953055,
+        "Healthcare": 307928.0623812825,
+        "Industrials": 1466390.5461754152,
+        "Real Estate": 5359.057195405071,
+        "Technology": 365425.24798745743
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 18,
+      "pairs_entered": 18,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "PFC.NS",
+          "b": "RECLTD.NS",
+          "sector": "Financial Services",
+          "corr": 0.8088
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8041
+        },
+        {
+          "a": "RELINFRA.NS",
+          "b": "RPOWER.NS",
+          "sector": "Utilities",
+          "corr": 0.7918
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7771
+        },
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7604
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.7557
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.7484
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7326
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.725
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7242
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7223
+        },
+        {
+          "a": "ADANIPOWER.NS",
+          "b": "RPOWER.NS",
+          "sector": "Utilities",
+          "corr": 0.7218
+        },
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7128
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7091
+        },
+        {
+          "a": "PNB.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7088
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7043
+        },
+        {
+          "a": "ACC.NS",
+          "b": "AMBUJACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7041
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "UCOBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.703
+        }
+      ]
+    },
+    {
+      "year": 2017,
+      "portfolio": -3.52,
+      "spy": 28.06,
+      "excess": -31.57,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 1244,
+      "no_fx": 0,
+      "same_isin": 22,
+      "same_company": 5,
+      "eligible": 1217,
+      "candidates": 328,
+      "sectors": 11,
+      "min_size_usd": 592.9882439382807,
+      "sector_cut_usd": {
+        "Basic Materials": 928674.340191036,
+        "Communication Services": 75255.02054646584,
+        "Consumer Cyclical": 403642.1719324026,
+        "Consumer Defensive": 270899.582659809,
+        "Financial Services": 1753523.2461425425,
+        "Healthcare": 329735.17310800886,
+        "Industrials": 1534560.484937546,
+        "Real Estate": 21647.11939750184,
+        "Technology": 260387.69331373993
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.862
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.8109
+        },
+        {
+          "a": "BAJAJHIND.NS",
+          "b": "DHAMPURSUG.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8041
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7994
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7878
+        },
+        {
+          "a": "RELINFRA.NS",
+          "b": "RPOWER.NS",
+          "sector": "Utilities",
+          "corr": 0.7849
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.7746
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7744
+        },
+        {
+          "a": "PFC.NS",
+          "b": "RECLTD.NS",
+          "sector": "Financial Services",
+          "corr": 0.7734
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7728
+        },
+        {
+          "a": "PNB.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7687
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7506
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7498
+        },
+        {
+          "a": "BAJAJ-AUTO.NS",
+          "b": "HEROMOTOCO.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7489
+        },
+        {
+          "a": "SBIN.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7287
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.7279
+        },
+        {
+          "a": "HINDALCO.NS",
+          "b": "VEDL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7249
+        },
+        {
+          "a": "PNB.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7198
+        },
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7176
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7129
+        }
+      ]
+    },
+    {
+      "year": 2018,
+      "portfolio": 1.62,
+      "spy": 6.67,
+      "excess": -5.05,
+      "n_active": 17,
+      "is_cash": false,
+      "listed": 1326,
+      "no_fx": 0,
+      "same_isin": 23,
+      "same_company": 5,
+      "eligible": 1298,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 11.621985804490544,
+      "sector_cut_usd": {
+        "Basic Materials": 2051506.8359368881,
+        "Communication Services": 89745.46480109051,
+        "Consumer Cyclical": 761112.1702207668,
+        "Consumer Defensive": 504977.677811698,
+        "Energy": 11.621985804490544,
+        "Financial Services": 5287497.6356485905,
+        "Healthcare": 350239.888441471,
+        "Industrials": 3161007.132146718,
+        "Real Estate": 52621.88857287341,
+        "Technology": 435028.8077965624,
+        "Utilities": 1967.4560894975166
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 17,
+      "pairs_entered": 17,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "CANBK.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.8878
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.8768
+        },
+        {
+          "a": "PNB.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8631
+        },
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8596
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8594
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.8463
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8459
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.8429
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.8376
+        },
+        {
+          "a": "PNB.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.8337
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8179
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.8124
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8086
+        },
+        {
+          "a": "SBIN.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8031
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.8
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7983
+        },
+        {
+          "a": "ACC.NS",
+          "b": "AMBUJACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7215
+        }
+      ]
+    },
+    {
+      "year": 2019,
+      "portfolio": -0.78,
+      "spy": 13.79,
+      "excess": -14.57,
+      "n_active": 16,
+      "is_cash": false,
+      "listed": 1447,
+      "no_fx": 0,
+      "same_isin": 25,
+      "same_company": 6,
+      "eligible": 1416,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 355.62670832315627,
+      "sector_cut_usd": {
+        "Basic Materials": 2410435.394247209,
+        "Communication Services": 54413.62057802331,
+        "Consumer Cyclical": 1093509.3253462163,
+        "Consumer Defensive": 538600.5625167886,
+        "Energy": 3532.251763624086,
+        "Financial Services": 5081187.311604719,
+        "Healthcare": 479209.62809442385,
+        "Industrials": 3237636.7468858208,
+        "Real Estate": 29822.820829571414,
+        "Technology": 447945.1387192713,
+        "Utilities": 355.62670832315627
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 16,
+      "pairs_entered": 16,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8913
+        },
+        {
+          "a": "HINDPETRO.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.8389
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.8381
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.8306
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8218
+        },
+        {
+          "a": "PFC.NS",
+          "b": "RECLTD.NS",
+          "sector": "Financial Services",
+          "corr": 0.7822
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.781
+        },
+        {
+          "a": "ACC.NS",
+          "b": "AMBUJACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7659
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7657
+        },
+        {
+          "a": "JINDALSTEL.NS",
+          "b": "SAIL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7359
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7342
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.7229
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7197
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "INDIANB.NS",
+          "sector": "Financial Services",
+          "corr": 0.718
+        },
+        {
+          "a": "RELINFRA.NS",
+          "b": "RPOWER.NS",
+          "sector": "Utilities",
+          "corr": 0.7164
+        },
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.707
+        }
+      ]
+    },
+    {
+      "year": 2020,
+      "portfolio": -1.99,
+      "spy": 15.6,
+      "excess": -17.59,
+      "n_active": 16,
+      "is_cash": false,
+      "listed": 1498,
+      "no_fx": 0,
+      "same_isin": 25,
+      "same_company": 6,
+      "eligible": 1467,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 1070.4593223663928,
+      "sector_cut_usd": {
+        "Basic Materials": 1135680.3877196424,
+        "Communication Services": 22022.30824202001,
+        "Consumer Cyclical": 432927.22725107195,
+        "Consumer Defensive": 319430.63328475744,
+        "Energy": 1377.150884174537,
+        "Financial Services": 6383988.546366617,
+        "Healthcare": 475130.7485357173,
+        "Industrials": 1344191.505126545,
+        "Real Estate": 7702.498738895272,
+        "Technology": 173458.44232449625,
+        "Utilities": 1070.4593223663928
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 16,
+      "pairs_entered": 16,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BANKBARODA.NS",
+          "b": "BANKINDIA.NS",
+          "sector": "Financial Services",
+          "corr": 0.8376
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.8293
+        },
+        {
+          "a": "ACC.NS",
+          "b": "AMBUJACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8154
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7688
+        },
+        {
+          "a": "PNB.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.765
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7565
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7521
+        },
+        {
+          "a": "JINDALSTEL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7393
+        },
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7391
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.733
+        },
+        {
+          "a": "RAMCOCEM.NS",
+          "b": "ULTRACEMCO.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7223
+        },
+        {
+          "a": "ACC.NS",
+          "b": "ULTRACEMCO.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7185
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7164
+        },
+        {
+          "a": "JINDALSTEL.NS",
+          "b": "SAIL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7125
+        },
+        {
+          "a": "BANKINDIA.NS",
+          "b": "UNIONBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.706
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7052
+        }
+      ]
+    },
+    {
+      "year": 2021,
+      "portfolio": -1.0,
+      "spy": 21.69,
+      "excess": -22.69,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 1560,
+      "no_fx": 0,
+      "same_isin": 26,
+      "same_company": 6,
+      "eligible": 1528,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 1331.894451962111,
+      "sector_cut_usd": {
+        "Basic Materials": 2062359.0652806822,
+        "Communication Services": 47876.7304301472,
+        "Consumer Cyclical": 1039105.5521384344,
+        "Consumer Defensive": 604640.8065772747,
+        "Energy": 7787.750987548011,
+        "Financial Services": 8852495.571410997,
+        "Healthcare": 2076896.2972075285,
+        "Industrials": 1419584.1500252867,
+        "Real Estate": 6029.854704008966,
+        "Technology": 390494.6696327278,
+        "Utilities": 1331.894451962111
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "AXISBANK.NS",
+          "b": "ICICIBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8294
+        },
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8268
+        },
+        {
+          "a": "ACC.NS",
+          "b": "AMBUJACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8113
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7955
+        },
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7935
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.7858
+        },
+        {
+          "a": "JSWSTEEL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.778
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7668
+        },
+        {
+          "a": "HDFC.NS",
+          "b": "HDFCBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7632
+        },
+        {
+          "a": "JINDALSTEL.NS",
+          "b": "JSWSTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7622
+        },
+        {
+          "a": "FEDERALBNK.NS",
+          "b": "ICICIBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7621
+        },
+        {
+          "a": "ICICIBANK.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7616
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7615
+        },
+        {
+          "a": "NATIONALUM.NS",
+          "b": "SAIL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7592
+        },
+        {
+          "a": "OIL.NS",
+          "b": "ONGC.NS",
+          "sector": "Energy",
+          "corr": 0.7581
+        },
+        {
+          "a": "BAJAJ-AUTO.NS",
+          "b": "HEROMOTOCO.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7505
+        },
+        {
+          "a": "AXISBANK.NS",
+          "b": "FEDERALBNK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7498
+        },
+        {
+          "a": "HDFCBANK.NS",
+          "b": "ICICIBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7482
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7363
+        },
+        {
+          "a": "BAJFINANCE.NS",
+          "b": "ICICIBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7358
+        }
+      ]
+    },
+    {
+      "year": 2022,
+      "portfolio": -8.27,
+      "spy": 2.8,
+      "excess": -11.07,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 1602,
+      "no_fx": 0,
+      "same_isin": 26,
+      "same_company": 5,
+      "eligible": 1571,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 1928.5065735690257,
+      "sector_cut_usd": {
+        "Basic Materials": 4632838.452698447,
+        "Communication Services": 262210.4972727395,
+        "Consumer Cyclical": 2135882.548078856,
+        "Consumer Defensive": 903278.0736963426,
+        "Energy": 35243.26674216331,
+        "Financial Services": 9675162.14803597,
+        "Healthcare": 2470033.341181098,
+        "Industrials": 2907273.6936623016,
+        "Real Estate": 62949.62005977189,
+        "Technology": 1178923.5465108487,
+        "Utilities": 1928.5065735690257
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "JINDALSTEL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8549
+        },
+        {
+          "a": "ACC.NS",
+          "b": "AMBUJACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8521
+        },
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8471
+        },
+        {
+          "a": "JSWSTEEL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.791
+        },
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7712
+        },
+        {
+          "a": "JINDALSTEL.NS",
+          "b": "SAIL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.767
+        },
+        {
+          "a": "DEN.NS",
+          "b": "HATHWAY.NS",
+          "sector": "Communication Services",
+          "corr": 0.7627
+        },
+        {
+          "a": "JINDALSTEL.NS",
+          "b": "JSWSTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7583
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.7521
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7457
+        },
+        {
+          "a": "DHAMPURSUG.NS",
+          "b": "TRIVENI.NS",
+          "sector": "Consumer Defensive",
+          "corr": 0.74
+        },
+        {
+          "a": "ADANIENT.NS",
+          "b": "ADANIPORTS.NS",
+          "sector": "Industrials",
+          "corr": 0.7356
+        },
+        {
+          "a": "HINDALCO.NS",
+          "b": "NATIONALUM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7326
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.7314
+        },
+        {
+          "a": "HINDALCO.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.729
+        },
+        {
+          "a": "NETWORK18.NS",
+          "b": "TV18BRDCST.NS",
+          "sector": "Communication Services",
+          "corr": 0.7248
+        },
+        {
+          "a": "HINDPETRO.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.7222
+        },
+        {
+          "a": "ACC.NS",
+          "b": "ULTRACEMCO.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7217
+        },
+        {
+          "a": "SHREECEM.NS",
+          "b": "ULTRACEMCO.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7119
+        },
+        {
+          "a": "NHPC.NS",
+          "b": "SJVN.NS",
+          "sector": "Utilities",
+          "corr": 0.7102
+        }
+      ]
+    },
+    {
+      "year": 2023,
+      "portfolio": -1.23,
+      "spy": 18.1,
+      "excess": -19.33,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 1734,
+      "no_fx": 0,
+      "same_isin": 27,
+      "same_company": 5,
+      "eligible": 1702,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 13634.403475440786,
+      "sector_cut_usd": {
+        "Basic Materials": 4620833.231179738,
+        "Communication Services": 169394.83524329297,
+        "Consumer Cyclical": 2609822.905236153,
+        "Consumer Defensive": 788627.8555610683,
+        "Energy": 62208.00909732928,
+        "Financial Services": 7253225.392983772,
+        "Healthcare": 1127293.4493628764,
+        "Industrials": 2808081.2865302465,
+        "Real Estate": 86700.18242433776,
+        "Technology": 1372396.2024690998,
+        "Utilities": 13634.403475440786
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "HDFC.NS",
+          "b": "HDFCBANK.NS",
+          "sector": "Financial Services",
+          "corr": 0.8652
+        },
+        {
+          "a": "SAIL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8345
+        },
+        {
+          "a": "JSWSTEEL.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.831
+        },
+        {
+          "a": "CHENNPETRO.NS",
+          "b": "MRPL.NS",
+          "sector": "Energy",
+          "corr": 0.8243
+        },
+        {
+          "a": "JINDALSTEL.NS",
+          "b": "JSWSTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.8162
+        },
+        {
+          "a": "TATAMTRDVR.NS",
+          "b": "TMPV.NS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8146
+        },
+        {
+          "a": "INOXLEISUR.NS",
+          "b": "PVR.NS",
+          "sector": "Communication Services",
+          "corr": 0.8037
+        },
+        {
+          "a": "HINDALCO.NS",
+          "b": "NATIONALUM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7879
+        },
+        {
+          "a": "JSWSTEEL.NS",
+          "b": "SAIL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.781
+        },
+        {
+          "a": "ACC.NS",
+          "b": "AMBUJACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7807
+        },
+        {
+          "a": "IGL.NS",
+          "b": "MGL.NS",
+          "sector": "Utilities",
+          "corr": 0.7745
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "HINDPETRO.NS",
+          "sector": "Energy",
+          "corr": 0.7721
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7716
+        },
+        {
+          "a": "NMDC.NS",
+          "b": "SAIL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7664
+        },
+        {
+          "a": "INFY.NS",
+          "b": "TCS.NS",
+          "sector": "Technology",
+          "corr": 0.7612
+        },
+        {
+          "a": "DLF.NS",
+          "b": "OBEROIRLTY.NS",
+          "sector": "Real Estate",
+          "corr": 0.7556
+        },
+        {
+          "a": "LTIM.NS",
+          "b": "LTTS.NS",
+          "sector": "Technology",
+          "corr": 0.7532
+        },
+        {
+          "a": "INFY.NS",
+          "b": "TECHM.NS",
+          "sector": "Technology",
+          "corr": 0.7487
+        },
+        {
+          "a": "HINDCOPPER.NS",
+          "b": "SAIL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7483
+        },
+        {
+          "a": "ADANIENT.NS",
+          "b": "ADANIPORTS.NS",
+          "sector": "Industrials",
+          "corr": 0.7469
+        }
+      ]
+    },
+    {
+      "year": 2024,
+      "portfolio": -2.09,
+      "spy": 8.12,
+      "excess": -10.21,
+      "n_active": 12,
+      "is_cash": false,
+      "listed": 1788,
+      "no_fx": 0,
+      "same_isin": 19,
+      "same_company": 2,
+      "eligible": 1767,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 24081.898615517737,
+      "sector_cut_usd": {
+        "Basic Materials": 4634177.843476589,
+        "Communication Services": 308451.20421113353,
+        "Consumer Cyclical": 3861882.047519469,
+        "Consumer Defensive": 1051684.3237429094,
+        "Energy": 45287.34286366695,
+        "Financial Services": 9870782.546750313,
+        "Healthcare": 1827078.02428853,
+        "Industrials": 5440343.91464763,
+        "Real Estate": 161031.67363715026,
+        "Technology": 1796659.209691376,
+        "Utilities": 24081.898615517737
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 12,
+      "pairs_entered": 12,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "PFC.NS",
+          "b": "RECLTD.NS",
+          "sector": "Financial Services",
+          "corr": 0.8477
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.8285
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "PNB.NS",
+          "sector": "Financial Services",
+          "corr": 0.8173
+        },
+        {
+          "a": "IDFC.NS",
+          "b": "IDFCFIRSTB.NS",
+          "sector": "Financial Services",
+          "corr": 0.788
+        },
+        {
+          "a": "ADANIENSOL.NS",
+          "b": "ATGL.NS",
+          "sector": "Utilities",
+          "corr": 0.7693
+        },
+        {
+          "a": "HINDPETRO.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.7393
+        },
+        {
+          "a": "NATIONALUM.NS",
+          "b": "SAIL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7383
+        },
+        {
+          "a": "BANKBARODA.NS",
+          "b": "CANBK.NS",
+          "sector": "Financial Services",
+          "corr": 0.7261
+        },
+        {
+          "a": "ACC.NS",
+          "b": "AMBUJACEM.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7258
+        },
+        {
+          "a": "HINDALCO.NS",
+          "b": "TATASTEEL.NS",
+          "sector": "Basic Materials",
+          "corr": 0.7256
+        },
+        {
+          "a": "BPCL.NS",
+          "b": "IOC.NS",
+          "sector": "Energy",
+          "corr": 0.7078
+        },
+        {
+          "a": "CANBK.NS",
+          "b": "SBIN.NS",
+          "sector": "Financial Services",
+          "corr": 0.7004
+        }
+      ]
+    }
+  ],
+  "diversification_analysis": [
+    {
+      "n_pairs": 5,
+      "allocation": "equal",
+      "cagr_pct": -0.2,
+      "excess_cagr_pct": -12.84,
+      "sharpe": -1.509,
+      "max_drawdown_pct": -24.02,
+      "cash_periods": 0,
+      "avg_active_pairs": 5.0
+    },
+    {
+      "n_pairs": 5,
+      "allocation": "inverse_vol",
+      "cagr_pct": -0.43,
+      "excess_cagr_pct": -13.07,
+      "sharpe": -1.382,
+      "max_drawdown_pct": -27.48,
+      "cash_periods": 0,
+      "avg_active_pairs": 5.0
+    },
+    {
+      "n_pairs": 10,
+      "allocation": "equal",
+      "cagr_pct": -1.34,
+      "excess_cagr_pct": -13.97,
+      "sharpe": -1.687,
+      "max_drawdown_pct": -30.97,
+      "cash_periods": 0,
+      "avg_active_pairs": 9.3
+    },
+    {
+      "n_pairs": 10,
+      "allocation": "inverse_vol",
+      "cagr_pct": -1.28,
+      "excess_cagr_pct": -13.92,
+      "sharpe": -1.623,
+      "max_drawdown_pct": -31.63,
+      "cash_periods": 0,
+      "avg_active_pairs": 9.3
+    },
+    {
+      "n_pairs": 15,
+      "allocation": "equal",
+      "cagr_pct": -1.28,
+      "excess_cagr_pct": -13.91,
+      "sharpe": -2.161,
+      "max_drawdown_pct": -30.33,
+      "cash_periods": 0,
+      "avg_active_pairs": 12.9
+    },
+    {
+      "n_pairs": 15,
+      "allocation": "inverse_vol",
+      "cagr_pct": -1.25,
+      "excess_cagr_pct": -13.88,
+      "sharpe": -2.04,
+      "max_drawdown_pct": -30.97,
+      "cash_periods": 0,
+      "avg_active_pairs": 12.9
+    },
+    {
+      "n_pairs": 20,
+      "allocation": "equal",
+      "cagr_pct": -1.31,
+      "excess_cagr_pct": -13.95,
+      "sharpe": -2.175,
+      "max_drawdown_pct": -30.45,
+      "cash_periods": 0,
+      "avg_active_pairs": 15.7
+    },
+    {
+      "n_pairs": 20,
+      "allocation": "inverse_vol",
+      "cagr_pct": -1.25,
+      "excess_cagr_pct": -13.88,
+      "sharpe": -2.076,
+      "max_drawdown_pct": -31.03,
+      "cash_periods": 0,
+      "avg_active_pairs": 15.7
+    }
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": null,
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "early_closes": 3,
+    "fills": [
+      {
+        "pair": [
+          "HDFC.NS",
+          "HDFCBANK.NS"
+        ],
+        "year": 2023,
+        "entry_date": "2023-06-30",
+        "last_common_bar": "2023-07-12",
+        "delisted_date": [
+          null,
+          null
+        ],
+        "delisting_bound": [
+          "none",
+          "none"
+        ]
+      },
+      {
+        "pair": [
+          "INOXLEISUR.NS",
+          "PVR.NS"
+        ],
+        "year": 2023,
+        "entry_date": "2023-02-20",
+        "last_common_bar": "2023-03-28",
+        "delisted_date": [
+          null,
+          null
+        ],
+        "delisting_bound": [
+          "none",
+          "none"
+        ]
+      },
+      {
+        "pair": [
+          "IDFC.NS",
+          "IDFCFIRSTB.NS"
+        ],
+        "year": 2024,
+        "entry_date": "2024-10-08",
+        "last_common_bar": "2024-10-09",
+        "delisted_date": [
+          null,
+          null
+        ],
+        "delisting_bound": [
+          "none",
+          "none"
+        ]
+      }
+    ]
+  }
+}

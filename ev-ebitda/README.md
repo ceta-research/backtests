@@ -53,14 +53,16 @@ python3 ev-ebitda/generate_charts.py
 | China (SHZ+SHH) | 6.70% | -0.94% | 0.102 | -65.0% | 0% | 21.1 |
 | South Africa (JNB) | 6.51% | -1.13% | -0.140 | -16.8% | 24% | 22.7 |
 | Thailand (SET) | 5.52% | -2.12% | 0.134 | -46.0% | 20% | 27.4 |
-| Norway (OSL) | 5.39% | -2.26% | 0.117 | -48.8% | 52% | 12.2 |
 | Taiwan (TAI) | 4.86% | -2.78% | 0.156 | -44.3% | 24% | 27.7 |
 | Israel (TLV) | 4.84% | -2.81% | 0.065 | -48.9% | 28% | 21.2 |
 | Korea (KSC) | 4.45% | -3.19% | 0.079 | -31.6% | 24% | 26.2 |
 | Hong Kong (HKSE) | 3.24% | -4.40% | 0.009 | -56.6% | 4% | 21.0 |
 | Singapore (SES) | 1.42% | -6.22% | -0.028 | -45.4% | 24% | 10.9 |
+| Norway (OSL)\* | 12.83% | n/a | 0.815 | 0.0% | 68% | 13.2 |
 
 SPY benchmark: 7.64% CAGR.
+
+\* Not ranked: truncated window, and too thin to test. The Oslo All Share series starts in March 2013, so Norway's CAGR, Sharpe and drawdown cover the 11 annual periods from January 2014 to January 2025. Over them it returned 12.83% a year against 9.84% for the Oslo All Share (+2.99 points), an index that includes dividends. An excess against SPY's 2000-2025 figure would compare different windows, so none is shown. The book held cash in 17 of all 25 rebalances (68%) and in 4 of the 11 measured years (2017, 2020, 2021, 2022). No measured year lost money, so the drawdown on annual periods is 0.0%. This row is the October 2026 rerun of the Norway leg, with fewer than 10 names buyable at entry meaning cash; the other rows predate it.
 
 ## Exclusions
 

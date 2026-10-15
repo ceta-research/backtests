@@ -65,11 +65,17 @@ def run(mod, argv):
             return e.code if isinstance(e.code, int) else 1
 
 
-def topic_failures(topic, outputs, rm, rebuild, tmp):
+def topic_failures(topic, outputs, rm, rebuild, tmp, pre_ltp):
     src, dst = os.path.join(ROOT, topic, "results"), os.path.join(tmp, topic, "results")
     os.makedirs(dst)
     for path in glob.glob(os.path.join(src, "returns_*.json")) + glob.glob(os.path.join(src, "exchange_comparison.json")):
         shutil.copy(path, dst)
+    for path in pre_ltp:
+        name = path[len(f"{topic}/results/"):] if path.startswith(f"{topic}/results/") else None
+        if name and name not in outputs.values() and not os.path.exists(os.path.join(dst, name)):
+            # Already removed by the install: a pre-LTP stand-in keeps the `git rm` lines testable.
+            with open(os.path.join(dst, name), "w") as fh:
+                json.dump({"universe": name, "portfolio": {"cagr": 0.0}, "annual_returns": []}, fh)
     comp_path = os.path.join(dst, "exchange_comparison.json")
     live = None
     if os.path.exists(comp_path):
@@ -113,7 +119,8 @@ def topic_failures(topic, outputs, rm, rebuild, tmp):
     return out
 
 
-def failures(doc_text):
+def failures(doc_text, pre_ltp):
+    """pre_ltp: the files the unmutated doc removes, recreated as stand-ins once the install is applied."""
     rm, rebuild = commands(section(doc_text))
     with open(LEGS) as fh:
         legs = json.load(fh)
@@ -121,7 +128,7 @@ def failures(doc_text):
     with tempfile.TemporaryDirectory() as tmp:
         for topic, spec in legs.items():
             if not topic.startswith("_"):
-                out += [f"{topic}: {p}" for p in topic_failures(topic, spec["_outputs"], rm, rebuild, tmp)]
+                out += [f"{topic}: {p}" for p in topic_failures(topic, spec["_outputs"], rm, rebuild, tmp, pre_ltp)]
     return out
 
 
@@ -146,7 +153,8 @@ MUTANTS = {
 def main():
     with open(DOC) as fh:
         text = fh.read()
-    base = failures(text)
+    pre_ltp = commands(section(text))[0]
+    base = failures(text, pre_ltp)
     if base:
         print("test_wave3_install: FAIL")
         for f in base:
@@ -163,7 +171,7 @@ def main():
         if sec.count(old) != n:
             print(f"test_wave3_install: FAIL (mutant anchor found {sec.count(old)} times, not {n}: {name})")
             sys.exit(1)
-        if not failures(text.replace(sec, sec.replace(old, new))):
+        if not failures(text.replace(sec, sec.replace(old, new)), pre_ltp):
             survived.append(name)
     if survived:
         print("test_wave3_install: FAIL (mutants survived:", survived, ")")

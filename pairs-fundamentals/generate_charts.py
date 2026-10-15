@@ -52,6 +52,17 @@ VALID_EXCHANGES = [
 ]
 
 
+def cash_count(ex):
+    """(cash years, all years). B006: total_rebalances, not n_years; fallback for older files."""
+    return ex["cash_periods"], ex.get("total_rebalances") or ex.get("n_years", 0)
+
+
+def too_thin(ex):
+    """In cash in more than half its years: too thin to test, not a result."""
+    cash, total = cash_count(ex)
+    return (total - cash) * 2 < total
+
+
 def get_cumulative_growth(exchange_key, initial=10000):
     """Compute cumulative growth from annual returns list."""
     ex = data[exchange_key]
@@ -164,30 +175,34 @@ def chart_annual_bars(exchange_key, filename, title, footer_exchange):
 
 
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange, sorted descending."""
-    valid = [(k, data[k]) for k in VALID_EXCHANGES]
+    """Horizontal bar chart: CAGR by exchange, sorted descending.
+
+    A market that is too thin to test isn't drawn: the footer names it.
+    """
+    valid = [(k, data[k]) for k in VALID_EXCHANGES if not too_thin(data[k])]
+    thin = [k for k in VALID_EXCHANGES if too_thin(data[k])]
     valid.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
+    # Clean label: exchange code + country
+    label_map = {
+        "NYSE_NASDAQ_AMEX": "US (NYSE+NASDAQ+AMEX)",
+        "JPX": "Japan (JPX)",
+        "LSE": "UK (LSE)",
+        "JNB": "South Africa (JNB)",
+        "NSE": "India (NSE)",
+        "SHZ_SHH": "China (SHZ+SHH)",
+        "HKSE": "Hong Kong",
+        "KSC": "Korea (KSC)",
+        "TAI_TWO": "Taiwan (TAI+TWO)",
+        "XETRA": "Germany (XETRA)",
+        "TSX": "Canada (TSX)",
+        "STO": "Sweden (STO)",
+    }
     names = []
     cagrs = []
     colors = []
     for k, v in valid:
         cagrs.append(v["portfolio"]["cagr"])
-        # Clean label: exchange code + country
-        label_map = {
-            "NYSE_NASDAQ_AMEX": "US (NYSE+NASDAQ+AMEX)",
-            "JPX": "Japan (JPX)",
-            "LSE": "UK (LSE)",
-            "JNB": "South Africa (JNB)",
-            "NSE": "India (NSE)",
-            "SHZ_SHH": "China (SHZ+SHH)",
-            "HKSE": "Hong Kong",
-            "KSC": "Korea (KSC)",
-            "TAI_TWO": "Taiwan (TAI+TWO)",
-            "XETRA": "Germany (XETRA)",
-            "TSX": "Canada (TSX)",
-            "STO": "Sweden (STO)",
-        }
         names.append(label_map.get(k, k))
         colors.append(COLORS.get(k, "#95a5a6"))
 
@@ -209,13 +224,18 @@ def chart_comparison_cagr(filename):
     ax.set_axisbelow(True)
 
     for i, (bar, cagr) in enumerate(zip(bars, cagrs)):
-        x_pos = cagr + 0.08 if cagr >= 0 else cagr - 0.5
+        x_pos = cagr + 0.08 if cagr >= 0 else cagr - 0.08
         ha = "left" if cagr >= 0 else "right"
         ax.text(x_pos, i, f"{cagr:.2f}%", va="center", fontsize=10, fontweight="bold", ha=ha)
+    # Room for the negative labels left of their bars, clear of the tick labels.
+    ax.set_xlim(left=min(0, min(cagrs)) - 1.2)
 
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Same strategy parameters, annual rebalance, 12 exchanges",
-             ha="center", fontsize=8, color="#7f8c8d")
+    footer = f"Data: Ceta Research | Same strategy parameters, annual rebalance, {len(valid)} exchanges"
+    if thin:
+        footer += ("\nToo thin to test, not drawn (in cash more than half the years): "
+                   + ", ".join(f"{label_map.get(k, k)}, cash {cash_count(data[k])[0]} of "
+                               f"{cash_count(data[k])[1]} yrs" for k in thin))
+    fig.text(0.5, -0.02, footer, ha="center", va="top", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / filename
@@ -225,12 +245,12 @@ def chart_comparison_cagr(filename):
 
 
 def chart_comparison_cash(filename):
-    """Horizontal bar chart: Cash% by exchange (how often strategy sits out)."""
-    # B006: divide by total_rebalances, not n_years. Cash is counted over every
-    # year the strategy ran; n_years counts only the benchmark-priced ones.
-    # Fallback keeps pre-B006 result files renderable.
+    """Horizontal bar chart: Cash% by exchange (how often strategy sits out).
+
+    A market that is too thin to test is drawn, since its cash share is the measurement, but labelled.
+    """
     def _tr(v):
-        return v.get("total_rebalances") or v.get("n_years", 0)
+        return cash_count(v)[1]
 
     valid = [(k, data[k]) for k in VALID_EXCHANGES]
     valid.sort(key=lambda x: x[1]["cash_periods"] / max(_tr(x[1]), 1))
@@ -248,11 +268,13 @@ def chart_comparison_cash(filename):
     for k, v in valid:
         cash_pct = round(v["cash_periods"] * 100 / max(_tr(v), 1))
         cash_pcts.append(cash_pct)
-        names.append(label_map.get(k, k))
+        names.append(label_map.get(k, k) + (", too thin to test" if too_thin(v) else ""))
         colors.append(COLORS.get(k, "#95a5a6"))
 
     fig, ax = plt.subplots(figsize=(10, 7))
     bars = ax.barh(range(len(names)), cash_pcts, color=colors, alpha=0.85, height=0.6)
+    ax.axvline(x=50, color="#7f8c8d", linewidth=1, linestyle=":")
+    ax.set_xlim(right=max(cash_pcts + [50]) + 6)  # room for the longest bar's label
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=11)
@@ -266,8 +288,9 @@ def chart_comparison_cash(filename):
         ax.text(pct + 0.5, i, f"{pct:.0f}%", va="center", fontsize=10, fontweight="bold")
 
     fig.text(0.5, -0.02,
-             "Data: Ceta Research | Cash = year with fewer than 3 active pairs",
-             ha="center", fontsize=8, color="#7f8c8d")
+             "Data: Ceta Research | Cash = year with fewer than 3 pairs entered"
+             "\nRight of the dotted line (in cash more than half the years): too thin to test",
+             ha="center", va="top", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / filename

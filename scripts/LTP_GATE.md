@@ -220,9 +220,10 @@ python3 scripts/gate_ltp.py run scripts/gate_legs/wave3_osl.json --check det --d
   than their nodes). oversold-quality's run goes under two names, `returns_OSL.json` and
   `oversold_quality_osl.json`: its `returns_OSL.json` is an older run today, and with only the second
   name installed `--only OSL` folds that older run into the node and `--check` still passes. Eight of
-  the 13 (the ones with a negative `invested_periods`) are on the known-bad list of
-  `scripts/scan_results_invariant.py` (`EXPECT_FLAGGED`, `EXPECT_PAIRS`), which its self-test checks
-  node by node: a repair makes the list stale, so update it with the install.
+  the 13 (the ones with a negative `invested_periods`) were on the known-bad list of
+  `scripts/scan_results_invariant.py` (`EXPECT_FLAGGED`, `EXPECT_PAIRS`) until the wave 3 install
+  repaired them and took them off it; the self-test checks that list node by node, so any later
+  repair updates it in the same change.
 
 Installing `wave3.json`: per leg, copy `<out-dir>/<topic>/<leg>.ltp.json` to `<topic>/results/` under
 its `_outputs` name, as in wave 2 (never `both`). `git add -f` the two files with no earlier version,
@@ -261,9 +262,11 @@ python3 scripts/rebuild_comparison.py pairs-multi-pair --check
   (`CONTENT_EXCHANGES` leaves it out).
 - The pairs `git rm`s are required, not tidying: `check_pairs_results.py <topic>` reads every
   `results/returns_*.json` and fails on a pre-LTP one, kept or not.
-- dcf-discount: no rebuild. While one region file exists its charts read the 16 region files and
-  nothing else; `rebuild_comparison.py` would write an `exchange_comparison.json` from the March
-  `returns_*.json`. Check instead that each region file carries `exit_method` `ltp`.
+- dcf-discount: no rebuild and no comparison file. While one region file exists its charts read the
+  16 region files and nothing else. Check instead that each region file carries `exit_method` `ltp`.
+  The install also removed its 17 March 2026 files (`returns_*.json`, `returns_*_v2.json`,
+  `exchange_comparison_v2.json`): no chart or post read them, and a rebuild would have built a
+  comparison from them.
 
 `scripts/test_wave3_install.py` runs this block as written on copies of the six results directories,
 with a stand-in `ltp` run under every `_outputs` name.
