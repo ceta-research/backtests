@@ -1,32 +1,43 @@
 {
   "universe": "LSE",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 0,
+  "invested_periods": 20,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": "^FTSE",
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
   "n_years": 20,
   "years": "2005-2024",
   "frequency": "daily_zscore",
   "portfolio_config": "20-pair inverse_vol",
   "benchmark_name": "FTSE 100",
-  "benchmark_symbol": "^FTSE",
-  "cash_periods": 1,
-  "invested_periods": 19,
-  "avg_active_pairs": 10.9,
-  "total_trades": 1426,
+  "avg_active_pairs": 18.3,
+  "total_trades": 2491,
   "trade_stats": {
-    "total_trades": 1426,
-    "convergence_rate": 82.4,
+    "total_trades": 2491,
+    "convergence_rate": 84.6,
     "time_stop_rate": 0.3,
-    "loss_stop_rate": 11.4,
-    "year_end_rate": 6.0,
-    "avg_holding_days": 14.4,
-    "avg_trade_return_pct": -0.341
+    "loss_stop_rate": 9.1,
+    "year_end_rate": 5.9,
+    "last_bar_rate": 0.0,
+    "avg_holding_days": 14.2,
+    "avg_trade_return_pct": -0.281
   },
   "portfolio": {
-    "cagr": -2.34,
-    "max_drawdown": -37.78,
-    "annualized_volatility": 2.51,
-    "sharpe_ratio": -2.326,
-    "sortino_ratio": -0.927,
-    "calmar_ratio": -0.062,
-    "total_return": -37.78
+    "cagr": -1.61,
+    "max_drawdown": -31.8,
+    "annualized_volatility": 2.95,
+    "sharpe_ratio": -1.729,
+    "sortino_ratio": -0.882,
+    "calmar_ratio": -0.051,
+    "total_return": -27.67
   },
   "spy": {
     "cagr": 1.88,
@@ -38,278 +49,2978 @@
     "total_return": 45.16
   },
   "comparison": {
-    "excess_cagr": -4.23,
-    "win_rate": 20.0,
-    "information_ratio": -0.431,
-    "up_capture": -14.51,
-    "down_capture": 38.36,
-    "beta": 0.08,
-    "alpha": -5.71
+    "excess_cagr": -3.49,
+    "win_rate": 25.0,
+    "information_ratio": -0.323,
+    "up_capture": -15.69,
+    "down_capture": 15.83,
+    "beta": -0.037,
+    "alpha": -5.17
   },
-  "excess_cagr": -4.23,
-  "win_rate_vs_spy": 20.0,
+  "excess_cagr": -3.49,
+  "win_rate_vs_spy": 25.0,
   "annual_returns": [
     {
       "year": 2005,
-      "portfolio": 0.0,
+      "portfolio": 6.06,
       "spy": 15.92,
-      "excess": -15.92,
-      "n_pairs_formed": 1,
-      "n_active": 1,
-      "is_cash": true
+      "excess": -9.87,
+      "n_active": 7,
+      "is_cash": false,
+      "listed": 354,
+      "no_fx": 0,
+      "same_isin": 6,
+      "same_company": 5,
+      "eligible": 343,
+      "candidates": 256,
+      "sectors": 11,
+      "min_size_usd": 0.2578664620107444,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 96952.72640061396,
+        "Financial Services": 35015.349194167306,
+        "Industrials": 903745.4048349962,
+        "Technology": 4303.146584804298
+      },
+      "no_cost_cap": 19,
+      "pairs_formed": 7,
+      "pairs_entered": 7,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SSE.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.9774
+        },
+        {
+          "a": "CNA.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.9468
+        },
+        {
+          "a": "INVP.L",
+          "b": "RAT.L",
+          "sector": "Financial Services",
+          "corr": 0.8494
+        },
+        {
+          "a": "ECOR.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8425
+        },
+        {
+          "a": "DLN.L",
+          "b": "GRI.L",
+          "sector": "Real Estate",
+          "corr": 0.7917
+        },
+        {
+          "a": "CLI.L",
+          "b": "DLN.L",
+          "sector": "Real Estate",
+          "corr": 0.7579
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.7392
+        }
+      ]
     },
     {
       "year": 2006,
-      "portfolio": -1.11,
+      "portfolio": -0.14,
       "spy": 9.49,
-      "excess": -10.6,
-      "n_pairs_formed": 4,
-      "n_active": 4,
-      "is_cash": false
+      "excess": -9.63,
+      "n_active": 8,
+      "is_cash": false,
+      "listed": 373,
+      "no_fx": 0,
+      "same_isin": 7,
+      "same_company": 0,
+      "eligible": 366,
+      "candidates": 271,
+      "sectors": 11,
+      "min_size_usd": 18.103947595242204,
+      "sector_cut_usd": {
+        "Basic Materials": 2998.213271649716,
+        "Consumer Cyclical": 344180.4430270644,
+        "Financial Services": 81330.8050336149,
+        "Industrials": 1266834.5464575074,
+        "Technology": 3066.561799689709
+      },
+      "no_cost_cap": 11,
+      "pairs_formed": 8,
+      "pairs_entered": 8,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8583
+        },
+        {
+          "a": "ANTO.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.751
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7275
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7183
+        },
+        {
+          "a": "BP.L",
+          "b": "SHEL.L",
+          "sector": "Energy",
+          "corr": 0.7133
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.71
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.7079
+        },
+        {
+          "a": "ANTO.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.7007
+        }
+      ]
     },
     {
       "year": 2007,
-      "portfolio": -3.3,
+      "portfolio": -5.99,
       "spy": 2.31,
-      "excess": -5.61,
-      "n_pairs_formed": 3,
-      "n_active": 3,
-      "is_cash": false
+      "excess": -8.31,
+      "n_active": 16,
+      "is_cash": false,
+      "listed": 421,
+      "no_fx": 0,
+      "same_isin": 8,
+      "same_company": 0,
+      "eligible": 413,
+      "candidates": 287,
+      "sectors": 11,
+      "min_size_usd": 8.077450980392157,
+      "sector_cut_usd": {
+        "Basic Materials": 16880.245098039217,
+        "Consumer Cyclical": 475114.137254902,
+        "Energy": 21.44607843137255,
+        "Financial Services": 125297.88235294117,
+        "Industrials": 3086018.088235294,
+        "Technology": 14612.573529411764
+      },
+      "no_cost_cap": 11,
+      "pairs_formed": 16,
+      "pairs_entered": 16,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.921
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8737
+        },
+        {
+          "a": "LAND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8427
+        },
+        {
+          "a": "ANTO.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8395
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.8354
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8352
+        },
+        {
+          "a": "BLND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8131
+        },
+        {
+          "a": "AAL.L",
+          "b": "ANTO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8048
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7976
+        },
+        {
+          "a": "HMSO.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.7906
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7446
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7365
+        },
+        {
+          "a": "BTRW.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7181
+        },
+        {
+          "a": "PSN.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.714
+        },
+        {
+          "a": "BTRW.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.709
+        },
+        {
+          "a": "RDW.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7063
+        }
+      ]
     },
     {
       "year": 2008,
-      "portfolio": -3.04,
+      "portfolio": 4.97,
       "spy": -30.9,
-      "excess": 27.86,
-      "n_pairs_formed": 5,
-      "n_active": 5,
-      "is_cash": false
+      "excess": 35.86,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 461,
+      "no_fx": 0,
+      "same_isin": 9,
+      "same_company": 0,
+      "eligible": 452,
+      "candidates": 298,
+      "sectors": 11,
+      "min_size_usd": 91.23434704830055,
+      "sector_cut_usd": {
+        "Basic Materials": 40057.881136950906,
+        "Consumer Cyclical": 1777581.7857779965,
+        "Energy": 7759.292387199364,
+        "Financial Services": 411519.2605843769,
+        "Industrials": 5249019.423573842,
+        "Real Estate": 137.149672033393,
+        "Technology": 8435.69866825681
+      },
+      "no_cost_cap": 10,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8771
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8335
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8326
+        },
+        {
+          "a": "ANTO.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8309
+        },
+        {
+          "a": "AAL.L",
+          "b": "ANTO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8218
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8205
+        },
+        {
+          "a": "LAND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8129
+        },
+        {
+          "a": "BARC.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.8061
+        },
+        {
+          "a": "BARC.L",
+          "b": "LLOY.L",
+          "sector": "Financial Services",
+          "corr": 0.8015
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.8008
+        },
+        {
+          "a": "LLOY.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.8003
+        },
+        {
+          "a": "BWY.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7984
+        },
+        {
+          "a": "AV.L",
+          "b": "LGEN.L",
+          "sector": "Financial Services",
+          "corr": 0.7944
+        },
+        {
+          "a": "PSN.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7937
+        },
+        {
+          "a": "HMSO.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.79
+        },
+        {
+          "a": "BP.L",
+          "b": "SHEL.L",
+          "sector": "Energy",
+          "corr": 0.7853
+        },
+        {
+          "a": "BLND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.7841
+        },
+        {
+          "a": "LGEN.L",
+          "b": "PRU.L",
+          "sector": "Financial Services",
+          "corr": 0.7829
+        },
+        {
+          "a": "GPE.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.7816
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7786
+        }
+      ]
     },
     {
       "year": 2009,
-      "portfolio": -0.28,
+      "portfolio": 0.44,
       "spy": 18.66,
-      "excess": -18.93,
-      "n_pairs_formed": 8,
-      "n_active": 8,
-      "is_cash": false
+      "excess": -18.22,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 449,
+      "no_fx": 0,
+      "same_isin": 8,
+      "same_company": 3,
+      "eligible": 438,
+      "candidates": 294,
+      "sectors": 11,
+      "min_size_usd": 24.827972063770662,
+      "sector_cut_usd": {
+        "Basic Materials": 40523.68875237677,
+        "Consumer Cyclical": 992177.9006563844,
+        "Energy": 3434.0975574082204,
+        "Financial Services": 171778.55784700895,
+        "Industrials": 2423254.782799474,
+        "Real Estate": 345.91194968553464,
+        "Technology": 1799.9760441787334
+      },
+      "no_cost_cap": 9,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BP.L",
+          "b": "SHEL.L",
+          "sector": "Energy",
+          "corr": 0.915
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8962
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8367
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8365
+        },
+        {
+          "a": "BWY.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8177
+        },
+        {
+          "a": "AAL.L",
+          "b": "ANTO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8125
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.8099
+        },
+        {
+          "a": "NG.L",
+          "b": "SSE.L",
+          "sector": "Utilities",
+          "corr": 0.8095
+        },
+        {
+          "a": "ANTO.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8094
+        },
+        {
+          "a": "NG.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8055
+        },
+        {
+          "a": "LAND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.7927
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7845
+        },
+        {
+          "a": "HMSO.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.7708
+        },
+        {
+          "a": "PSN.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7686
+        },
+        {
+          "a": "BLND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.7619
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7615
+        },
+        {
+          "a": "ANTO.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7608
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.7599
+        },
+        {
+          "a": "NG.L",
+          "b": "SVT.L",
+          "sector": "Utilities",
+          "corr": 0.7553
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7541
+        }
+      ]
     },
     {
       "year": 2010,
-      "portfolio": -6.27,
+      "portfolio": -1.02,
       "spy": 7.27,
-      "excess": -13.54,
-      "n_pairs_formed": 7,
-      "n_active": 7,
-      "is_cash": false
+      "excess": -8.29,
+      "n_active": 17,
+      "is_cash": false,
+      "listed": 441,
+      "no_fx": 0,
+      "same_isin": 7,
+      "same_company": 4,
+      "eligible": 430,
+      "candidates": 287,
+      "sectors": 11,
+      "min_size_usd": 9.571682560206884,
+      "sector_cut_usd": {
+        "Basic Materials": 47392.33877485049,
+        "Consumer Cyclical": 630668.98335219,
+        "Energy": 6222.55463390981,
+        "Financial Services": 180681.4462582835,
+        "Industrials": 1624843.4782608694,
+        "Technology": 2760.3442702440598
+      },
+      "no_cost_cap": 7,
+      "pairs_formed": 17,
+      "pairs_entered": 17,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "ANTO.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8262
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.825
+        },
+        {
+          "a": "BP.L",
+          "b": "SHEL.L",
+          "sector": "Energy",
+          "corr": 0.8113
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8058
+        },
+        {
+          "a": "ANTO.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7923
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.7778
+        },
+        {
+          "a": "AV.L",
+          "b": "PRU.L",
+          "sector": "Financial Services",
+          "corr": 0.7699
+        },
+        {
+          "a": "AAL.L",
+          "b": "ANTO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7694
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.769
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7526
+        },
+        {
+          "a": "HMSO.L",
+          "b": "SHC.L",
+          "sector": "Real Estate",
+          "corr": 0.7506
+        },
+        {
+          "a": "AV.L",
+          "b": "LGEN.L",
+          "sector": "Financial Services",
+          "corr": 0.7468
+        },
+        {
+          "a": "BWY.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7452
+        },
+        {
+          "a": "ABDN.L",
+          "b": "PRU.L",
+          "sector": "Financial Services",
+          "corr": 0.7239
+        },
+        {
+          "a": "LGEN.L",
+          "b": "PRU.L",
+          "sector": "Financial Services",
+          "corr": 0.7228
+        },
+        {
+          "a": "PSN.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7125
+        },
+        {
+          "a": "GPE.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.711
+        }
+      ]
     },
     {
       "year": 2011,
-      "portfolio": -3.56,
+      "portfolio": -2.68,
       "spy": -7.34,
-      "excess": 3.78,
-      "n_pairs_formed": 11,
-      "n_active": 11,
-      "is_cash": false
+      "excess": 4.66,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 495,
+      "no_fx": 0,
+      "same_isin": 9,
+      "same_company": 4,
+      "eligible": 482,
+      "candidates": 297,
+      "sectors": 11,
+      "min_size_usd": 70.58088850718302,
+      "sector_cut_usd": {
+        "Basic Materials": 76986.78950655842,
+        "Consumer Cyclical": 623022.2735790132,
+        "Energy": 19880.153029356654,
+        "Financial Services": 237897.5221736415,
+        "Healthcare": 367.99000624609624,
+        "Industrials": 1884942.3485321677,
+        "Technology": 9822.564022485947
+      },
+      "no_cost_cap": 7,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.9114
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8883
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8754
+        },
+        {
+          "a": "ANTO.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8657
+        },
+        {
+          "a": "AAL.L",
+          "b": "ANTO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8551
+        },
+        {
+          "a": "ANTO.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8545
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8408
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8127
+        },
+        {
+          "a": "PSN.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7994
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7884
+        },
+        {
+          "a": "LLOY.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.7862
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7856
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.7848
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.7783
+        },
+        {
+          "a": "LAND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.768
+        },
+        {
+          "a": "BWY.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7668
+        },
+        {
+          "a": "ABDN.L",
+          "b": "AV.L",
+          "sector": "Financial Services",
+          "corr": 0.7647
+        },
+        {
+          "a": "BLND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.764
+        },
+        {
+          "a": "PNN.L",
+          "b": "SVT.L",
+          "sector": "Utilities",
+          "corr": 0.7636
+        },
+        {
+          "a": "AV.L",
+          "b": "LGEN.L",
+          "sector": "Financial Services",
+          "corr": 0.7609
+        }
+      ]
     },
     {
       "year": 2012,
-      "portfolio": -1.58,
+      "portfolio": 0.79,
       "spy": 3.47,
-      "excess": -5.05,
-      "n_pairs_formed": 8,
-      "n_active": 8,
-      "is_cash": false
+      "excess": -2.68,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 538,
+      "no_fx": 0,
+      "same_isin": 10,
+      "same_company": 6,
+      "eligible": 522,
+      "candidates": 300,
+      "sectors": 11,
+      "min_size_usd": 111.5710907110627,
+      "sector_cut_usd": {
+        "Basic Materials": 156520.6357726155,
+        "Consumer Cyclical": 442110.4481095378,
+        "Energy": 80009.98521860898,
+        "Financial Services": 369335.4037653648,
+        "Healthcare": 529.5870546133498,
+        "Industrials": 1512565.784969659,
+        "Real Estate": 10455.889217364243,
+        "Technology": 18228.009401462576
+      },
+      "no_cost_cap": 7,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.9423
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.9116
+        },
+        {
+          "a": "ANTO.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8947
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.8892
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8831
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8825
+        },
+        {
+          "a": "ANTO.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8782
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8759
+        },
+        {
+          "a": "AAL.L",
+          "b": "ANTO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8565
+        },
+        {
+          "a": "BARC.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.852
+        },
+        {
+          "a": "LLOY.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.8516
+        },
+        {
+          "a": "DLN.L",
+          "b": "GPE.L",
+          "sector": "Real Estate",
+          "corr": 0.8448
+        },
+        {
+          "a": "DLN.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.8248
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8205
+        },
+        {
+          "a": "GPE.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.8131
+        },
+        {
+          "a": "HMSO.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8056
+        },
+        {
+          "a": "BARC.L",
+          "b": "LLOY.L",
+          "sector": "Financial Services",
+          "corr": 0.802
+        },
+        {
+          "a": "DLN.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.7937
+        },
+        {
+          "a": "BLND.L",
+          "b": "DLN.L",
+          "sector": "Real Estate",
+          "corr": 0.7923
+        },
+        {
+          "a": "ABDN.L",
+          "b": "LGEN.L",
+          "sector": "Financial Services",
+          "corr": 0.7916
+        }
+      ]
     },
     {
       "year": 2013,
-      "portfolio": 0.39,
+      "portfolio": -2.73,
       "spy": 11.97,
-      "excess": -11.58,
-      "n_pairs_formed": 5,
-      "n_active": 5,
-      "is_cash": false
+      "excess": -14.7,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 581,
+      "no_fx": 0,
+      "same_isin": 10,
+      "same_company": 6,
+      "eligible": 565,
+      "candidates": 304,
+      "sectors": 11,
+      "min_size_usd": 88.84567826935589,
+      "sector_cut_usd": {
+        "Basic Materials": 95319.95152895252,
+        "Consumer Cyclical": 611706.7460962915,
+        "Energy": 59886.04758254718,
+        "Financial Services": 485756.42591086536,
+        "Healthcare": 7397.358734547821,
+        "Industrials": 2272358.313272609,
+        "Real Estate": 23062.93916720885,
+        "Technology": 21281.61597267404
+      },
+      "no_cost_cap": 7,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9983
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.9018
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8275
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8073
+        },
+        {
+          "a": "ANTO.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.804
+        },
+        {
+          "a": "BARC.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.803
+        },
+        {
+          "a": "LLOY.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.8025
+        },
+        {
+          "a": "ANTO.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8016
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.7984
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7836
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7793
+        },
+        {
+          "a": "LGEN.L",
+          "b": "PRU.L",
+          "sector": "Financial Services",
+          "corr": 0.7768
+        },
+        {
+          "a": "ABDN.L",
+          "b": "PRU.L",
+          "sector": "Financial Services",
+          "corr": 0.7766
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.7702
+        },
+        {
+          "a": "ABDN.L",
+          "b": "LGEN.L",
+          "sector": "Financial Services",
+          "corr": 0.7608
+        },
+        {
+          "a": "FXPO.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7555
+        },
+        {
+          "a": "INVP.L",
+          "b": "SDR.L",
+          "sector": "Financial Services",
+          "corr": 0.7428
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7408
+        },
+        {
+          "a": "BARC.L",
+          "b": "LLOY.L",
+          "sector": "Financial Services",
+          "corr": 0.738
+        },
+        {
+          "a": "DLN.L",
+          "b": "GPE.L",
+          "sector": "Real Estate",
+          "corr": 0.7358
+        }
+      ]
     },
     {
       "year": 2014,
-      "portfolio": -5.48,
+      "portfolio": -3.23,
       "spy": -2.26,
-      "excess": -3.22,
-      "n_pairs_formed": 6,
-      "n_active": 6,
-      "is_cash": false
+      "excess": -0.97,
+      "n_active": 18,
+      "is_cash": false,
+      "listed": 625,
+      "no_fx": 0,
+      "same_isin": 11,
+      "same_company": 7,
+      "eligible": 607,
+      "candidates": 309,
+      "sectors": 11,
+      "min_size_usd": 370.1572847682119,
+      "sector_cut_usd": {
+        "Basic Materials": 98306.62003311257,
+        "Consumer Cyclical": 885295.8940397351,
+        "Energy": 48211.4238410596,
+        "Financial Services": 709283.9072847682,
+        "Healthcare": 9337.847682119205,
+        "Industrials": 2253746.8205298013,
+        "Real Estate": 46491.36854304636,
+        "Technology": 36322.01986754967
+      },
+      "no_cost_cap": 7,
+      "pairs_formed": 18,
+      "pairs_entered": 18,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9981
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8476
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8294
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.7875
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7825
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7807
+        },
+        {
+          "a": "DLN.L",
+          "b": "GPE.L",
+          "sector": "Real Estate",
+          "corr": 0.7769
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7727
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.7707
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7584
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7519
+        },
+        {
+          "a": "BHP.L",
+          "b": "GLEN.L",
+          "sector": "Basic Materials",
+          "corr": 0.742
+        },
+        {
+          "a": "AAL.L",
+          "b": "GLEN.L",
+          "sector": "Basic Materials",
+          "corr": 0.7412
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.717
+        },
+        {
+          "a": "AAL.L",
+          "b": "ANTO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7166
+        },
+        {
+          "a": "ANTO.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7132
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.7003
+        },
+        {
+          "a": "BWY.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7002
+        }
+      ]
     },
     {
       "year": 2015,
-      "portfolio": -8.71,
+      "portfolio": -4.45,
       "spy": -4.67,
-      "excess": -4.05,
-      "n_pairs_formed": 4,
-      "n_active": 4,
-      "is_cash": false
+      "excess": 0.22,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 666,
+      "no_fx": 0,
+      "same_isin": 14,
+      "same_company": 7,
+      "eligible": 645,
+      "candidates": 315,
+      "sectors": 11,
+      "min_size_usd": 165.57286582515192,
+      "sector_cut_usd": {
+        "Basic Materials": 100724.85412066386,
+        "Communication Services": 1371.3573320866449,
+        "Consumer Cyclical": 1114453.716690042,
+        "Consumer Defensive": 165.57286582515192,
+        "Energy": 63172.95513012311,
+        "Financial Services": 1127389.739286271,
+        "Healthcare": 11144.834034595606,
+        "Industrials": 1886015.755025713,
+        "Real Estate": 74152.46610565684,
+        "Technology": 49673.05594514571
+      },
+      "no_cost_cap": 5,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9973
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8666
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8126
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8041
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7994
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.799
+        },
+        {
+          "a": "TW.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7895
+        },
+        {
+          "a": "BTRW.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7857
+        },
+        {
+          "a": "PSN.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7806
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7804
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.777
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.7733
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.7689
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7688
+        },
+        {
+          "a": "BKG.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7597
+        },
+        {
+          "a": "DLN.L",
+          "b": "GPE.L",
+          "sector": "Real Estate",
+          "corr": 0.7569
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.737
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.7342
+        },
+        {
+          "a": "BKG.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.729
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.7289
+        }
+      ]
     },
     {
       "year": 2016,
-      "portfolio": 0.86,
+      "portfolio": -3.84,
       "spy": 17.22,
-      "excess": -16.36,
-      "n_pairs_formed": 16,
-      "n_active": 16,
-      "is_cash": false
+      "excess": -21.06,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 723,
+      "no_fx": 0,
+      "same_isin": 15,
+      "same_company": 8,
+      "eligible": 700,
+      "candidates": 315,
+      "sectors": 11,
+      "min_size_usd": 57.46572552718056,
+      "sector_cut_usd": {
+        "Basic Materials": 92533.57672300733,
+        "Communication Services": 3730.0511339355444,
+        "Consumer Cyclical": 1635819.283535462,
+        "Consumer Defensive": 3546.0205419902445,
+        "Energy": 34029.265704896774,
+        "Financial Services": 1967736.756310694,
+        "Healthcare": 19205.147286364772,
+        "Industrials": 2882037.2452513226,
+        "Real Estate": 116161.15294499049,
+        "Technology": 34707.61450759641
+      },
+      "no_cost_cap": 4,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.9194
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.8904
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8808
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8712
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8645
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8624
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8582
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8569
+        },
+        {
+          "a": "HMSO.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8474
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8439
+        },
+        {
+          "a": "BLND.L",
+          "b": "DLN.L",
+          "sector": "Real Estate",
+          "corr": 0.8355
+        },
+        {
+          "a": "BLND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8256
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8173
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8172
+        },
+        {
+          "a": "BP.L",
+          "b": "SHEL.L",
+          "sector": "Energy",
+          "corr": 0.8152
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8111
+        },
+        {
+          "a": "DLN.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8104
+        },
+        {
+          "a": "LAND.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.804
+        },
+        {
+          "a": "BATS.L",
+          "b": "ULVR.L",
+          "sector": "Consumer Defensive",
+          "corr": 0.7977
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7967
+        }
+      ]
     },
     {
       "year": 2017,
-      "portfolio": -1.65,
+      "portfolio": -2.17,
       "spy": 7.1,
-      "excess": -8.75,
-      "n_pairs_formed": 20,
+      "excess": -9.28,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 757,
+      "no_fx": 0,
+      "same_isin": 16,
+      "same_company": 8,
+      "eligible": 733,
+      "candidates": 315,
+      "sectors": 11,
+      "min_size_usd": 9.631888155052156,
+      "sector_cut_usd": {
+        "Basic Materials": 134083.66767483487,
+        "Communication Services": 4300.734522560335,
+        "Consumer Cyclical": 2311468.0427134125,
+        "Consumer Defensive": 4638.10073452256,
+        "Energy": 23444.972532559717,
+        "Financial Services": 1618072.4483673845,
+        "Healthcare": 22394.617616196527,
+        "Industrials": 2419434.1090056165,
+        "Real Estate": 278082.4600950558,
+        "Technology": 59123.278809949996
+      },
+      "no_cost_cap": 4,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.9456
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9365
+        },
+        {
+          "a": "BTRW.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9355
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9275
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9246
+        },
+        {
+          "a": "PSN.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9233
+        },
+        {
+          "a": "BWY.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9187
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.9118
+        },
+        {
+          "a": "HMSO.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.9096
+        },
+        {
+          "a": "BLND.L",
+          "b": "GPE.L",
+          "sector": "Real Estate",
+          "corr": 0.9031
+        },
+        {
+          "a": "BLND.L",
+          "b": "HMSO.L",
+          "sector": "Real Estate",
+          "corr": 0.9013
+        },
+        {
+          "a": "CRST.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.901
+        },
+        {
+          "a": "BWY.L",
+          "b": "CRST.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8989
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.897
+        },
+        {
+          "a": "CRST.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8919
+        },
+        {
+          "a": "GPE.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8914
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8904
+        },
+        {
+          "a": "BKG.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8801
+        },
+        {
+          "a": "BWY.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8795
+        },
+        {
+          "a": "BTRW.L",
+          "b": "CRST.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8794
+        }
+      ]
     },
     {
       "year": 2018,
-      "portfolio": -2.68,
+      "portfolio": -2.69,
       "spy": -12.03,
       "excess": 9.34,
-      "n_pairs_formed": 12,
-      "n_active": 12,
-      "is_cash": false
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 813,
+      "no_fx": 0,
+      "same_isin": 18,
+      "same_company": 6,
+      "eligible": 789,
+      "candidates": 315,
+      "sectors": 11,
+      "min_size_usd": 10.896452702702703,
+      "sector_cut_usd": {
+        "Basic Materials": 252277.06344594594,
+        "Communication Services": 18047.635135135137,
+        "Consumer Cyclical": 3209652.9054054054,
+        "Consumer Defensive": 26250.019391891892,
+        "Energy": 53095.1097972973,
+        "Financial Services": 4314163.628378378,
+        "Healthcare": 39712.0777027027,
+        "Industrials": 3532374.7972972975,
+        "Real Estate": 299461.27702702704,
+        "Technology": 108062.58783783784
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9917
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8591
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8349
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8102
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8082
+        },
+        {
+          "a": "GLEN.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8078
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8021
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.7996
+        },
+        {
+          "a": "BHP.L",
+          "b": "GLEN.L",
+          "sector": "Basic Materials",
+          "corr": 0.79
+        },
+        {
+          "a": "BP.L",
+          "b": "SHEL.L",
+          "sector": "Energy",
+          "corr": 0.7801
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.7776
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7698
+        },
+        {
+          "a": "ANTO.L",
+          "b": "GLEN.L",
+          "sector": "Basic Materials",
+          "corr": 0.7671
+        },
+        {
+          "a": "AAL.L",
+          "b": "GLEN.L",
+          "sector": "Basic Materials",
+          "corr": 0.762
+        },
+        {
+          "a": "ANTO.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7617
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7395
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7379
+        },
+        {
+          "a": "AAL.L",
+          "b": "ANTO.L",
+          "sector": "Basic Materials",
+          "corr": 0.7314
+        },
+        {
+          "a": "DLN.L",
+          "b": "GPE.L",
+          "sector": "Real Estate",
+          "corr": 0.7205
+        },
+        {
+          "a": "BKG.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7126
+        }
+      ]
     },
     {
       "year": 2019,
-      "portfolio": 0.63,
+      "portfolio": -3.61,
       "spy": 12.0,
-      "excess": -11.37,
-      "n_pairs_formed": 10,
-      "n_active": 10,
-      "is_cash": false
+      "excess": -15.61,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 879,
+      "no_fx": 0,
+      "same_isin": 18,
+      "same_company": 7,
+      "eligible": 854,
+      "candidates": 315,
+      "sectors": 11,
+      "min_size_usd": 1.7859876511710975,
+      "sector_cut_usd": {
+        "Basic Materials": 244016.8648262489,
+        "Communication Services": 9078.284941572689,
+        "Consumer Cyclical": 2851758.1692606006,
+        "Consumer Defensive": 27816.757666989844,
+        "Energy": 81055.64627238862,
+        "Financial Services": 4662106.030259733,
+        "Healthcare": 53874.51523192325,
+        "Industrials": 3022305.6207202375,
+        "Real Estate": 380226.28463540337,
+        "Technology": 160669.33714344032
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9998
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.9007
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.88
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8774
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8604
+        },
+        {
+          "a": "BP.L",
+          "b": "SHEL.L",
+          "sector": "Energy",
+          "corr": 0.8526
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8499
+        },
+        {
+          "a": "BKG.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8403
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8382
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8339
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8327
+        },
+        {
+          "a": "PNN.L",
+          "b": "SVT.L",
+          "sector": "Utilities",
+          "corr": 0.8327
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8323
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8269
+        },
+        {
+          "a": "BWY.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8266
+        },
+        {
+          "a": "PNN.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8231
+        },
+        {
+          "a": "BWRA.L",
+          "b": "NTEA.L",
+          "sector": "Utilities",
+          "corr": 0.8213
+        },
+        {
+          "a": "BWY.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8202
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8178
+        },
+        {
+          "a": "BKG.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8177
+        }
+      ]
     },
     {
       "year": 2020,
-      "portfolio": -0.68,
+      "portfolio": -1.68,
       "spy": -15.04,
-      "excess": 14.36,
-      "n_pairs_formed": 9,
-      "n_active": 9,
-      "is_cash": false
+      "excess": 13.36,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 946,
+      "no_fx": 0,
+      "same_isin": 18,
+      "same_company": 9,
+      "eligible": 919,
+      "candidates": 315,
+      "sectors": 11,
+      "min_size_usd": 1.392740630719041,
+      "sector_cut_usd": {
+        "Basic Materials": 201457.74699626028,
+        "Communication Services": 11505.874864069174,
+        "Consumer Cyclical": 2862348.5173153593,
+        "Consumer Defensive": 19786.966554385595,
+        "Energy": 61325.93122919928,
+        "Financial Services": 3461920.482057131,
+        "Healthcare": 87638.96029493675,
+        "Industrials": 2551432.744078721,
+        "Real Estate": 369621.969074079,
+        "Technology": 145290.6598944381
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9999
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8893
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.873
+        },
+        {
+          "a": "PNN.L",
+          "b": "SVT.L",
+          "sector": "Utilities",
+          "corr": 0.8723
+        },
+        {
+          "a": "PNN.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8539
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8406
+        },
+        {
+          "a": "BKG.L",
+          "b": "BTRW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8356
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8265
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8256
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8236
+        },
+        {
+          "a": "LLOY.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.8225
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8219
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8176
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8136
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8104
+        },
+        {
+          "a": "BKG.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8066
+        },
+        {
+          "a": "BKG.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8062
+        },
+        {
+          "a": "BARC.L",
+          "b": "LLOY.L",
+          "sector": "Financial Services",
+          "corr": 0.8045
+        },
+        {
+          "a": "BTRW.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.796
+        },
+        {
+          "a": "BWY.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7944
+        }
+      ]
     },
     {
       "year": 2021,
-      "portfolio": -3.84,
+      "portfolio": -4.27,
       "spy": 12.37,
-      "excess": -16.2,
-      "n_pairs_formed": 20,
+      "excess": -16.63,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 962,
+      "no_fx": 0,
+      "same_isin": 19,
+      "same_company": 7,
+      "eligible": 936,
+      "candidates": 315,
+      "sectors": 11,
+      "min_size_usd": 7.317708119850803,
+      "sector_cut_usd": {
+        "Basic Materials": 542825.7543960324,
+        "Communication Services": 25088.29979095791,
+        "Consumer Cyclical": 5744937.49231463,
+        "Consumer Defensive": 29732.528589580692,
+        "Energy": 65130.477107841136,
+        "Financial Services": 4047955.346285746,
+        "Healthcare": 170501.83765763554,
+        "Industrials": 3935718.91352762,
+        "Real Estate": 506768.5439466602,
+        "Technology": 245710.68533386622
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 1.0
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.9167
+        },
+        {
+          "a": "BWY.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8912
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8895
+        },
+        {
+          "a": "LLOY.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.8874
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8867
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8838
+        },
+        {
+          "a": "BARC.L",
+          "b": "LLOY.L",
+          "sector": "Financial Services",
+          "corr": 0.8789
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.878
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8778
+        },
+        {
+          "a": "AAL.L",
+          "b": "GLEN.L",
+          "sector": "Basic Materials",
+          "corr": 0.8635
+        },
+        {
+          "a": "RDW.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8634
+        },
+        {
+          "a": "BTRW.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8615
+        },
+        {
+          "a": "PNN.L",
+          "b": "SVT.L",
+          "sector": "Utilities",
+          "corr": 0.8569
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8562
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8505
+        },
+        {
+          "a": "PNN.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8492
+        },
+        {
+          "a": "RDW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.849
+        },
+        {
+          "a": "ABDN.L",
+          "b": "LGEN.L",
+          "sector": "Financial Services",
+          "corr": 0.8453
+        },
+        {
+          "a": "DLN.L",
+          "b": "GPE.L",
+          "sector": "Real Estate",
+          "corr": 0.8432
+        }
+      ]
     },
     {
       "year": 2022,
-      "portfolio": -3.83,
+      "portfolio": -1.78,
       "spy": -0.71,
-      "excess": -3.11,
-      "n_pairs_formed": 20,
+      "excess": -1.07,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 1020,
+      "no_fx": 0,
+      "same_isin": 20,
+      "same_company": 7,
+      "eligible": 993,
+      "candidates": 316,
+      "sectors": 11,
+      "min_size_usd": 16.89971103351199,
+      "sector_cut_usd": {
+        "Basic Materials": 806967.3406962265,
+        "Communication Services": 39970.76498294624,
+        "Consumer Cyclical": 5986147.47441936,
+        "Consumer Defensive": 45667.532889394184,
+        "Energy": 105885.03356613069,
+        "Financial Services": 3305161.218937794,
+        "Healthcare": 355800.457473878,
+        "Industrials": 4019329.760164582,
+        "Real Estate": 704804.1862920254,
+        "Technology": 480437.1704293216
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9999
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.9029
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.8909
+        },
+        {
+          "a": "BP.L",
+          "b": "SHEL.L",
+          "sector": "Energy",
+          "corr": 0.8874
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8726
+        },
+        {
+          "a": "EZJ.L",
+          "b": "IAG.L",
+          "sector": "Industrials",
+          "corr": 0.8682
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.864
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8516
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8304
+        },
+        {
+          "a": "AAL.L",
+          "b": "BHP.L",
+          "sector": "Basic Materials",
+          "corr": 0.8251
+        },
+        {
+          "a": "BWY.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8248
+        },
+        {
+          "a": "AAL.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.8213
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8192
+        },
+        {
+          "a": "BARC.L",
+          "b": "LLOY.L",
+          "sector": "Financial Services",
+          "corr": 0.8171
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.817
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8091
+        },
+        {
+          "a": "AAL.L",
+          "b": "GLEN.L",
+          "sector": "Basic Materials",
+          "corr": 0.808
+        },
+        {
+          "a": "BWY.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8004
+        },
+        {
+          "a": "BARC.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.7931
+        },
+        {
+          "a": "LLOY.L",
+          "b": "NWG.L",
+          "sector": "Financial Services",
+          "corr": 0.7928
+        }
+      ]
     },
     {
       "year": 2023,
-      "portfolio": -1.99,
+      "portfolio": -0.8,
       "spy": 2.37,
-      "excess": -4.36,
-      "n_pairs_formed": 20,
+      "excess": -3.18,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 1099,
+      "no_fx": 0,
+      "same_isin": 22,
+      "same_company": 7,
+      "eligible": 1070,
+      "candidates": 318,
+      "sectors": 11,
+      "min_size_usd": 2.556460099916535,
+      "sector_cut_usd": {
+        "Basic Materials": 767992.3267156553,
+        "Communication Services": 17332.8320773204,
+        "Consumer Cyclical": 4637964.411467999,
+        "Consumer Defensive": 55995.40335555045,
+        "Energy": 131955.16457196773,
+        "Financial Services": 2774883.6141721806,
+        "Healthcare": 120139.45674920466,
+        "Industrials": 3673151.474555154,
+        "Real Estate": 728011.9068211785,
+        "Technology": 311584.2389529328
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9999
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.9432
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9192
+        },
+        {
+          "a": "SVT.L",
+          "b": "UU.L",
+          "sector": "Utilities",
+          "corr": 0.9147
+        },
+        {
+          "a": "BBOX.L",
+          "b": "LMP.L",
+          "sector": "Real Estate",
+          "corr": 0.8953
+        },
+        {
+          "a": "BP.L",
+          "b": "SHEL.L",
+          "sector": "Energy",
+          "corr": 0.8935
+        },
+        {
+          "a": "BTRW.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8926
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8897
+        },
+        {
+          "a": "BWY.L",
+          "b": "RDW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8896
+        },
+        {
+          "a": "BTRW.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8843
+        },
+        {
+          "a": "RDW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8817
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8806
+        },
+        {
+          "a": "BYG.L",
+          "b": "SAFE.L",
+          "sector": "Real Estate",
+          "corr": 0.8795
+        },
+        {
+          "a": "SMDS.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8711
+        },
+        {
+          "a": "SKG.L",
+          "b": "SMDS.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8708
+        },
+        {
+          "a": "BKG.L",
+          "b": "BTRW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8706
+        },
+        {
+          "a": "BKG.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8683
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8665
+        },
+        {
+          "a": "LMP.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8659
+        },
+        {
+          "a": "BTRW.L",
+          "b": "VTY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8522
+        }
+      ]
     },
     {
       "year": 2024,
-      "portfolio": -0.15,
+      "portfolio": -2.48,
       "spy": 5.85,
-      "excess": -6.0,
-      "n_pairs_formed": 20,
+      "excess": -8.32,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 1025,
+      "no_fx": 0,
+      "same_isin": 13,
+      "same_company": 7,
+      "eligible": 1005,
+      "candidates": 317,
+      "sectors": 11,
+      "min_size_usd": 2.04237493156092,
+      "sector_cut_usd": {
+        "Basic Materials": 554163.7699428295,
+        "Communication Services": 12443.115983549154,
+        "Consumer Cyclical": 3882961.8714044327,
+        "Consumer Defensive": 32753.698256872558,
+        "Energy": 80852.97375759196,
+        "Financial Services": 2503716.044666845,
+        "Healthcare": 97863.27463488546,
+        "Industrials": 2368594.4204642395,
+        "Real Estate": 519242.2221373365,
+        "Technology": 294355.412098756
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "SKG.L",
+          "b": "SWR.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9999
+        },
+        {
+          "a": "BHP.L",
+          "b": "RIO.L",
+          "sector": "Basic Materials",
+          "corr": 0.918
+        },
+        {
+          "a": "BTRW.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.901
+        },
+        {
+          "a": "BTRW.L",
+          "b": "BWY.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8981
+        },
+        {
+          "a": "BBOX.L",
+          "b": "LMP.L",
+          "sector": "Real Estate",
+          "corr": 0.8978
+        },
+        {
+          "a": "BLND.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8971
+        },
+        {
+          "a": "BBOX.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8886
+        },
+        {
+          "a": "BYG.L",
+          "b": "SAFE.L",
+          "sector": "Real Estate",
+          "corr": 0.8778
+        },
+        {
+          "a": "AGR.L",
+          "b": "PHP.L",
+          "sector": "Real Estate",
+          "corr": 0.8749
+        },
+        {
+          "a": "BWY.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8697
+        },
+        {
+          "a": "BBOX.L",
+          "b": "UTG.L",
+          "sector": "Real Estate",
+          "corr": 0.8645
+        },
+        {
+          "a": "LMP.L",
+          "b": "SGRO.L",
+          "sector": "Real Estate",
+          "corr": 0.8636
+        },
+        {
+          "a": "SHED.L",
+          "b": "WHR.L",
+          "sector": "Real Estate",
+          "corr": 0.8571
+        },
+        {
+          "a": "PSN.L",
+          "b": "TW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8542
+        },
+        {
+          "a": "BWY.L",
+          "b": "PSN.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8525
+        },
+        {
+          "a": "LMP.L",
+          "b": "UTG.L",
+          "sector": "Real Estate",
+          "corr": 0.852
+        },
+        {
+          "a": "BKG.L",
+          "b": "BTRW.L",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8469
+        },
+        {
+          "a": "BYG.L",
+          "b": "LMP.L",
+          "sector": "Real Estate",
+          "corr": 0.8449
+        },
+        {
+          "a": "DLN.L",
+          "b": "LAND.L",
+          "sector": "Real Estate",
+          "corr": 0.8423
+        },
+        {
+          "a": "BLND.L",
+          "b": "DLN.L",
+          "sector": "Real Estate",
+          "corr": 0.8415
+        }
+      ]
     }
   ],
   "diversification_analysis": [
     {
       "n_pairs": 5,
       "allocation": "equal",
-      "cagr_pct": -1.71,
-      "excess_cagr_pct": -3.59,
-      "sharpe": -1.634,
-      "max_drawdown_pct": -33.75,
-      "cash_periods": 1,
-      "avg_active_pairs": 4.8
+      "cagr_pct": -2.18,
+      "excess_cagr_pct": -4.06,
+      "sharpe": -1.131,
+      "max_drawdown_pct": -45.07,
+      "cash_periods": 0,
+      "avg_active_pairs": 5.0
     },
     {
       "n_pairs": 5,
       "allocation": "inverse_vol",
-      "cagr_pct": -1.86,
-      "excess_cagr_pct": -3.75,
-      "sharpe": -1.762,
-      "max_drawdown_pct": -33.38,
-      "cash_periods": 1,
-      "avg_active_pairs": 4.8
+      "cagr_pct": -2.13,
+      "excess_cagr_pct": -4.01,
+      "sharpe": -1.647,
+      "max_drawdown_pct": -41.3,
+      "cash_periods": 0,
+      "avg_active_pairs": 5.0
     },
     {
       "n_pairs": 10,
       "allocation": "equal",
-      "cagr_pct": -1.84,
-      "excess_cagr_pct": -3.72,
-      "sharpe": -1.918,
-      "max_drawdown_pct": -31.17,
-      "cash_periods": 1,
-      "avg_active_pairs": 7.8
+      "cagr_pct": -1.65,
+      "excess_cagr_pct": -3.53,
+      "sharpe": -1.334,
+      "max_drawdown_pct": -35.98,
+      "cash_periods": 0,
+      "avg_active_pairs": 9.8
     },
     {
       "n_pairs": 10,
       "allocation": "inverse_vol",
-      "cagr_pct": -2.01,
-      "excess_cagr_pct": -3.9,
-      "sharpe": -2.065,
-      "max_drawdown_pct": -33.53,
-      "cash_periods": 1,
-      "avg_active_pairs": 7.8
+      "cagr_pct": -1.77,
+      "excess_cagr_pct": -3.66,
+      "sharpe": -2.02,
+      "max_drawdown_pct": -34.09,
+      "cash_periods": 0,
+      "avg_active_pairs": 9.8
     },
     {
       "n_pairs": 15,
       "allocation": "equal",
-      "cagr_pct": -2.0,
-      "excess_cagr_pct": -3.88,
-      "sharpe": -1.979,
-      "max_drawdown_pct": -33.79,
-      "cash_periods": 1,
-      "avg_active_pairs": 9.6
+      "cagr_pct": -1.57,
+      "excess_cagr_pct": -3.45,
+      "sharpe": -1.291,
+      "max_drawdown_pct": -34.98,
+      "cash_periods": 0,
+      "avg_active_pairs": 14.2
     },
     {
       "n_pairs": 15,
       "allocation": "inverse_vol",
-      "cagr_pct": -2.09,
-      "excess_cagr_pct": -3.97,
-      "sharpe": -2.13,
-      "max_drawdown_pct": -34.51,
-      "cash_periods": 1,
-      "avg_active_pairs": 9.6
+      "cagr_pct": -1.58,
+      "excess_cagr_pct": -3.46,
+      "sharpe": -1.73,
+      "max_drawdown_pct": -31.7,
+      "cash_periods": 0,
+      "avg_active_pairs": 14.2
     },
     {
       "n_pairs": 20,
       "allocation": "equal",
-      "cagr_pct": -2.26,
-      "excess_cagr_pct": -4.14,
-      "sharpe": -2.127,
-      "max_drawdown_pct": -36.67,
-      "cash_periods": 1,
-      "avg_active_pairs": 10.9
+      "cagr_pct": -1.51,
+      "excess_cagr_pct": -3.39,
+      "sharpe": -1.267,
+      "max_drawdown_pct": -34.16,
+      "cash_periods": 0,
+      "avg_active_pairs": 18.3
     },
     {
       "n_pairs": 20,
       "allocation": "inverse_vol",
-      "cagr_pct": -2.34,
-      "excess_cagr_pct": -4.23,
-      "sharpe": -2.326,
-      "max_drawdown_pct": -37.78,
-      "cash_periods": 1,
-      "avg_active_pairs": 10.9
+      "cagr_pct": -1.61,
+      "excess_cagr_pct": -3.49,
+      "sharpe": -1.729,
+      "max_drawdown_pct": -31.8,
+      "cash_periods": 0,
+      "avg_active_pairs": 18.3
     }
-  ]
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": "currency GBp",
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "early_closes": 1,
+    "fills": [
+      {
+        "pair": [
+          "SKG.L",
+          "SWR.L"
+        ],
+        "year": 2024,
+        "entry_date": "2024-08-02",
+        "last_common_bar": "2024-08-09",
+        "delisted_date": [
+          "2025-02-10",
+          "2026-06-22"
+        ],
+        "delisting_bound": [
+          "not_binding",
+          "not_binding"
+        ]
+      }
+    ]
+  }
 }

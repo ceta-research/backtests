@@ -1,32 +1,43 @@
 {
   "universe": "KSC",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 0,
+  "invested_periods": 20,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": "^KS11",
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
   "n_years": 20,
   "years": "2005-2024",
   "frequency": "daily_zscore",
   "portfolio_config": "20-pair inverse_vol",
   "benchmark_name": "KOSPI",
-  "benchmark_symbol": "^KS11",
-  "cash_periods": 0,
-  "invested_periods": 20,
-  "avg_active_pairs": 18.7,
-  "total_trades": 2662,
+  "avg_active_pairs": 17.2,
+  "total_trades": 2434,
   "trade_stats": {
-    "total_trades": 2662,
-    "convergence_rate": 83.3,
-    "time_stop_rate": 0.0,
-    "loss_stop_rate": 11.8,
+    "total_trades": 2434,
+    "convergence_rate": 77.9,
+    "time_stop_rate": 0.2,
+    "loss_stop_rate": 17.1,
     "year_end_rate": 4.8,
-    "avg_holding_days": 11.9,
-    "avg_trade_return_pct": -0.116
+    "last_bar_rate": 0.0,
+    "avg_holding_days": 12.7,
+    "avg_trade_return_pct": -0.416
   },
   "portfolio": {
-    "cagr": -0.68,
-    "max_drawdown": -12.75,
-    "annualized_volatility": 3.15,
-    "sharpe_ratio": -1.168,
-    "sortino_ratio": -0.782,
-    "calmar_ratio": -0.053,
-    "total_return": -12.72
+    "cagr": -3.81,
+    "max_drawdown": -54.06,
+    "annualized_volatility": 3.94,
+    "sharpe_ratio": -1.731,
+    "sortino_ratio": -0.879,
+    "calmar_ratio": -0.071,
+    "total_return": -54.06
   },
   "spy": {
     "cagr": 4.99,
@@ -38,278 +49,2808 @@
     "total_return": 164.81
   },
   "comparison": {
-    "excess_cagr": -5.67,
-    "win_rate": 25.0,
-    "information_ratio": -0.339,
-    "up_capture": -1.85,
-    "down_capture": 7.3,
-    "beta": -0.019,
-    "alpha": -3.64
+    "excess_cagr": -8.8,
+    "win_rate": 30.0,
+    "information_ratio": -0.458,
+    "up_capture": -21.85,
+    "down_capture": 17.38,
+    "beta": -0.041,
+    "alpha": -6.73
   },
-  "excess_cagr": -5.67,
-  "win_rate_vs_spy": 25.0,
+  "excess_cagr": -8.8,
+  "win_rate_vs_spy": 30.0,
   "annual_returns": [
     {
       "year": 2005,
-      "portfolio": -9.82,
+      "portfolio": -12.57,
       "spy": 54.34,
-      "excess": -64.16,
-      "n_pairs_formed": 20,
+      "excess": -66.91,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 555,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 61,
+      "eligible": 494,
+      "candidates": 243,
+      "sectors": 11,
+      "min_size_usd": 875.968992248062,
+      "sector_cut_usd": {
+        "Basic Materials": 233150.99321705426,
+        "Consumer Cyclical": 158971.8992248062,
+        "Consumer Defensive": 117956.68604651163,
+        "Financial Services": 875.968992248062,
+        "Healthcare": 44336.33003875969,
+        "Industrials": 1053609.279883721,
+        "Technology": 93481.24375968993
+      },
+      "no_cost_cap": 234,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "001800.KS",
+          "b": "005440.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.983
+        },
+        {
+          "a": "004150.KS",
+          "b": "016380.KS",
+          "sector": "Basic Materials",
+          "corr": 0.9773
+        },
+        {
+          "a": "003480.KS",
+          "b": "015860.KS",
+          "sector": "Industrials",
+          "corr": 0.9687
+        },
+        {
+          "a": "000230.KS",
+          "b": "001630.KS",
+          "sector": "Healthcare",
+          "corr": 0.9607
+        },
+        {
+          "a": "004800.KS",
+          "b": "009540.KS",
+          "sector": "Industrials",
+          "corr": 0.953
+        },
+        {
+          "a": "001120.KS",
+          "b": "004800.KS",
+          "sector": "Industrials",
+          "corr": 0.9241
+        },
+        {
+          "a": "001120.KS",
+          "b": "009540.KS",
+          "sector": "Industrials",
+          "corr": 0.916
+        },
+        {
+          "a": "002790.KS",
+          "b": "024720.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.9132
+        },
+        {
+          "a": "003680.KS",
+          "b": "007160.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.891
+        },
+        {
+          "a": "006090.KS",
+          "b": "030720.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8684
+        },
+        {
+          "a": "003960.KS",
+          "b": "030720.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8645
+        },
+        {
+          "a": "001520.KS",
+          "b": "004150.KS",
+          "sector": "Basic Materials",
+          "corr": 0.8603
+        },
+        {
+          "a": "001520.KS",
+          "b": "016380.KS",
+          "sector": "Basic Materials",
+          "corr": 0.8566
+        },
+        {
+          "a": "004170.KS",
+          "b": "009970.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8292
+        },
+        {
+          "a": "001390.KS",
+          "b": "005810.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7949
+        },
+        {
+          "a": "003540.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7668
+        },
+        {
+          "a": "003960.KS",
+          "b": "006090.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7662
+        },
+        {
+          "a": "006400.KS",
+          "b": "012450.KS",
+          "sector": "Industrials",
+          "corr": 0.7617
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7367
+        },
+        {
+          "a": "010950.KS",
+          "b": "018670.KS",
+          "sector": "Energy",
+          "corr": 0.7336
+        }
+      ]
     },
     {
       "year": 2006,
-      "portfolio": 1.38,
+      "portfolio": -1.3,
       "spy": 3.25,
-      "excess": -1.87,
-      "n_pairs_formed": 19,
-      "n_active": 19,
-      "is_cash": false
+      "excess": -4.55,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 564,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 59,
+      "eligible": 505,
+      "candidates": 244,
+      "sectors": 11,
+      "min_size_usd": 6534.255729890765,
+      "sector_cut_usd": {
+        "Basic Materials": 795097.8152929493,
+        "Consumer Cyclical": 462134.9950347567,
+        "Consumer Defensive": 662297.3778550149,
+        "Financial Services": 12730.38728897716,
+        "Healthcare": 190929.35390268127,
+        "Industrials": 2315153.3286792454,
+        "Technology": 544222.9394240318
+      },
+      "no_cost_cap": 227,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "000230.KS",
+          "b": "001630.KS",
+          "sector": "Healthcare",
+          "corr": 0.9291
+        },
+        {
+          "a": "001520.KS",
+          "b": "016380.KS",
+          "sector": "Basic Materials",
+          "corr": 0.9026
+        },
+        {
+          "a": "003480.KS",
+          "b": "004800.KS",
+          "sector": "Industrials",
+          "corr": 0.9026
+        },
+        {
+          "a": "001520.KS",
+          "b": "004150.KS",
+          "sector": "Basic Materials",
+          "corr": 0.8985
+        },
+        {
+          "a": "007160.KS",
+          "b": "030720.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8869
+        },
+        {
+          "a": "003680.KS",
+          "b": "030720.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8777
+        },
+        {
+          "a": "004800.KS",
+          "b": "015860.KS",
+          "sector": "Industrials",
+          "corr": 0.84
+        },
+        {
+          "a": "006400.KS",
+          "b": "012450.KS",
+          "sector": "Industrials",
+          "corr": 0.84
+        },
+        {
+          "a": "000210.KS",
+          "b": "002380.KS",
+          "sector": "Basic Materials",
+          "corr": 0.833
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.8034
+        },
+        {
+          "a": "005960.KS",
+          "b": "009540.KS",
+          "sector": "Industrials",
+          "corr": 0.7892
+        },
+        {
+          "a": "003530.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7881
+        },
+        {
+          "a": "001120.KS",
+          "b": "009540.KS",
+          "sector": "Industrials",
+          "corr": 0.7804
+        },
+        {
+          "a": "003530.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7801
+        },
+        {
+          "a": "012450.KS",
+          "b": "028050.KS",
+          "sector": "Industrials",
+          "corr": 0.7761
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7617
+        },
+        {
+          "a": "001800.KS",
+          "b": "024720.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7433
+        },
+        {
+          "a": "003530.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7392
+        },
+        {
+          "a": "005940.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7375
+        },
+        {
+          "a": "006800.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7338
+        }
+      ]
     },
     {
       "year": 2007,
-      "portfolio": -1.45,
+      "portfolio": -4.3,
       "spy": 32.18,
-      "excess": -33.63,
-      "n_pairs_formed": 20,
+      "excess": -36.48,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 608,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 74,
+      "eligible": 534,
+      "candidates": 244,
+      "sectors": 11,
+      "min_size_usd": 12140.317802316187,
+      "sector_cut_usd": {
+        "Basic Materials": 476164.8262860221,
+        "Consumer Cyclical": 432485.23873417726,
+        "Consumer Defensive": 252172.61582106652,
+        "Financial Services": 105226.48049016968,
+        "Healthcare": 195801.93453272287,
+        "Industrials": 2800496.6280635605,
+        "Technology": 462754.45206976024
+      },
+      "no_cost_cap": 225,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "003530.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.9027
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.8779
+        },
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8459
+        },
+        {
+          "a": "003530.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8367
+        },
+        {
+          "a": "006800.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8304
+        },
+        {
+          "a": "003680.KS",
+          "b": "007160.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8234
+        },
+        {
+          "a": "008560.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.818
+        },
+        {
+          "a": "005940.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8026
+        },
+        {
+          "a": "003530.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7975
+        },
+        {
+          "a": "003530.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7793
+        },
+        {
+          "a": "001500.KS",
+          "b": "001750.KS",
+          "sector": "Financial Services",
+          "corr": 0.7783
+        },
+        {
+          "a": "003530.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7761
+        },
+        {
+          "a": "003540.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7732
+        },
+        {
+          "a": "001500.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7728
+        },
+        {
+          "a": "001500.KS",
+          "b": "003530.KS",
+          "sector": "Financial Services",
+          "corr": 0.7632
+        },
+        {
+          "a": "001500.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7526
+        },
+        {
+          "a": "001500.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7514
+        },
+        {
+          "a": "001510.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7401
+        },
+        {
+          "a": "003530.KS",
+          "b": "003540.KS",
+          "sector": "Financial Services",
+          "corr": 0.7378
+        },
+        {
+          "a": "001510.KS",
+          "b": "003530.KS",
+          "sector": "Financial Services",
+          "corr": 0.7373
+        }
+      ]
     },
     {
       "year": 2008,
-      "portfolio": -2.63,
+      "portfolio": -2.2,
       "spy": -39.33,
-      "excess": 36.7,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": 37.13,
+      "n_active": 15,
+      "is_cash": false,
+      "listed": 631,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 80,
+      "eligible": 551,
+      "candidates": 245,
+      "sectors": 11,
+      "min_size_usd": 16894.635605898697,
+      "sector_cut_usd": {
+        "Basic Materials": 1740457.565719171,
+        "Consumer Cyclical": 872344.874372195,
+        "Consumer Defensive": 324622.39760632615,
+        "Financial Services": 281617.0623002939,
+        "Healthcare": 230713.3144018861,
+        "Industrials": 6491547.339175038,
+        "Technology": 605839.9230604831
+      },
+      "no_cost_cap": 194,
+      "pairs_formed": 15,
+      "pairs_entered": 15,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8766
+        },
+        {
+          "a": "008260.KS",
+          "b": "008420.KS",
+          "sector": "Basic Materials",
+          "corr": 0.857
+        },
+        {
+          "a": "003540.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.8012
+        },
+        {
+          "a": "001500.KS",
+          "b": "001750.KS",
+          "sector": "Financial Services",
+          "corr": 0.7931
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7924
+        },
+        {
+          "a": "009540.KS",
+          "b": "010620.KS",
+          "sector": "Industrials",
+          "corr": 0.7882
+        },
+        {
+          "a": "003540.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7805
+        },
+        {
+          "a": "001500.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7477
+        },
+        {
+          "a": "006800.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7384
+        },
+        {
+          "a": "001500.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7336
+        },
+        {
+          "a": "003540.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7291
+        },
+        {
+          "a": "005940.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7249
+        },
+        {
+          "a": "001500.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7171
+        },
+        {
+          "a": "001750.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7127
+        },
+        {
+          "a": "016610.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7115
+        }
+      ]
     },
     {
       "year": 2009,
-      "portfolio": 6.15,
+      "portfolio": 0.08,
       "spy": 45.39,
-      "excess": -39.24,
-      "n_pairs_formed": 20,
+      "excess": -45.31,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 666,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 84,
+      "eligible": 582,
+      "candidates": 250,
+      "sectors": 11,
+      "min_size_usd": 8332.144837968466,
+      "sector_cut_usd": {
+        "Basic Materials": 757146.1373900642,
+        "Consumer Cyclical": 262743.87924887094,
+        "Consumer Defensive": 99105.70805521353,
+        "Financial Services": 448389.48385256797,
+        "Healthcare": 78977.39163299264,
+        "Industrials": 3938480.152127407,
+        "Technology": 191024.812312812
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "001290.KS",
+          "b": "001510.KS",
+          "sector": "Financial Services",
+          "corr": 0.877
+        },
+        {
+          "a": "009540.KS",
+          "b": "010620.KS",
+          "sector": "Industrials",
+          "corr": 0.856
+        },
+        {
+          "a": "008560.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8549
+        },
+        {
+          "a": "001230.KS",
+          "b": "004020.KS",
+          "sector": "Basic Materials",
+          "corr": 0.8487
+        },
+        {
+          "a": "001510.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8429
+        },
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8401
+        },
+        {
+          "a": "001510.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.8325
+        },
+        {
+          "a": "001290.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8315
+        },
+        {
+          "a": "006800.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8312
+        },
+        {
+          "a": "003540.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8306
+        },
+        {
+          "a": "000270.KS",
+          "b": "005380.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8233
+        },
+        {
+          "a": "001290.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.8218
+        },
+        {
+          "a": "010140.KS",
+          "b": "010620.KS",
+          "sector": "Industrials",
+          "corr": 0.8155
+        },
+        {
+          "a": "003540.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8122
+        },
+        {
+          "a": "003540.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.8072
+        },
+        {
+          "a": "009540.KS",
+          "b": "010140.KS",
+          "sector": "Industrials",
+          "corr": 0.8026
+        },
+        {
+          "a": "001450.KS",
+          "b": "005830.KS",
+          "sector": "Financial Services",
+          "corr": 0.8019
+        },
+        {
+          "a": "010620.KS",
+          "b": "097230.KS",
+          "sector": "Industrials",
+          "corr": 0.7986
+        },
+        {
+          "a": "001510.KS",
+          "b": "003530.KS",
+          "sector": "Financial Services",
+          "corr": 0.7969
+        },
+        {
+          "a": "077970.KS",
+          "b": "097230.KS",
+          "sector": "Industrials",
+          "corr": 0.7956
+        }
+      ]
     },
     {
       "year": 2010,
-      "portfolio": 1.22,
+      "portfolio": -3.5,
       "spy": 20.92,
-      "excess": -19.7,
-      "n_pairs_formed": 20,
+      "excess": -24.42,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 683,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 86,
+      "eligible": 597,
+      "candidates": 252,
+      "sectors": 11,
+      "min_size_usd": 12483.931947069943,
+      "sector_cut_usd": {
+        "Basic Materials": 1217636.6846365354,
+        "Consumer Cyclical": 548040.8317580341,
+        "Consumer Defensive": 252322.4265337687,
+        "Financial Services": 397811.17990446475,
+        "Healthcare": 156247.4363292662,
+        "Industrials": 5741969.3421550095,
+        "Technology": 412237.24007561436
+      },
+      "no_cost_cap": 4,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8591
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.8359
+        },
+        {
+          "a": "003540.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8093
+        },
+        {
+          "a": "016610.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7909
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7863
+        },
+        {
+          "a": "001750.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7858
+        },
+        {
+          "a": "003530.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7821
+        },
+        {
+          "a": "009540.KS",
+          "b": "010620.KS",
+          "sector": "Industrials",
+          "corr": 0.7776
+        },
+        {
+          "a": "003540.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7774
+        },
+        {
+          "a": "006800.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7747
+        },
+        {
+          "a": "024110.KS",
+          "b": "055550.KS",
+          "sector": "Financial Services",
+          "corr": 0.7722
+        },
+        {
+          "a": "001750.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7659
+        },
+        {
+          "a": "006800.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7637
+        },
+        {
+          "a": "001820.KS",
+          "b": "009470.KS",
+          "sector": "Technology",
+          "corr": 0.7625
+        },
+        {
+          "a": "086790.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7599
+        },
+        {
+          "a": "010140.KS",
+          "b": "042660.KS",
+          "sector": "Industrials",
+          "corr": 0.7581
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7574
+        },
+        {
+          "a": "003530.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7562
+        },
+        {
+          "a": "003540.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.753
+        },
+        {
+          "a": "024110.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7513
+        }
+      ]
     },
     {
       "year": 2011,
-      "portfolio": 1.78,
+      "portfolio": -1.04,
       "spy": -11.8,
-      "excess": 13.58,
-      "n_pairs_formed": 17,
-      "n_active": 17,
-      "is_cash": false
+      "excess": 10.77,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 706,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 88,
+      "eligible": 618,
+      "candidates": 253,
+      "sectors": 11,
+      "min_size_usd": 9282.894149173739,
+      "sector_cut_usd": {
+        "Basic Materials": 894449.5310406431,
+        "Consumer Cyclical": 846750.3349709691,
+        "Consumer Defensive": 225211.50960250112,
+        "Financial Services": 283017.4918059518,
+        "Healthcare": 153297.48018758377,
+        "Industrials": 6688288.032157213,
+        "Technology": 625539.7364895042
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8363
+        },
+        {
+          "a": "001510.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8302
+        },
+        {
+          "a": "001500.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8001
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7862
+        },
+        {
+          "a": "003530.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7851
+        },
+        {
+          "a": "001500.KS",
+          "b": "001510.KS",
+          "sector": "Financial Services",
+          "corr": 0.7833
+        },
+        {
+          "a": "051600.KS",
+          "b": "052690.KS",
+          "sector": "Industrials",
+          "corr": 0.7823
+        },
+        {
+          "a": "001510.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7806
+        },
+        {
+          "a": "001500.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7768
+        },
+        {
+          "a": "001510.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7679
+        },
+        {
+          "a": "003540.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7621
+        },
+        {
+          "a": "006800.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7603
+        },
+        {
+          "a": "001500.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7563
+        },
+        {
+          "a": "001510.KS",
+          "b": "003530.KS",
+          "sector": "Financial Services",
+          "corr": 0.7489
+        },
+        {
+          "a": "009540.KS",
+          "b": "010620.KS",
+          "sector": "Industrials",
+          "corr": 0.748
+        },
+        {
+          "a": "003530.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7443
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7433
+        },
+        {
+          "a": "003540.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7333
+        },
+        {
+          "a": "001510.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7297
+        },
+        {
+          "a": "001500.KS",
+          "b": "003530.KS",
+          "sector": "Financial Services",
+          "corr": 0.7279
+        }
+      ]
     },
     {
       "year": 2012,
-      "portfolio": 1.62,
+      "portfolio": -0.31,
       "spy": 9.35,
-      "excess": -7.72,
-      "n_pairs_formed": 20,
+      "excess": -9.65,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 732,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 88,
+      "eligible": 644,
+      "candidates": 257,
+      "sectors": 11,
+      "min_size_usd": 9156.264571280546,
+      "sector_cut_usd": {
+        "Basic Materials": 1613503.402124169,
+        "Consumer Cyclical": 1878090.1908298077,
+        "Consumer Defensive": 251610.93601588812,
+        "Financial Services": 258767.78309299718,
+        "Healthcare": 274308.95307613333,
+        "Industrials": 8911998.437095243,
+        "Technology": 527352.2882307228
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "010950.KS",
+          "b": "096770.KS",
+          "sector": "Energy",
+          "corr": 0.8557
+        },
+        {
+          "a": "000270.KS",
+          "b": "005380.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8537
+        },
+        {
+          "a": "010140.KS",
+          "b": "042660.KS",
+          "sector": "Industrials",
+          "corr": 0.8532
+        },
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.847
+        },
+        {
+          "a": "016610.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8444
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.842
+        },
+        {
+          "a": "003530.KS",
+          "b": "016610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8326
+        },
+        {
+          "a": "003530.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.8275
+        },
+        {
+          "a": "003530.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8239
+        },
+        {
+          "a": "009540.KS",
+          "b": "010140.KS",
+          "sector": "Industrials",
+          "corr": 0.8178
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.8063
+        },
+        {
+          "a": "010690.KS",
+          "b": "015750.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8017
+        },
+        {
+          "a": "003490.KS",
+          "b": "020560.KS",
+          "sector": "Industrials",
+          "corr": 0.8004
+        },
+        {
+          "a": "003530.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7965
+        },
+        {
+          "a": "005380.KS",
+          "b": "012330.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7932
+        },
+        {
+          "a": "001500.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7915
+        },
+        {
+          "a": "009540.KS",
+          "b": "042660.KS",
+          "sector": "Industrials",
+          "corr": 0.7878
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7851
+        },
+        {
+          "a": "000270.KS",
+          "b": "012330.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7806
+        },
+        {
+          "a": "003530.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7746
+        }
+      ]
     },
     {
       "year": 2013,
-      "portfolio": -1.6,
+      "portfolio": 0.66,
       "spy": -0.97,
-      "excess": -0.63,
-      "n_pairs_formed": 20,
+      "excess": 1.64,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 751,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 88,
+      "eligible": 663,
+      "candidates": 260,
+      "sectors": 11,
+      "min_size_usd": 16252.632351559563,
+      "sector_cut_usd": {
+        "Basic Materials": 1281826.28485062,
+        "Consumer Cyclical": 2992542.3008267567,
+        "Consumer Defensive": 370237.6925967681,
+        "Financial Services": 270775.6144676352,
+        "Healthcare": 414169.2094137542,
+        "Industrials": 3629271.8902668166,
+        "Technology": 848001.7502818488
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8644
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.8064
+        },
+        {
+          "a": "010140.KS",
+          "b": "042660.KS",
+          "sector": "Industrials",
+          "corr": 0.8053
+        },
+        {
+          "a": "016710.KS",
+          "b": "117580.KS",
+          "sector": "Utilities",
+          "corr": 0.8005
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7949
+        },
+        {
+          "a": "010950.KS",
+          "b": "096770.KS",
+          "sector": "Energy",
+          "corr": 0.7862
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7856
+        },
+        {
+          "a": "009540.KS",
+          "b": "042660.KS",
+          "sector": "Industrials",
+          "corr": 0.7572
+        },
+        {
+          "a": "001500.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.757
+        },
+        {
+          "a": "011170.KS",
+          "b": "051910.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7517
+        },
+        {
+          "a": "001500.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7516
+        },
+        {
+          "a": "001500.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7514
+        },
+        {
+          "a": "000270.KS",
+          "b": "005380.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7433
+        },
+        {
+          "a": "086790.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7298
+        },
+        {
+          "a": "003530.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7297
+        },
+        {
+          "a": "011170.KS",
+          "b": "011780.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7236
+        },
+        {
+          "a": "006360.KS",
+          "b": "009540.KS",
+          "sector": "Industrials",
+          "corr": 0.7151
+        },
+        {
+          "a": "055550.KS",
+          "b": "086790.KS",
+          "sector": "Financial Services",
+          "corr": 0.7123
+        },
+        {
+          "a": "009540.KS",
+          "b": "010620.KS",
+          "sector": "Industrials",
+          "corr": 0.7098
+        },
+        {
+          "a": "004020.KS",
+          "b": "011170.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7058
+        }
+      ]
     },
     {
       "year": 2014,
-      "portfolio": -3.83,
+      "portfolio": -7.17,
       "spy": -2.62,
-      "excess": -1.21,
-      "n_pairs_formed": 7,
-      "n_active": 7,
-      "is_cash": false
+      "excess": -4.54,
+      "n_active": 5,
+      "is_cash": false,
+      "listed": 762,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 89,
+      "eligible": 673,
+      "candidates": 261,
+      "sectors": 11,
+      "min_size_usd": 5645.1043671354555,
+      "sector_cut_usd": {
+        "Basic Materials": 839465.2563214822,
+        "Consumer Cyclical": 2793170.9414770417,
+        "Consumer Defensive": 499276.4069625844,
+        "Financial Services": 383124.75208328356,
+        "Healthcare": 715496.1733864999,
+        "Industrials": 3817365.8699649004,
+        "Technology": 828588.4673240848
+      },
+      "no_cost_cap": 4,
+      "pairs_formed": 5,
+      "pairs_entered": 5,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8185
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7929
+        },
+        {
+          "a": "000270.KS",
+          "b": "005380.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7895
+        },
+        {
+          "a": "055550.KS",
+          "b": "086790.KS",
+          "sector": "Financial Services",
+          "corr": 0.7426
+        },
+        {
+          "a": "001500.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7199
+        }
+      ]
     },
     {
       "year": 2015,
-      "portfolio": -1.07,
+      "portfolio": -13.56,
       "spy": 1.81,
-      "excess": -2.88,
-      "n_pairs_formed": 11,
-      "n_active": 11,
-      "is_cash": false
+      "excess": -15.37,
+      "n_active": 5,
+      "is_cash": false,
+      "listed": 773,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 91,
+      "eligible": 682,
+      "candidates": 261,
+      "sectors": 11,
+      "min_size_usd": 5978.247464595706,
+      "sector_cut_usd": {
+        "Basic Materials": 1172628.9995431704,
+        "Consumer Cyclical": 3237643.3074463224,
+        "Consumer Defensive": 609835.4370945637,
+        "Financial Services": 493302.04786660575,
+        "Healthcare": 718484.9246231156,
+        "Industrials": 4134080.858839653,
+        "Technology": 869638.2640475102
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 5,
+      "pairs_entered": 5,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7869
+        },
+        {
+          "a": "009540.KS",
+          "b": "042660.KS",
+          "sector": "Industrials",
+          "corr": 0.733
+        },
+        {
+          "a": "010950.KS",
+          "b": "096770.KS",
+          "sector": "Energy",
+          "corr": 0.7326
+        },
+        {
+          "a": "009540.KS",
+          "b": "010620.KS",
+          "sector": "Industrials",
+          "corr": 0.7185
+        },
+        {
+          "a": "010140.KS",
+          "b": "042660.KS",
+          "sector": "Industrials",
+          "corr": 0.7153
+        }
+      ]
     },
     {
       "year": 2016,
-      "portfolio": 2.14,
+      "portfolio": -2.14,
       "spy": 5.61,
-      "excess": -3.48,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -7.75,
+      "n_active": 16,
+      "is_cash": false,
+      "listed": 794,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 92,
+      "eligible": 702,
+      "candidates": 261,
+      "sectors": 11,
+      "min_size_usd": 14230.433950630408,
+      "sector_cut_usd": {
+        "Basic Materials": 1873687.8362001148,
+        "Consumer Cyclical": 4047382.901367125,
+        "Consumer Defensive": 1634311.6535198689,
+        "Financial Services": 1204250.9844662258,
+        "Healthcare": 1623444.4411370738,
+        "Industrials": 5581183.849637488,
+        "Technology": 1092872.8339676396
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 16,
+      "pairs_entered": 16,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.8172
+        },
+        {
+          "a": "003350.KS",
+          "b": "123690.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7834
+        },
+        {
+          "a": "010950.KS",
+          "b": "096770.KS",
+          "sector": "Energy",
+          "corr": 0.7799
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7734
+        },
+        {
+          "a": "003540.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7623
+        },
+        {
+          "a": "001510.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7476
+        },
+        {
+          "a": "009540.KS",
+          "b": "010620.KS",
+          "sector": "Industrials",
+          "corr": 0.7438
+        },
+        {
+          "a": "002790.KS",
+          "b": "090430.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7406
+        },
+        {
+          "a": "005940.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7349
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7341
+        },
+        {
+          "a": "001060.KS",
+          "b": "096760.KS",
+          "sector": "Healthcare",
+          "corr": 0.7241
+        },
+        {
+          "a": "001510.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7177
+        },
+        {
+          "a": "001510.KS",
+          "b": "003540.KS",
+          "sector": "Financial Services",
+          "corr": 0.7091
+        },
+        {
+          "a": "001510.KS",
+          "b": "030210.KS",
+          "sector": "Financial Services",
+          "corr": 0.7085
+        },
+        {
+          "a": "006800.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7062
+        },
+        {
+          "a": "016360.KS",
+          "b": "030610.KS",
+          "sector": "Financial Services",
+          "corr": 0.7012
+        }
+      ]
     },
     {
       "year": 2017,
-      "portfolio": -0.76,
+      "portfolio": -4.85,
       "spy": 21.78,
-      "excess": -22.54,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -26.63,
+      "n_active": 16,
+      "is_cash": false,
+      "listed": 811,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 93,
+      "eligible": 718,
+      "candidates": 264,
+      "sectors": 11,
+      "min_size_usd": 16967.792746113988,
+      "sector_cut_usd": {
+        "Basic Materials": 1193443.5896373056,
+        "Consumer Cyclical": 2097232.787564767,
+        "Consumer Defensive": 974273.4134715026,
+        "Financial Services": 722470.4041450777,
+        "Healthcare": 1474475.8134715026,
+        "Industrials": 3946898.623834197,
+        "Technology": 947396.8911917098
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 16,
+      "pairs_entered": 16,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "008930.KS",
+          "b": "128940.KS",
+          "sector": "Healthcare",
+          "corr": 0.8914
+        },
+        {
+          "a": "001060.KS",
+          "b": "096760.KS",
+          "sector": "Healthcare",
+          "corr": 0.8274
+        },
+        {
+          "a": "005250.KS",
+          "b": "006280.KS",
+          "sector": "Healthcare",
+          "corr": 0.8096
+        },
+        {
+          "a": "010950.KS",
+          "b": "096770.KS",
+          "sector": "Energy",
+          "corr": 0.7995
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7943
+        },
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.791
+        },
+        {
+          "a": "004020.KS",
+          "b": "005490.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7712
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7565
+        },
+        {
+          "a": "161890.KS",
+          "b": "192820.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7563
+        },
+        {
+          "a": "001510.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7453
+        },
+        {
+          "a": "005940.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7423
+        },
+        {
+          "a": "024110.KS",
+          "b": "086790.KS",
+          "sector": "Financial Services",
+          "corr": 0.7413
+        },
+        {
+          "a": "002790.KS",
+          "b": "090430.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7387
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7145
+        },
+        {
+          "a": "024110.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.712
+        },
+        {
+          "a": "051900.KS",
+          "b": "090430.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7105
+        }
+      ]
     },
     {
       "year": 2018,
-      "portfolio": -0.64,
+      "portfolio": -7.67,
       "spy": -17.69,
-      "excess": 17.05,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": 10.02,
+      "n_active": 14,
+      "is_cash": false,
+      "listed": 832,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 94,
+      "eligible": 738,
+      "candidates": 266,
+      "sectors": 11,
+      "min_size_usd": 11461.67487684729,
+      "sector_cut_usd": {
+        "Basic Materials": 1091835.2462585035,
+        "Consumer Cyclical": 2342959.2305887872,
+        "Consumer Defensive": 1072154.3513957306,
+        "Financial Services": 897500.4143717757,
+        "Healthcare": 1232888.8273328643,
+        "Industrials": 5715072.48416608,
+        "Technology": 1488180.3011588084
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 14,
+      "pairs_entered": 14,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "008930.KS",
+          "b": "128940.KS",
+          "sector": "Healthcare",
+          "corr": 0.8451
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.8077
+        },
+        {
+          "a": "002790.KS",
+          "b": "090430.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7995
+        },
+        {
+          "a": "001060.KS",
+          "b": "096760.KS",
+          "sector": "Healthcare",
+          "corr": 0.7906
+        },
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7886
+        },
+        {
+          "a": "086790.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7464
+        },
+        {
+          "a": "006650.KS",
+          "b": "011170.KS",
+          "sector": "Basic Materials",
+          "corr": 0.736
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7341
+        },
+        {
+          "a": "005940.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7177
+        },
+        {
+          "a": "003530.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7136
+        },
+        {
+          "a": "161890.KS",
+          "b": "192820.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7115
+        },
+        {
+          "a": "001060.KS",
+          "b": "007570.KS",
+          "sector": "Healthcare",
+          "corr": 0.7049
+        },
+        {
+          "a": "003530.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.7045
+        },
+        {
+          "a": "024720.KS",
+          "b": "161890.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7013
+        }
+      ]
     },
     {
       "year": 2019,
-      "portfolio": 0.28,
+      "portfolio": -2.61,
       "spy": 9.34,
-      "excess": -9.06,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -11.95,
+      "n_active": 18,
+      "is_cash": false,
+      "listed": 859,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 96,
+      "eligible": 763,
+      "candidates": 267,
+      "sectors": 11,
+      "min_size_usd": 6589.116258151563,
+      "sector_cut_usd": {
+        "Basic Materials": 2618287.0699347877,
+        "Consumer Cyclical": 2334767.54881909,
+        "Consumer Defensive": 957432.3071733753,
+        "Financial Services": 861581.0951203058,
+        "Healthcare": 1695553.451765235,
+        "Industrials": 7293324.623341579,
+        "Technology": 1202613.4022936812
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 18,
+      "pairs_entered": 18,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "003350.KS",
+          "b": "123690.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.886
+        },
+        {
+          "a": "008930.KS",
+          "b": "128940.KS",
+          "sector": "Healthcare",
+          "corr": 0.8655
+        },
+        {
+          "a": "002790.KS",
+          "b": "090430.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8557
+        },
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8305
+        },
+        {
+          "a": "006650.KS",
+          "b": "011170.KS",
+          "sector": "Basic Materials",
+          "corr": 0.8249
+        },
+        {
+          "a": "004980.KS",
+          "b": "006390.KS",
+          "sector": "Basic Materials",
+          "corr": 0.8121
+        },
+        {
+          "a": "005940.KS",
+          "b": "071050.KS",
+          "sector": "Financial Services",
+          "corr": 0.7993
+        },
+        {
+          "a": "001450.KS",
+          "b": "005830.KS",
+          "sector": "Financial Services",
+          "corr": 0.7934
+        },
+        {
+          "a": "086790.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7446
+        },
+        {
+          "a": "005940.KS",
+          "b": "039490.KS",
+          "sector": "Financial Services",
+          "corr": 0.7439
+        },
+        {
+          "a": "004980.KS",
+          "b": "008970.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7325
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7288
+        },
+        {
+          "a": "009540.KS",
+          "b": "010620.KS",
+          "sector": "Industrials",
+          "corr": 0.7251
+        },
+        {
+          "a": "005940.KS",
+          "b": "008560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7221
+        },
+        {
+          "a": "003530.KS",
+          "b": "005940.KS",
+          "sector": "Financial Services",
+          "corr": 0.7179
+        },
+        {
+          "a": "006800.KS",
+          "b": "071050.KS",
+          "sector": "Financial Services",
+          "corr": 0.7149
+        },
+        {
+          "a": "024720.KS",
+          "b": "161890.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7057
+        },
+        {
+          "a": "006800.KS",
+          "b": "039490.KS",
+          "sector": "Financial Services",
+          "corr": 0.7
+        }
+      ]
     },
     {
       "year": 2020,
-      "portfolio": -3.87,
+      "portfolio": -1.96,
       "spy": 32.1,
-      "excess": -35.98,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -34.06,
+      "n_active": 16,
+      "is_cash": false,
+      "listed": 878,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 97,
+      "eligible": 781,
+      "candidates": 269,
+      "sectors": 11,
+      "min_size_usd": 7525.326053988474,
+      "sector_cut_usd": {
+        "Basic Materials": 1275471.328913731,
+        "Consumer Cyclical": 2189516.2485376317,
+        "Consumer Defensive": 892417.9557173187,
+        "Financial Services": 466356.3195979028,
+        "Healthcare": 1019189.5662723688,
+        "Industrials": 4413828.6802324625,
+        "Technology": 1271567.4969669397
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 16,
+      "pairs_entered": 16,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "017800.KS",
+          "b": "064350.KS",
+          "sector": "Industrials",
+          "corr": 0.8824
+        },
+        {
+          "a": "009270.KS",
+          "b": "014990.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8648
+        },
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8237
+        },
+        {
+          "a": "005940.KS",
+          "b": "071050.KS",
+          "sector": "Financial Services",
+          "corr": 0.7948
+        },
+        {
+          "a": "001450.KS",
+          "b": "005830.KS",
+          "sector": "Financial Services",
+          "corr": 0.7805
+        },
+        {
+          "a": "006800.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.78
+        },
+        {
+          "a": "006800.KS",
+          "b": "071050.KS",
+          "sector": "Financial Services",
+          "corr": 0.7783
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.7754
+        },
+        {
+          "a": "002790.KS",
+          "b": "090430.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7664
+        },
+        {
+          "a": "068270.KS",
+          "b": "068760.KS",
+          "sector": "Healthcare",
+          "corr": 0.7609
+        },
+        {
+          "a": "016360.KS",
+          "b": "071050.KS",
+          "sector": "Financial Services",
+          "corr": 0.757
+        },
+        {
+          "a": "005070.KS",
+          "b": "005420.KS",
+          "sector": "Basic Materials",
+          "corr": 0.708
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7074
+        },
+        {
+          "a": "000660.KS",
+          "b": "005930.KS",
+          "sector": "Technology",
+          "corr": 0.7042
+        },
+        {
+          "a": "004170.KS",
+          "b": "008770.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7036
+        },
+        {
+          "a": "086790.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7
+        }
+      ]
     },
     {
       "year": 2021,
-      "portfolio": 1.1,
+      "portfolio": -3.6,
       "spy": 1.13,
-      "excess": -0.02,
-      "n_pairs_formed": 20,
+      "excess": -4.72,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 895,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 103,
+      "eligible": 792,
+      "candidates": 273,
+      "sectors": 11,
+      "min_size_usd": 21263.872969402364,
+      "sector_cut_usd": {
+        "Basic Materials": 2909619.6723424434,
+        "Consumer Cyclical": 3584997.5142584895,
+        "Consumer Defensive": 1498349.8589111532,
+        "Financial Services": 820791.3312066434,
+        "Healthcare": 4239609.3979442,
+        "Industrials": 7779218.717633574,
+        "Technology": 2958126.057015545
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "024110.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.8954
+        },
+        {
+          "a": "024110.KS",
+          "b": "055550.KS",
+          "sector": "Financial Services",
+          "corr": 0.887
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.8863
+        },
+        {
+          "a": "086790.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.8769
+        },
+        {
+          "a": "003350.KS",
+          "b": "123690.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.872
+        },
+        {
+          "a": "004170.KS",
+          "b": "008770.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8615
+        },
+        {
+          "a": "024110.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.8535
+        },
+        {
+          "a": "005940.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8513
+        },
+        {
+          "a": "001500.KS",
+          "b": "003530.KS",
+          "sector": "Financial Services",
+          "corr": 0.8489
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.8471
+        },
+        {
+          "a": "055550.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.8465
+        },
+        {
+          "a": "105560.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.8456
+        },
+        {
+          "a": "055550.KS",
+          "b": "086790.KS",
+          "sector": "Financial Services",
+          "corr": 0.8434
+        },
+        {
+          "a": "034230.KS",
+          "b": "114090.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8416
+        },
+        {
+          "a": "016360.KS",
+          "b": "071050.KS",
+          "sector": "Financial Services",
+          "corr": 0.8319
+        },
+        {
+          "a": "008930.KS",
+          "b": "128940.KS",
+          "sector": "Healthcare",
+          "corr": 0.8304
+        },
+        {
+          "a": "001500.KS",
+          "b": "006800.KS",
+          "sector": "Financial Services",
+          "corr": 0.8283
+        },
+        {
+          "a": "086790.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.8223
+        },
+        {
+          "a": "024110.KS",
+          "b": "086790.KS",
+          "sector": "Financial Services",
+          "corr": 0.8207
+        },
+        {
+          "a": "024110.KS",
+          "b": "139130.KS",
+          "sector": "Financial Services",
+          "corr": 0.8159
+        }
+      ]
     },
     {
       "year": 2022,
-      "portfolio": -0.95,
+      "portfolio": -0.02,
       "spy": -25.17,
-      "excess": 24.23,
-      "n_pairs_formed": 20,
+      "excess": 25.15,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 912,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 104,
+      "eligible": 808,
+      "candidates": 281,
+      "sectors": 11,
+      "min_size_usd": 53605.63025210084,
+      "sector_cut_usd": {
+        "Basic Materials": 4484876.344537815,
+        "Consumer Cyclical": 4508024.075630252,
+        "Consumer Defensive": 1202322.3949579832,
+        "Financial Services": 2337549.731092437,
+        "Healthcare": 2719467.094537815,
+        "Industrials": 13386830.50420168,
+        "Technology": 3690828.6974789915
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "068270.KS",
+          "b": "068760.KS",
+          "sector": "Healthcare",
+          "corr": 0.8448
+        },
+        {
+          "a": "008930.KS",
+          "b": "128940.KS",
+          "sector": "Healthcare",
+          "corr": 0.7967
+        },
+        {
+          "a": "055550.KS",
+          "b": "086790.KS",
+          "sector": "Financial Services",
+          "corr": 0.7921
+        },
+        {
+          "a": "005380.KS",
+          "b": "012330.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7838
+        },
+        {
+          "a": "138930.KS",
+          "b": "139130.KS",
+          "sector": "Financial Services",
+          "corr": 0.7818
+        },
+        {
+          "a": "086790.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7776
+        },
+        {
+          "a": "004020.KS",
+          "b": "005490.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7717
+        },
+        {
+          "a": "024110.KS",
+          "b": "055550.KS",
+          "sector": "Financial Services",
+          "corr": 0.7656
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7648
+        },
+        {
+          "a": "035250.KS",
+          "b": "114090.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7602
+        },
+        {
+          "a": "024110.KS",
+          "b": "086790.KS",
+          "sector": "Financial Services",
+          "corr": 0.7598
+        },
+        {
+          "a": "034230.KS",
+          "b": "114090.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7549
+        },
+        {
+          "a": "001820.KS",
+          "b": "009150.KS",
+          "sector": "Technology",
+          "corr": 0.7533
+        },
+        {
+          "a": "024110.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7459
+        },
+        {
+          "a": "005250.KS",
+          "b": "006280.KS",
+          "sector": "Healthcare",
+          "corr": 0.743
+        },
+        {
+          "a": "003090.KS",
+          "b": "069620.KS",
+          "sector": "Healthcare",
+          "corr": 0.7406
+        },
+        {
+          "a": "001230.KS",
+          "b": "004020.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7336
+        },
+        {
+          "a": "002790.KS",
+          "b": "090430.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7302
+        },
+        {
+          "a": "024720.KS",
+          "b": "161890.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.729
+        },
+        {
+          "a": "139130.KS",
+          "b": "175330.KS",
+          "sector": "Financial Services",
+          "corr": 0.7202
+        }
+      ]
     },
     {
       "year": 2023,
-      "portfolio": -1.67,
+      "portfolio": -5.44,
       "spy": 19.3,
-      "excess": -20.98,
-      "n_pairs_formed": 20,
+      "excess": -24.74,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 922,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 103,
+      "eligible": 819,
+      "candidates": 282,
+      "sectors": 11,
+      "min_size_usd": 23555.868387774095,
+      "sector_cut_usd": {
+        "Basic Materials": 3646726.9929135554,
+        "Consumer Cyclical": 2905513.94621937,
+        "Consumer Defensive": 555043.8627886076,
+        "Financial Services": 662126.2516602642,
+        "Healthcare": 1168119.0856815635,
+        "Industrials": 8552768.127699172,
+        "Technology": 1933497.9281493325
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "034230.KS",
+          "b": "114090.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8356
+        },
+        {
+          "a": "138930.KS",
+          "b": "139130.KS",
+          "sector": "Financial Services",
+          "corr": 0.8208
+        },
+        {
+          "a": "016360.KS",
+          "b": "071050.KS",
+          "sector": "Financial Services",
+          "corr": 0.8138
+        },
+        {
+          "a": "086790.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.812
+        },
+        {
+          "a": "006360.KS",
+          "b": "375500.KS",
+          "sector": "Industrials",
+          "corr": 0.8067
+        },
+        {
+          "a": "005940.KS",
+          "b": "016360.KS",
+          "sector": "Financial Services",
+          "corr": 0.8034
+        },
+        {
+          "a": "009540.KS",
+          "b": "010140.KS",
+          "sector": "Industrials",
+          "corr": 0.8013
+        },
+        {
+          "a": "000270.KS",
+          "b": "005380.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7989
+        },
+        {
+          "a": "024110.KS",
+          "b": "138930.KS",
+          "sector": "Financial Services",
+          "corr": 0.7926
+        },
+        {
+          "a": "001230.KS",
+          "b": "004020.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7881
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.7818
+        },
+        {
+          "a": "055550.KS",
+          "b": "086790.KS",
+          "sector": "Financial Services",
+          "corr": 0.7732
+        },
+        {
+          "a": "002790.KS",
+          "b": "090430.KS",
+          "sector": "Consumer Defensive",
+          "corr": 0.7709
+        },
+        {
+          "a": "034020.KS",
+          "b": "052690.KS",
+          "sector": "Industrials",
+          "corr": 0.7669
+        },
+        {
+          "a": "035420.KS",
+          "b": "035720.KS",
+          "sector": "Communication Services",
+          "corr": 0.7648
+        },
+        {
+          "a": "086790.KS",
+          "b": "138930.KS",
+          "sector": "Financial Services",
+          "corr": 0.7592
+        },
+        {
+          "a": "024110.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.7579
+        },
+        {
+          "a": "138930.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.7563
+        },
+        {
+          "a": "105560.KS",
+          "b": "138930.KS",
+          "sector": "Financial Services",
+          "corr": 0.756
+        },
+        {
+          "a": "009540.KS",
+          "b": "329180.KS",
+          "sector": "Industrials",
+          "corr": 0.7544
+        }
+      ]
     },
     {
       "year": 2024,
-      "portfolio": 0.03,
+      "portfolio": -1.24,
       "spy": -9.82,
-      "excess": 9.86,
-      "n_pairs_formed": 20,
+      "excess": 8.59,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 873,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 99,
+      "eligible": 774,
+      "candidates": 279,
+      "sectors": 11,
+      "min_size_usd": 7280.24930983552,
+      "sector_cut_usd": {
+        "Basic Materials": 2569362.233890362,
+        "Consumer Cyclical": 2147409.6986475093,
+        "Consumer Defensive": 416197.71569089906,
+        "Financial Services": 553125.8535227387,
+        "Healthcare": 486074.7774847854,
+        "Industrials": 8908991.083925547,
+        "Technology": 1548464.857675325
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "004690.KS",
+          "b": "017390.KS",
+          "sector": "Utilities",
+          "corr": 0.9436
+        },
+        {
+          "a": "055550.KS",
+          "b": "086790.KS",
+          "sector": "Financial Services",
+          "corr": 0.8464
+        },
+        {
+          "a": "034230.KS",
+          "b": "114090.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8455
+        },
+        {
+          "a": "000230.KS",
+          "b": "249420.KS",
+          "sector": "Healthcare",
+          "corr": 0.8351
+        },
+        {
+          "a": "086790.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.826
+        },
+        {
+          "a": "055550.KS",
+          "b": "105560.KS",
+          "sector": "Financial Services",
+          "corr": 0.8165
+        },
+        {
+          "a": "086790.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.816
+        },
+        {
+          "a": "000270.KS",
+          "b": "005380.KS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8045
+        },
+        {
+          "a": "010620.KS",
+          "b": "329180.KS",
+          "sector": "Industrials",
+          "corr": 0.799
+        },
+        {
+          "a": "138930.KS",
+          "b": "139130.KS",
+          "sector": "Financial Services",
+          "corr": 0.796
+        },
+        {
+          "a": "055550.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.7887
+        },
+        {
+          "a": "008930.KS",
+          "b": "128940.KS",
+          "sector": "Healthcare",
+          "corr": 0.7525
+        },
+        {
+          "a": "016360.KS",
+          "b": "071050.KS",
+          "sector": "Financial Services",
+          "corr": 0.7521
+        },
+        {
+          "a": "006400.KS",
+          "b": "373220.KS",
+          "sector": "Industrials",
+          "corr": 0.7499
+        },
+        {
+          "a": "001450.KS",
+          "b": "005830.KS",
+          "sector": "Financial Services",
+          "corr": 0.7378
+        },
+        {
+          "a": "006650.KS",
+          "b": "011170.KS",
+          "sector": "Basic Materials",
+          "corr": 0.7335
+        },
+        {
+          "a": "035420.KS",
+          "b": "035720.KS",
+          "sector": "Communication Services",
+          "corr": 0.7333
+        },
+        {
+          "a": "009540.KS",
+          "b": "010140.KS",
+          "sector": "Industrials",
+          "corr": 0.7319
+        },
+        {
+          "a": "024110.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.7207
+        },
+        {
+          "a": "105560.KS",
+          "b": "316140.KS",
+          "sector": "Financial Services",
+          "corr": 0.7167
+        }
+      ]
     }
   ],
   "diversification_analysis": [
     {
       "n_pairs": 5,
       "allocation": "equal",
-      "cagr_pct": -2.18,
-      "excess_cagr_pct": -7.17,
-      "sharpe": -0.794,
-      "max_drawdown_pct": -36.26,
+      "cagr_pct": -4.75,
+      "excess_cagr_pct": -9.74,
+      "sharpe": -1.856,
+      "max_drawdown_pct": -62.22,
       "cash_periods": 0,
       "avg_active_pairs": 5.0
     },
     {
       "n_pairs": 5,
       "allocation": "inverse_vol",
-      "cagr_pct": -2.22,
-      "excess_cagr_pct": -7.21,
-      "sharpe": -0.807,
-      "max_drawdown_pct": -36.99,
+      "cagr_pct": -4.91,
+      "excess_cagr_pct": -9.9,
+      "sharpe": -1.967,
+      "max_drawdown_pct": -63.47,
       "cash_periods": 0,
       "avg_active_pairs": 5.0
     },
     {
       "n_pairs": 10,
       "allocation": "equal",
-      "cagr_pct": -2.35,
-      "excess_cagr_pct": -7.34,
-      "sharpe": -0.743,
-      "max_drawdown_pct": -38.8,
+      "cagr_pct": -4.28,
+      "excess_cagr_pct": -9.27,
+      "sharpe": -1.767,
+      "max_drawdown_pct": -58.33,
       "cash_periods": 0,
-      "avg_active_pairs": 9.8
+      "avg_active_pairs": 9.5
     },
     {
       "n_pairs": 10,
       "allocation": "inverse_vol",
-      "cagr_pct": -1.96,
-      "excess_cagr_pct": -6.95,
-      "sharpe": -0.85,
-      "max_drawdown_pct": -32.92,
+      "cagr_pct": -4.47,
+      "excess_cagr_pct": -9.46,
+      "sharpe": -1.821,
+      "max_drawdown_pct": -59.96,
       "cash_periods": 0,
-      "avg_active_pairs": 9.8
+      "avg_active_pairs": 9.5
     },
     {
       "n_pairs": 15,
       "allocation": "equal",
-      "cagr_pct": -1.42,
-      "excess_cagr_pct": -6.41,
-      "sharpe": -0.859,
-      "max_drawdown_pct": -24.9,
+      "cagr_pct": -3.96,
+      "excess_cagr_pct": -8.95,
+      "sharpe": -1.818,
+      "max_drawdown_pct": -55.4,
       "cash_periods": 0,
-      "avg_active_pairs": 14.4
+      "avg_active_pairs": 13.9
     },
     {
       "n_pairs": 15,
       "allocation": "inverse_vol",
-      "cagr_pct": -1.05,
-      "excess_cagr_pct": -6.04,
-      "sharpe": -1.047,
-      "max_drawdown_pct": -19.02,
+      "cagr_pct": -4.18,
+      "excess_cagr_pct": -9.17,
+      "sharpe": -1.866,
+      "max_drawdown_pct": -57.43,
       "cash_periods": 0,
-      "avg_active_pairs": 14.4
+      "avg_active_pairs": 13.9
     },
     {
       "n_pairs": 20,
       "allocation": "equal",
-      "cagr_pct": -0.94,
-      "excess_cagr_pct": -5.93,
-      "sharpe": -0.964,
-      "max_drawdown_pct": -19.4,
+      "cagr_pct": -3.56,
+      "excess_cagr_pct": -8.55,
+      "sharpe": -1.683,
+      "max_drawdown_pct": -51.53,
       "cash_periods": 0,
-      "avg_active_pairs": 18.7
+      "avg_active_pairs": 17.2
     },
     {
       "n_pairs": 20,
       "allocation": "inverse_vol",
-      "cagr_pct": -0.68,
-      "excess_cagr_pct": -5.67,
-      "sharpe": -1.168,
-      "max_drawdown_pct": -12.75,
+      "cagr_pct": -3.81,
+      "excess_cagr_pct": -8.8,
+      "sharpe": -1.731,
+      "max_drawdown_pct": -54.06,
       "cash_periods": 0,
-      "avg_active_pairs": 18.7
+      "avg_active_pairs": 17.2
     }
-  ]
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": null,
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "early_closes": 0,
+    "fills": []
+  }
 }

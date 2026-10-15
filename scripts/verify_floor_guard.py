@@ -62,7 +62,7 @@ HOLDINGS_EXEMPT = {
 IMPORT_EXEMPT = {
     "pairs-cointegration": "needs statsmodels, not installed in this venv",
 }
-# Topics rerun with LTP exits in the B005 campaign: their results/ and charts/ data files are in scope.
+# Topics rerun in the B005 campaign: their results/ and charts/ data files are in scope.
 RERUN_TOPICS = {"cyclical-timing", "asset-growth", "fcf-conversion", "cash-conversion", "graham-net-net",
                 # wave 2
                 "dogs-of-dow", "low-debt", "fcf-compounders", "fcf-yield", "price-to-sales",
@@ -70,7 +70,14 @@ RERUN_TOPICS = {"cyclical-timing", "asset-growth", "fcf-conversion", "cash-conve
                 "dividend-sustainability", "rising-yield", "graham-number",
                 # wave 3
                 "52-week-high", "dcf-discount", "defensive-quality",
-                "pairs-fundamentals", "pairs-zscore", "pairs-multi-pair"}
+                "pairs-fundamentals", "pairs-zscore", "pairs-multi-pair",
+                # B005 stage B wave 3, Norway (OSL) leg only: rerun with --exit-method drop to
+                # match the topic's other markets, which are not rerun (scripts/gate_legs/wave3_osl.json).
+                # The install replaces results/returns_OSL.json, the OSL node of exchange_comparison.json
+                # (oversold-quality also oversold_quality_osl.json) and the charts that draw Norway.
+                "earnings-consistency", "etf-rebalancing", "etf-underowned", "ev-ebitda",
+                "ev-ebitda-relative", "garp", "oversold-quality", "pe-compression", "peg-ratio",
+                "price-momentum", "price-to-book", "relative-strength", "value-momentum"}
 # Files outside */backtest.py and scripts/ that this change is allowed to touch.
 SCOPE_ALLOW = {
     # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
@@ -155,6 +162,10 @@ SCOPE_ALLOW = {
     "pairs-fundamentals/README.md",
     "pairs-zscore/README.md",
     "pairs-multi-pair/README.md",
+    # B005 stage B wave 3, Norway drop-mode repairs: these two READMEs quote the Norway row the
+    # repair changed (both legs are now marked truncated and too thin to test).
+    "ev-ebitda/README.md",
+    "garp/README.md",
     # B006: both carry their own copy of the per-exchange accounting block
     # rather than importing the topic's build_output, so the counting fix has to
     # land in them directly.

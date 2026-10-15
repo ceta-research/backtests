@@ -25,12 +25,14 @@ TWO DEFECTS, because the invariant check only sees one of them:
       span. Detected separately by truncated_legs(): inside one
       exchange_comparison.json every leg shares a rebalance grid, so the file's
       maximum n_periods IS total_rebalances. Needs no new fields; works on
-      legacy records. The two populations OVERLAP but neither contains the
-      other -- 6 legs carry both, 12 carry only (b) (9 and 9 before the reruns
-      listed above EXPECT_FLAGGED).
+      legacy records. The two populations used to OVERLAP without either
+      containing the other: 9 and 9 legs at 037ad42, 6 carrying both and 12 only
+      (b) on 2026-10-13. Since the wave 3 Norway repairs none carries both and all
+      19 truncated legs carry only (b), each labelled by its own record.
 
 SELF-TEST, baked in so the scanner cannot rot into a no-op: the pass condition is
-that it flags EXACTLY the 15 known-bad nodes and clears every 52-week-low node.
+that it flags EXACTLY the known-bad nodes (1 since the wave 3 Norway repairs, 15
+before them) and clears every 52-week-low node.
 Teeth and false-positive control in one assertion. The truncation detector has
 its own pair, against SYNTHETIC in-memory fixtures rather than corpus files, so
 that it cannot silently degrade into agreeing with whatever the corpus says.
@@ -41,7 +43,9 @@ nodes (measured 2026-10-13) -- the 15 true bads PLUS 12 CORRECT records of
 benchmark-truncated Norway legs: both 52-week-low OSL nodes (n=50, cash=84,
 invested=11), prior art from commit 3c39bcb, and the rerun records of
 deleveraging, fcf-compounders, fcf-yield, graham-number, volume-confirmed-momentum
-and yield-gap. (At 037ad42 it was 24: the 22 true bads plus the two 52-week-low
+and yield-gap. After the wave 3 installs (52-week-high and the 13 Norway drop-mode
+repairs) it flags 42: the 1 true bad plus 41 correct truncated Norway records.
+(At 037ad42 it was 24: the 22 true bads plus the two 52-week-low
 nodes; 26 before graham-number's rerun rewrote norway_results.json from a legacy
 record, n=11, cash=9, invested=2, into one with n=11, cash=8, invested=17, which
 trips `c + i != n` alone.) 84 > 50 fires because cash is a full-window count and
@@ -56,13 +60,12 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# The 15 known-bad nodes, as (topic-relative path, json pointer). 9 distinct
-# topic/universe pairs; exchange_comparison.json carries a duplicate of a topic's
-# returns_OSL node, which is why nodes (15) exceed pairs (9).
+# The known-bad node, as (topic-relative path, json pointer): 1 node, 1 topic.
+# qarp's JNB leg is the separate 100%-cash class (no local index, nothing priced).
 #
-# It was 22 nodes / 13 pairs at 037ad42. Reruns repaired 7 nodes in 4 topics, and
-# a repaired record must leave this set (the self-test fails on a known-bad node
-# that is no longer detected):
+# It was 22 nodes / 13 pairs at 037ad42 and 15 nodes / 9 pairs on 2026-10-13.
+# Reruns repaired 21 nodes in 12 topics, and a repaired record must leave this set
+# (the self-test fails on a known-bad node that is no longer detected):
 #   volume-confirmed-momentum (ddcf265, 2026-09-12): exchange_comparison.json /OSL
 #     now passes (cash 40 + invested 9 = total_rebalances 49), and the rerun
 #     deleted vcm_osl.json. Both entries were stale on main since then, so the
@@ -70,31 +73,26 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 #   deleveraging, fcf-compounders (B005 stage B wave 2, 2026-10):
 #     exchange_comparison.json /OSL and returns_OSL.json each.
 #   fcf-yield (same wave): value-04-fcf-yield_norway.json.
+#   B005 stage B wave 3 (2026-10), the Norway leg rerun with --exit-method drop to
+#     match its sibling markets: earnings-consistency, ev-ebitda, ev-ebitda-relative,
+#     relative-strength and value-momentum (exchange_comparison.json /OSL and
+#     returns_OSL.json each), etf-underowned and garp (returns_OSL.json), and
+#     oversold-quality (exchange_comparison.json /OSL and oversold_quality_osl.json).
+#     Each record now carries total_rebalances, and cash + invested equals it.
 # A regression in any of them still fails, as a node flagged that is not known-bad.
 EXPECT_FLAGGED = {
-    ("earnings-consistency/results/exchange_comparison.json", "/OSL"),
-    ("earnings-consistency/results/returns_OSL.json", ""),
-    ("etf-underowned/results/returns_OSL.json", ""),
-    ("ev-ebitda-relative/results/exchange_comparison.json", "/OSL"),
-    ("ev-ebitda-relative/results/returns_OSL.json", ""),
-    ("ev-ebitda/results/exchange_comparison.json", "/OSL"),
-    ("ev-ebitda/results/returns_OSL.json", ""),
-    ("garp/results/returns_OSL.json", ""),
-    ("oversold-quality/results/exchange_comparison.json", "/OSL"),
-    ("oversold-quality/results/oversold_quality_osl.json", ""),
     ("qarp/results/jnb_results.json", ""),
-    ("relative-strength/results/exchange_comparison.json", "/OSL"),
-    ("relative-strength/results/returns_OSL.json", ""),
-    ("value-momentum/results/exchange_comparison.json", "/OSL"),
-    ("value-momentum/results/returns_OSL.json", ""),
 }
-# 9 topic/universe pairs, for the human-readable summary.
-EXPECT_PAIRS = 9
+# Topic/universe pairs, for the human-readable summary (9 before wave 3).
+EXPECT_PAIRS = 1
 # Nodes that carry total_rebalances. 20 at 037ad42 (all 52-week-low); 395 after
 # the first six wave 2 topics; 575 on 2026-10-13 with the other six (180 nodes: 93
-# per-market files and 87 comparison nodes). A mismatch prints a note, not a
+# per-market files and 87 comparison nodes); 762 with B005 stage B wave 3: 160 from
+# its six topics (52-week-high 36, defensive-quality 33, pairs-fundamentals 27,
+# pairs-zscore 24, pairs-multi-pair 24, dcf-discount 16) and 27 from the 13 Norway
+# repairs (two each, three in oversold-quality). A mismatch prints a note, not a
 # failure: it rises with every rerun.
-EXPECT_B006_REGIME = 575
+EXPECT_B006_REGIME = 762
 
 
 def check(rec, naive=False):
@@ -174,38 +172,40 @@ def walk(obj, ptr, rel, hits, counts, naive):
 TRUNCATION_RATIO = 0.75
 MIN_SIBLINGS = 3
 
-# Every materially truncated leg in the corpus, as (path, pointer). All 18 are
+# Every materially truncated leg in the corpus, as (path, pointer). All 19 are
 # Norway (OSL), whose ^OSEAX benchmark has no price data before 2013. A rerun does
 # not remove a leg from this set: the benchmark still starts in 2013, so the leg
 # stays truncated and only its record becomes honest about it.
-#   6 also carry invested_periods < 0 and are in EXPECT_FLAGGED above.
-#   5 are rerun records that label themselves: total_rebalances, and
-#     window_truncated on all but 52-week-low.
-#   7 are legacy records with no arithmetic trace and no label: their live
-#     comparison charts and posts can still show a 2013-2025 Norway bar among
-#     2000-2025 siblings. garp is in the re-run population via its returns_OSL.json.
+#   Since B005 stage B wave 3 (2026-10) every one is a record that labels itself:
+#   total_rebalances, and window_truncated on all but 52-week-low. None carries
+#   invested_periods < 0 any more, and none is a legacy record without a label.
+#   On 2026-10-13 the set was 18 legs: 6 also in EXPECT_FLAGGED, 5 labelled rerun
+#   records and 7 legacy records with no arithmetic trace and no label.
+#   etf-underowned joined in wave 3: its published node was an older 20-period run
+#   (n=20, not truncated); its rerun node is measured over 12 of 20 rebalances.
 EXPECT_TRUNCATED = {
-    # --- also flagged by the invariant check (defect (a) and (b) together) ---
-    ("earnings-consistency/results/exchange_comparison.json", "/OSL"),
-    ("ev-ebitda-relative/results/exchange_comparison.json", "/OSL"),
-    ("ev-ebitda/results/exchange_comparison.json", "/OSL"),
-    ("oversold-quality/results/exchange_comparison.json", "/OSL"),
-    ("relative-strength/results/exchange_comparison.json", "/OSL"),
-    ("value-momentum/results/exchange_comparison.json", "/OSL"),
-    # --- defect (b) only, labelled by the rerun record ---
+    # --- labelled by a rerun record before wave 3 ---
     ("52-week-low/results/exchange_comparison.json", "/OSL"),   # correct prior art
     ("deleveraging/results/exchange_comparison.json", "/OSL"),               # was (a)+(b)
     ("fcf-compounders/results/exchange_comparison.json", "/OSL"),            # was (a)+(b)
     ("volume-confirmed-momentum/results/exchange_comparison.json", "/OSL"),  # was (a)+(b)
     ("yield-gap/results/exchange_comparison.json", "/OSL"),
-    # --- defect (b) ONLY, legacy: no arithmetic trace, nothing ever suppressed them ---
-    ("52-week-high/results/exchange_comparison.json", "/OSL"),
-    ("etf-rebalancing/results/exchange_comparison.json", "/OSL"),
-    ("garp/results/exchange_comparison.json", "/OSL"),          # already in re-run set
-    ("pe-compression/results/exchange_comparison.json", "/OSL"),
-    ("peg-ratio/results/exchange_comparison.json", "/OSL"),
-    ("price-momentum/results/exchange_comparison.json", "/OSL"),
-    ("price-to-book/results/exchange_comparison.json", "/OSL"),
+    # --- B005 stage B wave 3: the 52-week-high rerun (ltp) ---
+    ("52-week-high/results/exchange_comparison.json", "/OSL"),               # was (b), legacy
+    # --- B005 stage B wave 3: Norway leg rerun with --exit-method drop ---
+    ("earnings-consistency/results/exchange_comparison.json", "/OSL"),       # was (a)+(b)
+    ("ev-ebitda-relative/results/exchange_comparison.json", "/OSL"),         # was (a)+(b)
+    ("ev-ebitda/results/exchange_comparison.json", "/OSL"),                  # was (a)+(b)
+    ("oversold-quality/results/exchange_comparison.json", "/OSL"),           # was (a)+(b)
+    ("relative-strength/results/exchange_comparison.json", "/OSL"),          # was (a)+(b)
+    ("value-momentum/results/exchange_comparison.json", "/OSL"),             # was (a)+(b)
+    ("etf-rebalancing/results/exchange_comparison.json", "/OSL"),            # was (b), legacy
+    ("garp/results/exchange_comparison.json", "/OSL"),                       # was (b), legacy
+    ("pe-compression/results/exchange_comparison.json", "/OSL"),             # was (b), legacy
+    ("peg-ratio/results/exchange_comparison.json", "/OSL"),                  # was (b), legacy
+    ("price-momentum/results/exchange_comparison.json", "/OSL"),             # was (b), legacy
+    ("price-to-book/results/exchange_comparison.json", "/OSL"),              # was (b), legacy
+    ("etf-underowned/results/exchange_comparison.json", "/OSL"),             # new in wave 3
 }
 
 
@@ -235,7 +235,10 @@ def truncated_legs(data):
 # fields, so REQUIRING them would fail every results file not yet re-run and say
 # nothing about anything. Records that carry the funnel get checked; records that
 # do not are counted and skipped. The count is the honest progress meter for the
-# re-run: it read 0 when this was written and 19,653 on 2026-10-13 (18 topics).
+# re-run: it read 0 when this was written, 19,653 on 2026-10-13 (18 topics) and
+# 26,047 after B005 stage B wave 3 (34 topics: 52-week-high, dcf-discount and
+# defensive-quality, and the 13 topics whose Norway leg was rerun; the three pairs
+# topics write per-year pair records, not this funnel).
 #
 # The detector was VACUOUS against the corpus until the first re-run landed, and
 # is again on any checkout without re-run results. Its self-test is therefore not

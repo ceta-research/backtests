@@ -1,32 +1,43 @@
 {
   "universe": "XETRA",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 3,
+  "invested_periods": 17,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": "^GDAXI",
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
   "n_years": 20,
   "years": "2005-2024",
   "frequency": "daily_zscore",
   "portfolio_config": "20-pair inverse_vol",
   "benchmark_name": "DAX",
-  "benchmark_symbol": "^GDAXI",
-  "cash_periods": 3,
-  "invested_periods": 17,
-  "avg_active_pairs": 17.1,
-  "total_trades": 2057,
+  "avg_active_pairs": 12.6,
+  "total_trades": 1470,
   "trade_stats": {
-    "total_trades": 2057,
-    "convergence_rate": 83.2,
-    "time_stop_rate": 0.2,
-    "loss_stop_rate": 11.5,
-    "year_end_rate": 5.1,
-    "avg_holding_days": 14.0,
-    "avg_trade_return_pct": -0.377
+    "total_trades": 1470,
+    "convergence_rate": 80.4,
+    "time_stop_rate": 0.4,
+    "loss_stop_rate": 14.5,
+    "year_end_rate": 4.7,
+    "last_bar_rate": 0.0,
+    "avg_holding_days": 14.8,
+    "avg_trade_return_pct": -0.209
   },
   "portfolio": {
-    "cagr": -2.29,
-    "max_drawdown": -37.06,
-    "annualized_volatility": 2.78,
-    "sharpe_ratio": -1.542,
-    "sortino_ratio": -0.851,
-    "calmar_ratio": -0.062,
-    "total_return": -37.06
+    "cagr": -0.82,
+    "max_drawdown": -24.31,
+    "annualized_volatility": 3.1,
+    "sharpe_ratio": -0.91,
+    "sortino_ratio": -0.715,
+    "calmar_ratio": -0.034,
+    "total_return": -15.24
   },
   "spy": {
     "cagr": 7.48,
@@ -38,278 +49,1990 @@
     "total_return": 323.31
   },
   "comparison": {
-    "excess_cagr": -9.77,
+    "excess_cagr": -8.3,
     "win_rate": 20.0,
-    "information_ratio": -0.681,
-    "up_capture": -10.76,
-    "down_capture": 18.69,
-    "beta": 0.065,
-    "alpha": -4.65
+    "information_ratio": -0.536,
+    "up_capture": -4.99,
+    "down_capture": 2.48,
+    "beta": -0.03,
+    "alpha": -2.66
   },
-  "excess_cagr": -9.77,
+  "excess_cagr": -8.3,
   "win_rate_vs_spy": 20.0,
   "annual_returns": [
     {
       "year": 2005,
-      "portfolio": -1.87,
+      "portfolio": 0.0,
       "spy": 26.02,
-      "excess": -27.9,
-      "n_pairs_formed": 4,
-      "n_active": 4,
-      "is_cash": false
+      "excess": -26.02,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 189,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 9,
+      "eligible": 178,
+      "candidates": 163,
+      "sectors": 10,
+      "min_size_usd": 436.4326375711575,
+      "sector_cut_usd": {
+        "Industrials": 42676.38926538357,
+        "Technology": 9860.090810517755
+      },
+      "no_cost_cap": 42,
+      "pairs_formed": 2,
+      "pairs_entered": 2,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7104
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7022
+        }
+      ]
     },
     {
       "year": 2006,
       "portfolio": 0.0,
       "spy": 21.04,
       "excess": -21.04,
-      "n_pairs_formed": 2,
-      "n_active": 2,
-      "is_cash": true
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 193,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 8,
+      "eligible": 183,
+      "candidates": 166,
+      "sectors": 11,
+      "min_size_usd": 137.4733349134866,
+      "sector_cut_usd": {
+        "Industrials": 92023.13344394405,
+        "Technology": 21056.565536857073
+      },
+      "no_cost_cap": 14,
+      "pairs_formed": 0,
+      "pairs_entered": 0,
+      "same_company_pairs": 0,
+      "pairs": []
     },
     {
       "year": 2007,
-      "portfolio": -2.11,
+      "portfolio": 0.0,
       "spy": 20.75,
-      "excess": -22.86,
-      "n_pairs_formed": 7,
-      "n_active": 7,
-      "is_cash": false
+      "excess": -20.75,
+      "n_active": 0,
+      "is_cash": true,
+      "listed": 210,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 8,
+      "eligible": 199,
+      "candidates": 178,
+      "sectors": 11,
+      "min_size_usd": 146.50732866763502,
+      "sector_cut_usd": {
+        "Industrials": 139024.16479598574,
+        "Technology": 20901.201637396014
+      },
+      "no_cost_cap": 18,
+      "pairs_formed": 2,
+      "pairs_entered": 2,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.8057
+        },
+        {
+          "a": "ALV.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7739
+        }
+      ]
     },
     {
       "year": 2008,
-      "portfolio": -9.86,
+      "portfolio": 4.76,
       "spy": -39.49,
-      "excess": 29.63,
-      "n_pairs_formed": 9,
-      "n_active": 9,
-      "is_cash": false
+      "excess": 44.25,
+      "n_active": 4,
+      "is_cash": false,
+      "listed": 246,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 9,
+      "eligible": 234,
+      "candidates": 199,
+      "sectors": 11,
+      "min_size_usd": 1115.0853889943073,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 20264.559918260107,
+        "Industrials": 260685.38169610273,
+        "Technology": 25646.277915632752
+      },
+      "no_cost_cap": 24,
+      "pairs_formed": 4,
+      "pairs_entered": 4,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "CBK.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7608
+        },
+        {
+          "a": "ALV.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7536
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7012
+        },
+        {
+          "a": "ALV.DE",
+          "b": "CBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7002
+        }
+      ]
     },
     {
       "year": 2009,
-      "portfolio": 2.67,
+      "portfolio": 6.27,
       "spy": 19.79,
-      "excess": -17.12,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -13.53,
+      "n_active": 15,
+      "is_cash": false,
+      "listed": 277,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 9,
+      "eligible": 264,
+      "candidates": 214,
+      "sectors": 11,
+      "min_size_usd": 40.59488898198576,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 9170.506912442397,
+        "Financial Services": 1358.4694875017456,
+        "Industrials": 313714.0552995392,
+        "Technology": 12821.044546850999
+      },
+      "no_cost_cap": 11,
+      "pairs_formed": 15,
+      "pairs_entered": 15,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "EOAN.DE",
+          "b": "RWE.DE",
+          "sector": "Utilities",
+          "corr": 0.9071
+        },
+        {
+          "a": "ALV.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.8338
+        },
+        {
+          "a": "KCO.DE",
+          "b": "SZG.DE",
+          "sector": "Basic Materials",
+          "corr": 0.812
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8105
+        },
+        {
+          "a": "CBK.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.8066
+        },
+        {
+          "a": "MBG.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7907
+        },
+        {
+          "a": "SGL.DE",
+          "b": "SZG.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7622
+        },
+        {
+          "a": "KCO.DE",
+          "b": "SGL.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7496
+        },
+        {
+          "a": "SIE.DE",
+          "b": "TKA.DE",
+          "sector": "Industrials",
+          "corr": 0.7343
+        },
+        {
+          "a": "ADS.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.732
+        },
+        {
+          "a": "ARL.DE",
+          "b": "CBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7314
+        },
+        {
+          "a": "ALV.DE",
+          "b": "CBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.727
+        },
+        {
+          "a": "DHL.DE",
+          "b": "SIE.DE",
+          "sector": "Industrials",
+          "corr": 0.7155
+        },
+        {
+          "a": "CEC.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7111
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7031
+        }
+      ]
     },
     {
       "year": 2010,
-      "portfolio": 0.82,
+      "portfolio": -0.7,
       "spy": 14.32,
-      "excess": -13.49,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -15.02,
+      "n_active": 8,
+      "is_cash": false,
+      "listed": 270,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 9,
+      "eligible": 257,
+      "candidates": 207,
+      "sectors": 11,
+      "min_size_usd": 68.78761822871883,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 3774.2189739180276,
+        "Industrials": 100328.71031670965,
+        "Technology": 7110.353969618802
+      },
+      "no_cost_cap": 4,
+      "pairs_formed": 8,
+      "pairs_entered": 8,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8212
+        },
+        {
+          "a": "EOAN.DE",
+          "b": "RWE.DE",
+          "sector": "Utilities",
+          "corr": 0.7672
+        },
+        {
+          "a": "GBF.DE",
+          "b": "HOT.DE",
+          "sector": "Industrials",
+          "corr": 0.743
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.736
+        },
+        {
+          "a": "ALV.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7232
+        },
+        {
+          "a": "SIE.DE",
+          "b": "TKA.DE",
+          "sector": "Industrials",
+          "corr": 0.7212
+        },
+        {
+          "a": "G1A.DE",
+          "b": "TKA.DE",
+          "sector": "Industrials",
+          "corr": 0.7067
+        },
+        {
+          "a": "SDF.DE",
+          "b": "SZG.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7025
+        }
+      ]
     },
     {
       "year": 2011,
-      "portfolio": 1.25,
+      "portfolio": -0.17,
       "spy": -15.61,
-      "excess": 16.87,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": 15.44,
+      "n_active": 6,
+      "is_cash": false,
+      "listed": 279,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 9,
+      "eligible": 266,
+      "candidates": 213,
+      "sectors": 11,
+      "min_size_usd": 325.18746652383504,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 9134.975897161221,
+        "Financial Services": 669.5232994108195,
+        "Industrials": 207022.0407070166,
+        "Technology": 14690.681183717192
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 6,
+      "pairs_entered": 6,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "EOAN.DE",
+          "b": "RWE.DE",
+          "sector": "Utilities",
+          "corr": 0.8673
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7997
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7639
+        },
+        {
+          "a": "KCO.DE",
+          "b": "SZG.DE",
+          "sector": "Basic Materials",
+          "corr": 0.745
+        },
+        {
+          "a": "ALV.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7247
+        },
+        {
+          "a": "BAS.DE",
+          "b": "LXS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7028
+        }
+      ]
     },
     {
       "year": 2012,
-      "portfolio": -3.09,
+      "portfolio": 1.47,
       "spy": 25.3,
-      "excess": -28.39,
-      "n_pairs_formed": 20,
+      "excess": -23.82,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 290,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 11,
+      "eligible": 275,
+      "candidates": 219,
+      "sectors": 11,
+      "min_size_usd": 278.32512634443435,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 18375.016198004403,
+        "Financial Services": 1119.0877283918621,
+        "Industrials": 367282.9467409615,
+        "Technology": 17740.96151354153
+      },
+      "no_cost_cap": 5,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "EOAN.DE",
+          "b": "RWE.DE",
+          "sector": "Utilities",
+          "corr": 0.9327
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.9013
+        },
+        {
+          "a": "ALV.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.8609
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8494
+        },
+        {
+          "a": "BMW.DE",
+          "b": "CON.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8327
+        },
+        {
+          "a": "CON.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8245
+        },
+        {
+          "a": "CON.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.813
+        },
+        {
+          "a": "BMW.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7995
+        },
+        {
+          "a": "DBK.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.792
+        },
+        {
+          "a": "BAS.DE",
+          "b": "LXS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7889
+        },
+        {
+          "a": "G1A.DE",
+          "b": "GBF.DE",
+          "sector": "Industrials",
+          "corr": 0.7884
+        },
+        {
+          "a": "G1A.DE",
+          "b": "GIL.DE",
+          "sector": "Industrials",
+          "corr": 0.7863
+        },
+        {
+          "a": "G1A.DE",
+          "b": "SIE.DE",
+          "sector": "Industrials",
+          "corr": 0.7782
+        },
+        {
+          "a": "GBF.DE",
+          "b": "SIE.DE",
+          "sector": "Industrials",
+          "corr": 0.7744
+        },
+        {
+          "a": "SIE.DE",
+          "b": "TKA.DE",
+          "sector": "Industrials",
+          "corr": 0.7736
+        },
+        {
+          "a": "HEI.DE",
+          "b": "LXS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7728
+        },
+        {
+          "a": "CBK.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7705
+        },
+        {
+          "a": "DHL.DE",
+          "b": "SIE.DE",
+          "sector": "Industrials",
+          "corr": 0.7616
+        },
+        {
+          "a": "G1A.DE",
+          "b": "TKA.DE",
+          "sector": "Industrials",
+          "corr": 0.7587
+        },
+        {
+          "a": "BAS.DE",
+          "b": "HEI.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7516
+        }
+      ]
     },
     {
       "year": 2013,
-      "portfolio": -1.97,
+      "portfolio": -2.79,
       "spy": 22.8,
-      "excess": -24.77,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -25.58,
+      "n_active": 13,
+      "is_cash": false,
+      "listed": 289,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 11,
+      "eligible": 274,
+      "candidates": 215,
+      "sectors": 11,
+      "min_size_usd": 158.3531274742676,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 9376.57627078385,
+        "Financial Services": 1243.7318553708103,
+        "Industrials": 409625.69279493263,
+        "Technology": 15906.057007125892
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 13,
+      "pairs_entered": 13,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8477
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.828
+        },
+        {
+          "a": "CBK.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7633
+        },
+        {
+          "a": "BMW.DE",
+          "b": "CON.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7605
+        },
+        {
+          "a": "BMW.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7478
+        },
+        {
+          "a": "CON.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7473
+        },
+        {
+          "a": "G1A.DE",
+          "b": "GIL.DE",
+          "sector": "Industrials",
+          "corr": 0.7306
+        },
+        {
+          "a": "EOAN.DE",
+          "b": "RWE.DE",
+          "sector": "Utilities",
+          "corr": 0.7239
+        },
+        {
+          "a": "ARL.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7193
+        },
+        {
+          "a": "KCO.DE",
+          "b": "SZG.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7086
+        },
+        {
+          "a": "BMW.DE",
+          "b": "ZIL2.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7069
+        },
+        {
+          "a": "CON.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7061
+        },
+        {
+          "a": "MBG.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7023
+        }
+      ]
     },
     {
       "year": 2014,
-      "portfolio": -1.25,
+      "portfolio": 0.12,
       "spy": 4.31,
-      "excess": -5.56,
-      "n_pairs_formed": 13,
-      "n_active": 13,
-      "is_cash": false
+      "excess": -4.19,
+      "n_active": 4,
+      "is_cash": false,
+      "listed": 291,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 11,
+      "eligible": 276,
+      "candidates": 215,
+      "sectors": 11,
+      "min_size_usd": 266.6574965612105,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 14244.76189133425,
+        "Financial Services": 1706.8363136176065,
+        "Industrials": 390896.121045392,
+        "Technology": 22195.598349381016
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 4,
+      "pairs_entered": 4,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "PAH3.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8264
+        },
+        {
+          "a": "EOAN.DE",
+          "b": "RWE.DE",
+          "sector": "Utilities",
+          "corr": 0.7979
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.746
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7008
+        }
+      ]
     },
     {
       "year": 2015,
-      "portfolio": 0.0,
+      "portfolio": 0.65,
       "spy": 10.02,
-      "excess": -10.02,
-      "n_pairs_formed": 0,
-      "n_active": 0,
-      "is_cash": true
+      "excess": -9.37,
+      "n_active": 10,
+      "is_cash": false,
+      "listed": 295,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 11,
+      "eligible": 280,
+      "candidates": 218,
+      "sectors": 11,
+      "min_size_usd": 448.9894711363911,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 15606.09947960789,
+        "Financial Services": 2104.2895316471017,
+        "Industrials": 393263.2215902214,
+        "Technology": 20586.046230182743
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 10,
+      "pairs_entered": 10,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "PAH3.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8155
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7669
+        },
+        {
+          "a": "CON.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7608
+        },
+        {
+          "a": "MBG.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7451
+        },
+        {
+          "a": "FME.DE",
+          "b": "FRE.DE",
+          "sector": "Healthcare",
+          "corr": 0.7206
+        },
+        {
+          "a": "DHL.DE",
+          "b": "SIE.DE",
+          "sector": "Industrials",
+          "corr": 0.7178
+        },
+        {
+          "a": "MBG.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7097
+        },
+        {
+          "a": "BMW.DE",
+          "b": "CON.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7089
+        },
+        {
+          "a": "CBK.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7021
+        },
+        {
+          "a": "HNR1.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7007
+        }
+      ]
     },
     {
       "year": 2016,
-      "portfolio": -2.45,
+      "portfolio": 1.05,
       "spy": 11.65,
-      "excess": -14.1,
-      "n_pairs_formed": 20,
+      "excess": -10.6,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 300,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 11,
+      "eligible": 285,
+      "candidates": 220,
+      "sectors": 11,
+      "min_size_usd": 302.5086880973067,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 39727.66388195048,
+        "Financial Services": 2188.9932667245876,
+        "Industrials": 487260.30082536925,
+        "Technology": 17472.589052997395
+      },
+      "no_cost_cap": 3,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9054
+        },
+        {
+          "a": "CON.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8404
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.8366
+        },
+        {
+          "a": "BMW.DE",
+          "b": "CON.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8254
+        },
+        {
+          "a": "FME.DE",
+          "b": "FRE.DE",
+          "sector": "Healthcare",
+          "corr": 0.8206
+        },
+        {
+          "a": "BAYN.DE",
+          "b": "MRK.DE",
+          "sector": "Healthcare",
+          "corr": 0.8111
+        },
+        {
+          "a": "CBK.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7907
+        },
+        {
+          "a": "EOAN.DE",
+          "b": "RWE.DE",
+          "sector": "Utilities",
+          "corr": 0.7812
+        },
+        {
+          "a": "BAYN.DE",
+          "b": "FME.DE",
+          "sector": "Healthcare",
+          "corr": 0.7768
+        },
+        {
+          "a": "DTE.DE",
+          "b": "FNTN.DE",
+          "sector": "Communication Services",
+          "corr": 0.7709
+        },
+        {
+          "a": "FME.DE",
+          "b": "MRK.DE",
+          "sector": "Healthcare",
+          "corr": 0.7683
+        },
+        {
+          "a": "BAS.DE",
+          "b": "LXS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7577
+        },
+        {
+          "a": "BEI.DE",
+          "b": "HEN.DE",
+          "sector": "Consumer Defensive",
+          "corr": 0.7217
+        },
+        {
+          "a": "DTE.DE",
+          "b": "UTDI.DE",
+          "sector": "Communication Services",
+          "corr": 0.7166
+        },
+        {
+          "a": "ARL.DE",
+          "b": "CBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.7156
+        },
+        {
+          "a": "FNTN.DE",
+          "b": "UTDI.DE",
+          "sector": "Communication Services",
+          "corr": 0.7143
+        },
+        {
+          "a": "BMW.DE",
+          "b": "GMM.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7137
+        },
+        {
+          "a": "DUE.DE",
+          "b": "G1A.DE",
+          "sector": "Industrials",
+          "corr": 0.7095
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "LEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.7095
+        },
+        {
+          "a": "ALV.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.706
+        }
+      ]
     },
     {
       "year": 2017,
-      "portfolio": 0.0,
+      "portfolio": 0.42,
       "spy": 11.37,
-      "excess": -11.37,
-      "n_pairs_formed": 0,
-      "n_active": 0,
-      "is_cash": true
+      "excess": -10.95,
+      "n_active": 20,
+      "is_cash": false,
+      "listed": 313,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 13,
+      "eligible": 296,
+      "candidates": 227,
+      "sectors": 11,
+      "min_size_usd": 50.23167649536647,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 65879.02274641955,
+        "Financial Services": 3775.431760741365,
+        "Industrials": 470002.1588037069,
+        "Technology": 22021.577506318452
+      },
+      "no_cost_cap": 2,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "PAH3.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9186
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9169
+        },
+        {
+          "a": "BMW.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8469
+        },
+        {
+          "a": "BMW.DE",
+          "b": "CON.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8302
+        },
+        {
+          "a": "CBK.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.8296
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.8272
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "VNA.DE",
+          "sector": "Real Estate",
+          "corr": 0.8194
+        },
+        {
+          "a": "CON.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.811
+        },
+        {
+          "a": "BMW.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8017
+        },
+        {
+          "a": "HNR1.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.8017
+        },
+        {
+          "a": "MBG.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8012
+        },
+        {
+          "a": "HNR1.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.7983
+        },
+        {
+          "a": "LEG.DE",
+          "b": "VNA.DE",
+          "sector": "Real Estate",
+          "corr": 0.7886
+        },
+        {
+          "a": "ALV.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.7818
+        },
+        {
+          "a": "EOAN.DE",
+          "b": "RWE.DE",
+          "sector": "Utilities",
+          "corr": 0.7715
+        },
+        {
+          "a": "MBG.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7651
+        },
+        {
+          "a": "ALV.DE",
+          "b": "HNR1.DE",
+          "sector": "Financial Services",
+          "corr": 0.7589
+        },
+        {
+          "a": "CON.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7538
+        },
+        {
+          "a": "FME.DE",
+          "b": "FRE.DE",
+          "sector": "Healthcare",
+          "corr": 0.7536
+        },
+        {
+          "a": "MUV2.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.7439
+        }
+      ]
     },
     {
       "year": 2018,
-      "portfolio": -3.07,
+      "portfolio": -2.14,
       "spy": -17.97,
-      "excess": 14.9,
-      "n_pairs_formed": 17,
-      "n_active": 17,
-      "is_cash": false
+      "excess": 15.83,
+      "n_active": 5,
+      "is_cash": false,
+      "listed": 328,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 13,
+      "eligible": 311,
+      "candidates": 231,
+      "sectors": 11,
+      "min_size_usd": 140.7852083083203,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 83095.35838636091,
+        "Financial Services": 11995.437627566334,
+        "Healthcare": 981.6304478328732,
+        "Industrials": 1102240.5062600554,
+        "Technology": 79110.21731300275
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 5,
+      "pairs_entered": 5,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "DTE.DE",
+          "b": "FNTN.DE",
+          "sector": "Communication Services",
+          "corr": 0.8158
+        },
+        {
+          "a": "ALV.DE",
+          "b": "HNR1.DE",
+          "sector": "Financial Services",
+          "corr": 0.752
+        },
+        {
+          "a": "FNTN.DE",
+          "b": "UTDI.DE",
+          "sector": "Communication Services",
+          "corr": 0.718
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "LEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.7059
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7054
+        }
+      ]
     },
     {
       "year": 2019,
-      "portfolio": -3.53,
+      "portfolio": -2.28,
       "spy": 25.22,
-      "excess": -28.75,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -27.51,
+      "n_active": 8,
+      "is_cash": false,
+      "listed": 345,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 14,
+      "eligible": 327,
+      "candidates": 237,
+      "sectors": 11,
+      "min_size_usd": 734.9655963302752,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 129979.87385321103,
+        "Financial Services": 18384.90825688073,
+        "Healthcare": 4471.066513761467,
+        "Industrials": 1056329.1857798165,
+        "Technology": 53012.27064220183
+      },
+      "no_cost_cap": 1,
+      "pairs_formed": 8,
+      "pairs_entered": 8,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8185
+        },
+        {
+          "a": "MBG.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.77
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.766
+        },
+        {
+          "a": "BMW.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7491
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "LEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.7385
+        },
+        {
+          "a": "MBG.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7385
+        },
+        {
+          "a": "IFX.DE",
+          "b": "WAF.DE",
+          "sector": "Technology",
+          "corr": 0.7034
+        },
+        {
+          "a": "ALV.DE",
+          "b": "HNR1.DE",
+          "sector": "Financial Services",
+          "corr": 0.7031
+        }
+      ]
     },
     {
       "year": 2020,
-      "portfolio": -3.19,
+      "portfolio": -1.49,
       "spy": 2.49,
-      "excess": -5.67,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -3.97,
+      "n_active": 18,
+      "is_cash": false,
+      "listed": 359,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 14,
+      "eligible": 341,
+      "candidates": 239,
+      "sectors": 11,
+      "min_size_usd": 906.1343501177525,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 106398.11595828192,
+        "Financial Services": 15610.698665470449,
+        "Healthcare": 3557.810922956151,
+        "Industrials": 676811.5733991252,
+        "Technology": 34557.09319277784
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 18,
+      "pairs_entered": 18,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "PAH3.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8889
+        },
+        {
+          "a": "1U1.DE",
+          "b": "UTDI.DE",
+          "sector": "Communication Services",
+          "corr": 0.822
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8028
+        },
+        {
+          "a": "BMW.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8009
+        },
+        {
+          "a": "LEG.DE",
+          "b": "VNA.DE",
+          "sector": "Real Estate",
+          "corr": 0.8001
+        },
+        {
+          "a": "BAS.DE",
+          "b": "LXS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7927
+        },
+        {
+          "a": "MBG.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7927
+        },
+        {
+          "a": "BMW.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7826
+        },
+        {
+          "a": "MBG.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7729
+        },
+        {
+          "a": "1COV.DE",
+          "b": "BAS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7562
+        },
+        {
+          "a": "FME.DE",
+          "b": "FRE.DE",
+          "sector": "Healthcare",
+          "corr": 0.7534
+        },
+        {
+          "a": "CON.DE",
+          "b": "HLE.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7431
+        },
+        {
+          "a": "HNR1.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7327
+        },
+        {
+          "a": "BAS.DE",
+          "b": "EVK.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7239
+        },
+        {
+          "a": "CON.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7207
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7125
+        },
+        {
+          "a": "IFX.DE",
+          "b": "WAF.DE",
+          "sector": "Technology",
+          "corr": 0.7077
+        },
+        {
+          "a": "HLE.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.701
+        }
+      ]
     },
     {
       "year": 2021,
-      "portfolio": -5.71,
+      "portfolio": -6.08,
       "spy": 15.72,
-      "excess": -21.43,
-      "n_pairs_formed": 20,
+      "excess": -21.8,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 369,
+      "no_fx": 0,
+      "same_isin": 5,
+      "same_company": 14,
+      "eligible": 350,
+      "candidates": 243,
+      "sectors": 11,
+      "min_size_usd": 772.2561720850649,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 221494.56123197262,
+        "Financial Services": 25676.790515766315,
+        "Healthcare": 4495.0378880469325,
+        "Industrials": 624829.5282327059,
+        "Technology": 80931.98484478123
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8888
+        },
+        {
+          "a": "PAH3.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.88
+        },
+        {
+          "a": "BMW.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.875
+        },
+        {
+          "a": "MUV2.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.8706
+        },
+        {
+          "a": "MBG.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8628
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.8539
+        },
+        {
+          "a": "BMW.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8416
+        },
+        {
+          "a": "BMW.DE",
+          "b": "CON.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8415
+        },
+        {
+          "a": "CON.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8372
+        },
+        {
+          "a": "HNR1.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.8345
+        },
+        {
+          "a": "CBK.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.8343
+        },
+        {
+          "a": "CON.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8341
+        },
+        {
+          "a": "EVK.DE",
+          "b": "LXS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.8338
+        },
+        {
+          "a": "ALV.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.8267
+        },
+        {
+          "a": "CON.DE",
+          "b": "HLE.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8259
+        },
+        {
+          "a": "1U1.DE",
+          "b": "UTDI.DE",
+          "sector": "Communication Services",
+          "corr": 0.8248
+        },
+        {
+          "a": "HLE.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8134
+        },
+        {
+          "a": "ADS.DE",
+          "b": "PUM.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8128
+        },
+        {
+          "a": "CON.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8114
+        },
+        {
+          "a": "BAS.DE",
+          "b": "LXS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.8106
+        }
+      ]
     },
     {
       "year": 2022,
-      "portfolio": -4.43,
+      "portfolio": -4.59,
       "spy": -13.09,
-      "excess": 8.66,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": 8.5,
+      "n_active": 12,
+      "is_cash": false,
+      "listed": 380,
+      "no_fx": 0,
+      "same_isin": 5,
+      "same_company": 13,
+      "eligible": 362,
+      "candidates": 243,
+      "sectors": 11,
+      "min_size_usd": 1363.2021833068004,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 281277.1207641574,
+        "Financial Services": 41787.12758699114,
+        "Healthcare": 13056.697748464865,
+        "Industrials": 1057029.641250853,
+        "Technology": 84108.25562883785
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 12,
+      "pairs_entered": 12,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "HNR1.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.8417
+        },
+        {
+          "a": "HNR1.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.8317
+        },
+        {
+          "a": "LEG.DE",
+          "b": "TEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.8139
+        },
+        {
+          "a": "MUV2.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.7916
+        },
+        {
+          "a": "1COV.DE",
+          "b": "BAS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.752
+        },
+        {
+          "a": "ALV.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.7433
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7331
+        },
+        {
+          "a": "KCO.DE",
+          "b": "SZG.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7297
+        },
+        {
+          "a": "ARL.DE",
+          "b": "PBB.DE",
+          "sector": "Financial Services",
+          "corr": 0.7223
+        },
+        {
+          "a": "ADS.DE",
+          "b": "PUM.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7125
+        },
+        {
+          "a": "ALV.DE",
+          "b": "HNR1.DE",
+          "sector": "Financial Services",
+          "corr": 0.7105
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7005
+        }
+      ]
     },
     {
       "year": 2023,
-      "portfolio": -2.53,
+      "portfolio": -4.58,
       "spy": 19.07,
-      "excess": -21.6,
-      "n_pairs_formed": 20,
+      "excess": -23.65,
       "n_active": 20,
-      "is_cash": false
+      "is_cash": false,
+      "listed": 366,
+      "no_fx": 0,
+      "same_isin": 5,
+      "same_company": 12,
+      "eligible": 349,
+      "candidates": 241,
+      "sectors": 11,
+      "min_size_usd": 211.30742049469964,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 193582.82471356678,
+        "Financial Services": 13813.04208159332,
+        "Healthcare": 8317.550058892815,
+        "Industrials": 482164.47157083196,
+        "Technology": 28238.35528429168
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "1COV.DE",
+          "b": "BAS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.8741
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8569
+        },
+        {
+          "a": "BAS.DE",
+          "b": "LXS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.853
+        },
+        {
+          "a": "HNR1.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.852
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "VNA.DE",
+          "sector": "Real Estate",
+          "corr": 0.8491
+        },
+        {
+          "a": "CBK.DE",
+          "b": "DBK.DE",
+          "sector": "Financial Services",
+          "corr": 0.8395
+        },
+        {
+          "a": "1COV.DE",
+          "b": "LXS.DE",
+          "sector": "Basic Materials",
+          "corr": 0.8331
+        },
+        {
+          "a": "PAH3.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8321
+        },
+        {
+          "a": "MUV2.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.8263
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "LEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.8161
+        },
+        {
+          "a": "LEG.DE",
+          "b": "VNA.DE",
+          "sector": "Real Estate",
+          "corr": 0.8141
+        },
+        {
+          "a": "HNR1.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.8057
+        },
+        {
+          "a": "KCO.DE",
+          "b": "SZG.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7971
+        },
+        {
+          "a": "ALV.DE",
+          "b": "TLX.DE",
+          "sector": "Financial Services",
+          "corr": 0.7883
+        },
+        {
+          "a": "ALV.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.7866
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "TEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.7845
+        },
+        {
+          "a": "LEG.DE",
+          "b": "TEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.7839
+        },
+        {
+          "a": "BAS.DE",
+          "b": "HEI.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7828
+        },
+        {
+          "a": "TEG.DE",
+          "b": "VNA.DE",
+          "sector": "Real Estate",
+          "corr": 0.7684
+        },
+        {
+          "a": "DEZ.DE",
+          "b": "WAC.DE",
+          "sector": "Industrials",
+          "corr": 0.763
+        }
+      ]
     },
     {
       "year": 2024,
-      "portfolio": -4.7,
+      "portfolio": -5.48,
       "spy": 18.72,
-      "excess": -23.42,
-      "n_pairs_formed": 20,
-      "n_active": 20,
-      "is_cash": false
+      "excess": -24.2,
+      "n_active": 12,
+      "is_cash": false,
+      "listed": 361,
+      "no_fx": 0,
+      "same_isin": 4,
+      "same_company": 12,
+      "eligible": 345,
+      "candidates": 239,
+      "sectors": 11,
+      "min_size_usd": 79.47897118887295,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 115251.57302130478,
+        "Financial Services": 12253.008058284579,
+        "Healthcare": 6604.172645987416,
+        "Industrials": 359033.99933767517,
+        "Technology": 23902.63826029363
+      },
+      "no_cost_cap": 0,
+      "pairs_formed": 12,
+      "pairs_entered": 12,
+      "same_company_pairs": 0,
+      "pairs": [
+        {
+          "a": "LEG.DE",
+          "b": "VNA.DE",
+          "sector": "Real Estate",
+          "corr": 0.8711
+        },
+        {
+          "a": "LEG.DE",
+          "b": "TEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.8245
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "VNA.DE",
+          "sector": "Real Estate",
+          "corr": 0.8233
+        },
+        {
+          "a": "TEG.DE",
+          "b": "VNA.DE",
+          "sector": "Real Estate",
+          "corr": 0.8159
+        },
+        {
+          "a": "BMW.DE",
+          "b": "MBG.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8146
+        },
+        {
+          "a": "HNR1.DE",
+          "b": "MUV2.DE",
+          "sector": "Financial Services",
+          "corr": 0.8145
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "LEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.806
+        },
+        {
+          "a": "DWNI.DE",
+          "b": "TEG.DE",
+          "sector": "Real Estate",
+          "corr": 0.7985
+        },
+        {
+          "a": "PAH3.DE",
+          "b": "VOW.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7886
+        },
+        {
+          "a": "1U1.DE",
+          "b": "UTDI.DE",
+          "sector": "Communication Services",
+          "corr": 0.7514
+        },
+        {
+          "a": "BAS.DE",
+          "b": "EVK.DE",
+          "sector": "Basic Materials",
+          "corr": 0.7264
+        },
+        {
+          "a": "MBG.DE",
+          "b": "PAH3.DE",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7155
+        }
+      ]
     }
   ],
   "diversification_analysis": [
     {
       "n_pairs": 5,
       "allocation": "equal",
-      "cagr_pct": -2.57,
-      "excess_cagr_pct": -10.05,
-      "sharpe": -1.132,
-      "max_drawdown_pct": -40.54,
+      "cagr_pct": -1.26,
+      "excess_cagr_pct": -8.74,
+      "sharpe": -1.144,
+      "max_drawdown_pct": -28.05,
       "cash_periods": 3,
       "avg_active_pairs": 4.9
     },
     {
       "n_pairs": 5,
       "allocation": "inverse_vol",
-      "cagr_pct": -2.38,
-      "excess_cagr_pct": -9.86,
-      "sharpe": -1.261,
-      "max_drawdown_pct": -38.22,
+      "cagr_pct": -1.18,
+      "excess_cagr_pct": -8.66,
+      "sharpe": -1.081,
+      "max_drawdown_pct": -26.94,
       "cash_periods": 3,
       "avg_active_pairs": 4.9
     },
     {
       "n_pairs": 10,
       "allocation": "equal",
-      "cagr_pct": -2.18,
-      "excess_cagr_pct": -9.66,
-      "sharpe": -1.316,
-      "max_drawdown_pct": -35.64,
+      "cagr_pct": -1.3,
+      "excess_cagr_pct": -8.78,
+      "sharpe": -0.982,
+      "max_drawdown_pct": -29.78,
       "cash_periods": 3,
-      "avg_active_pairs": 9.4
+      "avg_active_pairs": 8.5
     },
     {
       "n_pairs": 10,
       "allocation": "inverse_vol",
-      "cagr_pct": -2.07,
-      "excess_cagr_pct": -9.55,
-      "sharpe": -1.417,
-      "max_drawdown_pct": -34.18,
+      "cagr_pct": -1.13,
+      "excess_cagr_pct": -8.61,
+      "sharpe": -0.947,
+      "max_drawdown_pct": -28.05,
       "cash_periods": 3,
-      "avg_active_pairs": 9.4
+      "avg_active_pairs": 8.5
     },
     {
       "n_pairs": 15,
       "allocation": "equal",
-      "cagr_pct": -2.43,
-      "excess_cagr_pct": -9.91,
-      "sharpe": -1.343,
-      "max_drawdown_pct": -38.86,
+      "cagr_pct": -0.9,
+      "excess_cagr_pct": -8.38,
+      "sharpe": -0.955,
+      "max_drawdown_pct": -24.13,
       "cash_periods": 3,
-      "avg_active_pairs": 13.4
+      "avg_active_pairs": 11.0
     },
     {
       "n_pairs": 15,
       "allocation": "inverse_vol",
-      "cagr_pct": -2.28,
-      "excess_cagr_pct": -9.76,
-      "sharpe": -1.463,
-      "max_drawdown_pct": -36.96,
+      "cagr_pct": -0.74,
+      "excess_cagr_pct": -8.22,
+      "sharpe": -0.915,
+      "max_drawdown_pct": -22.63,
       "cash_periods": 3,
-      "avg_active_pairs": 13.4
+      "avg_active_pairs": 11.0
     },
     {
       "n_pairs": 20,
       "allocation": "equal",
-      "cagr_pct": -2.48,
-      "excess_cagr_pct": -9.96,
-      "sharpe": -1.454,
-      "max_drawdown_pct": -39.44,
+      "cagr_pct": -1.05,
+      "excess_cagr_pct": -8.54,
+      "sharpe": -0.953,
+      "max_drawdown_pct": -26.47,
       "cash_periods": 3,
-      "avg_active_pairs": 17.1
+      "avg_active_pairs": 12.6
     },
     {
       "n_pairs": 20,
       "allocation": "inverse_vol",
-      "cagr_pct": -2.29,
-      "excess_cagr_pct": -9.77,
-      "sharpe": -1.542,
-      "max_drawdown_pct": -37.06,
+      "cagr_pct": -0.82,
+      "excess_cagr_pct": -8.3,
+      "sharpe": -0.91,
+      "max_drawdown_pct": -24.31,
       "cash_periods": 3,
-      "avg_active_pairs": 17.1
+      "avg_active_pairs": 12.6
     }
-  ]
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": "country DE",
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "early_closes": 0,
+    "fills": []
+  }
 }

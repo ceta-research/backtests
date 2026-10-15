@@ -1,30 +1,42 @@
 {
   "universe": "HKSE",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 1,
+  "invested_periods": 19,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": null,
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
   "n_years": 20,
   "years": "2005-2024",
   "frequency": "daily_zscore",
-  "cash_periods": 1,
-  "invested_periods": 19,
   "avg_pairs_with_trades": 18.2,
-  "total_trades": 2329,
-  "trades_per_year": 116.5,
+  "total_trades": 2404,
+  "trades_per_year": 120.2,
   "trade_stats": {
-    "total_trades": 2329,
-    "convergence_rate": 83.7,
-    "time_stop_rate": 0.3,
-    "loss_stop_rate": 11.1,
-    "year_end_rate": 5.0,
-    "avg_holding_days": 13.9,
-    "avg_trade_return_pct": -0.257
+    "total_trades": 2404,
+    "convergence_rate": 81.9,
+    "time_stop_rate": 0.2,
+    "loss_stop_rate": 12.7,
+    "year_end_rate": 5.2,
+    "last_bar_rate": 0.0,
+    "avg_holding_days": 13.2,
+    "avg_trade_return_pct": -0.119
   },
   "portfolio": {
-    "cagr": -1.47,
-    "max_drawdown": -28.97,
-    "annualized_volatility": 2.31,
-    "sharpe_ratio": -1.937,
-    "sortino_ratio": -0.898,
+    "cagr": -0.81,
+    "max_drawdown": -15.82,
+    "annualized_volatility": 1.98,
+    "sharpe_ratio": -1.925,
+    "sortino_ratio": -0.899,
     "calmar_ratio": -0.051,
-    "total_return": -25.65
+    "total_return": -14.93
   },
   "spy": {
     "cagr": 1.09,
@@ -36,25 +48,135 @@
     "total_return": 24.12
   },
   "comparison": {
-    "excess_cagr": -2.56,
-    "win_rate": 40.0,
-    "information_ratio": -0.223,
-    "up_capture": -8.51,
-    "down_capture": 7.32,
+    "excess_cagr": -1.89,
+    "win_rate": 45.0,
+    "information_ratio": -0.195,
+    "up_capture": -6.36,
+    "down_capture": 1.36,
     "beta": 0.007,
-    "alpha": -4.46
+    "alpha": -3.79
   },
-  "excess_cagr": -2.56,
-  "win_rate_vs_spy": 40.0,
+  "excess_cagr": -1.89,
+  "win_rate_vs_spy": 45.0,
   "annual_returns": [
     {
       "year": 2005,
-      "portfolio": 0.62,
+      "portfolio": -3.48,
       "spy": 4.49,
-      "excess": -3.86,
-      "pairs_formed": 9,
-      "pairs_with_trades": 9,
-      "total_trades": 55
+      "excess": -7.97,
+      "pairs_formed": 15,
+      "pairs_entered": 13,
+      "pairs_with_trades": 13,
+      "total_trades": 85,
+      "same_company_pairs": 0,
+      "listed": 503,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 502,
+      "candidates": 294,
+      "sectors": 11,
+      "min_size_usd": 38.09321597694049,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 170951.7191682108,
+        "Financial Services": 18414.246241249744,
+        "Industrials": 677918.1464896026,
+        "Real Estate": 292366.6872555075,
+        "Technology": 11362.06506073708
+      },
+      "no_cost_cap": 49,
+      "pairs": [
+        {
+          "a": "0323.HK",
+          "b": "1053.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8411
+        },
+        {
+          "a": "0347.HK",
+          "b": "1053.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8321
+        },
+        {
+          "a": "0214.HK",
+          "b": "2888.HK",
+          "sector": "Financial Services",
+          "corr": 0.8152
+        },
+        {
+          "a": "0323.HK",
+          "b": "0347.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8085
+        },
+        {
+          "a": "0358.HK",
+          "b": "2600.HK",
+          "sector": "Basic Materials",
+          "corr": 0.805
+        },
+        {
+          "a": "0323.HK",
+          "b": "0358.HK",
+          "sector": "Basic Materials",
+          "corr": 0.782
+        },
+        {
+          "a": "0347.HK",
+          "b": "2600.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7686
+        },
+        {
+          "a": "0358.HK",
+          "b": "1053.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7646
+        },
+        {
+          "a": "0323.HK",
+          "b": "2600.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7571
+        },
+        {
+          "a": "0347.HK",
+          "b": "0358.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7565
+        },
+        {
+          "a": "1053.HK",
+          "b": "2600.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7528
+        },
+        {
+          "a": "0338.HK",
+          "b": "1033.HK",
+          "sector": "Energy",
+          "corr": 0.7249
+        },
+        {
+          "a": "0581.HK",
+          "b": "1053.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7242
+        },
+        {
+          "a": "0167.HK",
+          "b": "0732.HK",
+          "sector": "Technology",
+          "corr": 0.7203
+        },
+        {
+          "a": "0857.HK",
+          "b": "0883.HK",
+          "sector": "Energy",
+          "corr": 0.717
+        }
+      ]
     },
     {
       "year": 2006,
@@ -62,170 +184,2716 @@
       "spy": 33.59,
       "excess": -33.59,
       "pairs_formed": 1,
-      "pairs_with_trades": 1,
-      "total_trades": 8
+      "pairs_entered": 1,
+      "pairs_with_trades": 0,
+      "total_trades": 0,
+      "same_company_pairs": 0,
+      "listed": 504,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 503,
+      "candidates": 296,
+      "sectors": 11,
+      "min_size_usd": 34.116473418113344,
+      "sector_cut_usd": {
+        "Basic Materials": 2649.1536616194185,
+        "Consumer Cyclical": 261841.25673897905,
+        "Financial Services": 28959.68220393634,
+        "Industrials": 817690.3036087394,
+        "Real Estate": 458091.53403668065,
+        "Technology": 14801.716666236749
+      },
+      "no_cost_cap": 14,
+      "pairs": [
+        {
+          "a": "0857.HK",
+          "b": "0883.HK",
+          "sector": "Energy",
+          "corr": 0.7748
+        }
+      ]
     },
     {
       "year": 2007,
-      "portfolio": -0.05,
+      "portfolio": -0.77,
       "spy": 36.94,
-      "excess": -36.99,
-      "pairs_formed": 4,
-      "pairs_with_trades": 4,
-      "total_trades": 26
+      "excess": -37.71,
+      "pairs_formed": 5,
+      "pairs_entered": 5,
+      "pairs_with_trades": 5,
+      "total_trades": 34,
+      "same_company_pairs": 0,
+      "listed": 602,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 601,
+      "candidates": 310,
+      "sectors": 11,
+      "min_size_usd": 26.860808325079432,
+      "sector_cut_usd": {
+        "Basic Materials": 30447.21657490899,
+        "Communication Services": 527.4243963931516,
+        "Consumer Cyclical": 496232.36130227294,
+        "Financial Services": 207303.739339602,
+        "Industrials": 1391121.801880604,
+        "Real Estate": 1354278.9519044005,
+        "Technology": 96940.90119756629
+      },
+      "no_cost_cap": 9,
+      "pairs": [
+        {
+          "a": "0857.HK",
+          "b": "0883.HK",
+          "sector": "Energy",
+          "corr": 0.8165
+        },
+        {
+          "a": "0338.HK",
+          "b": "1033.HK",
+          "sector": "Energy",
+          "corr": 0.7473
+        },
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.7179
+        },
+        {
+          "a": "0939.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.7025
+        },
+        {
+          "a": "2899.HK",
+          "b": "3330.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7002
+        }
+      ]
     },
     {
       "year": 2008,
-      "portfolio": 0.7,
+      "portfolio": -0.1,
       "spy": -47.8,
-      "excess": 48.5,
-      "pairs_formed": 18,
-      "pairs_with_trades": 18,
-      "total_trades": 140
+      "excess": 47.69,
+      "pairs_formed": 15,
+      "pairs_entered": 15,
+      "pairs_with_trades": 15,
+      "total_trades": 132,
+      "same_company_pairs": 0,
+      "listed": 741,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 740,
+      "candidates": 325,
+      "sectors": 11,
+      "min_size_usd": 3198.1898597094164,
+      "sector_cut_usd": {
+        "Basic Materials": 260010.9411266847,
+        "Communication Services": 44040.34316051346,
+        "Consumer Cyclical": 1064223.2248881138,
+        "Consumer Defensive": 15072.90237365512,
+        "Energy": 54692.8097869994,
+        "Financial Services": 1627242.8758287276,
+        "Healthcare": 5255.793077801002,
+        "Industrials": 4692603.647042228,
+        "Real Estate": 3158845.6507695466,
+        "Technology": 392650.7739064644
+      },
+      "no_cost_cap": 3,
+      "pairs": [
+        {
+          "a": "0857.HK",
+          "b": "0883.HK",
+          "sector": "Energy",
+          "corr": 0.833
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8119
+        },
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8038
+        },
+        {
+          "a": "0939.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.783
+        },
+        {
+          "a": "1398.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.7685
+        },
+        {
+          "a": "0688.HK",
+          "b": "2777.HK",
+          "sector": "Real Estate",
+          "corr": 0.748
+        },
+        {
+          "a": "0144.HK",
+          "b": "0267.HK",
+          "sector": "Industrials",
+          "corr": 0.7268
+        },
+        {
+          "a": "0688.HK",
+          "b": "0813.HK",
+          "sector": "Real Estate",
+          "corr": 0.7164
+        },
+        {
+          "a": "2777.HK",
+          "b": "3383.HK",
+          "sector": "Real Estate",
+          "corr": 0.7153
+        },
+        {
+          "a": "0012.HK",
+          "b": "0016.HK",
+          "sector": "Real Estate",
+          "corr": 0.7077
+        },
+        {
+          "a": "1088.HK",
+          "b": "1171.HK",
+          "sector": "Energy",
+          "corr": 0.7058
+        },
+        {
+          "a": "0813.HK",
+          "b": "2777.HK",
+          "sector": "Real Estate",
+          "corr": 0.703
+        },
+        {
+          "a": "0012.HK",
+          "b": "0083.HK",
+          "sector": "Real Estate",
+          "corr": 0.7018
+        },
+        {
+          "a": "0358.HK",
+          "b": "2600.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7012
+        },
+        {
+          "a": "1398.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7008
+        }
+      ]
     },
     {
       "year": 2009,
-      "portfolio": 3.36,
+      "portfolio": 4.6,
       "spy": 45.4,
-      "excess": -42.04,
+      "excess": -40.8,
       "pairs_formed": 20,
-      "pairs_with_trades": 16,
-      "total_trades": 104
+      "pairs_entered": 15,
+      "pairs_with_trades": 15,
+      "total_trades": 96,
+      "same_company_pairs": 0,
+      "listed": 720,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 719,
+      "candidates": 322,
+      "sectors": 11,
+      "min_size_usd": 789.7314267943485,
+      "sector_cut_usd": {
+        "Basic Materials": 111790.79188409014,
+        "Communication Services": 12752.785893744991,
+        "Consumer Cyclical": 423422.50502292416,
+        "Consumer Defensive": 5473.860793060687,
+        "Energy": 23586.645280257875,
+        "Financial Services": 275755.63232066197,
+        "Industrials": 3254284.820768388,
+        "Real Estate": 2563356.008217336,
+        "Technology": 73437.02214474023
+      },
+      "no_cost_cap": 4,
+      "pairs": [
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.9363
+        },
+        {
+          "a": "0939.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.9201
+        },
+        {
+          "a": "0218.HK",
+          "b": "0227.HK",
+          "sector": "Financial Services",
+          "corr": 0.9167
+        },
+        {
+          "a": "1398.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.9071
+        },
+        {
+          "a": "2628.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.9071
+        },
+        {
+          "a": "3328.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.9031
+        },
+        {
+          "a": "1398.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8903
+        },
+        {
+          "a": "0939.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.89
+        },
+        {
+          "a": "3328.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8886
+        },
+        {
+          "a": "0939.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8882
+        },
+        {
+          "a": "1398.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8844
+        },
+        {
+          "a": "0939.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.8801
+        },
+        {
+          "a": "1398.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.8795
+        },
+        {
+          "a": "0012.HK",
+          "b": "0016.HK",
+          "sector": "Real Estate",
+          "corr": 0.8756
+        },
+        {
+          "a": "2628.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.862
+        },
+        {
+          "a": "0388.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.8616
+        },
+        {
+          "a": "1088.HK",
+          "b": "1171.HK",
+          "sector": "Energy",
+          "corr": 0.8571
+        },
+        {
+          "a": "1088.HK",
+          "b": "1898.HK",
+          "sector": "Energy",
+          "corr": 0.8566
+        },
+        {
+          "a": "0388.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.854
+        },
+        {
+          "a": "0813.HK",
+          "b": "2777.HK",
+          "sector": "Real Estate",
+          "corr": 0.8496
+        }
+      ]
     },
     {
       "year": 2010,
-      "portfolio": -1.61,
+      "portfolio": -2.23,
       "spy": 5.55,
-      "excess": -7.17,
+      "excess": -7.79,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 142
+      "total_trades": 140,
+      "same_company_pairs": 0,
+      "listed": 807,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 806,
+      "candidates": 326,
+      "sectors": 11,
+      "min_size_usd": 1186.638961226572,
+      "sector_cut_usd": {
+        "Basic Materials": 317887.0772024729,
+        "Communication Services": 24008.7590826249,
+        "Consumer Cyclical": 1046837.4136945875,
+        "Consumer Defensive": 30192.222613469126,
+        "Energy": 244721.06890373907,
+        "Financial Services": 409101.5130908205,
+        "Healthcare": 1186.638961226572,
+        "Industrials": 3980675.832162817,
+        "Real Estate": 3775346.8210993437,
+        "Technology": 159732.42194301813
+      },
+      "no_cost_cap": 2,
+      "pairs": [
+        {
+          "a": "0358.HK",
+          "b": "2600.HK",
+          "sector": "Basic Materials",
+          "corr": 0.879
+        },
+        {
+          "a": "0857.HK",
+          "b": "0883.HK",
+          "sector": "Energy",
+          "corr": 0.8736
+        },
+        {
+          "a": "0323.HK",
+          "b": "0347.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8699
+        },
+        {
+          "a": "0218.HK",
+          "b": "0227.HK",
+          "sector": "Financial Services",
+          "corr": 0.8697
+        },
+        {
+          "a": "1138.HK",
+          "b": "1919.HK",
+          "sector": "Industrials",
+          "corr": 0.869
+        },
+        {
+          "a": "1171.HK",
+          "b": "1898.HK",
+          "sector": "Energy",
+          "corr": 0.864
+        },
+        {
+          "a": "2600.HK",
+          "b": "3993.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8418
+        },
+        {
+          "a": "1088.HK",
+          "b": "1171.HK",
+          "sector": "Energy",
+          "corr": 0.833
+        },
+        {
+          "a": "2777.HK",
+          "b": "3383.HK",
+          "sector": "Real Estate",
+          "corr": 0.8291
+        },
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8223
+        },
+        {
+          "a": "1088.HK",
+          "b": "1898.HK",
+          "sector": "Energy",
+          "corr": 0.8201
+        },
+        {
+          "a": "0358.HK",
+          "b": "3993.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8171
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8145
+        },
+        {
+          "a": "0010.HK",
+          "b": "0101.HK",
+          "sector": "Real Estate",
+          "corr": 0.8137
+        },
+        {
+          "a": "0813.HK",
+          "b": "2777.HK",
+          "sector": "Real Estate",
+          "corr": 0.8134
+        },
+        {
+          "a": "3328.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.8068
+        },
+        {
+          "a": "0347.HK",
+          "b": "1053.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8059
+        },
+        {
+          "a": "0347.HK",
+          "b": "0358.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8052
+        },
+        {
+          "a": "1919.HK",
+          "b": "2343.HK",
+          "sector": "Industrials",
+          "corr": 0.8049
+        },
+        {
+          "a": "3833.HK",
+          "b": "3993.HK",
+          "sector": "Basic Materials",
+          "corr": 0.804
+        }
+      ]
     },
     {
       "year": 2011,
-      "portfolio": -2.07,
+      "portfolio": 0.82,
       "spy": -21.34,
-      "excess": 19.28,
+      "excess": 22.16,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 133
+      "total_trades": 143,
+      "same_company_pairs": 0,
+      "listed": 878,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 877,
+      "candidates": 328,
+      "sectors": 11,
+      "min_size_usd": 7529.109038275973,
+      "sector_cut_usd": {
+        "Basic Materials": 1041004.8247024768,
+        "Communication Services": 55058.65348755226,
+        "Consumer Cyclical": 2366304.4065615954,
+        "Consumer Defensive": 237431.9716950788,
+        "Energy": 348980.3795432615,
+        "Financial Services": 793409.8755870055,
+        "Healthcare": 13995.496944355098,
+        "Industrials": 4327714.548729495,
+        "Real Estate": 3161668.6768914764,
+        "Technology": 333460.3827597298
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "0813.HK",
+          "b": "2777.HK",
+          "sector": "Real Estate",
+          "corr": 0.8012
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.7998
+        },
+        {
+          "a": "1088.HK",
+          "b": "1898.HK",
+          "sector": "Energy",
+          "corr": 0.7994
+        },
+        {
+          "a": "0998.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.7957
+        },
+        {
+          "a": "0323.HK",
+          "b": "0347.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7757
+        },
+        {
+          "a": "1138.HK",
+          "b": "1919.HK",
+          "sector": "Industrials",
+          "corr": 0.7687
+        },
+        {
+          "a": "0688.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.7672
+        },
+        {
+          "a": "0005.HK",
+          "b": "2888.HK",
+          "sector": "Financial Services",
+          "corr": 0.7642
+        },
+        {
+          "a": "0813.HK",
+          "b": "3383.HK",
+          "sector": "Real Estate",
+          "corr": 0.7605
+        },
+        {
+          "a": "1919.HK",
+          "b": "2866.HK",
+          "sector": "Industrials",
+          "corr": 0.7519
+        },
+        {
+          "a": "0939.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7489
+        },
+        {
+          "a": "0998.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.748
+        },
+        {
+          "a": "1138.HK",
+          "b": "2866.HK",
+          "sector": "Industrials",
+          "corr": 0.7421
+        },
+        {
+          "a": "3968.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.7401
+        },
+        {
+          "a": "0012.HK",
+          "b": "0016.HK",
+          "sector": "Real Estate",
+          "corr": 0.7381
+        },
+        {
+          "a": "1088.HK",
+          "b": "1171.HK",
+          "sector": "Energy",
+          "corr": 0.7362
+        },
+        {
+          "a": "0813.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.7347
+        },
+        {
+          "a": "2777.HK",
+          "b": "3383.HK",
+          "sector": "Real Estate",
+          "corr": 0.7328
+        },
+        {
+          "a": "0998.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.73
+        },
+        {
+          "a": "0914.HK",
+          "b": "3323.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7254
+        }
+      ]
     },
     {
       "year": 2012,
-      "portfolio": -0.79,
+      "portfolio": 1.09,
       "spy": 20.02,
-      "excess": -20.81,
+      "excess": -18.93,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 126
+      "total_trades": 133,
+      "same_company_pairs": 0,
+      "listed": 924,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 923,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 16943.40030828308,
+      "sector_cut_usd": {
+        "Basic Materials": 679049.4991365755,
+        "Communication Services": 51722.572013201825,
+        "Consumer Cyclical": 3130206.3378313817,
+        "Consumer Defensive": 193801.75878458685,
+        "Energy": 279602.065007295,
+        "Financial Services": 653897.5145481541,
+        "Healthcare": 16943.40030828308,
+        "Industrials": 4141455.11158843,
+        "Real Estate": 2299492.0154167293,
+        "Technology": 244888.02524985222,
+        "Utilities": 21197.359118882145
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "1398.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.8861
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.88
+        },
+        {
+          "a": "0998.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.8762
+        },
+        {
+          "a": "3328.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.8619
+        },
+        {
+          "a": "0027.HK",
+          "b": "0200.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8546
+        },
+        {
+          "a": "0998.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.8531
+        },
+        {
+          "a": "0998.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8504
+        },
+        {
+          "a": "1398.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.8491
+        },
+        {
+          "a": "0914.HK",
+          "b": "3323.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8401
+        },
+        {
+          "a": "1398.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8355
+        },
+        {
+          "a": "1288.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8347
+        },
+        {
+          "a": "0010.HK",
+          "b": "0101.HK",
+          "sector": "Real Estate",
+          "corr": 0.8346
+        },
+        {
+          "a": "0390.HK",
+          "b": "1186.HK",
+          "sector": "Industrials",
+          "corr": 0.8345
+        },
+        {
+          "a": "0939.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8286
+        },
+        {
+          "a": "0323.HK",
+          "b": "0347.HK",
+          "sector": "Basic Materials",
+          "corr": 0.827
+        },
+        {
+          "a": "3968.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8251
+        },
+        {
+          "a": "1288.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.8247
+        },
+        {
+          "a": "2318.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.8238
+        },
+        {
+          "a": "0939.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.8205
+        },
+        {
+          "a": "3328.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8187
+        }
+      ]
     },
     {
       "year": 2013,
-      "portfolio": -0.87,
+      "portfolio": 1.34,
       "spy": -0.02,
-      "excess": -0.84,
+      "excess": 1.36,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 132
+      "total_trades": 131,
+      "same_company_pairs": 0,
+      "listed": 916,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 915,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 8773.989613908332,
+      "sector_cut_usd": {
+        "Basic Materials": 595151.7229584233,
+        "Communication Services": 25545.914911460182,
+        "Consumer Cyclical": 2648592.342676515,
+        "Consumer Defensive": 122148.1792084637,
+        "Energy": 316160.3083572557,
+        "Financial Services": 431914.1557552495,
+        "Healthcare": 8773.989613908332,
+        "Industrials": 2786931.5872657485,
+        "Real Estate": 1657716.9951295035,
+        "Technology": 137413.65198464665,
+        "Utilities": 15530.10998935587
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "1398.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8608
+        },
+        {
+          "a": "0914.HK",
+          "b": "3323.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8231
+        },
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8204
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.7984
+        },
+        {
+          "a": "3328.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7924
+        },
+        {
+          "a": "0998.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7864
+        },
+        {
+          "a": "2009.HK",
+          "b": "3323.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7838
+        },
+        {
+          "a": "2601.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.7827
+        },
+        {
+          "a": "0998.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.774
+        },
+        {
+          "a": "1398.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.7728
+        },
+        {
+          "a": "2318.HK",
+          "b": "2601.HK",
+          "sector": "Financial Services",
+          "corr": 0.7704
+        },
+        {
+          "a": "0939.HK",
+          "b": "0998.HK",
+          "sector": "Financial Services",
+          "corr": 0.7693
+        },
+        {
+          "a": "0939.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.7666
+        },
+        {
+          "a": "0358.HK",
+          "b": "1208.HK",
+          "sector": "Basic Materials",
+          "corr": 0.763
+        },
+        {
+          "a": "1398.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7616
+        },
+        {
+          "a": "0358.HK",
+          "b": "2600.HK",
+          "sector": "Basic Materials",
+          "corr": 0.76
+        },
+        {
+          "a": "0939.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.76
+        },
+        {
+          "a": "0688.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.7585
+        },
+        {
+          "a": "1919.HK",
+          "b": "2866.HK",
+          "sector": "Industrials",
+          "corr": 0.7475
+        },
+        {
+          "a": "1288.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.746
+        }
+      ]
     },
     {
       "year": 2014,
-      "portfolio": -6.93,
+      "portfolio": -3.02,
       "spy": 1.14,
-      "excess": -8.06,
+      "excess": -4.15,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 133
+      "total_trades": 145,
+      "same_company_pairs": 0,
+      "listed": 1005,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 1,
+      "eligible": 1003,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 31117.84620344994,
+      "sector_cut_usd": {
+        "Basic Materials": 414049.12203772366,
+        "Communication Services": 34744.47847815573,
+        "Consumer Cyclical": 2730440.109624375,
+        "Consumer Defensive": 150071.88005803645,
+        "Energy": 493388.20570691605,
+        "Financial Services": 1557710.7851039818,
+        "Healthcare": 31117.84620344994,
+        "Industrials": 3739326.1325165243,
+        "Real Estate": 2799459.6163146864,
+        "Technology": 419885.9339029502,
+        "Utilities": 137137.0077962276
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.845
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8377
+        },
+        {
+          "a": "3328.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.8269
+        },
+        {
+          "a": "0939.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.8053
+        },
+        {
+          "a": "0998.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.803
+        },
+        {
+          "a": "1288.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.802
+        },
+        {
+          "a": "0998.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7967
+        },
+        {
+          "a": "2601.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.7944
+        },
+        {
+          "a": "2318.HK",
+          "b": "2601.HK",
+          "sector": "Financial Services",
+          "corr": 0.785
+        },
+        {
+          "a": "1288.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.7845
+        },
+        {
+          "a": "0939.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.7813
+        },
+        {
+          "a": "1288.HK",
+          "b": "1988.HK",
+          "sector": "Financial Services",
+          "corr": 0.7784
+        },
+        {
+          "a": "3328.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.7765
+        },
+        {
+          "a": "0688.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.7677
+        },
+        {
+          "a": "2628.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.7663
+        },
+        {
+          "a": "1919.HK",
+          "b": "2866.HK",
+          "sector": "Industrials",
+          "corr": 0.7623
+        },
+        {
+          "a": "1988.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7616
+        },
+        {
+          "a": "0939.HK",
+          "b": "1288.HK",
+          "sector": "Financial Services",
+          "corr": 0.7615
+        },
+        {
+          "a": "1398.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7604
+        },
+        {
+          "a": "0939.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7601
+        }
+      ]
     },
     {
       "year": 2015,
-      "portfolio": 0.74,
+      "portfolio": 0.03,
       "spy": -8.15,
-      "excess": 8.89,
+      "excess": 8.17,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 121
+      "total_trades": 135,
+      "same_company_pairs": 0,
+      "listed": 1120,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 1,
+      "eligible": 1118,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 100783.50196359135,
+      "sector_cut_usd": {
+        "Basic Materials": 832454.392447428,
+        "Communication Services": 100783.50196359135,
+        "Consumer Cyclical": 2140877.936197791,
+        "Consumer Defensive": 176214.8260496669,
+        "Energy": 316379.60650790273,
+        "Financial Services": 1629121.2172366562,
+        "Healthcare": 327721.782644303,
+        "Industrials": 3546998.618715057,
+        "Real Estate": 1990741.9086494746,
+        "Technology": 1396096.0321912905,
+        "Utilities": 248302.41241221875
+      },
+      "no_cost_cap": 2,
+      "pairs": [
+        {
+          "a": "0027.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8728
+        },
+        {
+          "a": "0390.HK",
+          "b": "1186.HK",
+          "sector": "Industrials",
+          "corr": 0.8303
+        },
+        {
+          "a": "2601.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8119
+        },
+        {
+          "a": "0027.HK",
+          "b": "2282.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8068
+        },
+        {
+          "a": "1766.HK",
+          "b": "3898.HK",
+          "sector": "Industrials",
+          "corr": 0.8037
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8029
+        },
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.7989
+        },
+        {
+          "a": "2318.HK",
+          "b": "2601.HK",
+          "sector": "Financial Services",
+          "corr": 0.789
+        },
+        {
+          "a": "1128.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.785
+        },
+        {
+          "a": "0027.HK",
+          "b": "0880.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.781
+        },
+        {
+          "a": "3328.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7769
+        },
+        {
+          "a": "1928.HK",
+          "b": "2282.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7766
+        },
+        {
+          "a": "0027.HK",
+          "b": "1128.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7741
+        },
+        {
+          "a": "0939.HK",
+          "b": "3968.HK",
+          "sector": "Financial Services",
+          "corr": 0.7672
+        },
+        {
+          "a": "0434.HK",
+          "b": "0799.HK",
+          "sector": "Technology",
+          "corr": 0.7561
+        },
+        {
+          "a": "0688.HK",
+          "b": "0813.HK",
+          "sector": "Real Estate",
+          "corr": 0.7504
+        },
+        {
+          "a": "0688.HK",
+          "b": "2777.HK",
+          "sector": "Real Estate",
+          "corr": 0.7446
+        },
+        {
+          "a": "0688.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.7437
+        },
+        {
+          "a": "0027.HK",
+          "b": "0200.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.742
+        },
+        {
+          "a": "0880.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7414
+        }
+      ]
     },
     {
       "year": 2016,
-      "portfolio": -1.42,
+      "portfolio": -2.01,
       "spy": 3.16,
-      "excess": -4.58,
+      "excess": -5.16,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 136
+      "total_trades": 143,
+      "same_company_pairs": 0,
+      "listed": 1228,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 1,
+      "eligible": 1226,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 242126.278899021,
+      "sector_cut_usd": {
+        "Basic Materials": 871270.6175771597,
+        "Communication Services": 306626.0808301601,
+        "Consumer Cyclical": 2393051.37403014,
+        "Consumer Defensive": 364405.41276389285,
+        "Energy": 242126.278899021,
+        "Financial Services": 7765546.59908669,
+        "Healthcare": 312208.13875917275,
+        "Industrials": 5053696.190755152,
+        "Real Estate": 3576155.8640641146,
+        "Technology": 1415198.7850056065,
+        "Utilities": 634852.6354771653
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "0390.HK",
+          "b": "1186.HK",
+          "sector": "Industrials",
+          "corr": 0.9244
+        },
+        {
+          "a": "1398.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8804
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8735
+        },
+        {
+          "a": "1186.HK",
+          "b": "1800.HK",
+          "sector": "Industrials",
+          "corr": 0.8656
+        },
+        {
+          "a": "0027.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8616
+        },
+        {
+          "a": "0670.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.8614
+        },
+        {
+          "a": "0390.HK",
+          "b": "1800.HK",
+          "sector": "Industrials",
+          "corr": 0.8501
+        },
+        {
+          "a": "0939.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8494
+        },
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8463
+        },
+        {
+          "a": "0268.HK",
+          "b": "3888.HK",
+          "sector": "Technology",
+          "corr": 0.838
+        },
+        {
+          "a": "2318.HK",
+          "b": "2601.HK",
+          "sector": "Financial Services",
+          "corr": 0.8206
+        },
+        {
+          "a": "2007.HK",
+          "b": "3383.HK",
+          "sector": "Real Estate",
+          "corr": 0.817
+        },
+        {
+          "a": "1288.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8147
+        },
+        {
+          "a": "0688.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.8132
+        },
+        {
+          "a": "0806.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.8098
+        },
+        {
+          "a": "0119.HK",
+          "b": "0123.HK",
+          "sector": "Real Estate",
+          "corr": 0.8094
+        },
+        {
+          "a": "2601.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8067
+        },
+        {
+          "a": "0998.HK",
+          "b": "6818.HK",
+          "sector": "Financial Services",
+          "corr": 0.8
+        },
+        {
+          "a": "0165.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.799
+        },
+        {
+          "a": "0998.HK",
+          "b": "1988.HK",
+          "sector": "Financial Services",
+          "corr": 0.7956
+        }
+      ]
     },
     {
       "year": 2017,
-      "portfolio": -3.29,
+      "portfolio": -2.5,
       "spy": 35.07,
-      "excess": -38.37,
+      "excess": -37.57,
       "pairs_formed": 20,
-      "pairs_with_trades": 20,
-      "total_trades": 130
+      "pairs_entered": 19,
+      "pairs_with_trades": 19,
+      "total_trades": 121,
+      "same_company_pairs": 0,
+      "listed": 1296,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 1,
+      "eligible": 1294,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 90201.24256287298,
+      "sector_cut_usd": {
+        "Basic Materials": 528852.3640809819,
+        "Communication Services": 143361.63266622214,
+        "Consumer Cyclical": 1633215.663463312,
+        "Consumer Defensive": 161346.15707057485,
+        "Energy": 90201.24256287298,
+        "Financial Services": 6571087.394958296,
+        "Healthcare": 276085.24337284756,
+        "Industrials": 3871641.4753402737,
+        "Real Estate": 2181579.9701547595,
+        "Technology": 474831.45951481495,
+        "Utilities": 343153.1999798796
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "1288.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8434
+        },
+        {
+          "a": "0027.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8351
+        },
+        {
+          "a": "1339.HK",
+          "b": "2318.HK",
+          "sector": "Financial Services",
+          "corr": 0.8243
+        },
+        {
+          "a": "6837.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.8238
+        },
+        {
+          "a": "1336.HK",
+          "b": "2318.HK",
+          "sector": "Financial Services",
+          "corr": 0.8202
+        },
+        {
+          "a": "1776.HK",
+          "b": "6886.HK",
+          "sector": "Financial Services",
+          "corr": 0.8201
+        },
+        {
+          "a": "0390.HK",
+          "b": "1186.HK",
+          "sector": "Industrials",
+          "corr": 0.8194
+        },
+        {
+          "a": "0390.HK",
+          "b": "1800.HK",
+          "sector": "Industrials",
+          "corr": 0.8167
+        },
+        {
+          "a": "1776.HK",
+          "b": "6837.HK",
+          "sector": "Financial Services",
+          "corr": 0.8157
+        },
+        {
+          "a": "0665.HK",
+          "b": "1788.HK",
+          "sector": "Financial Services",
+          "corr": 0.8128
+        },
+        {
+          "a": "0966.HK",
+          "b": "2318.HK",
+          "sector": "Financial Services",
+          "corr": 0.8107
+        },
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8102
+        },
+        {
+          "a": "1339.HK",
+          "b": "2328.HK",
+          "sector": "Financial Services",
+          "corr": 0.8069
+        },
+        {
+          "a": "0688.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.8049
+        },
+        {
+          "a": "0966.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8045
+        },
+        {
+          "a": "2318.HK",
+          "b": "2601.HK",
+          "sector": "Financial Services",
+          "corr": 0.8039
+        },
+        {
+          "a": "0998.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.7998
+        },
+        {
+          "a": "6837.HK",
+          "b": "6886.HK",
+          "sector": "Financial Services",
+          "corr": 0.7994
+        },
+        {
+          "a": "0966.HK",
+          "b": "1336.HK",
+          "sector": "Financial Services",
+          "corr": 0.7954
+        },
+        {
+          "a": "1171.HK",
+          "b": "1898.HK",
+          "sector": "Energy",
+          "corr": 0.7953
+        }
+      ]
     },
     {
       "year": 2018,
-      "portfolio": -1.71,
+      "portfolio": -0.23,
       "spy": -15.3,
-      "excess": 13.6,
-      "pairs_formed": 19,
-      "pairs_with_trades": 19,
-      "total_trades": 126
+      "excess": 15.07,
+      "pairs_formed": 20,
+      "pairs_entered": 20,
+      "pairs_with_trades": 20,
+      "total_trades": 132,
+      "same_company_pairs": 0,
+      "listed": 1421,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 1,
+      "eligible": 1419,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 99773.70700689119,
+      "sector_cut_usd": {
+        "Basic Materials": 811593.1641084978,
+        "Communication Services": 99773.70700689119,
+        "Consumer Cyclical": 3364173.8129857364,
+        "Consumer Defensive": 356153.68468477693,
+        "Energy": 186058.91809422392,
+        "Financial Services": 6410681.8484348925,
+        "Healthcare": 448060.1263554541,
+        "Industrials": 4626781.762935051,
+        "Real Estate": 4304010.842352628,
+        "Technology": 803790.6124246116,
+        "Utilities": 361160.03317598626
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "0323.HK",
+          "b": "0347.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8234
+        },
+        {
+          "a": "6837.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.8151
+        },
+        {
+          "a": "1776.HK",
+          "b": "6837.HK",
+          "sector": "Financial Services",
+          "corr": 0.7836
+        },
+        {
+          "a": "0027.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7816
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.7785
+        },
+        {
+          "a": "1776.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.7772
+        },
+        {
+          "a": "0027.HK",
+          "b": "1128.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7714
+        },
+        {
+          "a": "2314.HK",
+          "b": "2689.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7654
+        },
+        {
+          "a": "0857.HK",
+          "b": "0883.HK",
+          "sector": "Energy",
+          "corr": 0.7629
+        },
+        {
+          "a": "0753.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.7535
+        },
+        {
+          "a": "0939.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.7472
+        },
+        {
+          "a": "0670.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.7467
+        },
+        {
+          "a": "1398.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.7431
+        },
+        {
+          "a": "2318.HK",
+          "b": "2601.HK",
+          "sector": "Financial Services",
+          "corr": 0.7407
+        },
+        {
+          "a": "0688.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.7406
+        },
+        {
+          "a": "0813.HK",
+          "b": "1813.HK",
+          "sector": "Real Estate",
+          "corr": 0.739
+        },
+        {
+          "a": "0966.HK",
+          "b": "2318.HK",
+          "sector": "Financial Services",
+          "corr": 0.7357
+        },
+        {
+          "a": "0966.HK",
+          "b": "2601.HK",
+          "sector": "Financial Services",
+          "corr": 0.7357
+        },
+        {
+          "a": "1776.HK",
+          "b": "6886.HK",
+          "sector": "Financial Services",
+          "corr": 0.7326
+        },
+        {
+          "a": "1336.HK",
+          "b": "2318.HK",
+          "sector": "Financial Services",
+          "corr": 0.7323
+        }
+      ]
     },
     {
       "year": 2019,
-      "portfolio": -2.18,
+      "portfolio": -2.02,
       "spy": 12.17,
-      "excess": -14.35,
+      "excess": -14.19,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 121
+      "total_trades": 131,
+      "same_company_pairs": 0,
+      "listed": 1479,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 1,
+      "eligible": 1477,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 66061.90485920961,
+      "sector_cut_usd": {
+        "Basic Materials": 603179.6609996322,
+        "Communication Services": 66061.90485920961,
+        "Consumer Cyclical": 3863532.7991540316,
+        "Consumer Defensive": 270997.4246750991,
+        "Energy": 141628.1825983898,
+        "Financial Services": 6937250.1366524985,
+        "Healthcare": 415794.8609720463,
+        "Industrials": 4238969.5213842,
+        "Real Estate": 5391365.529470963,
+        "Technology": 722182.0172973968,
+        "Utilities": 252702.39895377826
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.9058
+        },
+        {
+          "a": "0670.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.8824
+        },
+        {
+          "a": "0753.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.8788
+        },
+        {
+          "a": "1398.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.865
+        },
+        {
+          "a": "1776.HK",
+          "b": "6837.HK",
+          "sector": "Financial Services",
+          "corr": 0.8606
+        },
+        {
+          "a": "6837.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.8602
+        },
+        {
+          "a": "0027.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8506
+        },
+        {
+          "a": "6881.HK",
+          "b": "6886.HK",
+          "sector": "Financial Services",
+          "corr": 0.8458
+        },
+        {
+          "a": "1288.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8453
+        },
+        {
+          "a": "0390.HK",
+          "b": "1186.HK",
+          "sector": "Industrials",
+          "corr": 0.8428
+        },
+        {
+          "a": "0670.HK",
+          "b": "0753.HK",
+          "sector": "Industrials",
+          "corr": 0.8366
+        },
+        {
+          "a": "1776.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.8322
+        },
+        {
+          "a": "0939.HK",
+          "b": "1288.HK",
+          "sector": "Financial Services",
+          "corr": 0.8297
+        },
+        {
+          "a": "1030.HK",
+          "b": "3883.HK",
+          "sector": "Real Estate",
+          "corr": 0.8283
+        },
+        {
+          "a": "6837.HK",
+          "b": "6886.HK",
+          "sector": "Financial Services",
+          "corr": 0.8269
+        },
+        {
+          "a": "1776.HK",
+          "b": "6886.HK",
+          "sector": "Financial Services",
+          "corr": 0.8206
+        },
+        {
+          "a": "3328.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8198
+        },
+        {
+          "a": "0027.HK",
+          "b": "1128.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8177
+        },
+        {
+          "a": "1128.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8166
+        },
+        {
+          "a": "1288.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.812
+        }
+      ]
     },
     {
       "year": 2020,
-      "portfolio": -2.71,
+      "portfolio": -1.77,
       "spy": -4.6,
-      "excess": 1.89,
+      "excess": 2.83,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 147
+      "total_trades": 148,
+      "same_company_pairs": 0,
+      "listed": 1550,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 1,
+      "eligible": 1548,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 40102.609269499546,
+      "sector_cut_usd": {
+        "Basic Materials": 583619.749973359,
+        "Communication Services": 68535.21159310134,
+        "Consumer Cyclical": 3903730.678913358,
+        "Consumer Defensive": 499372.81496308144,
+        "Energy": 40102.609269499546,
+        "Financial Services": 5408468.859653064,
+        "Healthcare": 673377.5210976829,
+        "Industrials": 3571463.032032015,
+        "Real Estate": 6192280.681031792,
+        "Technology": 916265.8545572663,
+        "Utilities": 169702.01970272584
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "0670.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.8913
+        },
+        {
+          "a": "0753.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.8763
+        },
+        {
+          "a": "6837.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.8677
+        },
+        {
+          "a": "0670.HK",
+          "b": "0753.HK",
+          "sector": "Industrials",
+          "corr": 0.8609
+        },
+        {
+          "a": "0939.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8552
+        },
+        {
+          "a": "6837.HK",
+          "b": "6886.HK",
+          "sector": "Financial Services",
+          "corr": 0.8521
+        },
+        {
+          "a": "1776.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.8471
+        },
+        {
+          "a": "0027.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8447
+        },
+        {
+          "a": "0966.HK",
+          "b": "1336.HK",
+          "sector": "Financial Services",
+          "corr": 0.8443
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8333
+        },
+        {
+          "a": "0027.HK",
+          "b": "1128.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8316
+        },
+        {
+          "a": "0939.HK",
+          "b": "1288.HK",
+          "sector": "Financial Services",
+          "corr": 0.8271
+        },
+        {
+          "a": "1776.HK",
+          "b": "6837.HK",
+          "sector": "Financial Services",
+          "corr": 0.8243
+        },
+        {
+          "a": "6881.HK",
+          "b": "6886.HK",
+          "sector": "Financial Services",
+          "corr": 0.8138
+        },
+        {
+          "a": "1288.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8103
+        },
+        {
+          "a": "1776.HK",
+          "b": "6886.HK",
+          "sector": "Financial Services",
+          "corr": 0.8082
+        },
+        {
+          "a": "3908.HK",
+          "b": "6837.HK",
+          "sector": "Financial Services",
+          "corr": 0.8069
+        },
+        {
+          "a": "0016.HK",
+          "b": "0017.HK",
+          "sector": "Real Estate",
+          "corr": 0.8041
+        },
+        {
+          "a": "1398.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.7948
+        },
+        {
+          "a": "0390.HK",
+          "b": "1186.HK",
+          "sector": "Industrials",
+          "corr": 0.786
+        }
+      ]
     },
     {
       "year": 2021,
-      "portfolio": -2.37,
+      "portfolio": -0.31,
       "spy": -14.83,
-      "excess": 12.47,
+      "excess": 14.53,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 128
+      "total_trades": 131,
+      "same_company_pairs": 0,
+      "listed": 1629,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 1,
+      "eligible": 1627,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 28107.617326797157,
+      "sector_cut_usd": {
+        "Basic Materials": 548493.4425447234,
+        "Communication Services": 107802.39805926665,
+        "Consumer Cyclical": 7765308.323563891,
+        "Consumer Defensive": 1760931.1373693056,
+        "Energy": 28107.617326797157,
+        "Financial Services": 5181933.970184825,
+        "Healthcare": 3900220.886097988,
+        "Industrials": 5021163.631368999,
+        "Real Estate": 7734511.908400687,
+        "Technology": 1656639.5443764774,
+        "Utilities": 254507.9064603412
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "0670.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.9187
+        },
+        {
+          "a": "1128.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8946
+        },
+        {
+          "a": "6837.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.8927
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8899
+        },
+        {
+          "a": "1336.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8806
+        },
+        {
+          "a": "0966.HK",
+          "b": "1336.HK",
+          "sector": "Financial Services",
+          "corr": 0.8597
+        },
+        {
+          "a": "0027.HK",
+          "b": "1128.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8592
+        },
+        {
+          "a": "0670.HK",
+          "b": "0753.HK",
+          "sector": "Industrials",
+          "corr": 0.8574
+        },
+        {
+          "a": "0027.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8546
+        },
+        {
+          "a": "0998.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8464
+        },
+        {
+          "a": "0753.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.8452
+        },
+        {
+          "a": "3328.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8447
+        },
+        {
+          "a": "1339.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8441
+        },
+        {
+          "a": "0939.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8438
+        },
+        {
+          "a": "0998.HK",
+          "b": "3328.HK",
+          "sector": "Financial Services",
+          "corr": 0.8426
+        },
+        {
+          "a": "0027.HK",
+          "b": "0880.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8418
+        },
+        {
+          "a": "0880.HK",
+          "b": "1128.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.841
+        },
+        {
+          "a": "0966.HK",
+          "b": "2601.HK",
+          "sector": "Financial Services",
+          "corr": 0.8404
+        },
+        {
+          "a": "1288.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8398
+        },
+        {
+          "a": "0857.HK",
+          "b": "0883.HK",
+          "sector": "Energy",
+          "corr": 0.8368
+        }
+      ]
     },
     {
       "year": 2022,
-      "portfolio": -1.1,
+      "portfolio": -2.24,
       "spy": -15.01,
-      "excess": 13.91,
+      "excess": 12.77,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 146
+      "total_trades": 154,
+      "same_company_pairs": 0,
+      "listed": 1734,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 1,
+      "eligible": 1732,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 94758.23003037517,
+      "sector_cut_usd": {
+        "Basic Materials": 2097800.396108694,
+        "Communication Services": 212051.55570150234,
+        "Consumer Cyclical": 10598791.150151875,
+        "Consumer Defensive": 2059290.5960101797,
+        "Energy": 94758.23003037517,
+        "Financial Services": 4177065.711969461,
+        "Healthcare": 8335014.57187423,
+        "Industrials": 5658932.404974961,
+        "Real Estate": 7570458.093034233,
+        "Technology": 3184542.0121500697,
+        "Utilities": 615353.829734833
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "0753.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.8769
+        },
+        {
+          "a": "1128.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8752
+        },
+        {
+          "a": "0880.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8512
+        },
+        {
+          "a": "0880.HK",
+          "b": "1128.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.846
+        },
+        {
+          "a": "0027.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8286
+        },
+        {
+          "a": "0323.HK",
+          "b": "0347.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8246
+        },
+        {
+          "a": "1336.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8196
+        },
+        {
+          "a": "1186.HK",
+          "b": "1800.HK",
+          "sector": "Industrials",
+          "corr": 0.8192
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.8171
+        },
+        {
+          "a": "3908.HK",
+          "b": "6066.HK",
+          "sector": "Financial Services",
+          "corr": 0.8112
+        },
+        {
+          "a": "0358.HK",
+          "b": "2899.HK",
+          "sector": "Basic Materials",
+          "corr": 0.81
+        },
+        {
+          "a": "2269.HK",
+          "b": "2359.HK",
+          "sector": "Healthcare",
+          "corr": 0.8085
+        },
+        {
+          "a": "2359.HK",
+          "b": "3759.HK",
+          "sector": "Healthcare",
+          "corr": 0.8044
+        },
+        {
+          "a": "0762.HK",
+          "b": "0941.HK",
+          "sector": "Communication Services",
+          "corr": 0.7999
+        },
+        {
+          "a": "1088.HK",
+          "b": "1171.HK",
+          "sector": "Energy",
+          "corr": 0.7981
+        },
+        {
+          "a": "0914.HK",
+          "b": "1313.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7945
+        },
+        {
+          "a": "0358.HK",
+          "b": "1208.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7928
+        },
+        {
+          "a": "0012.HK",
+          "b": "0016.HK",
+          "sector": "Real Estate",
+          "corr": 0.784
+        },
+        {
+          "a": "1208.HK",
+          "b": "2899.HK",
+          "sector": "Basic Materials",
+          "corr": 0.7765
+        },
+        {
+          "a": "0016.HK",
+          "b": "0017.HK",
+          "sector": "Real Estate",
+          "corr": 0.7731
+        }
+      ]
     },
     {
       "year": 2023,
-      "portfolio": -1.05,
+      "portfolio": 0.54,
       "spy": -15.38,
-      "excess": 14.32,
+      "excess": 15.92,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 137
+      "total_trades": 143,
+      "same_company_pairs": 0,
+      "listed": 1605,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 1604,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 114332.72933327357,
+      "sector_cut_usd": {
+        "Basic Materials": 907439.4452590264,
+        "Communication Services": 114332.72933327357,
+        "Consumer Cyclical": 8339377.14318643,
+        "Consumer Defensive": 993710.6946427542,
+        "Energy": 155656.57794482043,
+        "Financial Services": 2773308.102778187,
+        "Healthcare": 4632341.3219277635,
+        "Industrials": 3905749.89275264,
+        "Real Estate": 4726998.029849982,
+        "Technology": 1929987.2263591602,
+        "Utilities": 329064.3548190881
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "0753.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.8934
+        },
+        {
+          "a": "0027.HK",
+          "b": "1928.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8932
+        },
+        {
+          "a": "0914.HK",
+          "b": "3323.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8924
+        },
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.891
+        },
+        {
+          "a": "0168.HK",
+          "b": "0291.HK",
+          "sector": "Consumer Defensive",
+          "corr": 0.8885
+        },
+        {
+          "a": "1995.HK",
+          "b": "6098.HK",
+          "sector": "Real Estate",
+          "corr": 0.872
+        },
+        {
+          "a": "0939.HK",
+          "b": "1398.HK",
+          "sector": "Financial Services",
+          "corr": 0.871
+        },
+        {
+          "a": "9618.HK",
+          "b": "9988.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8697
+        },
+        {
+          "a": "9866.HK",
+          "b": "9868.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8629
+        },
+        {
+          "a": "0688.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.8572
+        },
+        {
+          "a": "6837.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.8567
+        },
+        {
+          "a": "2318.HK",
+          "b": "2601.HK",
+          "sector": "Financial Services",
+          "corr": 0.8537
+        },
+        {
+          "a": "1186.HK",
+          "b": "1800.HK",
+          "sector": "Industrials",
+          "corr": 0.8519
+        },
+        {
+          "a": "2269.HK",
+          "b": "2359.HK",
+          "sector": "Healthcare",
+          "corr": 0.8504
+        },
+        {
+          "a": "0914.HK",
+          "b": "1313.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8494
+        },
+        {
+          "a": "2015.HK",
+          "b": "9868.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8472
+        },
+        {
+          "a": "0817.HK",
+          "b": "2202.HK",
+          "sector": "Real Estate",
+          "corr": 0.8445
+        },
+        {
+          "a": "3690.HK",
+          "b": "9618.HK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8436
+        },
+        {
+          "a": "0358.HK",
+          "b": "2899.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8415
+        },
+        {
+          "a": "2007.HK",
+          "b": "6098.HK",
+          "sector": "Real Estate",
+          "corr": 0.8405
+        }
+      ]
     },
     {
       "year": 2024,
-      "portfolio": -6.18,
+      "portfolio": -3.47,
       "spy": 19.49,
-      "excess": -25.67,
+      "excess": -22.96,
       "pairs_formed": 20,
-      "pairs_with_trades": 20,
-      "total_trades": 138
+      "pairs_entered": 18,
+      "pairs_with_trades": 18,
+      "total_trades": 127,
+      "same_company_pairs": 0,
+      "listed": 1567,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 1,
+      "eligible": 1566,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 23329.619241556848,
+      "sector_cut_usd": {
+        "Basic Materials": 561163.4072309525,
+        "Communication Services": 73986.67153340761,
+        "Consumer Cyclical": 7503826.610827219,
+        "Consumer Defensive": 566137.0884081916,
+        "Energy": 23329.619241556848,
+        "Financial Services": 3088695.0730651505,
+        "Healthcare": 5592699.888577247,
+        "Industrials": 3328373.099729768,
+        "Real Estate": 2812832.8274484193,
+        "Technology": 2102964.86981468,
+        "Utilities": 116668.58774862003
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "0939.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8821
+        },
+        {
+          "a": "0753.HK",
+          "b": "1055.HK",
+          "sector": "Industrials",
+          "corr": 0.8665
+        },
+        {
+          "a": "0390.HK",
+          "b": "1800.HK",
+          "sector": "Industrials",
+          "corr": 0.8508
+        },
+        {
+          "a": "2318.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8496
+        },
+        {
+          "a": "0939.HK",
+          "b": "1288.HK",
+          "sector": "Financial Services",
+          "corr": 0.8495
+        },
+        {
+          "a": "2007.HK",
+          "b": "3383.HK",
+          "sector": "Real Estate",
+          "corr": 0.8467
+        },
+        {
+          "a": "0390.HK",
+          "b": "1186.HK",
+          "sector": "Industrials",
+          "corr": 0.845
+        },
+        {
+          "a": "1288.HK",
+          "b": "3988.HK",
+          "sector": "Financial Services",
+          "corr": 0.8385
+        },
+        {
+          "a": "1772.HK",
+          "b": "9696.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8369
+        },
+        {
+          "a": "1186.HK",
+          "b": "1800.HK",
+          "sector": "Industrials",
+          "corr": 0.8363
+        },
+        {
+          "a": "0241.HK",
+          "b": "6618.HK",
+          "sector": "Healthcare",
+          "corr": 0.8359
+        },
+        {
+          "a": "0688.HK",
+          "b": "0960.HK",
+          "sector": "Real Estate",
+          "corr": 0.8348
+        },
+        {
+          "a": "1030.HK",
+          "b": "2202.HK",
+          "sector": "Real Estate",
+          "corr": 0.8287
+        },
+        {
+          "a": "0688.HK",
+          "b": "1109.HK",
+          "sector": "Real Estate",
+          "corr": 0.8265
+        },
+        {
+          "a": "0914.HK",
+          "b": "3323.HK",
+          "sector": "Basic Materials",
+          "corr": 0.8214
+        },
+        {
+          "a": "0960.HK",
+          "b": "2202.HK",
+          "sector": "Real Estate",
+          "corr": 0.8196
+        },
+        {
+          "a": "1336.HK",
+          "b": "2628.HK",
+          "sector": "Financial Services",
+          "corr": 0.8166
+        },
+        {
+          "a": "1030.HK",
+          "b": "3383.HK",
+          "sector": "Real Estate",
+          "corr": 0.8155
+        },
+        {
+          "a": "0966.HK",
+          "b": "1336.HK",
+          "sector": "Financial Services",
+          "corr": 0.8142
+        },
+        {
+          "a": "6066.HK",
+          "b": "6881.HK",
+          "sector": "Financial Services",
+          "corr": 0.812
+        }
+      ]
     }
-  ]
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": null,
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "early_closes": 0,
+    "fills": []
+  }
 }

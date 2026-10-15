@@ -1,200 +1,1727 @@
 {
   "universe": "SET",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 12,
+  "invested_periods": 8,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": "^SET.BK",
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
   "n_years": 20,
   "years": "2005-2024",
   "frequency": "annual",
-  "cash_periods": 18,
-  "invested_periods": 2,
-  "avg_pairs_when_invested": 3.5,
+  "execution": "next-day close (MOC)",
+  "benchmark_name": "SET Index",
+  "avg_pairs_when_invested": 3.8,
+  "legs_capped": 0,
   "portfolio": {
-    "cagr": 2.07,
-    "max_drawdown": 0.0,
-    "annualized_volatility": 9.9,
-    "sharpe_ratio": -0.044,
-    "sortino_ratio": -0.182,
-    "calmar_ratio": null,
-    "total_return": 50.61
+    "cagr": -1.21,
+    "max_drawdown": -34.17,
+    "annualized_volatility": 7.91,
+    "sharpe_ratio": -0.469,
+    "sortino_ratio": -0.478,
+    "calmar_ratio": -0.035,
+    "total_return": -21.61
   },
   "spy": {
-    "cagr": 10.01,
-    "max_drawdown": -36.23,
-    "annualized_volatility": 16.99,
-    "sharpe_ratio": 0.442,
-    "sortino_ratio": 0.747,
-    "calmar_ratio": 0.276,
-    "total_return": 574.24
+    "cagr": 3.56,
+    "max_drawdown": -43.21,
+    "annualized_volatility": 23.07,
+    "sharpe_ratio": 0.046,
+    "sortino_ratio": 0.081,
+    "calmar_ratio": 0.082,
+    "total_return": 101.19
   },
   "comparison": {
-    "excess_cagr": -7.94,
-    "win_rate": 20.0,
-    "information_ratio": -0.492,
-    "up_capture": 16.79,
-    "down_capture": -0.0,
-    "beta": 0.085,
-    "alpha": -1.07
+    "excess_cagr": -4.77,
+    "win_rate": 40.0,
+    "information_ratio": -0.278,
+    "up_capture": -11.89,
+    "down_capture": -8.92,
+    "beta": -0.022,
+    "alpha": -3.69
   },
-  "excess_cagr": -7.94,
-  "win_rate_vs_spy": 20.0,
+  "excess_cagr": -4.77,
+  "win_rate_vs_spy": 40.0,
   "annual_returns": [
     {
       "year": 2005,
-      "portfolio": 0.0,
-      "spy": 7.17,
-      "excess": -7.17,
-      "pairs_active": 1,
-      "pairs_formed": 20
+      "portfolio": 5.38,
+      "spy": 6.01,
+      "excess": -0.63,
+      "pairs_active": 3,
+      "pairs_formed": 4,
+      "pairs_entered": 3,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 214,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 8,
+      "eligible": 205,
+      "candidates": 196,
+      "sectors": 11,
+      "min_size_usd": 0.7129629629629629,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 58.22170781893004,
+        "Financial Services": 0.7129629629629629
+      },
+      "no_cost_cap": 101,
+      "pairs": [
+        {
+          "a": "AP.BK",
+          "b": "LH.BK",
+          "sector": "Real Estate",
+          "corr": 0.7799
+        },
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7354
+        },
+        {
+          "a": "PL.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7178
+        },
+        {
+          "a": "FNS.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.7045
+        }
+      ]
     },
     {
       "year": 2006,
       "portfolio": 0.0,
-      "spy": 13.65,
-      "excess": -13.65,
-      "pairs_active": 1,
-      "pairs_formed": 20
+      "spy": -9.15,
+      "excess": 9.15,
+      "pairs_active": 0,
+      "pairs_formed": 7,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 219,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 9,
+      "eligible": 209,
+      "candidates": 207,
+      "sectors": 11,
+      "min_size_usd": 22.910065805508165,
+      "sector_cut_usd": {
+        "Consumer Cyclical": 215.38873994638072,
+        "Financial Services": 581.769436997319
+      },
+      "no_cost_cap": 60,
+      "pairs": [
+        {
+          "a": "KGI.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.7493
+        },
+        {
+          "a": "ASP.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.7362
+        },
+        {
+          "a": "RCL.BK",
+          "b": "TTA.BK",
+          "sector": "Industrials",
+          "corr": 0.7356
+        },
+        {
+          "a": "PSL.BK",
+          "b": "TTA.BK",
+          "sector": "Industrials",
+          "corr": 0.7299
+        },
+        {
+          "a": "BAY.BK",
+          "b": "TCAP.BK",
+          "sector": "Financial Services",
+          "corr": 0.7277
+        },
+        {
+          "a": "FSS.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.7172
+        },
+        {
+          "a": "ASP.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.7054
+        }
+      ]
     },
     {
       "year": 2007,
-      "portfolio": 4.38,
-      "spy": 5.33,
-      "excess": -0.95,
-      "pairs_active": 3,
-      "pairs_formed": 20
+      "portfolio": 12.99,
+      "spy": 27.87,
+      "excess": -14.88,
+      "pairs_active": 4,
+      "pairs_formed": 20,
+      "pairs_entered": 4,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 245,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 9,
+      "eligible": 235,
+      "candidates": 220,
+      "sectors": 11,
+      "min_size_usd": 1.590782122905028,
+      "sector_cut_usd": {
+        "Basic Materials": 1.590782122905028,
+        "Consumer Cyclical": 1442.3882681564246,
+        "Financial Services": 154.97206703910615,
+        "Industrials": 2373.1843575418998
+      },
+      "no_cost_cap": 48,
+      "pairs": [
+        {
+          "a": "ASP.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.9143
+        },
+        {
+          "a": "ASP.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.8857
+        },
+        {
+          "a": "KGI.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.8822
+        },
+        {
+          "a": "AP.BK",
+          "b": "LH.BK",
+          "sector": "Real Estate",
+          "corr": 0.8761
+        },
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.8193
+        },
+        {
+          "a": "ASP.BK",
+          "b": "UOBKH.BK",
+          "sector": "Financial Services",
+          "corr": 0.8067
+        },
+        {
+          "a": "MST.BK",
+          "b": "UOBKH.BK",
+          "sector": "Financial Services",
+          "corr": 0.7931
+        },
+        {
+          "a": "ASP.BK",
+          "b": "FSS.BK",
+          "sector": "Financial Services",
+          "corr": 0.792
+        },
+        {
+          "a": "ADVANC.BK",
+          "b": "WORK.BK",
+          "sector": "Communication Services",
+          "corr": 0.7802
+        },
+        {
+          "a": "FSS.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.7779
+        },
+        {
+          "a": "FSS.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.7758
+        },
+        {
+          "a": "KGI.BK",
+          "b": "UOBKH.BK",
+          "sector": "Financial Services",
+          "corr": 0.7719
+        },
+        {
+          "a": "CK.BK",
+          "b": "STEC.BK",
+          "sector": "Industrials",
+          "corr": 0.7545
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.7526
+        },
+        {
+          "a": "KGI.BK",
+          "b": "SCAP.BK",
+          "sector": "Financial Services",
+          "corr": 0.7414
+        },
+        {
+          "a": "PTT.BK",
+          "b": "TOP.BK",
+          "sector": "Energy",
+          "corr": 0.7397
+        },
+        {
+          "a": "KGI.BK",
+          "b": "KTB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7374
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "KTB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7299
+        },
+        {
+          "a": "MST.BK",
+          "b": "SCAP.BK",
+          "sector": "Financial Services",
+          "corr": 0.7257
+        },
+        {
+          "a": "KTB.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.7231
+        }
+      ]
     },
     {
       "year": 2008,
       "portfolio": 0.0,
-      "spy": -36.23,
-      "excess": 36.23,
-      "pairs_active": 2,
-      "pairs_formed": 20
+      "spy": -43.21,
+      "excess": 43.21,
+      "pairs_active": 0,
+      "pairs_formed": 6,
+      "pairs_entered": 0,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 260,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 10,
+      "eligible": 249,
+      "candidates": 230,
+      "sectors": 11,
+      "min_size_usd": 1.2195121951219512,
+      "sector_cut_usd": {
+        "Basic Materials": 512.5880758807589,
+        "Consumer Cyclical": 1010.5013550135501,
+        "Financial Services": 1516.9386856368565,
+        "Industrials": 16477.30352303523
+      },
+      "no_cost_cap": 12,
+      "pairs": [
+        {
+          "a": "ASP.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.857
+        },
+        {
+          "a": "ASP.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.8333
+        },
+        {
+          "a": "KGI.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.7896
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7638
+        },
+        {
+          "a": "AP.BK",
+          "b": "LH.BK",
+          "sector": "Real Estate",
+          "corr": 0.7447
+        },
+        {
+          "a": "ASP.BK",
+          "b": "UOBKH.BK",
+          "sector": "Financial Services",
+          "corr": 0.7208
+        }
+      ]
     },
     {
       "year": 2009,
-      "portfolio": 44.29,
-      "spy": 22.66,
-      "excess": 21.64,
-      "pairs_active": 4,
-      "pairs_formed": 20
+      "portfolio": 0.0,
+      "spy": 52.98,
+      "excess": -52.98,
+      "pairs_active": 0,
+      "pairs_formed": 20,
+      "pairs_entered": 2,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 285,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 35,
+      "eligible": 249,
+      "candidates": 232,
+      "sectors": 11,
+      "min_size_usd": 0.10594208327330357,
+      "sector_cut_usd": {
+        "Basic Materials": 668.4915718196225,
+        "Consumer Cyclical": 171.50266532199973,
+        "Financial Services": 625.7694856648899,
+        "Industrials": 10144.382653796283
+      },
+      "no_cost_cap": 6,
+      "pairs": [
+        {
+          "a": "CK.BK",
+          "b": "ITD.BK",
+          "sector": "Industrials",
+          "corr": 0.8536
+        },
+        {
+          "a": "KGI.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.8411
+        },
+        {
+          "a": "ITD.BK",
+          "b": "STEC.BK",
+          "sector": "Industrials",
+          "corr": 0.8408
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.8373
+        },
+        {
+          "a": "PTT.BK",
+          "b": "PTTEP.BK",
+          "sector": "Energy",
+          "corr": 0.8357
+        },
+        {
+          "a": "ASP.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.8268
+        },
+        {
+          "a": "ASP.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.8259
+        },
+        {
+          "a": "BBL-R.BK",
+          "b": "KBANK.BK",
+          "sector": "Financial Services",
+          "corr": 0.814
+        },
+        {
+          "a": "CK.BK",
+          "b": "STEC.BK",
+          "sector": "Industrials",
+          "corr": 0.7679
+        },
+        {
+          "a": "AP-R.BK",
+          "b": "LH.BK",
+          "sector": "Real Estate",
+          "corr": 0.7627
+        },
+        {
+          "a": "BBL-R.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7575
+        },
+        {
+          "a": "CK.BK",
+          "b": "SEAFCO.BK",
+          "sector": "Industrials",
+          "corr": 0.7518
+        },
+        {
+          "a": "LH.BK",
+          "b": "QH.BK",
+          "sector": "Real Estate",
+          "corr": 0.7461
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.7433
+        },
+        {
+          "a": "AP-R.BK",
+          "b": "QH.BK",
+          "sector": "Real Estate",
+          "corr": 0.742
+        },
+        {
+          "a": "PSL.BK",
+          "b": "TTA.BK",
+          "sector": "Industrials",
+          "corr": 0.7301
+        },
+        {
+          "a": "KGI.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7253
+        },
+        {
+          "a": "BAY.BK",
+          "b": "KBANK.BK",
+          "sector": "Financial Services",
+          "corr": 0.724
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.7236
+        },
+        {
+          "a": "BAY.BK",
+          "b": "BBL-R.BK",
+          "sector": "Financial Services",
+          "corr": 0.7181
+        }
+      ]
     },
     {
       "year": 2010,
       "portfolio": 0.0,
-      "spy": 13.13,
-      "excess": -13.13,
+      "spy": 42.35,
+      "excess": -42.35,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 12,
+      "pairs_entered": 2,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 297,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 39,
+      "eligible": 256,
+      "candidates": 239,
+      "sectors": 11,
+      "min_size_usd": 7.420583735789063,
+      "sector_cut_usd": {
+        "Basic Materials": 298.61715211326754,
+        "Consumer Cyclical": 1376.8485466598672,
+        "Financial Services": 734.9191588925218,
+        "Industrials": 4539.100698923118
+      },
+      "no_cost_cap": 5,
+      "pairs": [
+        {
+          "a": "ASP.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.8953
+        },
+        {
+          "a": "ASP.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.8672
+        },
+        {
+          "a": "PTT.BK",
+          "b": "PTTEP.BK",
+          "sector": "Energy",
+          "corr": 0.8082
+        },
+        {
+          "a": "AP.BK",
+          "b": "LH.BK",
+          "sector": "Real Estate",
+          "corr": 0.8015
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7876
+        },
+        {
+          "a": "PTT.BK",
+          "b": "TOP.BK",
+          "sector": "Energy",
+          "corr": 0.7781
+        },
+        {
+          "a": "KGI.BK",
+          "b": "MST.BK",
+          "sector": "Financial Services",
+          "corr": 0.7764
+        },
+        {
+          "a": "BBL-R.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7397
+        },
+        {
+          "a": "PSL.BK",
+          "b": "TTA.BK",
+          "sector": "Industrials",
+          "corr": 0.7323
+        },
+        {
+          "a": "CK.BK",
+          "b": "ITD.BK",
+          "sector": "Industrials",
+          "corr": 0.7293
+        },
+        {
+          "a": "BANPU.BK",
+          "b": "TOP.BK",
+          "sector": "Energy",
+          "corr": 0.7255
+        },
+        {
+          "a": "PTTEP.BK",
+          "b": "TOP.BK",
+          "sector": "Energy",
+          "corr": 0.7243
+        }
+      ]
     },
     {
       "year": 2011,
       "portfolio": 0.0,
-      "spy": 2.46,
-      "excess": -2.46,
+      "spy": -0.59,
+      "excess": 0.59,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 4,
+      "pairs_entered": 2,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 332,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 43,
+      "eligible": 287,
+      "candidates": 245,
+      "sectors": 11,
+      "min_size_usd": 1.3785132213537332,
+      "sector_cut_usd": {
+        "Basic Materials": 8600.426915183769,
+        "Consumer Cyclical": 10602.028937302512,
+        "Financial Services": 1310.4158724097788,
+        "Industrials": 52422.827095459834
+      },
+      "no_cost_cap": 5,
+      "pairs": [
+        {
+          "a": "BBL-R.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7183
+        },
+        {
+          "a": "PTT.BK",
+          "b": "PTTEP.BK",
+          "sector": "Energy",
+          "corr": 0.7166
+        },
+        {
+          "a": "BAY.BK",
+          "b": "TCAP.BK",
+          "sector": "Financial Services",
+          "corr": 0.7107
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7023
+        }
+      ]
     },
     {
       "year": 2012,
-      "portfolio": 0.0,
-      "spy": 14.17,
-      "excess": -14.17,
-      "pairs_active": 0,
-      "pairs_formed": 20
+      "portfolio": -8.01,
+      "spy": 35.83,
+      "excess": -43.84,
+      "pairs_active": 3,
+      "pairs_formed": 11,
+      "pairs_entered": 3,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 340,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 46,
+      "eligible": 292,
+      "candidates": 249,
+      "sectors": 11,
+      "min_size_usd": 39.697662601626014,
+      "sector_cut_usd": {
+        "Basic Materials": 4981.755097179878,
+        "Consumer Cyclical": 9146.341463414634,
+        "Financial Services": 4529.635699790396,
+        "Industrials": 44165.237550813006,
+        "Real Estate": 808.2126524390244
+      },
+      "no_cost_cap": 6,
+      "pairs": [
+        {
+          "a": "ASP.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.8299
+        },
+        {
+          "a": "KTB.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7744
+        },
+        {
+          "a": "AP.BK",
+          "b": "LH.BK",
+          "sector": "Real Estate",
+          "corr": 0.7646
+        },
+        {
+          "a": "BANPU.BK",
+          "b": "TOP.BK",
+          "sector": "Energy",
+          "corr": 0.7643
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7561
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "KTB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7306
+        },
+        {
+          "a": "IRPC.BK",
+          "b": "PTT.BK",
+          "sector": "Energy",
+          "corr": 0.7196
+        },
+        {
+          "a": "BANPU.BK",
+          "b": "PTT.BK",
+          "sector": "Energy",
+          "corr": 0.7099
+        },
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7085
+        },
+        {
+          "a": "BAY.BK",
+          "b": "KTB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7049
+        },
+        {
+          "a": "PTT.BK",
+          "b": "PTTEP.BK",
+          "sector": "Energy",
+          "corr": 0.7039
+        }
+      ]
     },
     {
       "year": 2013,
       "portfolio": 0.0,
-      "spy": 29.0,
-      "excess": -29.0,
+      "spy": -12.55,
+      "excess": 12.55,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 3,
+      "pairs_entered": 2,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 364,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 45,
+      "eligible": 317,
+      "candidates": 255,
+      "sectors": 11,
+      "min_size_usd": 405.45401039793353,
+      "sector_cut_usd": {
+        "Basic Materials": 18962.98597259916,
+        "Consumer Cyclical": 27814.635581859202,
+        "Consumer Defensive": 3847.360952162967,
+        "Financial Services": 23313.60559788118,
+        "Industrials": 106949.41634241246,
+        "Real Estate": 2386.9469966975116
+      },
+      "no_cost_cap": 7,
+      "pairs": [
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7215
+        },
+        {
+          "a": "ASP.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.7204
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7186
+        }
+      ]
     },
     {
       "year": 2014,
       "portfolio": 0.0,
-      "spy": 14.56,
-      "excess": -14.56,
-      "pairs_active": 2,
-      "pairs_formed": 20
+      "spy": 20.51,
+      "excess": -20.51,
+      "pairs_active": 0,
+      "pairs_formed": 6,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 384,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 49,
+      "eligible": 333,
+      "candidates": 257,
+      "sectors": 11,
+      "min_size_usd": 588.3611131487255,
+      "sector_cut_usd": {
+        "Basic Materials": 25468.54839537869,
+        "Consumer Cyclical": 27663.671373555837,
+        "Consumer Defensive": 5109.664404914725,
+        "Financial Services": 51972.49220612506,
+        "Industrials": 100619.23100434011,
+        "Real Estate": 7317.073170731706
+      },
+      "no_cost_cap": 3,
+      "pairs": [
+        {
+          "a": "ASP.BK",
+          "b": "KGI.BK",
+          "sector": "Financial Services",
+          "corr": 0.8186
+        },
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7742
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7728
+        },
+        {
+          "a": "ADVANC.BK",
+          "b": "INTUCH.BK",
+          "sector": "Communication Services",
+          "corr": 0.7272
+        },
+        {
+          "a": "QH.BK",
+          "b": "SIRI.BK",
+          "sector": "Real Estate",
+          "corr": 0.708
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "KTB.BK",
+          "sector": "Financial Services",
+          "corr": 0.706
+        }
+      ]
     },
     {
       "year": 2015,
       "portfolio": 0.0,
-      "spy": 1.29,
-      "excess": -1.29,
+      "spy": -14.82,
+      "excess": 14.82,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 3,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 408,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 55,
+      "eligible": 351,
+      "candidates": 263,
+      "sectors": 11,
+      "min_size_usd": 225.01976524965028,
+      "sector_cut_usd": {
+        "Basic Materials": 24462.689290275495,
+        "Consumer Cyclical": 36703.07338533114,
+        "Consumer Defensive": 3834.458432159581,
+        "Financial Services": 43783.06878306878,
+        "Industrials": 179315.8748403576,
+        "Real Estate": 11933.649577327737
+      },
+      "no_cost_cap": 3,
+      "pairs": [
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.8513
+        },
+        {
+          "a": "ADVANC.BK",
+          "b": "INTUCH.BK",
+          "sector": "Communication Services",
+          "corr": 0.774
+        },
+        {
+          "a": "CK.BK",
+          "b": "STEC.BK",
+          "sector": "Industrials",
+          "corr": 0.7326
+        }
+      ]
     },
     {
       "year": 2016,
       "portfolio": 0.0,
-      "spy": 14.45,
-      "excess": -14.45,
+      "spy": 23.76,
+      "excess": -23.76,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 3,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 446,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 61,
+      "eligible": 382,
+      "candidates": 271,
+      "sectors": 11,
+      "min_size_usd": 641.2033827810898,
+      "sector_cut_usd": {
+        "Basic Materials": 26457.590461666437,
+        "Consumer Cyclical": 50054.06904200749,
+        "Consumer Defensive": 8734.229862747818,
+        "Financial Services": 55723.00013863857,
+        "Industrials": 206445.3070844309,
+        "Real Estate": 36259.41716345487
+      },
+      "no_cost_cap": 4,
+      "pairs": [
+        {
+          "a": "ADVANC.BK",
+          "b": "INTUCH.BK",
+          "sector": "Communication Services",
+          "corr": 0.8588
+        },
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7625
+        },
+        {
+          "a": "EGCO.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7082
+        }
+      ]
     },
     {
       "year": 2017,
       "portfolio": 0.0,
-      "spy": 21.64,
-      "excess": -21.64,
+      "spy": 13.75,
+      "excess": -13.75,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 5,
+      "pairs_entered": 0,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 473,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 66,
+      "eligible": 404,
+      "candidates": 275,
+      "sectors": 11,
+      "min_size_usd": 112.37994192539647,
+      "sector_cut_usd": {
+        "Basic Materials": 36118.773732410096,
+        "Consumer Cyclical": 54668.30466830466,
+        "Consumer Defensive": 16357.075050256868,
+        "Financial Services": 42259.39245030154,
+        "Industrials": 217576.50212195664,
+        "Real Estate": 54962.195666741114
+      },
+      "no_cost_cap": 3,
+      "pairs": [
+        {
+          "a": "ADVANC.BK",
+          "b": "INTUCH.BK",
+          "sector": "Communication Services",
+          "corr": 0.9077
+        },
+        {
+          "a": "PTT.BK",
+          "b": "PTTEP.BK",
+          "sector": "Energy",
+          "corr": 0.7776
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7687
+        },
+        {
+          "a": "BBL-R.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7051
+        },
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7037
+        }
+      ]
     },
     {
       "year": 2018,
       "portfolio": 0.0,
-      "spy": -5.25,
-      "excess": 5.25,
+      "spy": -11.95,
+      "excess": 11.95,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 3,
+      "pairs_entered": 0,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 503,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 71,
+      "eligible": 429,
+      "candidates": 284,
+      "sectors": 11,
+      "min_size_usd": 488.28065001689555,
+      "sector_cut_usd": {
+        "Basic Materials": 63223.2052345406,
+        "Consumer Cyclical": 88349.46087918164,
+        "Consumer Defensive": 47169.84609713391,
+        "Financial Services": 112578.03768408443,
+        "Industrials": 362394.8023223666,
+        "Real Estate": 80423.64175344822
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7963
+        },
+        {
+          "a": "BPP.BK",
+          "b": "EGCO.BK",
+          "sector": "Utilities",
+          "corr": 0.7339
+        },
+        {
+          "a": "EGCO.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7272
+        }
+      ]
     },
     {
       "year": 2019,
-      "portfolio": 0.0,
-      "spy": 31.09,
-      "excess": -31.09,
-      "pairs_active": 0,
-      "pairs_formed": 20
+      "portfolio": -19.53,
+      "spy": 1.91,
+      "excess": -21.44,
+      "pairs_active": 3,
+      "pairs_formed": 5,
+      "pairs_entered": 3,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 537,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 77,
+      "eligible": 457,
+      "candidates": 298,
+      "sectors": 11,
+      "min_size_usd": 191.59026363833277,
+      "sector_cut_usd": {
+        "Basic Materials": 17024.60005569824,
+        "Consumer Cyclical": 36445.214592938704,
+        "Consumer Defensive": 20992.295076894512,
+        "Financial Services": 30561.599392765416,
+        "Industrials": 132528.0675805304,
+        "Real Estate": 62923.498468298414
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.8414
+        },
+        {
+          "a": "BPP.BK",
+          "b": "EGCO.BK",
+          "sector": "Utilities",
+          "corr": 0.785
+        },
+        {
+          "a": "EGCO.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7564
+        },
+        {
+          "a": "ITD.BK",
+          "b": "UNIQ.BK",
+          "sector": "Industrials",
+          "corr": 0.7138
+        },
+        {
+          "a": "BPP.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7132
+        }
+      ]
     },
     {
       "year": 2020,
-      "portfolio": 0.0,
-      "spy": 17.23,
-      "excess": -17.23,
-      "pairs_active": 0,
-      "pairs_formed": 20
+      "portfolio": 12.09,
+      "spy": -7.99,
+      "excess": 20.09,
+      "pairs_active": 4,
+      "pairs_formed": 8,
+      "pairs_entered": 4,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 562,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 79,
+      "eligible": 480,
+      "candidates": 300,
+      "sectors": 11,
+      "min_size_usd": 39.17773476606821,
+      "sector_cut_usd": {
+        "Basic Materials": 12160.114796769672,
+        "Consumer Cyclical": 16519.889207768803,
+        "Consumer Defensive": 10960.622038310084,
+        "Financial Services": 37226.690248948806,
+        "Industrials": 75689.98197957686,
+        "Real Estate": 50127.5952746446
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.8579
+        },
+        {
+          "a": "BPP.BK",
+          "b": "EGCO.BK",
+          "sector": "Utilities",
+          "corr": 0.8255
+        },
+        {
+          "a": "BPP.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.825
+        },
+        {
+          "a": "EGCO.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7976
+        },
+        {
+          "a": "BAY.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7565
+        },
+        {
+          "a": "MTC.BK",
+          "b": "SAWAD.BK",
+          "sector": "Financial Services",
+          "corr": 0.7133
+        },
+        {
+          "a": "BAY.BK",
+          "b": "TCAP.BK",
+          "sector": "Financial Services",
+          "corr": 0.7014
+        },
+        {
+          "a": "SUSCO.BK",
+          "b": "TOP.BK",
+          "sector": "Energy",
+          "corr": 0.7006
+        }
+      ]
     },
     {
       "year": 2021,
-      "portfolio": 0.0,
-      "spy": 30.51,
-      "excess": -30.51,
-      "pairs_active": 0,
-      "pairs_formed": 20
+      "portfolio": -19.29,
+      "spy": 13.76,
+      "excess": -33.05,
+      "pairs_active": 3,
+      "pairs_formed": 20,
+      "pairs_entered": 3,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 597,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 83,
+      "eligible": 511,
+      "candidates": 309,
+      "sectors": 11,
+      "min_size_usd": 26.651564113668922,
+      "sector_cut_usd": {
+        "Basic Materials": 15354.898890628645,
+        "Consumer Cyclical": 119569.24409501281,
+        "Consumer Defensive": 22183.9624212946,
+        "Financial Services": 84663.19085851351,
+        "Industrials": 129504.48079421661,
+        "Real Estate": 42627.51107705633,
+        "Technology": 4371.589432654829
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "MTC.BK",
+          "b": "SAWAD.BK",
+          "sector": "Financial Services",
+          "corr": 0.8727
+        },
+        {
+          "a": "CK.BK",
+          "b": "STEC.BK",
+          "sector": "Industrials",
+          "corr": 0.8228
+        },
+        {
+          "a": "BBL-R.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.8143
+        },
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.8133
+        },
+        {
+          "a": "BGRIM.BK",
+          "b": "GULF.BK",
+          "sector": "Utilities",
+          "corr": 0.8006
+        },
+        {
+          "a": "ERW.BK",
+          "b": "MINT-R.BK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7992
+        },
+        {
+          "a": "KTB.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7895
+        },
+        {
+          "a": "CENTEL.BK",
+          "b": "MINT-R.BK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7864
+        },
+        {
+          "a": "BGRIM.BK",
+          "b": "GPSC.BK",
+          "sector": "Utilities",
+          "corr": 0.7812
+        },
+        {
+          "a": "KTB.BK",
+          "b": "TTB.BK",
+          "sector": "Financial Services",
+          "corr": 0.78
+        },
+        {
+          "a": "CENTEL.BK",
+          "b": "ERW.BK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7747
+        },
+        {
+          "a": "ITD.BK",
+          "b": "STEC.BK",
+          "sector": "Industrials",
+          "corr": 0.7737
+        },
+        {
+          "a": "AMATA.BK",
+          "b": "WHA.BK",
+          "sector": "Real Estate",
+          "corr": 0.7712
+        },
+        {
+          "a": "BPP.BK",
+          "b": "EGCO.BK",
+          "sector": "Utilities",
+          "corr": 0.7709
+        },
+        {
+          "a": "BBL-R.BK",
+          "b": "KTB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7693
+        },
+        {
+          "a": "ADVANC.BK",
+          "b": "INTUCH.BK",
+          "sector": "Communication Services",
+          "corr": 0.7691
+        },
+        {
+          "a": "ITD.BK",
+          "b": "UNIQ.BK",
+          "sector": "Industrials",
+          "corr": 0.7666
+        },
+        {
+          "a": "GPSC.BK",
+          "b": "GULF.BK",
+          "sector": "Utilities",
+          "corr": 0.765
+        },
+        {
+          "a": "CK.BK",
+          "b": "ITD.BK",
+          "sector": "Industrials",
+          "corr": 0.7648
+        },
+        {
+          "a": "BBL-R.BK",
+          "b": "KBANK.BK",
+          "sector": "Financial Services",
+          "corr": 0.7645
+        }
+      ]
     },
     {
       "year": 2022,
       "portfolio": 0.0,
-      "spy": -18.99,
-      "excess": 18.99,
+      "spy": 0.52,
+      "excess": -0.52,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 12,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 636,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 85,
+      "eligible": 548,
+      "candidates": 310,
+      "sectors": 11,
+      "min_size_usd": 470.66088318573406,
+      "sector_cut_usd": {
+        "Basic Materials": 142520.181938671,
+        "Consumer Cyclical": 257241.46032893547,
+        "Consumer Defensive": 137654.0755467197,
+        "Financial Services": 915023.977348033,
+        "Industrials": 587481.6555214169,
+        "Real Estate": 160200.97596240736,
+        "Technology": 60520.96511838063
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.8523
+        },
+        {
+          "a": "EGCO.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.8146
+        },
+        {
+          "a": "BPP.BK",
+          "b": "EGCO.BK",
+          "sector": "Utilities",
+          "corr": 0.7742
+        },
+        {
+          "a": "MTC.BK",
+          "b": "SAWAD.BK",
+          "sector": "Financial Services",
+          "corr": 0.7612
+        },
+        {
+          "a": "BBL-R.BK",
+          "b": "KBANK.BK",
+          "sector": "Financial Services",
+          "corr": 0.76
+        },
+        {
+          "a": "PSL.BK",
+          "b": "TTA.BK",
+          "sector": "Industrials",
+          "corr": 0.7483
+        },
+        {
+          "a": "BSRC.BK",
+          "b": "SPRC.BK",
+          "sector": "Energy",
+          "corr": 0.7431
+        },
+        {
+          "a": "EGCO.BK",
+          "b": "TPIPP.BK",
+          "sector": "Utilities",
+          "corr": 0.7367
+        },
+        {
+          "a": "KBANK.BK",
+          "b": "SCB.BK",
+          "sector": "Financial Services",
+          "corr": 0.7219
+        },
+        {
+          "a": "HANA.BK",
+          "b": "KCE.BK",
+          "sector": "Technology",
+          "corr": 0.7117
+        },
+        {
+          "a": "BPP.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7104
+        },
+        {
+          "a": "TPIPP.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7095
+        }
+      ]
     },
     {
       "year": 2023,
-      "portfolio": 0.0,
-      "spy": 26.0,
-      "excess": -26.0,
-      "pairs_active": 0,
-      "pairs_formed": 20
+      "portfolio": 3.84,
+      "spy": -14.9,
+      "excess": 18.74,
+      "pairs_active": 6,
+      "pairs_formed": 16,
+      "pairs_entered": 6,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 675,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 86,
+      "eligible": 586,
+      "candidates": 314,
+      "sectors": 11,
+      "min_size_usd": 381.3596047727733,
+      "sector_cut_usd": {
+        "Basic Materials": 64168.26048016641,
+        "Consumer Cyclical": 143321.33316961833,
+        "Consumer Defensive": 142418.61612688875,
+        "Financial Services": 470330.5838846676,
+        "Healthcare": 20342.790281108253,
+        "Industrials": 371484.12446190737,
+        "Real Estate": 95392.7715020368,
+        "Technology": 135604.5416462023
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.8892
+        },
+        {
+          "a": "QH.BK",
+          "b": "SC.BK",
+          "sector": "Real Estate",
+          "corr": 0.8232
+        },
+        {
+          "a": "PSH.BK",
+          "b": "QH.BK",
+          "sector": "Real Estate",
+          "corr": 0.7862
+        },
+        {
+          "a": "PSH.BK",
+          "b": "SC.BK",
+          "sector": "Real Estate",
+          "corr": 0.7862
+        },
+        {
+          "a": "MTC.BK",
+          "b": "SAWAD.BK",
+          "sector": "Financial Services",
+          "corr": 0.763
+        },
+        {
+          "a": "EGCO.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7589
+        },
+        {
+          "a": "BPP.BK",
+          "b": "EGCO.BK",
+          "sector": "Utilities",
+          "corr": 0.7567
+        },
+        {
+          "a": "LPN.BK",
+          "b": "QH.BK",
+          "sector": "Real Estate",
+          "corr": 0.7541
+        },
+        {
+          "a": "LPN.BK",
+          "b": "PSH.BK",
+          "sector": "Real Estate",
+          "corr": 0.7506
+        },
+        {
+          "a": "HANA.BK",
+          "b": "KCE.BK",
+          "sector": "Technology",
+          "corr": 0.7497
+        },
+        {
+          "a": "BBL-R.BK",
+          "b": "KBANK.BK",
+          "sector": "Financial Services",
+          "corr": 0.7405
+        },
+        {
+          "a": "LPN.BK",
+          "b": "SC.BK",
+          "sector": "Real Estate",
+          "corr": 0.7315
+        },
+        {
+          "a": "BPP.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7229
+        },
+        {
+          "a": "DOHOME.BK",
+          "b": "HMPRO.BK",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7135
+        },
+        {
+          "a": "BANPU.BK",
+          "b": "TOP.BK",
+          "sector": "Energy",
+          "corr": 0.7125
+        },
+        {
+          "a": "BGRIM.BK",
+          "b": "GPSC.BK",
+          "sector": "Utilities",
+          "corr": 0.7031
+        }
+      ]
     },
     {
       "year": 2024,
-      "portfolio": 0.0,
-      "spy": 25.59,
-      "excess": -25.59,
-      "pairs_active": 0,
-      "pairs_formed": 20
+      "portfolio": -5.34,
+      "spy": -3.62,
+      "excess": -1.72,
+      "pairs_active": 4,
+      "pairs_formed": 9,
+      "pairs_entered": 4,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 851,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 88,
+      "eligible": 762,
+      "candidates": 323,
+      "sectors": 11,
+      "min_size_usd": 175.49790600279198,
+      "sector_cut_usd": {
+        "Basic Materials": 27958.341088878547,
+        "Communication Services": 1335.8829688227083,
+        "Consumer Cyclical": 133667.08469055375,
+        "Consumer Defensive": 119768.64239181015,
+        "Financial Services": 247172.61400651466,
+        "Healthcare": 8889.767915309445,
+        "Industrials": 288862.73412052117,
+        "Real Estate": 77639.65798045603,
+        "Technology": 64181.94509073988,
+        "Utilities": 18582.680898092138
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "TCAP.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.8729
+        },
+        {
+          "a": "SGC.BK",
+          "b": "SINGER.BK",
+          "sector": "Financial Services",
+          "corr": 0.8219
+        },
+        {
+          "a": "MTC.BK",
+          "b": "SAWAD.BK",
+          "sector": "Financial Services",
+          "corr": 0.7904
+        },
+        {
+          "a": "BPP.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7885
+        },
+        {
+          "a": "BPP.BK",
+          "b": "EGCO.BK",
+          "sector": "Utilities",
+          "corr": 0.7596
+        },
+        {
+          "a": "BGRIM.BK",
+          "b": "GPSC.BK",
+          "sector": "Utilities",
+          "corr": 0.7564
+        },
+        {
+          "a": "TPIPP.BK",
+          "b": "TTW.BK",
+          "sector": "Utilities",
+          "corr": 0.7526
+        },
+        {
+          "a": "TIPH.BK",
+          "b": "TISCO.BK",
+          "sector": "Financial Services",
+          "corr": 0.7344
+        },
+        {
+          "a": "MTC.BK",
+          "b": "TIDLOR.BK",
+          "sector": "Financial Services",
+          "corr": 0.7219
+        }
+      ]
     }
-  ]
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": null,
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "missing_exits": 0,
+    "ltp_filled": 0,
+    "still_missing": 0,
+    "fills": []
+  }
 }

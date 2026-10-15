@@ -53,7 +53,7 @@ Returns are in local currency, after costs. Excess is computed from unrounded CA
 
 - **Dividends in benchmarks:** the portfolio's returns include dividends (`adjClose`). The S&P 500 (through SPY) and the DAX include them too, so the US and Germany rows are like for like on that point. The other seven indices are price indices, so excess against them is overstated by roughly the index's dividend yield. Canada's +0.85 would not survive an allowance of one point a year, so it is not a clear lead. See [METHODOLOGY.md](../METHODOLOGY.md#benchmark-limitations) (Benchmark Limitations).
 - **Cash timing:** a cash quarter earns 0% whatever the index does, so some leads come from which quarters were cash. Germany's 13 cash quarters run from January 2000 to January 2003, a stretch in which the DAX lost 61.64%; Japan's 18 run from January 2000 to April 2004, in which the Nikkei 225 lost 38.31%. China was in cash from April 2008 to January 2009 because only 2 names passed the screen, and its 2008 reads -27.93% against -64.33% for the SSE Composite. Korea was in cash in the first quarter of 2020, with 9 buyable names of 12 screened, while the KOSPI fell 20.70%. In India and Canada the cash quarters fell in rising markets and cost the book.
-- **US book includes fund share classes:** mutual-fund share classes (five-letter tickers ending in X, such as PRGTX and JTSSX) are among the ten lowest-P/S holdings in 38 of the 103 quarters, from April 2013 to April 2025, and are 5 of those ten from April 2019 to January 2020. Their effect on the US result is not measured: `--exclude-funds` exists as a diagnostic flag and no run with it has been made. Until one is, the US figure can't be credited to the screen alone.
+- **US book includes fund share classes:** mutual-fund share classes (five-letter tickers ending in X, such as PRGTX and JTSSX) are among the ten lowest-P/S holdings in 38 of the 103 quarters, from April 2013 to April 2025, and are 5 of those ten from April 2019 to January 2020. The published figure keeps them. One diagnostic run without funds and ETFs gives 13.72% a year against 14.41%, still 5.71 points ahead of the S&P 500, with a deeper drawdown (-55.72% against -46.01%). It is a single run that was not gated; see [Funds-excluded diagnostic](#funds-excluded-diagnostic).
 - **Share lines, not companies:** separate share classes and preference shares have their own ISINs, so the same-ISIN rule leaves them in, and each takes a slot. Among the ten lowest-P/S holdings recorded per quarter, two or more lines of one issuer appear in 92 of Canada's 93 invested quarters (for example QBR-A.TO with QBR-B.TO, and the preference line WN-PA.TO with WN.TO) and in 28 of the UK's 97 (AV-A.L and AV-B.L with AV.L). The average book sizes are counts of lines.
 - **Drawdowns:** three books lost more than 60% from peak to trough: Hong Kong (-63.47%, January 2020 to January 2024), Japan (-61.82%, July 2007 to January 2009) and Germany (-61.18%, July 2007 to April 2009). The US and India maxima are not the 2008 fall. The US -46.01% runs from July 2018 to April 2020 and India's -58.01% from January 2018 to April 2020, with no cash quarter in either. Their falls through 2008 were smaller: -43.01% for the US (July 2007 to April 2009) and -53.17% for India (April 2006 to January 2009, with 8 of those 11 quarters in cash). The UK and Canada maxima run from July 2007 to April 2009 and Korea's from April 2008 to January 2009. China's -28.23% runs from October 2007 to April 2008 and is shallow because the book was in cash from 2000 to 2005 and for most of 2008.
 
@@ -124,6 +124,22 @@ What moved:
 
 In June, 11 of 15 markets were ahead of their benchmark. Of the 9 that can be ranked now, all 9 are ahead; the other 7 are too thin to say.
 
+## Funds-excluded diagnostic
+
+Mutual-fund share classes pass this screen and rank among the lowest-P/S names of the US book in 38 quarters (see Results); why their filed figures pass wasn't checked. The published results keep them. `--exclude-funds` (off by default) reruns a market without funds and ETFs (`isFund`, `isEtf`); it does not filter on `isActivelyTrading`, which would add survivorship bias. One run, the US, is in `results/diagnostics/returns_nofunds_NYSE_NASDAQ_AMEX.json`. It was made on 2026-10-14 from the code at commit `cf1decc`, as a single diagnostic run: unlike the published files it was not gated, so no repeat run checked that it reproduces and no check compared its flags with the published run's. The file itself records neither the flag nor the commit.
+
+| US (NYSE + NASDAQ + AMEX) | As screened (published) | Funds excluded (diagnostic) |
+|---------------------------|-------------------------|-----------------------------|
+| CAGR | 14.41% | 13.72% |
+| Excess vs S&P 500 (8.02%), pp | +6.39 | +5.71 |
+| Sharpe | 0.508 | 0.458 |
+| Max drawdown | -46.01% | -55.72% |
+| Cash quarters | 0 of 103 | 0 of 103 |
+| Avg share lines | 23.5 | 23.6 |
+| Fund share classes among the ten recorded names | 95 of 1,030 slots, in 38 quarters | none |
+
+Both files measure the same 103 quarters with last-traded-price exits, and the S&P 500 return is identical in every quarter. Each file records the ten lowest-P/S names of every quarter. The names recorded in the published file that never appear in the diagnostic file are exactly the six fund share classes (PRGTX, JTSSX, SMTAX, JMUEX, GEMAX, FLCSX), so no ETF among the recorded names was removed with them. The portfolio return differs in 13 of 26 years, all from 2013, when the fund share classes first appear. The largest changes are 2020 (+20.60% to +10.77%), 2019 (+4.03% to -1.76%), 2024 (+46.13% to +40.64%) and 2021 (+36.23% to +40.65%). The maximum drawdown covers the same quarters in both books, July 2018 to April 2020, and is 9.71 points deeper without the funds, so the fund share classes damped that fall. The direction differs by topic (see `DATA_QUALITY_ISSUES.md`, Closed-end funds contaminate revenue-ranked screens): here excluding funds lowers the CAGR by 0.69 points and the US stays ahead of its benchmark either way. Two of the names that take recorded slots only in the funds-excluded book, PRH and UZA (2 quarters each), look like exchange-traded note lines by their tickers; that wasn't checked against `profile`.
+
 ## Usage
 
 Run from the repository root. `--exit-method` defaults to `ltp`. The listing rules need no flag: they apply whenever XETRA, SIX or LSE is run as its own market.
@@ -147,6 +163,10 @@ python3 price-to-sales/backtest.py --preset southafrica --output price-to-sales/
 python3 price-to-sales/backtest.py --preset switzerland --output price-to-sales/results/returns_SIX.json
 python3 price-to-sales/backtest.py --exchange KLS --output price-to-sales/results/returns_KLS.json
 python3 price-to-sales/backtest.py --exchange SES --output price-to-sales/results/returns_SES.json
+
+# Funds-excluded diagnostic, US (see Funds-excluded diagnostic; not part of the comparison)
+python3 price-to-sales/backtest.py --preset us --exclude-funds \
+  --output price-to-sales/results/diagnostics/returns_nofunds_NYSE_NASDAQ_AMEX.json
 
 # After any market is rerun, rebuild the combined file the charts read, then check it.
 # --drop SES leaves Singapore out of the combined file (see Too thin to test).
@@ -176,16 +196,13 @@ python3 price-to-sales/generate_charts.py
 | Malaysia | `--exchange KLS` | KLS | `returns_KLS.json` |  |
 | Singapore | `--exchange SES` | SES | `returns_SES.json` |  |
 
-`--global` doesn't reproduce this set. It runs Canada as TSX alone and Taiwan as TAI alone and writes them to `returns_TSX.json` and `returns_TAI.json`, the files that hold the TSX + TSXV and TAI + TWO books. It also runs Norway and Brazil, which are not part of this set, and if one market fails it leaves that market's old file in place and records an error in `exchange_comparison.json`. Each run reads the live data warehouse, so a rerun can differ slightly from the committed results.
+`--global` doesn't reproduce this set. It runs Canada as TSX alone and Taiwan as TAI alone and writes them to `returns_TSX.json` and `returns_TAI.json`, the files that hold the TSX + TSXV and TAI + TWO books. It also runs Norway and Brazil, which are not part of this set, and if one market fails it leaves that market's old file in place and records an error in `exchange_comparison.json`. Don't combine `--global` with `--exclude-funds` and an output under `results/`: the loop writes `returns_<KEY>.json`, over the main files. Each run reads the live data warehouse, so a rerun can differ slightly from the committed results.
 
 Other commands:
 
 ```bash
 # US, printed to the terminal (default universe: NYSE + NASDAQ + AMEX)
 python3 price-to-sales/backtest.py --verbose
-
-# Diagnostic: the same run without funds and ETFs. No committed result uses it.
-python3 price-to-sales/backtest.py --preset us --exclude-funds
 
 # The old exit rule (doesn't reproduce the June results: the other five changes still apply)
 python3 price-to-sales/backtest.py --preset uk --exit-method drop
@@ -207,13 +224,13 @@ python3 price-to-sales/screen.py --preset india
 - `financial_ratios` (FY): priceToSalesRatio, grossProfitMargin, operatingProfitMargin
 - `key_metrics` (FY): returnOnEquity, marketCap
 - `stock_eod`: adjClose after each rebalance date, and the last traded price for exits
-- `profile`: exchange, country (XETRA and SIX rule), currency (LSE rule, dedup tie-break), isin and isActivelyTrading (dedup)
+- `profile`: exchange, country (XETRA and SIX rule), currency (LSE rule, dedup tie-break), isin and isActivelyTrading (dedup), isFund and isEtf (funds-excluded diagnostic only)
 - `screen.py` reads `financial_ratios_ttm` and `key_metrics_ttm`
 
 ## Known Limits
 
 - The filing date used is the fiscal period end, so the 45-day lag counts from the period end. A fiscal year that ended 45 to 90 days before a rebalance can be used before the annual report was public.
-- Funds are not excluded. The US book holds mutual-fund share classes in 38 of 103 quarters and the effect is unmeasured (see Results).
+- Funds are not excluded from the published results. The US book holds mutual-fund share classes in 38 of 103 quarters. One ungated run without funds and ETFs gives 13.72% a year against 14.41% (see Funds-excluded diagnostic); the other markets weren't run that way.
 - Share classes and preference shares of one issuer are separate ISINs and are all held. Whether a preference line belongs in a price-to-sales book is an open question; the results above include them.
 - The size floor compares the filing's market cap, in the company's reporting currency, with a threshold set in the listing currency.
 - The cost tiers are in US dollars and are applied to local-currency market caps.
@@ -228,4 +245,5 @@ python3 price-to-sales/screen.py --preset india
 | `generate_charts.py` | Charts from `results/exchange_comparison.json` |
 | `README.md` | This file |
 | `results/` | `returns_<market>.json` per market (16) and `exchange_comparison.json` (15, without Singapore) |
+| `results/diagnostics/` | `returns_nofunds_NYSE_NASDAQ_AMEX.json`, the US run without funds and ETFs (a single, ungated diagnostic run) |
 | `charts/` | Output of `generate_charts.py` |

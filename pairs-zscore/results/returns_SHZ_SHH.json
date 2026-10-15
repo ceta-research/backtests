@@ -1,30 +1,42 @@
 {
-  "universe": "China",
+  "universe": "SHZ_SHH",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 0,
+  "invested_periods": 20,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": null,
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
   "n_years": 20,
   "years": "2005-2024",
   "frequency": "daily_zscore",
-  "cash_periods": 0,
-  "invested_periods": 20,
-  "avg_pairs_with_trades": 17.9,
-  "total_trades": 2414,
-  "trades_per_year": 120.7,
+  "avg_pairs_with_trades": 18.6,
+  "total_trades": 2469,
+  "trades_per_year": 123.5,
   "trade_stats": {
-    "total_trades": 2414,
+    "total_trades": 2469,
     "convergence_rate": 77.2,
     "time_stop_rate": 0.3,
     "loss_stop_rate": 16.0,
     "year_end_rate": 6.5,
+    "last_bar_rate": 0.0,
     "avg_holding_days": 14.1,
-    "avg_trade_return_pct": -0.3
+    "avg_trade_return_pct": -0.415
   },
   "portfolio": {
-    "cagr": -1.32,
-    "max_drawdown": -42.42,
-    "annualized_volatility": 8.6,
-    "sharpe_ratio": -0.445,
-    "sortino_ratio": -0.641,
-    "calmar_ratio": -0.031,
-    "total_return": -23.4
+    "cagr": -2.89,
+    "max_drawdown": -44.35,
+    "annualized_volatility": 2.6,
+    "sharpe_ratio": -2.069,
+    "sortino_ratio": -0.909,
+    "calmar_ratio": -0.065,
+    "total_return": -44.35
   },
   "spy": {
     "cagr": 4.68,
@@ -36,196 +48,3073 @@
     "total_return": 149.63
   },
   "comparison": {
-    "excess_cagr": -6.0,
-    "win_rate": 45.0,
-    "information_ratio": -0.29,
-    "up_capture": -8.44,
-    "down_capture": -8.76,
-    "beta": -0.034,
-    "alpha": -3.75
+    "excess_cagr": -7.57,
+    "win_rate": 40.0,
+    "information_ratio": -0.34,
+    "up_capture": -8.08,
+    "down_capture": 13.93,
+    "beta": -0.015,
+    "alpha": -5.36
   },
-  "excess_cagr": -6.0,
-  "win_rate_vs_spy": 45.0,
+  "excess_cagr": -7.57,
+  "win_rate_vs_spy": 40.0,
   "annual_returns": [
     {
       "year": 2005,
-      "portfolio": 33.03,
+      "portfolio": -0.21,
       "spy": -8.33,
-      "excess": 41.35,
-      "pairs_formed": 7,
-      "pairs_with_trades": 7,
-      "total_trades": 55
+      "excess": 8.12,
+      "pairs_formed": 20,
+      "pairs_entered": 19,
+      "pairs_with_trades": 19,
+      "total_trades": 122,
+      "same_company_pairs": 0,
+      "listed": 1050,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 25,
+      "eligible": 1025,
+      "candidates": 320,
+      "sectors": 11,
+      "min_size_usd": 45949.22553674774,
+      "sector_cut_usd": {
+        "Basic Materials": 1405667.2472120533,
+        "Consumer Cyclical": 702073.6313989875,
+        "Consumer Defensive": 485412.9103386616,
+        "Energy": 45949.22553674774,
+        "Healthcare": 549031.7831986179,
+        "Industrials": 1723580.5532398177,
+        "Real Estate": 590055.2175287252,
+        "Technology": 1056497.1564754068,
+        "Utilities": 625336.786400377
+      },
+      "no_cost_cap": 2,
+      "pairs": [
+        {
+          "a": "600345.SS",
+          "b": "600498.SS",
+          "sector": "Technology",
+          "corr": 0.8778
+        },
+        {
+          "a": "600231.SS",
+          "b": "600307.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7927
+        },
+        {
+          "a": "000825.SZ",
+          "b": "600307.SS",
+          "sector": "Basic Materials",
+          "corr": 0.781
+        },
+        {
+          "a": "600307.SS",
+          "b": "600569.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7747
+        },
+        {
+          "a": "000006.SZ",
+          "b": "000029.SZ",
+          "sector": "Real Estate",
+          "corr": 0.7729
+        },
+        {
+          "a": "600282.SS",
+          "b": "600808.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7627
+        },
+        {
+          "a": "000717.SZ",
+          "b": "600808.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7623
+        },
+        {
+          "a": "000717.SZ",
+          "b": "600282.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7573
+        },
+        {
+          "a": "000636.SZ",
+          "b": "000823.SZ",
+          "sector": "Technology",
+          "corr": 0.7535
+        },
+        {
+          "a": "600307.SS",
+          "b": "600808.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7495
+        },
+        {
+          "a": "600171.SS",
+          "b": "600602.SS",
+          "sector": "Technology",
+          "corr": 0.7483
+        },
+        {
+          "a": "000636.SZ",
+          "b": "600602.SS",
+          "sector": "Technology",
+          "corr": 0.7438
+        },
+        {
+          "a": "600282.SS",
+          "b": "600307.SS",
+          "sector": "Basic Materials",
+          "corr": 0.743
+        },
+        {
+          "a": "000825.SZ",
+          "b": "600231.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7393
+        },
+        {
+          "a": "000839.SZ",
+          "b": "000917.SZ",
+          "sector": "Communication Services",
+          "corr": 0.7393
+        },
+        {
+          "a": "000917.SZ",
+          "b": "600088.SS",
+          "sector": "Communication Services",
+          "corr": 0.7385
+        },
+        {
+          "a": "600569.SS",
+          "b": "600808.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7385
+        },
+        {
+          "a": "600231.SS",
+          "b": "600282.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7382
+        },
+        {
+          "a": "000825.SZ",
+          "b": "600808.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7348
+        },
+        {
+          "a": "000550.SZ",
+          "b": "000800.SZ",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7329
+        }
+      ]
     },
     {
       "year": 2006,
-      "portfolio": -0.1,
+      "portfolio": -0.68,
       "spy": 126.55,
-      "excess": -126.65,
+      "excess": -127.23,
       "pairs_formed": 20,
-      "pairs_with_trades": 3,
-      "total_trades": 25
+      "pairs_entered": 7,
+      "pairs_with_trades": 7,
+      "total_trades": 49,
+      "same_company_pairs": 0,
+      "listed": 1112,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 24,
+      "eligible": 1088,
+      "candidates": 319,
+      "sectors": 11,
+      "min_size_usd": 108495.31578880832,
+      "sector_cut_usd": {
+        "Basic Materials": 1491804.4964987298,
+        "Consumer Cyclical": 842120.5255004029,
+        "Consumer Defensive": 478095.9100204499,
+        "Energy": 133561.6686248993,
+        "Healthcare": 575149.9832682655,
+        "Industrials": 1375003.4826795564,
+        "Real Estate": 473261.17056776345,
+        "Technology": 853780.1121645906,
+        "Utilities": 513222.315329987
+      },
+      "no_cost_cap": 2,
+      "pairs": [
+        {
+          "a": "600633.SS",
+          "b": "600757.SS",
+          "sector": "Communication Services",
+          "corr": 0.9411
+        },
+        {
+          "a": "000729.SZ",
+          "b": "600702.SS",
+          "sector": "Consumer Defensive",
+          "corr": 0.9138
+        },
+        {
+          "a": "600256.SS",
+          "b": "600740.SS",
+          "sector": "Energy",
+          "corr": 0.9119
+        },
+        {
+          "a": "000157.SZ",
+          "b": "600855.SS",
+          "sector": "Industrials",
+          "corr": 0.9049
+        },
+        {
+          "a": "000157.SZ",
+          "b": "600875.SS",
+          "sector": "Industrials",
+          "corr": 0.898
+        },
+        {
+          "a": "600088.SS",
+          "b": "600986.SS",
+          "sector": "Communication Services",
+          "corr": 0.8926
+        },
+        {
+          "a": "600320.SS",
+          "b": "600875.SS",
+          "sector": "Industrials",
+          "corr": 0.887
+        },
+        {
+          "a": "600509.SS",
+          "b": "600863.SS",
+          "sector": "Utilities",
+          "corr": 0.879
+        },
+        {
+          "a": "600330.SS",
+          "b": "600718.SS",
+          "sector": "Technology",
+          "corr": 0.8782
+        },
+        {
+          "a": "600328.SS",
+          "b": "600399.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8735
+        },
+        {
+          "a": "600216.SS",
+          "b": "600420.SS",
+          "sector": "Healthcare",
+          "corr": 0.87
+        },
+        {
+          "a": "000012.SZ",
+          "b": "600328.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8668
+        },
+        {
+          "a": "000157.SZ",
+          "b": "600320.SS",
+          "sector": "Industrials",
+          "corr": 0.8628
+        },
+        {
+          "a": "600060.SS",
+          "b": "600271.SS",
+          "sector": "Technology",
+          "corr": 0.8626
+        },
+        {
+          "a": "600855.SS",
+          "b": "600875.SS",
+          "sector": "Industrials",
+          "corr": 0.8604
+        },
+        {
+          "a": "600597.SS",
+          "b": "600702.SS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8599
+        },
+        {
+          "a": "600628.SS",
+          "b": "600854.SS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8594
+        },
+        {
+          "a": "000532.SZ",
+          "b": "600390.SS",
+          "sector": "Financial Services",
+          "corr": 0.8526
+        },
+        {
+          "a": "000012.SZ",
+          "b": "600399.SS",
+          "sector": "Basic Materials",
+          "corr": 0.849
+        },
+        {
+          "a": "600740.SS",
+          "b": "600997.SS",
+          "sector": "Energy",
+          "corr": 0.8408
+        }
+      ]
     },
     {
       "year": 2007,
-      "portfolio": -8.74,
+      "portfolio": -9.69,
       "spy": 93.74,
-      "excess": -102.48,
-      "pairs_formed": 7,
+      "excess": -103.44,
+      "pairs_formed": 8,
+      "pairs_entered": 7,
       "pairs_with_trades": 7,
-      "total_trades": 68
+      "total_trades": 59,
+      "same_company_pairs": 0,
+      "listed": 1060,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 25,
+      "eligible": 1035,
+      "candidates": 318,
+      "sectors": 11,
+      "min_size_usd": 126778.2968828074,
+      "sector_cut_usd": {
+        "Basic Materials": 5000046.411320804,
+        "Consumer Cyclical": 2691043.107711625,
+        "Consumer Defensive": 1520233.0617048917,
+        "Energy": 524707.6091273654,
+        "Healthcare": 1657662.799323519,
+        "Industrials": 4342077.708165173,
+        "Real Estate": 2255048.746973133,
+        "Technology": 2396771.7186967493,
+        "Utilities": 1289433.0062981895
+      },
+      "no_cost_cap": 3,
+      "pairs": [
+        {
+          "a": "600236.SS",
+          "b": "600323.SS",
+          "sector": "Utilities",
+          "corr": 0.8229
+        },
+        {
+          "a": "000630.SZ",
+          "b": "000878.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.8026
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.7905
+        },
+        {
+          "a": "000937.SZ",
+          "b": "000983.SZ",
+          "sector": "Energy",
+          "corr": 0.7455
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600997.SS",
+          "sector": "Energy",
+          "corr": 0.7416
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600508.SS",
+          "sector": "Energy",
+          "corr": 0.7161
+        },
+        {
+          "a": "600026.SS",
+          "b": "600428.SS",
+          "sector": "Industrials",
+          "corr": 0.7132
+        },
+        {
+          "a": "600331.SS",
+          "b": "600961.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7041
+        }
+      ]
     },
     {
       "year": 2008,
-      "portfolio": 5.62,
+      "portfolio": 0.87,
       "spy": -65.47,
-      "excess": 71.09,
+      "excess": 66.34,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 143
+      "total_trades": 133,
+      "same_company_pairs": 0,
+      "listed": 1218,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 21,
+      "eligible": 1197,
+      "candidates": 324,
+      "sectors": 11,
+      "min_size_usd": 2643.163177070524,
+      "sector_cut_usd": {
+        "Basic Materials": 29154668.18169373,
+        "Consumer Cyclical": 14313953.61689894,
+        "Consumer Defensive": 9275347.955397971,
+        "Energy": 7539942.740191113,
+        "Healthcare": 10410937.078005642,
+        "Industrials": 28678116.337650247,
+        "Real Estate": 15837268.72929387,
+        "Technology": 11467322.076499742,
+        "Utilities": 13405972.747309912
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "601398.SS",
+          "b": "601988.SS",
+          "sector": "Financial Services",
+          "corr": 0.9051
+        },
+        {
+          "a": "000623.SZ",
+          "b": "600739.SS",
+          "sector": "Healthcare",
+          "corr": 0.8874
+        },
+        {
+          "a": "000630.SZ",
+          "b": "600362.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8395
+        },
+        {
+          "a": "600000.SS",
+          "b": "600036.SS",
+          "sector": "Financial Services",
+          "corr": 0.8174
+        },
+        {
+          "a": "600508.SS",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.8086
+        },
+        {
+          "a": "600997.SS",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.8005
+        },
+        {
+          "a": "000937.SZ",
+          "b": "600508.SS",
+          "sector": "Energy",
+          "corr": 0.7944
+        },
+        {
+          "a": "600508.SS",
+          "b": "600997.SS",
+          "sector": "Energy",
+          "corr": 0.7933
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600123.SS",
+          "sector": "Energy",
+          "corr": 0.7915
+        },
+        {
+          "a": "600015.SS",
+          "b": "600016.SS",
+          "sector": "Financial Services",
+          "corr": 0.7895
+        },
+        {
+          "a": "600016.SS",
+          "b": "600036.SS",
+          "sector": "Financial Services",
+          "corr": 0.7879
+        },
+        {
+          "a": "600123.SS",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.7873
+        },
+        {
+          "a": "600123.SS",
+          "b": "600508.SS",
+          "sector": "Energy",
+          "corr": 0.7866
+        },
+        {
+          "a": "000630.SZ",
+          "b": "000878.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.7857
+        },
+        {
+          "a": "000937.SZ",
+          "b": "600997.SS",
+          "sector": "Energy",
+          "corr": 0.7769
+        },
+        {
+          "a": "000807.SZ",
+          "b": "600219.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7762
+        },
+        {
+          "a": "600123.SS",
+          "b": "600997.SS",
+          "sector": "Energy",
+          "corr": 0.776
+        },
+        {
+          "a": "600036.SS",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.7718
+        },
+        {
+          "a": "000002.SZ",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.7665
+        },
+        {
+          "a": "000717.SZ",
+          "b": "600808.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7652
+        }
+      ]
     },
     {
       "year": 2009,
-      "portfolio": -0.61,
+      "portfolio": -1.48,
       "spy": 74.25,
-      "excess": -74.86,
+      "excess": -75.73,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 137
+      "total_trades": 139,
+      "same_company_pairs": 0,
+      "listed": 1369,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 23,
+      "eligible": 1346,
+      "candidates": 329,
+      "sectors": 11,
+      "min_size_usd": 1065.0355690442955,
+      "sector_cut_usd": {
+        "Basic Materials": 15837119.79043013,
+        "Consumer Cyclical": 5812742.0470081335,
+        "Consumer Defensive": 7359546.188173224,
+        "Energy": 5417217.633912215,
+        "Financial Services": 4687526.339854913,
+        "Healthcare": 4638194.771011944,
+        "Industrials": 16019146.407268995,
+        "Real Estate": 5891440.529054005,
+        "Technology": 4700855.755843775,
+        "Utilities": 4213734.587821499
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "600489.SS",
+          "b": "600547.SS",
+          "sector": "Basic Materials",
+          "corr": 0.9316
+        },
+        {
+          "a": "600000.SS",
+          "b": "600036.SS",
+          "sector": "Financial Services",
+          "corr": 0.9244
+        },
+        {
+          "a": "601088.SS",
+          "b": "601898.SS",
+          "sector": "Energy",
+          "corr": 0.921
+        },
+        {
+          "a": "601398.SS",
+          "b": "601939.SS",
+          "sector": "Financial Services",
+          "corr": 0.9178
+        },
+        {
+          "a": "601009.SS",
+          "b": "601169.SS",
+          "sector": "Financial Services",
+          "corr": 0.9146
+        },
+        {
+          "a": "000001.SZ",
+          "b": "600000.SS",
+          "sector": "Financial Services",
+          "corr": 0.9135
+        },
+        {
+          "a": "600029.SS",
+          "b": "601111.SS",
+          "sector": "Industrials",
+          "corr": 0.9134
+        },
+        {
+          "a": "002142.SZ",
+          "b": "601009.SS",
+          "sector": "Financial Services",
+          "corr": 0.9125
+        },
+        {
+          "a": "000623.SZ",
+          "b": "600739.SS",
+          "sector": "Healthcare",
+          "corr": 0.9101
+        },
+        {
+          "a": "600016.SS",
+          "b": "601998.SS",
+          "sector": "Financial Services",
+          "corr": 0.9094
+        },
+        {
+          "a": "600000.SS",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.9086
+        },
+        {
+          "a": "600036.SS",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.9048
+        },
+        {
+          "a": "601328.SS",
+          "b": "601939.SS",
+          "sector": "Financial Services",
+          "corr": 0.904
+        },
+        {
+          "a": "600123.SS",
+          "b": "600508.SS",
+          "sector": "Energy",
+          "corr": 0.9015
+        },
+        {
+          "a": "600138.SS",
+          "b": "600258.SS",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8995
+        },
+        {
+          "a": "600016.SS",
+          "b": "601328.SS",
+          "sector": "Financial Services",
+          "corr": 0.8994
+        },
+        {
+          "a": "600704.SS",
+          "b": "600755.SS",
+          "sector": "Industrials",
+          "corr": 0.8989
+        },
+        {
+          "a": "000001.SZ",
+          "b": "600036.SS",
+          "sector": "Financial Services",
+          "corr": 0.8985
+        },
+        {
+          "a": "600000.SS",
+          "b": "600015.SS",
+          "sector": "Financial Services",
+          "corr": 0.897
+        },
+        {
+          "a": "601939.SS",
+          "b": "601998.SS",
+          "sector": "Financial Services",
+          "corr": 0.8922
+        }
+      ]
     },
     {
       "year": 2010,
-      "portfolio": -1.71,
+      "portfolio": -5.34,
       "spy": -13.43,
-      "excess": 11.72,
+      "excess": 8.1,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 128
+      "total_trades": 128,
+      "same_company_pairs": 0,
+      "listed": 1476,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 27,
+      "eligible": 1449,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 1561079.9396372372,
+      "sector_cut_usd": {
+        "Basic Materials": 38915796.535001606,
+        "Communication Services": 1561079.9396372372,
+        "Consumer Cyclical": 16576513.593342513,
+        "Consumer Defensive": 14233002.395464003,
+        "Energy": 15804209.882204706,
+        "Financial Services": 13193189.629911799,
+        "Healthcare": 14422885.468983501,
+        "Industrials": 32105297.658012714,
+        "Real Estate": 19635696.78553638,
+        "Technology": 13114295.25742081,
+        "Utilities": 10136478.385149589
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "000630.SZ",
+          "b": "600362.SS",
+          "sector": "Basic Materials",
+          "corr": 0.9253
+        },
+        {
+          "a": "000623.SZ",
+          "b": "600739.SS",
+          "sector": "Healthcare",
+          "corr": 0.9199
+        },
+        {
+          "a": "601088.SS",
+          "b": "601898.SS",
+          "sector": "Energy",
+          "corr": 0.9179
+        },
+        {
+          "a": "000878.SZ",
+          "b": "600362.SS",
+          "sector": "Basic Materials",
+          "corr": 0.9109
+        },
+        {
+          "a": "600219.SS",
+          "b": "601600.SS",
+          "sector": "Basic Materials",
+          "corr": 0.9024
+        },
+        {
+          "a": "600428.SS",
+          "b": "601919.SS",
+          "sector": "Industrials",
+          "corr": 0.901
+        },
+        {
+          "a": "600000.SS",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.8982
+        },
+        {
+          "a": "000998.SZ",
+          "b": "600598.SS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8979
+        },
+        {
+          "a": "600030.SS",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8966
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.8897
+        },
+        {
+          "a": "601186.SS",
+          "b": "601390.SS",
+          "sector": "Industrials",
+          "corr": 0.8878
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8873
+        },
+        {
+          "a": "601398.SS",
+          "b": "601939.SS",
+          "sector": "Financial Services",
+          "corr": 0.8867
+        },
+        {
+          "a": "600048.SS",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.8835
+        },
+        {
+          "a": "601666.SS",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8835
+        },
+        {
+          "a": "000630.SZ",
+          "b": "000878.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.8791
+        },
+        {
+          "a": "600026.SS",
+          "b": "601919.SS",
+          "sector": "Industrials",
+          "corr": 0.8789
+        },
+        {
+          "a": "601001.SS",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.8771
+        },
+        {
+          "a": "601398.SS",
+          "b": "601988.SS",
+          "sector": "Financial Services",
+          "corr": 0.876
+        },
+        {
+          "a": "601866.SS",
+          "b": "601919.SS",
+          "sector": "Industrials",
+          "corr": 0.8724
+        }
+      ]
     },
     {
       "year": 2011,
-      "portfolio": -5.57,
+      "portfolio": -3.93,
       "spy": -22.9,
-      "excess": 17.33,
+      "excess": 18.97,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 134
+      "total_trades": 131,
+      "same_company_pairs": 0,
+      "listed": 1625,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 27,
+      "eligible": 1598,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 2059506.1266627216,
+      "sector_cut_usd": {
+        "Basic Materials": 33863377.97147625,
+        "Communication Services": 2059506.1266627216,
+        "Consumer Cyclical": 18176511.069640417,
+        "Consumer Defensive": 15778673.566985281,
+        "Energy": 14797190.247306934,
+        "Financial Services": 10493062.876649978,
+        "Healthcare": 16886113.299954485,
+        "Industrials": 32711593.96449704,
+        "Real Estate": 15844113.530571992,
+        "Technology": 20542052.445759367,
+        "Utilities": 8275953.39098771
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "000937.SZ",
+          "b": "000983.SZ",
+          "sector": "Energy",
+          "corr": 0.9213
+        },
+        {
+          "a": "601688.SS",
+          "b": "601788.SS",
+          "sector": "Financial Services",
+          "corr": 0.9133
+        },
+        {
+          "a": "000783.SZ",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.9107
+        },
+        {
+          "a": "600999.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.91
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.9087
+        },
+        {
+          "a": "000783.SZ",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.9073
+        },
+        {
+          "a": "601088.SS",
+          "b": "601898.SS",
+          "sector": "Energy",
+          "corr": 0.9062
+        },
+        {
+          "a": "600837.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.906
+        },
+        {
+          "a": "002142.SZ",
+          "b": "601169.SS",
+          "sector": "Financial Services",
+          "corr": 0.904
+        },
+        {
+          "a": "000728.SZ",
+          "b": "000783.SZ",
+          "sector": "Financial Services",
+          "corr": 0.9017
+        },
+        {
+          "a": "600029.SS",
+          "b": "601111.SS",
+          "sector": "Industrials",
+          "corr": 0.8976
+        },
+        {
+          "a": "000937.SZ",
+          "b": "600395.SS",
+          "sector": "Energy",
+          "corr": 0.8962
+        },
+        {
+          "a": "000728.SZ",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8961
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600395.SS",
+          "sector": "Energy",
+          "corr": 0.895
+        },
+        {
+          "a": "000937.SZ",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.8939
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8914
+        },
+        {
+          "a": "600048.SS",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.8897
+        },
+        {
+          "a": "000728.SZ",
+          "b": "600999.SS",
+          "sector": "Financial Services",
+          "corr": 0.888
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601001.SS",
+          "sector": "Energy",
+          "corr": 0.8856
+        },
+        {
+          "a": "000002.SZ",
+          "b": "600048.SS",
+          "sector": "Real Estate",
+          "corr": 0.8844
+        }
+      ]
     },
     {
       "year": 2012,
-      "portfolio": -1.52,
+      "portfolio": -0.01,
       "spy": 4.6,
-      "excess": -6.12,
+      "excess": -4.61,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 119
+      "total_trades": 129,
+      "same_company_pairs": 0,
+      "listed": 1914,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 26,
+      "eligible": 1888,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 2334119.355196627,
+      "sector_cut_usd": {
+        "Basic Materials": 33738206.05652332,
+        "Communication Services": 2334119.355196627,
+        "Consumer Cyclical": 10594482.699836738,
+        "Consumer Defensive": 10219475.095500007,
+        "Energy": 10843088.528111082,
+        "Financial Services": 11672921.14314698,
+        "Healthcare": 9848900.508805022,
+        "Industrials": 23081282.86230563,
+        "Real Estate": 8130105.384456878,
+        "Technology": 11033679.416380033,
+        "Utilities": 6966861.359349489
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "600000.SS",
+          "b": "600036.SS",
+          "sector": "Financial Services",
+          "corr": 0.9093
+        },
+        {
+          "a": "600489.SS",
+          "b": "600547.SS",
+          "sector": "Basic Materials",
+          "corr": 0.908
+        },
+        {
+          "a": "600000.SS",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.9072
+        },
+        {
+          "a": "600030.SS",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.9018
+        },
+        {
+          "a": "000630.SZ",
+          "b": "600362.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8953
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601001.SS",
+          "sector": "Energy",
+          "corr": 0.8952
+        },
+        {
+          "a": "600029.SS",
+          "b": "601111.SS",
+          "sector": "Industrials",
+          "corr": 0.8892
+        },
+        {
+          "a": "000728.SZ",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8846
+        },
+        {
+          "a": "000728.SZ",
+          "b": "601788.SS",
+          "sector": "Financial Services",
+          "corr": 0.8842
+        },
+        {
+          "a": "000728.SZ",
+          "b": "600030.SS",
+          "sector": "Financial Services",
+          "corr": 0.8832
+        },
+        {
+          "a": "002142.SZ",
+          "b": "600000.SS",
+          "sector": "Financial Services",
+          "corr": 0.8824
+        },
+        {
+          "a": "600508.SS",
+          "b": "601001.SS",
+          "sector": "Energy",
+          "corr": 0.8798
+        },
+        {
+          "a": "000937.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.875
+        },
+        {
+          "a": "600000.SS",
+          "b": "601328.SS",
+          "sector": "Financial Services",
+          "corr": 0.8722
+        },
+        {
+          "a": "600030.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8713
+        },
+        {
+          "a": "601001.SS",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.8703
+        },
+        {
+          "a": "000728.SZ",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.87
+        },
+        {
+          "a": "600837.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8696
+        },
+        {
+          "a": "601688.SS",
+          "b": "601788.SS",
+          "sector": "Financial Services",
+          "corr": 0.8684
+        },
+        {
+          "a": "000002.SZ",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.8673
+        }
+      ]
     },
     {
       "year": 2013,
-      "portfolio": -1.86,
+      "portfolio": -2.25,
       "spy": -7.07,
-      "excess": 5.22,
+      "excess": 4.82,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 135
+      "total_trades": 128,
+      "same_company_pairs": 0,
+      "listed": 2133,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 26,
+      "eligible": 2107,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 2419011.278002439,
+      "sector_cut_usd": {
+        "Basic Materials": 16873480.454457924,
+        "Communication Services": 2419011.278002439,
+        "Consumer Cyclical": 7231579.289428076,
+        "Consumer Defensive": 9559862.696578728,
+        "Energy": 7149433.468130175,
+        "Financial Services": 15389827.8451762,
+        "Healthcare": 9206311.180114256,
+        "Industrials": 15073617.664805187,
+        "Real Estate": 6436316.331952629,
+        "Technology": 8171594.03684447,
+        "Utilities": 4079049.826689774
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "600030.SS",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.9249
+        },
+        {
+          "a": "000937.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.9126
+        },
+        {
+          "a": "000630.SZ",
+          "b": "600362.SS",
+          "sector": "Basic Materials",
+          "corr": 0.9036
+        },
+        {
+          "a": "600000.SS",
+          "b": "600036.SS",
+          "sector": "Financial Services",
+          "corr": 0.9001
+        },
+        {
+          "a": "601001.SS",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.899
+        },
+        {
+          "a": "000937.SZ",
+          "b": "000983.SZ",
+          "sector": "Energy",
+          "corr": 0.8983
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.8935
+        },
+        {
+          "a": "000937.SZ",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.8925
+        },
+        {
+          "a": "000728.SZ",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8903
+        },
+        {
+          "a": "000568.SZ",
+          "b": "000858.SZ",
+          "sector": "Consumer Defensive",
+          "corr": 0.8859
+        },
+        {
+          "a": "600348.SS",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8849
+        },
+        {
+          "a": "600489.SS",
+          "b": "600547.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8842
+        },
+        {
+          "a": "601001.SS",
+          "b": "601101.SS",
+          "sector": "Energy",
+          "corr": 0.8836
+        },
+        {
+          "a": "600348.SS",
+          "b": "600971.SS",
+          "sector": "Energy",
+          "corr": 0.8822
+        },
+        {
+          "a": "000937.SZ",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.8813
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.8811
+        },
+        {
+          "a": "600362.SS",
+          "b": "601168.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8807
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601001.SS",
+          "sector": "Energy",
+          "corr": 0.8806
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600997.SS",
+          "sector": "Energy",
+          "corr": 0.88
+        },
+        {
+          "a": "600837.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8792
+        }
+      ]
     },
     {
       "year": 2014,
-      "portfolio": -2.28,
+      "portfolio": -3.82,
       "spy": 53.35,
-      "excess": -55.63,
+      "excess": -57.16,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 150
+      "total_trades": 149,
+      "same_company_pairs": 0,
+      "listed": 2214,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 26,
+      "eligible": 2188,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 4651164.136449988,
+      "sector_cut_usd": {
+        "Basic Materials": 17485537.061204262,
+        "Communication Services": 4651164.136449988,
+        "Consumer Cyclical": 13474754.195919715,
+        "Consumer Defensive": 12368414.730321301,
+        "Energy": 8229412.0013215495,
+        "Financial Services": 20436886.026265796,
+        "Healthcare": 16049639.375567853,
+        "Industrials": 21653355.004542828,
+        "Real Estate": 10072851.51164789,
+        "Technology": 17654495.118526474,
+        "Utilities": 6925975.245725613
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "000002.SZ",
+          "b": "600048.SS",
+          "sector": "Real Estate",
+          "corr": 0.8955
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600123.SS",
+          "sector": "Energy",
+          "corr": 0.8683
+        },
+        {
+          "a": "000630.SZ",
+          "b": "600362.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8672
+        },
+        {
+          "a": "000001.SZ",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.8615
+        },
+        {
+          "a": "000776.SZ",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8593
+        },
+        {
+          "a": "002142.SZ",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.8572
+        },
+        {
+          "a": "600123.SS",
+          "b": "601101.SS",
+          "sector": "Energy",
+          "corr": 0.8542
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8525
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.8493
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601377.SS",
+          "sector": "Financial Services",
+          "corr": 0.8447
+        },
+        {
+          "a": "000783.SZ",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8446
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601101.SS",
+          "sector": "Energy",
+          "corr": 0.8443
+        },
+        {
+          "a": "600837.SS",
+          "b": "601377.SS",
+          "sector": "Financial Services",
+          "corr": 0.8429
+        },
+        {
+          "a": "600030.SS",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8374
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600395.SS",
+          "sector": "Energy",
+          "corr": 0.837
+        },
+        {
+          "a": "601318.SS",
+          "b": "601601.SS",
+          "sector": "Financial Services",
+          "corr": 0.8342
+        },
+        {
+          "a": "000783.SZ",
+          "b": "601377.SS",
+          "sector": "Financial Services",
+          "corr": 0.8338
+        },
+        {
+          "a": "000568.SZ",
+          "b": "000858.SZ",
+          "sector": "Consumer Defensive",
+          "corr": 0.8335
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600971.SS",
+          "sector": "Energy",
+          "corr": 0.832
+        },
+        {
+          "a": "000001.SZ",
+          "b": "002142.SZ",
+          "sector": "Financial Services",
+          "corr": 0.8298
+        }
+      ]
     },
     {
       "year": 2015,
-      "portfolio": -2.53,
+      "portfolio": -1.33,
       "spy": 5.63,
-      "excess": -8.16,
+      "excess": -6.96,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 138
+      "total_trades": 141,
+      "same_company_pairs": 0,
+      "listed": 2218,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 27,
+      "eligible": 2191,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 6685815.915504313,
+      "sector_cut_usd": {
+        "Basic Materials": 20920722.05111666,
+        "Communication Services": 6685815.915504313,
+        "Consumer Cyclical": 20158918.3262114,
+        "Consumer Defensive": 11421515.646214625,
+        "Energy": 11072567.827138593,
+        "Financial Services": 30322970.894138515,
+        "Healthcare": 19153598.98572926,
+        "Industrials": 31064509.231637508,
+        "Real Estate": 12534851.24566637,
+        "Technology": 28856030.073369347,
+        "Utilities": 8236549.97178102
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "600030.SS",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.941
+        },
+        {
+          "a": "600000.SS",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.9145
+        },
+        {
+          "a": "000001.SZ",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.9049
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8948
+        },
+        {
+          "a": "600123.SS",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8915
+        },
+        {
+          "a": "601601.SS",
+          "b": "601628.SS",
+          "sector": "Financial Services",
+          "corr": 0.8863
+        },
+        {
+          "a": "000001.SZ",
+          "b": "600000.SS",
+          "sector": "Financial Services",
+          "corr": 0.8804
+        },
+        {
+          "a": "600015.SS",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.8803
+        },
+        {
+          "a": "000002.SZ",
+          "b": "600048.SS",
+          "sector": "Real Estate",
+          "corr": 0.8756
+        },
+        {
+          "a": "000897.SZ",
+          "b": "600225.SS",
+          "sector": "Real Estate",
+          "corr": 0.8756
+        },
+        {
+          "a": "600000.SS",
+          "b": "600015.SS",
+          "sector": "Financial Services",
+          "corr": 0.875
+        },
+        {
+          "a": "000937.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8742
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601901.SS",
+          "sector": "Financial Services",
+          "corr": 0.874
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.8712
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600123.SS",
+          "sector": "Energy",
+          "corr": 0.8666
+        },
+        {
+          "a": "601318.SS",
+          "b": "601601.SS",
+          "sector": "Financial Services",
+          "corr": 0.8629
+        },
+        {
+          "a": "600036.SS",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.8608
+        },
+        {
+          "a": "600000.SS",
+          "b": "600036.SS",
+          "sector": "Financial Services",
+          "corr": 0.8596
+        },
+        {
+          "a": "600348.SS",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8567
+        },
+        {
+          "a": "000937.SZ",
+          "b": "000983.SZ",
+          "sector": "Energy",
+          "corr": 0.8565
+        }
+      ]
     },
     {
       "year": 2016,
-      "portfolio": -5.51,
+      "portfolio": -7.17,
       "spy": -5.84,
-      "excess": 0.34,
+      "excess": -1.33,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 141
+      "total_trades": 134,
+      "same_company_pairs": 0,
+      "listed": 2234,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 28,
+      "eligible": 2206,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 29868415.29393636,
+      "sector_cut_usd": {
+        "Basic Materials": 83000745.57978272,
+        "Communication Services": 35022961.63322891,
+        "Consumer Cyclical": 68028400.03698282,
+        "Consumer Defensive": 32231689.57899461,
+        "Energy": 29868415.29393636,
+        "Financial Services": 200395989.16711614,
+        "Healthcare": 57875870.9422914,
+        "Industrials": 134838935.16291833,
+        "Real Estate": 55004489.24955698,
+        "Technology": 110330364.04345483,
+        "Utilities": 36917463.314585105
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "601186.SS",
+          "b": "601390.SS",
+          "sector": "Industrials",
+          "corr": 0.95
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600123.SS",
+          "sector": "Energy",
+          "corr": 0.949
+        },
+        {
+          "a": "600489.SS",
+          "b": "600547.SS",
+          "sector": "Basic Materials",
+          "corr": 0.9404
+        },
+        {
+          "a": "601099.SS",
+          "b": "601377.SS",
+          "sector": "Financial Services",
+          "corr": 0.9397
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.9377
+        },
+        {
+          "a": "600029.SS",
+          "b": "600115.SS",
+          "sector": "Industrials",
+          "corr": 0.9341
+        },
+        {
+          "a": "000937.SZ",
+          "b": "000983.SZ",
+          "sector": "Energy",
+          "corr": 0.9309
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.928
+        },
+        {
+          "a": "600123.SS",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.9279
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601377.SS",
+          "sector": "Financial Services",
+          "corr": 0.9274
+        },
+        {
+          "a": "600030.SS",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.927
+        },
+        {
+          "a": "601377.SS",
+          "b": "601901.SS",
+          "sector": "Financial Services",
+          "corr": 0.9216
+        },
+        {
+          "a": "000776.SZ",
+          "b": "600030.SS",
+          "sector": "Financial Services",
+          "corr": 0.9188
+        },
+        {
+          "a": "000937.SZ",
+          "b": "600123.SS",
+          "sector": "Energy",
+          "corr": 0.9184
+        },
+        {
+          "a": "600348.SS",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.9184
+        },
+        {
+          "a": "600583.SS",
+          "b": "601808.SS",
+          "sector": "Energy",
+          "corr": 0.9184
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601788.SS",
+          "sector": "Financial Services",
+          "corr": 0.9172
+        },
+        {
+          "a": "601377.SS",
+          "b": "601788.SS",
+          "sector": "Financial Services",
+          "corr": 0.9134
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.9117
+        },
+        {
+          "a": "600837.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.9085
+        }
+      ]
     },
     {
       "year": 2017,
-      "portfolio": -4.9,
+      "portfolio": -5.29,
       "spy": 5.46,
-      "excess": -10.36,
+      "excess": -10.75,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 126
+      "total_trades": 123,
+      "same_company_pairs": 0,
+      "listed": 2453,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 26,
+      "eligible": 2427,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 12391965.88601305,
+      "sector_cut_usd": {
+        "Basic Materials": 47214647.32316467,
+        "Communication Services": 14744953.847815754,
+        "Consumer Cyclical": 26828949.790433392,
+        "Consumer Defensive": 20068331.141165797,
+        "Energy": 15396689.16735082,
+        "Financial Services": 47974912.14190036,
+        "Healthcare": 24980993.129672043,
+        "Industrials": 46817617.89742039,
+        "Real Estate": 22100713.730573677,
+        "Technology": 43077579.685722105,
+        "Utilities": 12391965.88601305
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "600030.SS",
+          "b": "600999.SS",
+          "sector": "Financial Services",
+          "corr": 0.9267
+        },
+        {
+          "a": "600030.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.926
+        },
+        {
+          "a": "600999.SS",
+          "b": "601788.SS",
+          "sector": "Financial Services",
+          "corr": 0.9097
+        },
+        {
+          "a": "601377.SS",
+          "b": "601901.SS",
+          "sector": "Financial Services",
+          "corr": 0.9093
+        },
+        {
+          "a": "600030.SS",
+          "b": "601901.SS",
+          "sector": "Financial Services",
+          "corr": 0.9083
+        },
+        {
+          "a": "600030.SS",
+          "b": "601788.SS",
+          "sector": "Financial Services",
+          "corr": 0.9051
+        },
+        {
+          "a": "600999.SS",
+          "b": "601901.SS",
+          "sector": "Financial Services",
+          "corr": 0.9042
+        },
+        {
+          "a": "000776.SZ",
+          "b": "600030.SS",
+          "sector": "Financial Services",
+          "corr": 0.9003
+        },
+        {
+          "a": "600999.SS",
+          "b": "601555.SS",
+          "sector": "Financial Services",
+          "corr": 0.8988
+        },
+        {
+          "a": "601211.SS",
+          "b": "601788.SS",
+          "sector": "Financial Services",
+          "corr": 0.8986
+        },
+        {
+          "a": "601555.SS",
+          "b": "601788.SS",
+          "sector": "Financial Services",
+          "corr": 0.8979
+        },
+        {
+          "a": "600999.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.897
+        },
+        {
+          "a": "600030.SS",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8922
+        },
+        {
+          "a": "600999.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8918
+        },
+        {
+          "a": "601186.SS",
+          "b": "601390.SS",
+          "sector": "Industrials",
+          "corr": 0.8918
+        },
+        {
+          "a": "601788.SS",
+          "b": "601901.SS",
+          "sector": "Financial Services",
+          "corr": 0.8912
+        },
+        {
+          "a": "000783.SZ",
+          "b": "601901.SS",
+          "sector": "Financial Services",
+          "corr": 0.8904
+        },
+        {
+          "a": "600108.SS",
+          "b": "600598.SS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8904
+        },
+        {
+          "a": "600489.SS",
+          "b": "600547.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8898
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601555.SS",
+          "sector": "Financial Services",
+          "corr": 0.8892
+        }
+      ]
     },
     {
       "year": 2018,
-      "portfolio": -2.68,
+      "portfolio": -2.66,
       "spy": -25.52,
-      "excess": 22.83,
+      "excess": 22.86,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 120
+      "total_trades": 125,
+      "same_company_pairs": 0,
+      "listed": 2758,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 28,
+      "eligible": 2730,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 8343599.634195075,
+      "sector_cut_usd": {
+        "Basic Materials": 55733353.65190126,
+        "Communication Services": 8343599.634195075,
+        "Consumer Cyclical": 23514234.74916234,
+        "Consumer Defensive": 16380551.580799852,
+        "Energy": 13949786.712964155,
+        "Financial Services": 46748169.27853433,
+        "Healthcare": 19196256.230211183,
+        "Industrials": 49424574.313731514,
+        "Real Estate": 14718444.837232176,
+        "Technology": 36509658.79622514,
+        "Utilities": 10547834.903630381
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "000878.SZ",
+          "b": "600362.SS",
+          "sector": "Basic Materials",
+          "corr": 0.9169
+        },
+        {
+          "a": "600123.SS",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.8867
+        },
+        {
+          "a": "000568.SZ",
+          "b": "000858.SZ",
+          "sector": "Consumer Defensive",
+          "corr": 0.8532
+        },
+        {
+          "a": "002460.SZ",
+          "b": "002466.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.8379
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8341
+        },
+        {
+          "a": "600348.SS",
+          "b": "601898.SS",
+          "sector": "Energy",
+          "corr": 0.8261
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.8259
+        },
+        {
+          "a": "601186.SS",
+          "b": "601390.SS",
+          "sector": "Industrials",
+          "corr": 0.8208
+        },
+        {
+          "a": "601398.SS",
+          "b": "601939.SS",
+          "sector": "Financial Services",
+          "corr": 0.8205
+        },
+        {
+          "a": "600348.SS",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8202
+        },
+        {
+          "a": "601186.SS",
+          "b": "601800.SS",
+          "sector": "Industrials",
+          "corr": 0.8189
+        },
+        {
+          "a": "000776.SZ",
+          "b": "600030.SS",
+          "sector": "Financial Services",
+          "corr": 0.8162
+        },
+        {
+          "a": "600348.SS",
+          "b": "601666.SS",
+          "sector": "Energy",
+          "corr": 0.8058
+        },
+        {
+          "a": "002146.SZ",
+          "b": "600340.SS",
+          "sector": "Real Estate",
+          "corr": 0.8027
+        },
+        {
+          "a": "600029.SS",
+          "b": "601111.SS",
+          "sector": "Industrials",
+          "corr": 0.7954
+        },
+        {
+          "a": "000401.SZ",
+          "b": "601992.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7924
+        },
+        {
+          "a": "601211.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.7903
+        },
+        {
+          "a": "600348.SS",
+          "b": "600971.SS",
+          "sector": "Energy",
+          "corr": 0.7874
+        },
+        {
+          "a": "600111.SS",
+          "b": "600392.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7859
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600123.SS",
+          "sector": "Energy",
+          "corr": 0.7856
+        }
+      ]
     },
     {
       "year": 2019,
-      "portfolio": -3.59,
+      "portfolio": -2.6,
       "spy": 23.72,
-      "excess": -27.31,
+      "excess": -26.32,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 122
+      "total_trades": 117,
+      "same_company_pairs": 0,
+      "listed": 3179,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 27,
+      "eligible": 3152,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 5802601.832620648,
+      "sector_cut_usd": {
+        "Basic Materials": 41542575.146173306,
+        "Communication Services": 6496561.0029961895,
+        "Consumer Cyclical": 15171554.703726327,
+        "Consumer Defensive": 15696663.309043836,
+        "Energy": 9300576.200657418,
+        "Financial Services": 25264132.85627018,
+        "Healthcare": 28079004.171393666,
+        "Industrials": 29860179.08776217,
+        "Real Estate": 8580267.47534689,
+        "Technology": 42235733.49914187,
+        "Utilities": 5802601.832620648
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "600029.SS",
+          "b": "601111.SS",
+          "sector": "Industrials",
+          "corr": 0.9265
+        },
+        {
+          "a": "600837.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.9059
+        },
+        {
+          "a": "600030.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.9007
+        },
+        {
+          "a": "600029.SS",
+          "b": "600115.SS",
+          "sector": "Industrials",
+          "corr": 0.9002
+        },
+        {
+          "a": "600030.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.8995
+        },
+        {
+          "a": "600111.SS",
+          "b": "600392.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8935
+        },
+        {
+          "a": "600030.SS",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8909
+        },
+        {
+          "a": "601211.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8857
+        },
+        {
+          "a": "601328.SS",
+          "b": "601818.SS",
+          "sector": "Financial Services",
+          "corr": 0.8849
+        },
+        {
+          "a": "600115.SS",
+          "b": "601111.SS",
+          "sector": "Industrials",
+          "corr": 0.8809
+        },
+        {
+          "a": "601398.SS",
+          "b": "601988.SS",
+          "sector": "Financial Services",
+          "corr": 0.8764
+        },
+        {
+          "a": "601939.SS",
+          "b": "601988.SS",
+          "sector": "Financial Services",
+          "corr": 0.8659
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600971.SS",
+          "sector": "Energy",
+          "corr": 0.8645
+        },
+        {
+          "a": "601328.SS",
+          "b": "601988.SS",
+          "sector": "Financial Services",
+          "corr": 0.8645
+        },
+        {
+          "a": "000568.SZ",
+          "b": "000858.SZ",
+          "sector": "Consumer Defensive",
+          "corr": 0.8632
+        },
+        {
+          "a": "600837.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8628
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8614
+        },
+        {
+          "a": "601818.SS",
+          "b": "601988.SS",
+          "sector": "Financial Services",
+          "corr": 0.8589
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.8571
+        },
+        {
+          "a": "000858.SZ",
+          "b": "600519.SS",
+          "sector": "Consumer Defensive",
+          "corr": 0.857
+        }
+      ]
     },
     {
       "year": 2020,
-      "portfolio": -0.81,
+      "portfolio": -4.87,
       "spy": 12.57,
-      "excess": -13.38,
+      "excess": -17.44,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 133
+      "total_trades": 131,
+      "same_company_pairs": 0,
+      "listed": 3351,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 28,
+      "eligible": 3323,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 7609475.852880762,
+      "sector_cut_usd": {
+        "Basic Materials": 30959103.69465109,
+        "Communication Services": 10218175.819124639,
+        "Consumer Cyclical": 19678925.1404111,
+        "Consumer Defensive": 31002934.402516626,
+        "Energy": 9995452.47856127,
+        "Financial Services": 54606089.034287594,
+        "Healthcare": 30173299.957625292,
+        "Industrials": 37909480.279242136,
+        "Real Estate": 11604709.191002196,
+        "Technology": 81836742.8681213,
+        "Utilities": 7609475.852880762
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "000776.SZ",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.9217
+        },
+        {
+          "a": "600030.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.9204
+        },
+        {
+          "a": "600030.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.9194
+        },
+        {
+          "a": "000776.SZ",
+          "b": "600030.SS",
+          "sector": "Financial Services",
+          "corr": 0.9114
+        },
+        {
+          "a": "600837.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.8893
+        },
+        {
+          "a": "002035.SZ",
+          "b": "002508.SZ",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8815
+        },
+        {
+          "a": "600489.SS",
+          "b": "600547.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8745
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8733
+        },
+        {
+          "a": "601211.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8722
+        },
+        {
+          "a": "000831.SZ",
+          "b": "600111.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8707
+        },
+        {
+          "a": "601398.SS",
+          "b": "601939.SS",
+          "sector": "Financial Services",
+          "corr": 0.8695
+        },
+        {
+          "a": "300618.SZ",
+          "b": "603799.SS",
+          "sector": "Basic Materials",
+          "corr": 0.869
+        },
+        {
+          "a": "600030.SS",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8646
+        },
+        {
+          "a": "600016.SS",
+          "b": "601328.SS",
+          "sector": "Financial Services",
+          "corr": 0.8611
+        },
+        {
+          "a": "300059.SZ",
+          "b": "600030.SS",
+          "sector": "Financial Services",
+          "corr": 0.8597
+        },
+        {
+          "a": "600111.SS",
+          "b": "600392.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8536
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600348.SS",
+          "sector": "Energy",
+          "corr": 0.8526
+        },
+        {
+          "a": "000776.SZ",
+          "b": "600837.SS",
+          "sector": "Financial Services",
+          "corr": 0.8501
+        },
+        {
+          "a": "000831.SZ",
+          "b": "600392.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8445
+        },
+        {
+          "a": "600048.SS",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.8436
+        }
+      ]
     },
     {
       "year": 2021,
-      "portfolio": -8.73,
+      "portfolio": -1.96,
       "spy": 3.91,
-      "excess": -12.63,
+      "excess": -5.86,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 139
+      "total_trades": 132,
+      "same_company_pairs": 0,
+      "listed": 3554,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 28,
+      "eligible": 3526,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 9791923.983141761,
+      "sector_cut_usd": {
+        "Basic Materials": 59912225.567816086,
+        "Communication Services": 18501873.42835249,
+        "Consumer Cyclical": 39684793.489655174,
+        "Consumer Defensive": 53810310.154022984,
+        "Energy": 12098449.949425288,
+        "Financial Services": 76320212.40613027,
+        "Healthcare": 67970109.42528734,
+        "Industrials": 74481083.78850575,
+        "Real Estate": 16912135.834482756,
+        "Technology": 164743348.96551722,
+        "Utilities": 9791923.983141761
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "601211.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.9281
+        },
+        {
+          "a": "600837.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.9084
+        },
+        {
+          "a": "600030.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.8977
+        },
+        {
+          "a": "600837.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.8926
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.8923
+        },
+        {
+          "a": "000776.SZ",
+          "b": "600030.SS",
+          "sector": "Financial Services",
+          "corr": 0.8826
+        },
+        {
+          "a": "000975.SZ",
+          "b": "600547.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8765
+        },
+        {
+          "a": "601318.SS",
+          "b": "601601.SS",
+          "sector": "Financial Services",
+          "corr": 0.8757
+        },
+        {
+          "a": "000002.SZ",
+          "b": "600048.SS",
+          "sector": "Real Estate",
+          "corr": 0.8685
+        },
+        {
+          "a": "600048.SS",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.8605
+        },
+        {
+          "a": "300618.SZ",
+          "b": "603799.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8576
+        },
+        {
+          "a": "601398.SS",
+          "b": "601939.SS",
+          "sector": "Financial Services",
+          "corr": 0.8511
+        },
+        {
+          "a": "600030.SS",
+          "b": "601066.SS",
+          "sector": "Financial Services",
+          "corr": 0.8497
+        },
+        {
+          "a": "600188.SS",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.8472
+        },
+        {
+          "a": "000001.SZ",
+          "b": "601166.SS",
+          "sector": "Financial Services",
+          "corr": 0.8441
+        },
+        {
+          "a": "000983.SZ",
+          "b": "600188.SS",
+          "sector": "Energy",
+          "corr": 0.8431
+        },
+        {
+          "a": "000100.SZ",
+          "b": "000725.SZ",
+          "sector": "Technology",
+          "corr": 0.8407
+        },
+        {
+          "a": "000002.SZ",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.8379
+        },
+        {
+          "a": "600583.SS",
+          "b": "601808.SS",
+          "sector": "Energy",
+          "corr": 0.8319
+        },
+        {
+          "a": "601336.SS",
+          "b": "601628.SS",
+          "sector": "Financial Services",
+          "corr": 0.8281
+        }
+      ]
     },
     {
       "year": 2022,
-      "portfolio": -3.75,
+      "portfolio": -0.73,
       "spy": -14.95,
-      "excess": 11.2,
+      "excess": 14.23,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 137
+      "total_trades": 136,
+      "same_company_pairs": 0,
+      "listed": 3941,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 28,
+      "eligible": 3913,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 11040007.471544843,
+      "sector_cut_usd": {
+        "Basic Materials": 160009402.38503802,
+        "Communication Services": 11040007.471544843,
+        "Consumer Cyclical": 61799550.19914674,
+        "Consumer Defensive": 73669656.53563389,
+        "Energy": 44698447.94319989,
+        "Financial Services": 65173091.37608036,
+        "Healthcare": 68175435.68268761,
+        "Industrials": 125885871.52437776,
+        "Real Estate": 12350686.355693392,
+        "Technology": 119523901.67031375,
+        "Utilities": 25358145.004014418
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "000568.SZ",
+          "b": "000858.SZ",
+          "sector": "Consumer Defensive",
+          "corr": 0.8564
+        },
+        {
+          "a": "600760.SS",
+          "b": "600893.SS",
+          "sector": "Industrials",
+          "corr": 0.8446
+        },
+        {
+          "a": "000858.SZ",
+          "b": "600519.SS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8329
+        },
+        {
+          "a": "600048.SS",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.8279
+        },
+        {
+          "a": "601336.SS",
+          "b": "601628.SS",
+          "sector": "Financial Services",
+          "corr": 0.8236
+        },
+        {
+          "a": "600362.SS",
+          "b": "601899.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8207
+        },
+        {
+          "a": "601336.SS",
+          "b": "601601.SS",
+          "sector": "Financial Services",
+          "corr": 0.8064
+        },
+        {
+          "a": "600316.SS",
+          "b": "600893.SS",
+          "sector": "Industrials",
+          "corr": 0.8062
+        },
+        {
+          "a": "600316.SS",
+          "b": "600760.SS",
+          "sector": "Industrials",
+          "corr": 0.8041
+        },
+        {
+          "a": "000807.SZ",
+          "b": "601600.SS",
+          "sector": "Basic Materials",
+          "corr": 0.7922
+        },
+        {
+          "a": "601318.SS",
+          "b": "601336.SS",
+          "sector": "Financial Services",
+          "corr": 0.7878
+        },
+        {
+          "a": "000768.SZ",
+          "b": "600893.SS",
+          "sector": "Industrials",
+          "corr": 0.7866
+        },
+        {
+          "a": "000591.SZ",
+          "b": "601016.SS",
+          "sector": "Utilities",
+          "corr": 0.7828
+        },
+        {
+          "a": "300759.SZ",
+          "b": "603259.SS",
+          "sector": "Healthcare",
+          "corr": 0.7819
+        },
+        {
+          "a": "000983.SZ",
+          "b": "601699.SS",
+          "sector": "Energy",
+          "corr": 0.78
+        },
+        {
+          "a": "600028.SS",
+          "b": "601857.SS",
+          "sector": "Energy",
+          "corr": 0.78
+        },
+        {
+          "a": "300015.SZ",
+          "b": "600763.SS",
+          "sector": "Healthcare",
+          "corr": 0.7798
+        },
+        {
+          "a": "300347.SZ",
+          "b": "603259.SS",
+          "sector": "Healthcare",
+          "corr": 0.7784
+        },
+        {
+          "a": "600030.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.7736
+        },
+        {
+          "a": "000568.SZ",
+          "b": "600519.SS",
+          "sector": "Consumer Defensive",
+          "corr": 0.773
+        }
+      ]
     },
     {
       "year": 2023,
-      "portfolio": -2.84,
+      "portfolio": -2.01,
       "spy": -4.54,
-      "excess": 1.71,
+      "excess": 2.53,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 129
+      "total_trades": 128,
+      "same_company_pairs": 0,
+      "listed": 4256,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 28,
+      "eligible": 4228,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 13859915.726671694,
+      "sector_cut_usd": {
+        "Basic Materials": 102209392.968161,
+        "Communication Services": 13859915.726671694,
+        "Consumer Cyclical": 43673477.08635389,
+        "Consumer Defensive": 50926207.83071391,
+        "Energy": 45296226.493359625,
+        "Financial Services": 45103134.79092966,
+        "Healthcare": 68552653.29843995,
+        "Industrials": 102705373.69947225,
+        "Real Estate": 18605238.576523807,
+        "Technology": 85275809.58939861,
+        "Utilities": 20783324.146755207
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "601211.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.9278
+        },
+        {
+          "a": "000807.SZ",
+          "b": "601600.SS",
+          "sector": "Basic Materials",
+          "corr": 0.899
+        },
+        {
+          "a": "600030.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8921
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8906
+        },
+        {
+          "a": "000568.SZ",
+          "b": "000858.SZ",
+          "sector": "Consumer Defensive",
+          "corr": 0.8824
+        },
+        {
+          "a": "600030.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.8719
+        },
+        {
+          "a": "000776.SZ",
+          "b": "600030.SS",
+          "sector": "Financial Services",
+          "corr": 0.8651
+        },
+        {
+          "a": "600048.SS",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.8612
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601377.SS",
+          "sector": "Financial Services",
+          "corr": 0.8504
+        },
+        {
+          "a": "000776.SZ",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.8477
+        },
+        {
+          "a": "000776.SZ",
+          "b": "300059.SZ",
+          "sector": "Financial Services",
+          "corr": 0.8471
+        },
+        {
+          "a": "601088.SS",
+          "b": "601225.SS",
+          "sector": "Energy",
+          "corr": 0.8464
+        },
+        {
+          "a": "000799.SZ",
+          "b": "600702.SS",
+          "sector": "Consumer Defensive",
+          "corr": 0.8436
+        },
+        {
+          "a": "001979.SZ",
+          "b": "600048.SS",
+          "sector": "Real Estate",
+          "corr": 0.8409
+        },
+        {
+          "a": "601377.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8381
+        },
+        {
+          "a": "000831.SZ",
+          "b": "600111.SS",
+          "sector": "Basic Materials",
+          "corr": 0.8312
+        },
+        {
+          "a": "601211.SS",
+          "b": "601377.SS",
+          "sector": "Financial Services",
+          "corr": 0.8311
+        },
+        {
+          "a": "000001.SZ",
+          "b": "600036.SS",
+          "sector": "Financial Services",
+          "corr": 0.8307
+        },
+        {
+          "a": "002460.SZ",
+          "b": "002466.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.8292
+        },
+        {
+          "a": "002714.SZ",
+          "b": "300498.SZ",
+          "sector": "Consumer Defensive",
+          "corr": 0.829
+        }
+      ]
     },
     {
       "year": 2024,
-      "portfolio": -1.35,
+      "portfolio": -1.93,
       "spy": 12.9,
-      "excess": -14.26,
+      "excess": -14.84,
       "pairs_formed": 20,
+      "pairs_entered": 20,
       "pairs_with_trades": 20,
-      "total_trades": 135
+      "total_trades": 135,
+      "same_company_pairs": 0,
+      "listed": 4292,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 28,
+      "eligible": 4264,
+      "candidates": 330,
+      "sectors": 11,
+      "min_size_usd": 12540768.475335691,
+      "sector_cut_usd": {
+        "Basic Materials": 48818710.66461894,
+        "Communication Services": 29924253.490764093,
+        "Consumer Cyclical": 35355396.30845533,
+        "Consumer Defensive": 31640756.651825342,
+        "Energy": 20101861.078156482,
+        "Financial Services": 42898820.87624871,
+        "Healthcare": 36782659.729756385,
+        "Industrials": 63070479.27099037,
+        "Real Estate": 12540768.475335691,
+        "Technology": 152575828.002198,
+        "Utilities": 14450612.42021614
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "601186.SS",
+          "b": "601390.SS",
+          "sector": "Industrials",
+          "corr": 0.927
+        },
+        {
+          "a": "002460.SZ",
+          "b": "002466.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.8966
+        },
+        {
+          "a": "601186.SS",
+          "b": "601800.SS",
+          "sector": "Industrials",
+          "corr": 0.889
+        },
+        {
+          "a": "601398.SS",
+          "b": "601939.SS",
+          "sector": "Financial Services",
+          "corr": 0.8816
+        },
+        {
+          "a": "601390.SS",
+          "b": "601800.SS",
+          "sector": "Industrials",
+          "corr": 0.875
+        },
+        {
+          "a": "000568.SZ",
+          "b": "000858.SZ",
+          "sector": "Consumer Defensive",
+          "corr": 0.8665
+        },
+        {
+          "a": "600030.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8659
+        },
+        {
+          "a": "600030.SS",
+          "b": "601211.SS",
+          "sector": "Financial Services",
+          "corr": 0.8599
+        },
+        {
+          "a": "000002.SZ",
+          "b": "600383.SS",
+          "sector": "Real Estate",
+          "corr": 0.8598
+        },
+        {
+          "a": "601211.SS",
+          "b": "601688.SS",
+          "sector": "Financial Services",
+          "corr": 0.8549
+        },
+        {
+          "a": "002240.SZ",
+          "b": "300390.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.851
+        },
+        {
+          "a": "002738.SZ",
+          "b": "002756.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.8504
+        },
+        {
+          "a": "600030.SS",
+          "b": "601377.SS",
+          "sector": "Financial Services",
+          "corr": 0.8423
+        },
+        {
+          "a": "000001.SZ",
+          "b": "600036.SS",
+          "sector": "Financial Services",
+          "corr": 0.8399
+        },
+        {
+          "a": "002466.SZ",
+          "b": "002738.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.8393
+        },
+        {
+          "a": "601328.SS",
+          "b": "601939.SS",
+          "sector": "Financial Services",
+          "corr": 0.8348
+        },
+        {
+          "a": "002240.SZ",
+          "b": "002466.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.8347
+        },
+        {
+          "a": "002466.SZ",
+          "b": "002756.SZ",
+          "sector": "Basic Materials",
+          "corr": 0.8331
+        },
+        {
+          "a": "600050.SS",
+          "b": "601728.SS",
+          "sector": "Communication Services",
+          "corr": 0.8319
+        },
+        {
+          "a": "601939.SS",
+          "b": "601988.SS",
+          "sector": "Financial Services",
+          "corr": 0.8302
+        }
+      ]
     }
-  ]
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": null,
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "early_closes": 1,
+    "fills": [
+      {
+        "pair": [
+          "000002.SZ",
+          "600048.SS"
+        ],
+        "year": 2015,
+        "entry_date": "2015-12-15",
+        "last_common_bar": "2015-12-18",
+        "delisted_date": [
+          null,
+          null
+        ],
+        "delisting_bound": [
+          "none",
+          "none"
+        ]
+      }
+    ]
+  }
 }

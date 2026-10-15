@@ -47,6 +47,34 @@ def cumulative_growth(returns):
     return curve
 
 
+def measured_span(data):
+    """'2013-2025' for a leg whose benchmark priced only part of the run, else None."""
+    if not data.get("window_truncated"):
+        return None
+    start, end = data.get("measured_start"), data.get("measured_end")
+    return f"{start[:4]}-{end[:4]}" if start and end else data.get("window_label")
+
+
+def ranked_legs(all_data):
+    """Legs fit to rank across markets, plus a footnote naming the ones left out.
+
+    A leg measured over a shorter window (Norway: its index starts in 2013) does
+    not rank against full-window CAGRs and drawdowns.
+    """
+    legs, cut = {}, []
+    for uni, data in all_data.items():
+        if "error" in data or not data.get("portfolio"):
+            continue
+        if data.get("invested_periods", 0) > 0 and not data.get("window_truncated", False):
+            legs[uni] = data
+        elif data.get("window_truncated"):
+            label = EXCHANGE_LABELS.get(uni, (None, uni))[1]
+            cut.append(f"{label}, measured {measured_span(data)}")
+    note = ("Not ranked, benchmark covers only part of the window: " + "; ".join(cut) + "."
+            if cut else "")
+    return legs, note
+
+
 def plot_cumulative(data, label, benchmark_name, output_path):
     """Cumulative growth chart: 52W-High Proximity vs local benchmark."""
     annual = data["annual_returns"]
@@ -65,7 +93,9 @@ def plot_cumulative(data, label, benchmark_name, output_path):
     ax.plot(x, bench_curve, color=BENCHMARK_COLOR, linewidth=1.8, linestyle="--",
             label=f"{benchmark_name}  (CAGR: {data['spy']['cagr']:.1f}%)")
 
-    ax.set_title(f"52-Week High Proximity vs {benchmark_name}\n{label}",
+    span = measured_span(data)
+    ax.set_title(f"52-Week High Proximity vs {benchmark_name}\n{label}"
+                 + (f", measured {span}" if span else ""),
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Portfolio Value (" + currency_prefix(data.get("universe")) + "1 Start)", fontsize=12)
@@ -84,6 +114,11 @@ def plot_cumulative(data, label, benchmark_name, output_path):
     # n_periods keeps pre-B006 result files renderable until they are re-run.
     tr = data.get("total_rebalances") or n
     cash_pct = round(data.get("cash_periods", 0) * 100 / tr, 0) if tr > 0 else 0
+    if span and data.get("period_data") and n > 0:
+        # Truncated leg: cash quarters inside the measured window, over the measured quarters.
+        cash_in = sum(1 for p in data["period_data"]
+                      if p.get("stocks_held") == 0 and p["rebalance_date"] >= data["measured_start"])
+        cash_pct = round(cash_in * 100 / n, 0)
 
     info_text = (
         f"Excess CAGR: {excess:+.1f}%  |  Down Capture: {down_capture:.0f}%  |  Cash: {cash_pct:.0f}%"
@@ -138,12 +173,11 @@ def plot_comparison_cagr(all_data, output_path):
     port_cagrs = []
     spy_cagrs = []
     has_proxy = False
+    legs, cut_note = ranked_legs(all_data)
 
-    for uni, data in sorted(all_data.items(),
+    for uni, data in sorted(legs.items(),
                              key=lambda x: (x[1].get("portfolio") or {}).get("cagr") or -999,
                              reverse=True):
-        if "error" in data or not data.get("portfolio"):
-            continue
         # Name each bar's own benchmark; non-US markets on S&P 500 had no local index.
         bench = benchmark_label(all_data, uni)
         proxy = bench == "S&P 500" and RESULT_KEY_TO_EXCHANGE.get(uni) != "NYSE"
@@ -182,6 +216,8 @@ def plot_comparison_cagr(all_data, output_path):
     ax.grid(True, alpha=0.3, linestyle=":", axis="y")
 
     plt.tight_layout()
+    if cut_note:
+        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")
@@ -191,12 +227,11 @@ def plot_comparison_drawdown(all_data, output_path):
     """Max drawdown comparison across all exchanges."""
     exchanges = []
     drawdowns = []
+    legs, cut_note = ranked_legs(all_data)
 
-    for uni, data in sorted(all_data.items(),
+    for uni, data in sorted(legs.items(),
                              key=lambda x: (x[1].get("portfolio") or {}).get("max_drawdown") or 0,
                              reverse=False):
-        if "error" in data or not data.get("portfolio"):
-            continue
         dd = data["portfolio"].get("max_drawdown")
         if dd is None:
             continue
@@ -221,6 +256,8 @@ def plot_comparison_drawdown(all_data, output_path):
     ax.grid(True, alpha=0.3, linestyle=":", axis="y")
 
     plt.tight_layout()
+    if cut_note:
+        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")

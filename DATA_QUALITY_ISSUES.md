@@ -170,7 +170,7 @@ GROUP BY symbol HAVING ratio > 100 ORDER BY ratio DESC LIMIT 20
 **Content action:** JNB included in PEG ratio backtest and dedicated regional blog with data quality disclosure.
 **Checked:** 2026-03-05
 
-**defensive-quality strategy (sector-04):** JNB excluded entirely. Not a data quality issue — the defensive sector universe (Consumer Defensive, Utilities, Healthcare) historically never produced 10+ qualifying stocks per July rebalance period. Max: ~8 qualifying stocks (2018-2019 peak). Strategy correctly stayed 100% cash all 25 periods. JNB removed from `presets_to_run` in `defensive-quality/backtest.py`. Excluded from all content (blog, LinkedIn, Reddit).
+**defensive-quality strategy (sector-04):** not a data quality issue. The defensive-sector universe (Consumer Defensive, Utilities, Healthcare) never produces 10 qualifying stocks at a July rebalance: at most 8 pass in any year, so the strategy stays in cash in all 25 periods. JNB is not in `presets_to_run` in `defensive-quality/backtest.py`; it is run on its own into `returns_JNB.json`, which reads 25 cash years of 25 in the published file and in the October 2026 rerun, and it is too thin to test. (Updated 2026-10: this entry said JNB was excluded from all content; the comparison post reports it as 100% cash.)
 
 **sector-rotation strategy (reversion-04):** JNB excluded 2026-08-17, same shape as
 above and as the existing SES exclusion. The signal needs 5 sectors each holding
@@ -521,12 +521,16 @@ legs carry the listing rules whether or not the flag is given.
 ### Rerun topics apply listing rules on XETRA, SIX and LSE (2026-10)
 
 When a topic is rerun with last-traded-price exits it no longer treats these exchanges as
-listed universes. Two waves have been rerun this way, seventeen topics in all, and their
+listed universes. Three waves have been rerun this way, twenty-three topics in all, and their
 results carry `exit_method`, `listing_filter` and `isin_dedup` keys: the first wave
-(cyclical-timing, asset-growth, fcf-conversion, cash-conversion and graham-net-net) and the
+(cyclical-timing, asset-growth, fcf-conversion, cash-conversion and graham-net-net), the
 second (deleveraging, fcf-compounders, fcf-yield, revenue-accel, dividend-sustainability,
 price-to-sales, dogs-of-dow, low-debt, dividend-growth, pe-mean-revert, rising-yield and
-graham-number). The rules, with what was measured on the first wave's previous holdings:
+graham-number) and the third (52-week-high, dcf-discount, defensive-quality,
+pairs-fundamentals, pairs-zscore and pairs-multi-pair; the pairs topics also carry
+`company_dedup`). The third wave also reran the Norway leg of 13 other topics in drop mode on
+their own code, without these rules (under "The 13 Norway legs" below). The rules,
+with what was measured on the first wave's previous holdings:
 
 | Leg | Rule | Measured on the previous runs' holdings |
 |---|---|---|
@@ -808,6 +812,136 @@ cover the same 25 annual periods on every leg, so no difference below is a new p
   of the 93 legs. The exception is graham-number Singapore, whose benchmark changed from
   the S&P 500 to the STI. Single benchmark years did move (under "Not fixed yet").
 
+**Third wave: defects found by the audits and fixed before the rerun (#16).** Each entry
+sizes the defect on the old screen, as measured before any rerun, and then says what the
+installed results show. As in the second wave, a figure credited to one fix comes from a
+replay of the screen on the warehouse before the rerun, not from a backtest.
+
+**52-week-high: one price basis, the last traded bar, ties by size (fixed 2026-10, #7 and
+#16; rerun).** The published screen ranked `adjClose / MAX(high)`: a close back-adjusted for
+every later dividend over a high that isn't, so a company scored lower the more it paid out
+after the rebalance date. On the corrected ratio the share of the US book's names that are
+dead today falls from 38.1% to 18.3%. The published run also took its signal bar from bars up
+to 5 days after the rebalance date while entry was the next day, with no test of the bar's
+age (fixed in #7), and cut ties at a ratio of exactly 1.0 in no fixed order. The ratio is now
+the close over the 252-bar high on one split-adjusted basis, the signal bar is the latest
+bar with volume above zero in the 10 days to the rebalance, and ties go to the larger market
+cap, then the symbol. Sized before the rerun under the current wiring: the price basis changes
+45.4% of 48,764 invested slots across the 18 legs, from 4.9% in Norway to 76.8% in the US. The
+traded-bar rule changes 4.2% of holdings: 384 of 3,090 US slots (379 names leave, 324 of them
+lines the warehouse flags as funds, which didn't trade and so sat on their high) and 494 of
+3,090 in China (suspended lines). The tie rule fills 84 of 210 slots differently in China's 7
+quarters with more than 30 names at 1.0. No run isolates the 5-day look-ahead. In the rerun
+CAGR fell in 10 of 18 markets and rose in 8. The US went from 12.52% to 4.57% a year with no
+cash quarter in either file, Japan from 8.43% to 2.56% and Germany from 8.23% to 5.01%, a tie
+with the DAX. China's maximum drawdown, -92.34% in the published file, is -72.47% and runs
+from October 2007 to January 2025: the book never regained its 2007 value. No market is too
+thin to test.
+
+**dcf-discount: latest filing first and a 50% cap (fixed 2026-10, #16; rerun).** The fetch
+loaded only cash-flow rows with positive free cash flow in the market's currency, so a
+company kept qualifying on its last positive year. The backtest also had no upper bound on
+the FCF yield, while every SQL screen printed in the topic's posts caps it at 50%: in a replica
+of the US screen 529 of 1,250 held slot-years were above it. #7 removed its `isActivelyTrading`
+filter. In the replica over the 16 legs, 3,869 of 13,743 held slot-years (28.2%) leave the book,
+1,634 (11.9%) through the latest-filing test alone, from 6.3% of a leg's slot-years in
+Australia to 54.8% in China (46.3% in the US, most of it the cap). The replica's cash-year
+counts match the rerun's on all 16 legs. Switzerland went from 3 cash years of 25 to 17 and
+is too thin to test: by the replica 5 come from the campaign wiring, 12 once the latest filing
+is tested and 17 with the cap, all through the cash guard on a universe of 245 Swiss lines,
+where 13 of the 14 newly cash years pass 10 to 18 names and only 6 to 9 of them have an entry
+price. In the replica every unbuyable Swiss name had no price bar in the entry window. The US
+went from 7.91% to 7.44%, now a tie with the S&P 500 (+0.12 points). Brazil fell from 18.05% to
+10.25% with four new cash years; its published file is the March 2026 run. The currency test
+isn't a unit fix: `key_metrics.marketCap` is in the reporting currency too, so the test only
+keeps the universe to companies that file in the market's currency.
+
+**defensive-quality: the campaign rules (#16; rerun).** No selection defect of its own was
+fixed in the third wave; #7 removed its `isActivelyTrading` filter and added an 18-month
+limit on a filing's age. The published files are the April 2026 runs (China SHZ+SHH: March)
+and predate the price-oscillation filter itself (9 April 2026). In the rerun 42 market-years
+went from invested to cash, 31 on the cash guard and 11 on the screen count, all 11 on the UK
+and German legs under the listing rule. Switzerland (15 cash years of 25) and Malaysia (14)
+became too thin to test. The UK fell from 11.19% to 5.73% with 7 new cash years. The China
+SHZ+SHH file was measured against the S&P 500 when published and is measured against the SSE
+Composite now (5.28% against 2.43%).
+
+**The pairs topics: a per-year universe and the defects behind it (fixed 2026-10, #16;
+rerun).** pairs-fundamentals, pairs-zscore and pairs-multi-pair took their candidates from one
+list: today's actively trading names, the 30 largest of each sector by today's market cap,
+used for every year from 2005. In the design review's recomputation of that list, 98 of the
+330 US names weren't listed in the 2005 formation year and 94 more were listed but outside
+the new list; on LSE 295 of 330 weren't listed in 2005, most of them foreign lines with no
+bars. Same-company pairs crowded the books: in the old list the top 20 pairs by 2019
+correlation were two lines of one company in 20 of 20 cases on SET (NVDR twins at a
+correlation of 1.0000), 14 on KSC and 10 on STO, and over the two sampled formation years 92
+of 414 top-20 rows were same-company pairs, of which the same-ISIN dedup catches 1. The same
+review found, and #16 fixed: a pair with an undefined (NaN) correlation passed the 0.70 filter
+and sorted first, so all 20 XETRA slots in formations 2009 and 2019 went to pairs with a
+frozen leg; each round trip was charged twice the cost its return implies; the cost tier
+used today's cap in the reporting currency, so Japanese and Korean legs always paid the 0.1%
+tier (on the 2015 candidates in US dollars the average one-way rate is 0.31% in Japan and
+0.42% in Korea, against 0.10% for both); pairs-multi-pair exited on the bar that gave the
+signal; the cash rule read year-end outcomes; pairs-fundamentals took its entry z-score from
+the bar it traded on; and the rolling z-score could signal on a thin window. Each year's
+candidates are now rebuilt (METHODOLOGY.md, Pairs Universe), one line per company, a NaN
+correlation can't rank, costs are charged once in US-dollar tiers, and cash is decided on
+pairs entered before the year trades. The results now record each year's candidate count,
+the pairs formed and the number entered. In the rerun every market of the three topics trails
+its benchmark, as in the published files, except that pairs-zscore South Africa goes from
+27.94% (four years above +100% for a market-neutral book) to -0.55%. Which change drives a
+market's move isn't determined: the gate ran only the new code, and the old files record no
+pairs.
+
+**What the third wave's rerun showed (2026-10-14): six topics, 90 market legs.** The
+published files were written between March and June 2026 (52-week-high in June, dcf-discount
+in May with Australia and Brazil in March, defensive-quality in April, the pairs topics in
+March). Each topic's README and its old-against-new notes give the market-by-market detail.
+
+- Exit rule alone, on identical selection: 0.14 points of CAGR or less on 63 of the 66 legs
+  that have a drop book, with 245 exits filled and 8 left unpriced, all 8 in 52-week-high
+  (per-topic ranges under "Exit-side survivorship" below). pairs-zscore and pairs-multi-pair
+  have no drop book.
+- Entry-side cash guard: 73 of the 431 cash periods in the 52-week-high, dcf-discount and
+  defensive-quality files (14 of 184, 26 of 81 and 33 of 166). The pairs topics decide cash on
+  pairs entered (fewer than 3), not on this guard.
+- Listing rules: dcf-discount's German leg went from 1 cash year to 4 and its Swiss leg from
+  3 to 17 (mostly the selection fix, above); defensive-quality's German leg from 0 to 10, its
+  Swiss leg from 5 to 15 and its UK leg from 0 to 7; 52-week-high's three legs have no cash
+  quarter in either file except Switzerland, which fell from 3 to 1, although the listing rule
+  only removes names (cause not determined). In the pairs topics the German rule leaves 163 to
+  243 candidates a year. The UK leg, whose old fixed list was mostly foreign lines with no bars,
+  now forms 10 to 20 pairs a year in pairs-fundamentals, and its cash years fell from 13 to 2.
+- Not separable from the files: inside years invested both times, a topic's selection
+  change, the dedup, the price-filter fix, the tie-breaks and data revised since the published
+  run.
+- 10 of the 90 legs are invested in fewer than half their periods and are too thin to test:
+  dcf-discount Switzerland; defensive-quality Taiwan, Switzerland, Sweden, Malaysia and South
+  Africa; pairs-fundamentals South Africa, Thailand, Switzerland and Singapore. dcf-discount
+  Switzerland, defensive-quality Switzerland and Malaysia and pairs-fundamentals South Africa
+  became so in the rerun; pairs-fundamentals UK, Taiwan and Germany were too thin in the
+  published files and are testable now. defensive-quality Sweden's Sharpe ratio of -14.357
+  comes from one invested year and isn't a result.
+- Benchmarks: every 52-week-high benchmark figure is identical in both vintages. dcf-discount's
+  25-year benchmark CAGRs are unchanged on all 16 legs, but single years moved in 11 (SPY's
+  2000 reads -23.68% against -26.23%), the pattern already listed under "Not fixed yet". Three
+  pairs-fundamentals legs (Switzerland, Thailand, Singapore) and its Sweden leg were measured
+  against the S&P 500 when published and against their own index now.
+
+**The 13 Norway legs (2026-10-14).** The Norway leg of earnings-consistency, etf-rebalancing,
+etf-underowned, ev-ebitda, ev-ebitda-relative, garp, oversold-quality, pe-compression,
+peg-ratio, price-momentum, price-to-book, relative-strength and value-momentum was rerun with
+`--exit-method drop`, so it matches the topic's other markets, which aren't rerun. It ran on
+each topic's own code: no listing keys, no same-ISIN dedup and no `exit_method` key. The
+repair is to the period accounting (under "Re-run population" below): 8 of the 13 published
+records had a negative `invested_periods`, and every new one counts cash and invested periods
+over all rebalances, carries `total_rebalances` and labels its 2013-2025 or 2014-2025 window.
+Returns are unchanged in 7 and changed in 6, the largest garp's (9.24% to 3.56% a year: 12
+measured quarters are now guard cash). 9 of the 13 are too thin to test over all rebalances;
+ev-ebitda, relative-strength and value-momentum among them are invested in most of their
+measured window. etf-underowned's published comparison node was an older 20-period run and
+is now measured over 12 of 20 rebalances, so it joined the truncated set.
+
 Not fixed yet:
 - `7386.T` (an LTP fill in cyclical-timing and fcf-conversion's JPX results, held in
   fcf-conversion's 2024 book) has price levels around 4 billion in `stock_eod`. Entry and exit
@@ -879,8 +1013,10 @@ Not fixed yet:
   sends Singapore to cash: revenue-accel SES is in cash in 19 of 25 years (13 of them guard
   years) and deleveraging SES in 74 of 103 quarters (43 guard quarters). How many of those
   prices are real and how many come from back-adjustment wasn't measured.
-- price-to-sales's fund-exclusion measurement is still pending. `--exclude-funds` exists
-  since #10 and no run has used it (see "Closed-end funds" below).
+- price-to-sales's published US figure keeps its mutual-fund share classes. One run without
+  funds and ETFs, made on 2026-10-14 and not gated, gives 13.72% a year against 14.41%, still
+  5.71 points ahead of the S&P 500 (see "Closed-end funds" below). The other markets weren't
+  run that way.
 - dogs-of-dow's US leg ranks today's Dow 30 members in every year. Its non-US legs lose
   some large companies that have no price history before 2026, and their blue-chip slots
   go to smaller names (#13). In the rerun 22 different tickers fill the US leg's 250 slots,
@@ -940,6 +1076,90 @@ Not fixed yet:
   South Africa (JNB) in the five that run it, Shenzhen and Saudi Arabia in dogs-of-dow,
   and France in graham-number. Their excess figures aren't verdicts on the screen.
 
+Not fixed yet, found in the third wave:
+- Pairs universe: a delisted leg's zero-volume repeat bars can keep it in the formation-year
+  universe until about 30 days before the year end (rare, #16).
+- pairs-fundamentals counts a pair as entered on its entry prices alone, while pairs-zscore and
+  pairs-multi-pair also require each leg to be inside its delisting bound.
+- 52-week-high: an untraded same-day duplicate bar can still take one of the 252 rows of the
+  high's window. The window orders a day's rows by close, then high (both lowest first), then
+  volume (highest first), so a duplicate with a lower close than the traded bar, or the same
+  close and a lower high, sorts before it and its high counts. It can't be the signal bar,
+  which needs volume above zero.
+- The pairs company key (ISIN, CIK, normalised name, ticker root) misses lines of one company,
+  or one price series, under different names and ISINs, so `check_pairs_results.py` passes
+  them. Named from the tickers and formation-year correlations, not from a data field:
+  6501.T/9086.T in Japan (Hitachi against Hitachi Transport System's code, correlated at 0.996
+  or more in 14 years: a price-data fault; formed in 16 to 18 years in each topic, and the top
+  pair of pairs-multi-pair's Japan book in 17 of 20), 5844.T/8369.T (Kyoto Financial Group and
+  Bank of Kyoto), SKG.L/SWR.L (Smurfit Kappa and Smurfit Westrock, the UK's top pair in 10
+  years of pairs-multi-pair), BBL/BHP (BHP's two US listings), TATAMTRDVR.NS/TMPV.NS (Tata
+  Motors' DVR and ordinary lines, 10 years), BEP-UN.TO/BEPC.TO (Brookfield Renewable units and
+  exchangeable shares), and in pairs-fundamentals IAC/MTCH, DINO/HFC, CPG.TO/VRN.TO,
+  ATRL.TO/SNC.TO, MATR.TO/SCL.TO and COPP-B.ST/VISC.ST, among others. A pair of one price series
+  earns about nothing before costs and pays the cost on every trade, and inverse-volatility
+  weighting gives it a large weight (an estimate: per-pair weights aren't stored). Japan's
+  inverse-volatility CAGR in pairs-multi-pair trails its equal-weight CAGR by 0.67 to 0.72
+  points at every book size, against 0.03 to 0.25 in the US. Whether to extend the key and
+  rerun is an open decision.
+- The pairs topics' Taiwan leg runs TAI and TWO, but no formed pair holds a TWO line in any
+  year (0 of 296 formed pairs in pairs-fundamentals, 0 of 115 lines in pairs-multi-pair).
+- The pairs universe has no size floor beyond the top 30 of a sector: the smallest admitted
+  median traded value is 0.26 USD a day in the UK in 2005 and 2.04 USD in 2024, and 216 USD in
+  Canada in 2020. A candidate with no fiscal-year market cap whose year ended 45 to 540 days
+  before the trading year pays the 0.5% cost tier, which covers most early candidates in Korea (234 of 243 in 2005), Taiwan (219 of 225),
+  Japan (174 of 311) and India (177 of 259).
+- A last-traded-price fill can be a suspension's last price, not a delisting. China Vanke
+  (000002.SZ) has its last bar on 2015-12-18, when its A shares were suspended (public record,
+  not checked against the warehouse), and trades again later. It is filled at that bar, at
+  17.12, in dcf-discount's China book (entered at 9.21), in pairs-fundamentals (entered at
+  10.11) and in pairs-multi-pair, as it was in dogs-of-dow's Shenzhen leg (above). In
+  pairs-fundamentals it is the whole +0.28-point exit-rule effect in China and the reason that
+  leg's CAGR changes sign (-0.16% on the drop book, 0.12% on the ltp book).
+- pairs-zscore and pairs-multi-pair South Africa: distinct companies correlate at 0.97 to 0.99
+  in the recorded pairs (Standard Bank and Sanlam, SBK/SLM, at 0.9927 in 2005), the bad-bar
+  pattern the design review found; the leg is invested in 11 of 20 years on the thinnest book of either topic and is measured
+  against the S&P 500 in USD.
+- 52-week-high's entry floor reads `adjClose`, back-adjusted for later dividends: in
+  Singapore's invested quarters it drops 1,053 of 2,620 screened names (40.2%), and the slots
+  aren't refilled, so the book averages 17.6 lines. It decides 14 cash quarters (Italy 4,
+  Malaysia 1, Singapore 9). Its effect on the result isn't measured.
+- defensive-quality's US book holds FEMSA's ADR (FMX) in 24 of 25 years, although its vendor
+  dividend yield is mis-scaled (a median of 26.5% in the pre-rerun audit against a US cut-off
+  of 3% to 5%). No yield cap was added.
+- Lines that aren't ordinary shares are a material part of several third-wave books (5% or
+  more of the slots counted), recognised by ticker pattern and a hand list, not checked against
+  `profile`. 52-week-high, over the ten names recorded per quarter: Thailand 27.4% (NVDR lines
+  216 of 860, funds 20), Korea 20.7% (preferred lines), the UK 20.4% (investment trusts 182 of 1,030,
+  preference shares 28), Canada 19.4% (preferred lines 185), the US 9.1% (closed-end funds,
+  notes, preferred lines and warrants) and Germany 8.9% (preference shares). dcf-discount, over
+  the ten names listed per year: Brazil 47.4% (preferred lines and units), Thailand 36.5%,
+  Canada 31.2%, Korea 22.6%, the UK 10.5% and Germany 8.6%. defensive-quality, over every held
+  line: Thailand 40.7% (NVDR lines, most beside the same company's ordinary line), Korea 26.1%,
+  Germany 14.9%, the US 12.4% (utility notes, preferred ADRs and units, 10 to 12 of 24 to 28
+  lines a year from 2020), Switzerland 9.3% (Roche's non-voting certificate beside its bearer
+  share in every invested year, on a leg too thin to test) and Canada 7.5%. pairs-fundamentals'
+  German formed pairs hold
+  Porsche SE's preference line (PAH3.DE, its only listed line) in 23 of 460 slots (5.0%;
+  5.2% with VVV3.DE). REIT and trust units are listed in each topic's notes and not counted.
+- The 13 Norway legs ran without same-ISIN dedup. etf-rebalancing holds SRBNK.OL with
+  SB1NO.OL in 6 of its 13 invested years, very likely one bank under its old and new ticker
+  (ISIN not checked), and Schibsted's A and B shares, which have separate ISINs, sit together
+  in peg-ratio's book in 39 of 50 measured quarters and in etf-rebalancing's in 2 years.
+- The comparison charts of price-momentum, relative-strength and value-momentum never read
+  `invested_periods` or `window_truncated`, so they draw Norway's 2013-2025 bar among 2000-2025
+  siblings, as an ordinary bar in the two where it is too thin to test. Gate 12 of
+  `scripts/verify_floor_guard.py` inspects only conditions that test `invested_periods`, so it
+  passes them. peg-ratio's charts leave out its Norway leg, which is testable (+2.62 points),
+  because their filter drops every truncated window.
+- The live screens don't match the reruns: `52-week-high/screen.py` still ranks
+  `adjClose / MAX(high)` with no traded-bar rule, listing rule or dedup; `dcf-discount/screen.py`
+  has no currency, fund, cap, listing or dedup rule; the pairs screens rank today's actively
+  trading names.
+- dcf-discount's Brazil and Australia legs are retraction pages and still read the price
+  table whose split adjustments those pages blame, so whether their new figures are clean
+  isn't determined.
+
 **Same security, two tickers.** One ISIN keeps one line, before the top-N cut, so a
 collapsed twin frees its slot for the next name. Per ISIN, the line buyable at entry
 wins, then the one `profile` still marks as actively trading (a retired ticker's bars
@@ -970,8 +1190,9 @@ Caveats:
 - Stockholm is left as listed. Its books are almost entirely domestic, and a country
   filter would wrongly drop ABB, AstraZeneca and Nokia.
 
-**Topics outside the two waves have not been changed.** Their XETRA, SIX and LSE legs
-still hold every listed line; read them with the measurements earlier in this section.
+**Topics outside the three waves have not been changed.** Their XETRA, SIX and LSE legs
+still hold every listed line; read them with the measurements earlier in this section. The
+13 topics whose Norway leg was rerun in the third wave are among them: only that leg changed.
 
 ---
 
@@ -1058,21 +1279,35 @@ Sign is positive here (removing funds *helps*), opposite to `small-cap`. Third t
 third direction: measure, never assume. Screening logic left unchanged, disclosed in
 the content.
 
-**Still unchecked.** Only `revenue-accel`, `small-cap` and `sector-rotation` carry an
-`isFund` diagnostic.
+**Still unchecked.** Only `revenue-accel`, `small-cap`, `sector-rotation` and, since
+October 2026, `price-to-sales` (US only) carry an `isFund` diagnostic.
 These rank on a revenue-derived metric with no guard at all: `market-share`,
-`ocf-growth`, `revenue-surprise`, `fcf-conversion`, `owner-earnings`, and
-`price-to-sales` (ranks ascending, so funds with tiny "sales" look ultra-cheap, opposite
-direction and same cause). Measure `--exclude-funds` on each when its topic next comes
-up for a rerun.
+`ocf-growth`, `revenue-surprise`, `fcf-conversion` and `owner-earnings`. Measure
+`--exclude-funds` on each when its topic next comes up for a rerun.
 
-**price-to-sales was rerun in October 2026 without that measurement.** The flag exists
-now (`price-to-sales/backtest.py --exclude-funds`, default off), but no run has used it.
-The rerun US book has mutual-fund share classes (PRGTX, JTSSX, SMTAX, JMUEX, GEMAX, FLCSX)
-among its ten recorded lowest-P/S names in 38 of 103 quarters, from April 2013 to April
-2025, so the US figure (14.41% a year) can't be credited to the screen alone until the
-funds-excluded leg is run. fcf-conversion was rerun in the first wave, also without it;
-it has no such flag yet.
+**price-to-sales: measured on the US leg (2026-10-14).** The rerun US book has mutual-fund
+share classes (PRGTX, JTSSX, SMTAX, JMUEX, GEMAX, FLCSX) among its ten recorded lowest-P/S
+names in 38 of 103 quarters, from April 2013 to April 2025. One run of the US leg with
+`price-to-sales/backtest.py --exclude-funds` is committed as
+`price-to-sales/results/diagnostics/returns_nofunds_NYSE_NASDAQ_AMEX.json`. It is a single
+diagnostic run, made on 2026-10-14 from the code at `cf1decc` and not gated: no repeat run
+checked that it reproduces. Both files measure the same 103 quarters with last-traded-price
+exits, neither has a cash quarter, and the S&P 500 return is identical in every quarter:
+
+| US | As screened | Funds excluded | Delta |
+|----|-------------|----------------|-------|
+| CAGR | 14.41% | 13.72% | -0.69pp |
+| Excess vs S&P 500 (8.02%) | +6.39pp | +5.71pp | -0.68pp |
+| Sharpe | 0.508 | 0.458 | -0.050 |
+| Max drawdown (July 2018 to April 2020 in both) | -46.01% | -55.72% | -9.71pp |
+| Fund-format tickers among the ten recorded names | 95 of 1,030 slots | none | |
+
+Removing funds *hurts* here, as in `small-cap`: without them the US book returns +10.77% in
+2020 against +20.60% and -1.76% in 2019 against +4.03%, so the fund share classes damped the
+2018-2020 fall. The return differs in 13 of 26 years, all from 2013. The US result doesn't rest
+on the funds: it is 5.71 points a year ahead of the S&P 500 without them. The other 15
+markets weren't run without funds. fcf-conversion was rerun in the first wave without a
+funds-excluded run; it has no such flag yet.
 
 ---
 
@@ -1254,6 +1489,12 @@ What that means:
   bar in graham-number and in pe-mean-revert) have a delisting dated 2024. The earliest is
   WTB.L, filled at a December 2000 bar in graham-number. They may be suspensions, gaps in
   the price rows or delistings the list doesn't hold; that wasn't checked symbol by symbol.
+  The third wave's 245 fills (four topics with a drop book) agree too: 68 of the 74 US fills
+  were priced at a last bar in 2017 or later, and 149 of the 171 others at one in 2021 or
+  later. The six older US fills are four 2016 bars, UB at a November 2008 bar (its delisting
+  record is dated 2021) and BNI at a February 2010 bar, delisted that day. The 22 older non-US
+  fills (17 on China legs) carry no delisting record. One of them, China Vanke (000002.SZ),
+  is a known suspension (under "Not fixed yet, found in the third wave").
 - The US count for 2015-2019 (174) is well under the count for 2020-2025 (470), so the
   record for those years may be partial too. Not established.
 - The price-table count covers the US and six other markets. Other markets weren't counted
@@ -1263,9 +1504,13 @@ What that means:
   2000-2025 result here is wrong, and so is a claim that last-traded-price exits fixed
   survivorship for the whole window.
 
-The five topics that screen on `isActivelyTrading = true` (dcf-discount, defensive-quality
-and the three pairs topics) exclude delisted names in every year, as before. dogs-of-dow's
-US leg uses today's Dow 30 members in every year.
+dcf-discount, defensive-quality and the three pairs topics no longer screen on
+`isActivelyTrading = true` (removed in #7 and #16; their October 2026 reruns are the first
+results without it), so a company that later stopped trading can be picked in the years
+before it did, within the gap in the data described above. The pairs topics rebuild their
+universe each year from what was listed and traded in the formation year: that removes the
+size look-ahead, and survivorship is reduced, not fixed. dogs-of-dow's US leg still uses
+today's Dow 30 members in every year.
 
 ---
 
@@ -1275,11 +1520,15 @@ US leg uses today's Dow 30 members in every year.
 (`data_utils.DEFAULT_EXIT_METHOD = "ltp"`); `--exit-method drop` keeps the rule described
 here. A committed result carries the fix only once its topic is rerun, and it then writes
 `"exit_method": "ltp"`. A results file with
-no `exit_method` key used the drop rule. The first rerun wave is cyclical-timing, asset-growth,
+no `exit_method` key used the drop rule: it predates the fix, or it is one of the 13 Norway
+legs rerun with `--exit-method drop` in the third wave to match their topics' other markets.
+The first rerun wave is cyclical-timing, asset-growth,
 fcf-conversion, cash-conversion and graham-net-net. The second is deleveraging,
 fcf-compounders, fcf-yield, revenue-accel, dividend-sustainability, price-to-sales,
-dogs-of-dow, low-debt, dividend-growth, pe-mean-revert, rising-yield and graham-number. All
-seventeen have been rerun and carry the key. The fix reaches only as far back as the data
+dogs-of-dow, low-debt, dividend-growth, pe-mean-revert, rising-yield and graham-number. The
+third is 52-week-high, dcf-discount, defensive-quality, pairs-fundamentals, pairs-zscore and
+pairs-multi-pair, where a pair closes at the last bar both legs traded. All twenty-three have
+been rerun and carry the key. The fix reaches only as far back as the data
 holds delisted companies: about 2015 in the US and 2020 elsewhere (previous section).
 **Affects:** all 66 floor topics, and every topic that averages `filter_returns`'
 output. LTP is wired into all 75 topics that drop a held name for a missing exit price.
@@ -1359,6 +1608,23 @@ In the other six, 86 of the 93 legs move by 0.14 points or less. The seven that 
   a book of 10 names, in a market invested in 11 of 25 years and too thin to test.
 - pe-mean-revert Canada +0.19 (6 fills), Hong Kong +0.19 (2) and India -0.19 (4).
 
+Measured 2026-10-14 the same way on the third wave's 66 legs with a drop book:
+
+| Topic | Legs | Exit rule alone, CAGR points | Exits filled | Left unpriced |
+|---|---:|---|---:|---:|
+| 52-week-high | 18 | -0.21 to +0.05 | 176 | 8 |
+| dcf-discount | 16 | -0.10 to +0.17 | 50 | 0 |
+| defensive-quality | 17 | -0.07 to +0.08 | 15 | 0 |
+| pairs-fundamentals | 15 | -0.10 to +0.28 | 4 pairs | 0 |
+
+63 of the 66 legs move by 0.14 points or less. The three that move more: pairs-fundamentals
+China +0.28, from one pair closed at China Vanke's last bar before a trading suspension (under
+"Not fixed yet, found in the third wave"); 52-week-high Japan -0.21 (15 fills); and
+dcf-discount US +0.17 (7 fills, 2016 to 2024, all names the removed `isActivelyTrading`
+filter would have kept out). pairs-zscore and pairs-multi-pair have no drop book, so nothing
+is measured for them: across their 24 legs 16 positions closed at a last common bar more than
+10 days before the year end (8 in each topic).
+
 rising-yield has no leg above 0.12 points. No leg in the wave moves by more than 0.46
 points on the exit rule, so the larger moves between the published and the rerun files come
 from the other changes; see "What the second wave's rerun showed" above.
@@ -1429,6 +1695,13 @@ whole corpus: 2,884 period records, of which **0** carried the entry funnel.
 > On the other six topics' 93 legs, 128 of 755 cash years are guard cash and the other 627
 > had fewer names passing than the topic's floor (10 names, and 5 in dogs-of-dow, which has
 > no guard cash). Every other topic is as described below.
+>
+> **Update 2026-10-14 (third wave).** The scanner now checks 26,047 funnel records in 34
+> topics: the 18 above, 52-week-high, dcf-discount and defensive-quality, and the 13 topics
+> whose Norway leg was rerun. All pass. The three pairs topics write per-year pair counts
+> (`pairs_formed`, `pairs_entered`) instead of this funnel, and their cash rule is fewer than 3
+> pairs entered. In 52-week-high, dcf-discount and defensive-quality 73 of 431 cash periods
+> are guard cash (14 of 184, 26 of 81 and 33 of 166).
 
 > **2,884, not 2,987.** A working tree can report 2,987 because
 > `graham-timing/results/us.json` holds 103 more and is UNTRACKED — `.gitignore`
@@ -1543,6 +1816,12 @@ fallback divides by the truncated 50 and prints `100 * 101 / 50 = 202%`.
 is a pre-B006 record being rendered by post-B006 code, not a new defect, and it
 disappears the moment the record carries a real `total_rebalances`.
 
+**Resolved 2026-10-14 (third wave).** The OSL leg was rerun with `--exit-method drop`, and
+`returns_OSL.json`, `oversold_quality_osl.json` and the comparison node now carry
+`total_rebalances` 103 with cash 101 and invested 2, so the cash chart reads 98% (101 of 103).
+Returns are unchanged (1.49% a year against 10.91% for the Oslo All-share index); the leg is
+invested in 2 quarters and too thin to test.
+
 ### sector-momentum and sector-rotation count unrunnable trailing periods as cash
 
 Both run a quarterly rebalance grid to `BACKTEST_END + 1` (2026-10) while their
@@ -1623,6 +1902,18 @@ all three are too thin to test. The table keeps the records as they were; the la
 says which are repaired. The three second-wave posts have not been rewritten yet, so the
 findings about live posts below still apply to them.
 
+**As of 2026-10-14 it flags 1 record in 1 topic: `qarp` JNB.** The third wave reran the
+Norway leg of the other eight topics in the table (and of five more) with `--exit-method
+drop`, so it matches their other markets, which aren't rerun. Their records now carry
+`total_rebalances`, a window label and `window_truncated: true`, and cash + invested equals
+`total_rebalances`. Cash + invested of all rebalances, and measured periods: earnings-consistency
+25 + 0 of 25 (12 measured), etf-underowned 20 + 0 of 20 (12), ev-ebitda 17 + 8 of 25 (11),
+ev-ebitda-relative 25 + 0 of 25 (11), garp 89 + 14 of 103 (50), oversold-quality 101 + 2 of
+103 (50), relative-strength 65 + 38 of 103 (50), value-momentum 29 + 22 of 51 (24). All eight
+are too thin to test over all rebalances; ev-ebitda (7 of its 11 measured years invested),
+relative-strength (38 of 50 quarters) and value-momentum (18 of 24 half-years) are invested
+in most of their measured window. Their posts haven't been rewritten yet either.
+
 `^OSEAX` starting 2013-03-05 is the whole cause, re-verified against the
 warehouse on 2026-09-03: `^OSEAX` 2013-03-05 (3,377 rows), `^TWII` 1997-07-02
 (7,179), `^SET.BK` 1982-01-04 (11,247). It is the only `LOCAL_INDEX_BENCHMARKS`
@@ -1632,17 +1923,17 @@ are not.
 | topic | published post | n_periods | cash | invested | years | record now |
 |---|---|---|---|---|---|---|
 | deleveraging | risk-03-deleveraging (2026-02-05) | 50 | 53 | -3 | 12.5 | repaired 2026-10 |
-| earnings-consistency | growth-02-earnings-consistency (2026-02-26) | 12 | 25 | -13 | 12.0 | open |
-| etf-underowned | etf-03-underowned (2026-03-28) | 12 | 20 | -8 | 12.0 | open |
-| ev-ebitda | value-03-ev-ebitda (2026-01-17) | 11 | 13 | -2 | 11.0 | open |
-| ev-ebitda-relative | timing-02-ev-ebitda-relative (2026-02-09) | 11 | 25 | -14 | 11.0 | open |
+| earnings-consistency | growth-02-earnings-consistency (2026-02-26) | 12 | 25 | -13 | 12.0 | repaired 2026-10 (drop mode) |
+| etf-underowned | etf-03-underowned (2026-03-28) | 12 | 20 | -8 | 12.0 | repaired 2026-10 (drop mode) |
+| ev-ebitda | value-03-ev-ebitda (2026-01-17) | 11 | 13 | -2 | 11.0 | repaired 2026-10 (drop mode) |
+| ev-ebitda-relative | timing-02-ev-ebitda-relative (2026-02-09) | 11 | 25 | -14 | 11.0 | repaired 2026-10 (drop mode) |
 | fcf-compounders | cashflow-04-compounders (2026-03-13) | 12 | 25 | -13 | 12.0 | repaired 2026-10 |
 | fcf-yield | value-04-fcf-yield (2026-04-05) | 12 | 23 | -11 | 12.0 | repaired 2026-10 |
-| garp | factor-08-garp (2026-02-07) | 50 | 73 | -23 | 12.5 | open |
-| oversold-quality | reversion-03-oversold-quality (2026-01-24) | 50 | 101 | -51 | 12.5 | open |
+| garp | factor-08-garp (2026-02-07) | 50 | 73 | -23 | 12.5 | repaired 2026-10 (drop mode) |
+| oversold-quality | reversion-03-oversold-quality (2026-01-24) | 50 | 101 | -51 | 12.5 | repaired 2026-10 (drop mode) |
 | qarp | factor-02-qarp (2026-01-01) | 0 | 51 | -51 | 0.0 | open |
-| relative-strength | momentum-07-relative-strength (2026-02-23) | 50 | 65 | -15 | 12.5 | open |
-| value-momentum | factor-03-value-momentum (2026-03-23) | 24 | 29 | -5 | 12.0 | open |
+| relative-strength | momentum-07-relative-strength (2026-02-23) | 50 | 65 | -15 | 12.5 | repaired 2026-10 (drop mode) |
+| value-momentum | factor-03-value-momentum (2026-03-23) | 24 | 29 | -5 | 12.0 | repaired 2026-10 (drop mode) |
 | volume-confirmed-momentum | momentum-08-volume-confirmed (2026-02-24) | 24 | 40 | -16 | 12.0 | repaired 2026-09 |
 
 > **This table covers defect (a) — impossible arithmetic — ONLY.** The
@@ -1683,6 +1974,20 @@ are not.
 > `price-momentum` and `price-to-book`. fcf-yield's Norway leg is truncated too (12 of
 > 25 measured) but is not in its curated comparison file, which is where the
 > detector looks.
+>
+> **As of 2026-10-14 the truncated set is 19 legs, and every one labels itself.** The
+> third wave reran 52-week-high (whose Norway node carries `window_truncated: true` now)
+> and the Norway leg of 13 topics, which covers the six legs that also carried a negative
+> `invested_periods` and the other six unlabelled ones. So no truncated leg carries
+> defect (a) any more, and none is a legacy record without a label. The new leg is
+> etf-underowned: its published comparison node was an older 20-period run, not
+> truncated, and the rerun node is measured over 12 of 20 rebalances. Of the seven legs
+> named above, four are testable on their truncated window (etf-rebalancing, peg-ratio,
+> price-momentum, price-to-book) and two are too thin to test (garp, pe-compression);
+> 52-week-high's Norway leg is invested in all 50 of its measured quarters and in 74 of 103
+> in all. Its published `invested_periods` of 21 (50 measured minus 29 cash quarters, all
+> before the window) is where a "58% cash periods" figure in the live comparison post comes
+> from.
 
 **The count of affected live posts is 13, not the 4 the blocker estimated.** All
 13 are published. 12 make a substantive Norway claim in their comparison blog:
@@ -1797,6 +2102,19 @@ leg is too thin to test: 77 of 103 quarters are in cash, and it reads 5.52% a ye
 over its 50 measured quarters (was 9.85% with a reported 53 cash quarters). Its
 charts leave the leg out as a truncated window. The other four rows (ev-ebitda,
 oversold-quality, relative-strength, value-momentum) still describe committed legacy records.
+
+**Update 2026-10-14: the other four rows have been rerun too** (the Norway leg, in drop mode,
+in the third wave). Their records carry `window_truncated: true`, and their
+`invested_periods` are 8, 2, 38 and 22, all too thin to test over all rebalances. Two rows
+of the table above were wrong about the charts: relative-strength's and value-momentum's
+chart scripts never gated on `invested_periods` or `window_truncated`, so their comparison
+charts drew Norway before the fix and still do, and the live momentum-07 and factor-03
+comparison images match a render from the pre-rerun data (found in the third-wave install
+check). price-momentum's script has the same gap. Gate 12 inspects only conditions that test
+`invested_periods`, so it passes all three. The truncated legs that do drop out now include
+peg-ratio's Norway leg, which the rerun makes testable (+2.62 points against the Oslo
+All-share index): the predicate excludes every truncated window, the open editorial
+question below.
 
 **Two consequences to expect after the re-run, and one open call for a human.**
 Once re-run records carry `window_truncated = True`, the ~8 currently-rendered

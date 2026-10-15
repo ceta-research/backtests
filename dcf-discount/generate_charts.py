@@ -14,18 +14,22 @@ Usage:
 import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import (benchmark_label, benchmark_legend, is_usd_benchmark_proxy,
-                         localize_money_title, money, money_axis_label, money_formatter)
+from chart_utils import (RESULT_KEY_TO_EXCHANGE, benchmark_label, benchmark_legend,
+                         is_usd_benchmark_proxy, localize_money_title, money, money_axis_label,
+                         money_formatter)
+from data_utils import LOCAL_INDEX_BENCHMARKS
 import json
 import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# Region files are the May 2026 re-run the blogs quote. returns_*.json and
-# exchange_comparison*.json are the March run; read only when no region file exists.
+TIE_PP = 0.2  # excess CAGR under this many points either way is a tie
+TOTAL_RETURN = {"SPY", "^GDAXI", "^BVSP", "^OSEAX"}  # benchmarks that include dividends (METHODOLOGY.md)
+
+# Region files are the committed results; returns_*.json (--global output) is read only when none exists.
 REGIONS = {
-    "us": "US", "canada": "Canada (TSX)", "germany": "Germany (XETRA)",
+    "us": "US", "canada": "Canada (TSX+TSXV)", "germany": "Germany (XETRA)",
     "india": "India (NSE)", "korea": "Korea (KSC)", "sweden": "Sweden (STO)",
     "taiwan": "Taiwan (TAI+TWO)", "australia": "Australia (ASX)",
     "brazil": "Brazil (SAO)", "china": "China (SHZ+SHH)",
@@ -39,6 +43,25 @@ COMPARISON_EXCLUDE = {"australia", "brazil"}
 # Comparison-only names, matching the comparison post's table.
 COMPARISON_LABELS = {"us": "US (NYSE+NASDAQ+AMEX)", "china": "China (SHH+SHZ)",
                      "saudi": "Saudi (SAU)"}
+
+
+def periods(result):
+    """(cash, total) rebalances of a results file."""
+    total = (result.get("total_rebalances") or result.get("n_periods")
+             or len(result.get("annual_returns") or []))
+    return result.get("cash_periods") or 0, total
+
+
+def too_thin(result):
+    """Invested in fewer than half its periods: too thin to test, not a result."""
+    cash, total = periods(result)
+    return (total - cash) * 2 < total
+
+
+def thin_title(result):
+    """Extra title line for a market that is too thin to test, else ''."""
+    cash, total = periods(result)
+    return f"\nToo thin to test: in cash {cash} of {total} years" if too_thin(result) else ""
 
 
 def load_results(results_dir):
@@ -110,7 +133,7 @@ def generate_cumulative_chart(exchange, result, output_dir, strategy_name="DCF D
     ax.yaxis.set_major_formatter(money_formatter(exchange))
     ax.set_title(localize_money_title(
                      f"{strategy_name}, {REGIONS.get(exchange, exchange)}: Growth of $10,000",
-                     exchange),
+                     exchange) + thin_title(result),
                  fontsize=13, pad=12)
     ax.set_ylabel(money_axis_label(exchange))
     ax.legend()
@@ -152,8 +175,8 @@ def generate_annual_returns_chart(exchange, result, output_dir, strategy_name="D
     ax.set_xticks(list(x))
     ax.set_xticklabels([str(y) for y in years], rotation=45, ha="right", fontsize=9)
     ax.yaxis.set_major_formatter(lambda x, _: f"{x:.0f}%")
-    ax.set_title(f"{strategy_name}, {REGIONS.get(exchange, exchange)}: Annual Returns",
-                 fontsize=13, pad=12)
+    ax.set_title(f"{strategy_name}, {REGIONS.get(exchange, exchange)}: Annual Returns"
+                 f"{thin_title(result)}", fontsize=13, pad=12)
     ax.set_ylabel("Annual Return (%)")
     ax.legend()
     ax.grid(axis="y", alpha=0.3)
@@ -177,10 +200,14 @@ def generate_comparison_chart(all_results, output_dir):
     except ImportError:
         return
 
-    valid = {k: v for k, v in all_results.items()
-             if k not in COMPARISON_EXCLUDE
-             and v.get("portfolio", {}).get("cagr") is not None
-             and "error" not in v}
+    usable = {k: v for k, v in all_results.items()
+              if k not in COMPARISON_EXCLUDE
+              and v.get("portfolio", {}).get("cagr") is not None
+              and "error" not in v}
+    # Too thin to test (cash more than half the time) or a benchmark cut short: named in the footer, not ranked.
+    thin = {k for k, v in usable.items() if too_thin(v)}
+    cut = {k for k, v in usable.items() if v.get("window_truncated") and k not in thin}
+    valid = {k: v for k, v in usable.items() if k not in thin | cut}
     if len(valid) < 2:
         return
 
@@ -197,10 +224,28 @@ def generate_comparison_chart(all_results, output_dir):
         proxy_note = f"{names_} has no local index: its marker is the S&P 500 in USD"
         if "saudi" in proxy:  # USD/SAR 3.75 at both ends of Apr 2000-Apr 2025
             proxy_note += " (the riyal held near 3.75 per dollar, Apr 2000-Apr 2025)"
-        proxy_note += ". "
+        proxy_note += ".\n"
+    thin_note = ""
+    if thin:
+        thin_note = ("Too thin to test, not ranked (in cash more than half the time): "
+                     + ", ".join(f"{name(k)}, cash {periods(usable[k])[0]} of {periods(usable[k])[1]} yrs"
+                                 for k in sorted(thin)) + ".\n")
+    if cut:
+        thin_note += ("Not ranked, benchmark covers only part of the window: "
+                      + "; ".join(f"{name(k)}, measured {usable[k].get('window_label')}" for k in sorted(cut))
+                      + ".\n")
     legend_extra = [Patch(color="#9E9E9E", alpha=0.85,
                           label="No local index (vs S&P 500, USD)")] if proxy else []
-    bench_note = "local indices are price-only (no dividends), the S&P 500 is total return."
+
+    def bench_symbol(k):
+        return "SPY" if k in proxy else LOCAL_INDEX_BENCHMARKS.get(RESULT_KEY_TO_EXCHANGE.get(k, k))
+
+    tr = [f"the {n}" for n in sorted({"S&P 500" if k in proxy else benchmark_label(valid, k)
+                                      for k in valid if bench_symbol(k) in TOTAL_RETURN})]
+    tr_text = " and ".join([", ".join(tr[:-1]), tr[-1]] if len(tr) > 1 else tr)
+    bench_note = (f"{tr_text} include{'s' if len(tr) == 1 else ''} dividends, like the portfolio; "
+                  "the other indices are price-only (no dividends).") if tr else \
+        "the indices are price-only (no dividends)."
     n_rows = len(valid)
 
     # CAGR vs own benchmark, best first
@@ -210,8 +255,10 @@ def generate_comparison_chart(all_results, output_dir):
     benches = [v["spy"]["cagr"] for _, v in rows]
     excesses = [v.get("comparison", {}).get("excess_cagr", c - b)
                 for (_, v), c, b in zip(rows, cagrs, benches)]
-    colors = ["#9E9E9E" if k in proxy else "#27ae60" if c > b else "#c0392b"
-              for k, c, b in zip(keys, cagrs, benches)]
+    tie_colour = "#f0b429"
+    colors = ["#9E9E9E" if k in proxy else "#27ae60" if e >= TIE_PP
+              else "#c0392b" if e <= -TIE_PP else tie_colour
+              for k, e in zip(keys, excesses)]
 
     fig, ax = plt.subplots(figsize=(12, max(6, n_rows * 0.6)))
     ax.barh(range(n_rows), cagrs, color=colors, alpha=0.85, height=0.6)
@@ -224,8 +271,10 @@ def generate_comparison_chart(all_results, output_dir):
     ax.set_title("DCF Discount: CAGR vs Own Benchmark by Exchange (2000-2025)",
                  fontsize=14, fontweight="bold", pad=15)
     ax.legend(handles=[
-        Patch(color="#27ae60", alpha=0.85, label="Beat its own benchmark"),
-        Patch(color="#c0392b", alpha=0.85, label="Trailed its own benchmark"),
+        Patch(color="#27ae60", alpha=0.85, label=f"Beat its own benchmark by {TIE_PP} points or more"),
+        *([Patch(color=tie_colour, alpha=0.85, label=f"Within {TIE_PP} points (a tie)")]
+          if tie_colour in colors else []),
+        Patch(color="#c0392b", alpha=0.85, label=f"Trailed it by {TIE_PP} points or more"),
         *legend_extra,
         Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
                markeredgewidth=3, label="Benchmark CAGR"),
@@ -235,13 +284,16 @@ def generate_comparison_chart(all_results, output_dir):
     for i, (k, c, b, e) in enumerate(zip(keys, cagrs, benches, excesses)):
         ax.text(max(c, b, 0) + 0.3, i, f"{c:.2f}% ({e:+.2f} vs {benchmark_legend(valid, k)})",
                 va="center", fontsize=9)
-    beat = sum(c > b for k, c, b in zip(keys, cagrs, benches) if k not in proxy)
-    fig.text(0.5, -0.04,
-             "Data: Ceta Research | FCF/MarketCap >= 8.78% screen, top 50, annual April "
-             "rebalance, equal weight\n"
+    own = [e for k, e in zip(keys, excesses) if k not in proxy]
+    beat, trail = sum(e >= TIE_PP for e in own), sum(e <= -TIE_PP for e in own)
+    fig.text(0.5, -0.01,
+             "Data: Ceta Research | FCF yield 8.78% to 50% on the latest annual filing, top 50, "
+             "annual April rebalance, equal weight\n"
              f"Returns in local currency, each against its own market's index; {bench_note}\n"
-             f"{proxy_note}{beat} of {n_rows} beat their benchmark.",
-             ha="center", fontsize=8, color="#7f8c8d")
+             f"{proxy_note}{thin_note}"
+             f"Of the {len(own)} markets ranked against their own index, {beat} beat it by {TIE_PP} "
+             f"points or more, {len(own) - beat - trail} within {TIE_PP} points and {trail} behind it.",
+             ha="center", va="top", fontsize=8, color="#7f8c8d")
     fig.tight_layout()
     out1 = os.path.join(output_dir, "1_comparison_cagr.png")
     fig.savefig(out1, dpi=150, bbox_inches="tight", facecolor="white")
@@ -277,11 +329,11 @@ def generate_comparison_chart(all_results, output_dir):
     for i, (k, d, b) in enumerate(zip(keys, port_dd, bench_dd)):
         ax2.text(min(d, b) - 0.6, i, f"{d:.2f}% ({benchmark_legend(valid, k)} {b:.2f}%)",
                  va="center", ha="right", fontsize=9)
-    fig2.text(0.5, -0.04,
+    fig2.text(0.5, -0.01,
               "Data: Ceta Research | Max drawdown on annual (April) rebalance returns\n"
               f"Each market against its own index; {bench_note}\n"
-              f"{proxy_note}".rstrip(),
-              ha="center", fontsize=8, color="#7f8c8d")
+              f"{proxy_note}{thin_note}".rstrip(),
+              ha="center", va="top", fontsize=8, color="#7f8c8d")
     fig2.tight_layout()
     out2 = os.path.join(output_dir, "2_comparison_drawdown.png")
     fig2.savefig(out2, dpi=150, bbox_inches="tight", facecolor="white")

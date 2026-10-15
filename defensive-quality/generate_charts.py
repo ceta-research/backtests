@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import (benchmark_cagr, benchmark_cumulative, benchmark_label,
+from chart_utils import (benchmark_cagr, benchmark_cumulative, benchmark_legend, benchmark_money,
                          localize_money_title, money, money_axis_label, money_formatter)
 import matplotlib.ticker as mticker
 import json
@@ -63,6 +63,25 @@ EXCHANGE_LABELS = {
     "JKT":              "Defensive Indonesia",
 }
 
+MIN_STOCKS = 10  # backtest.py's floor: fewer names buyable at entry means a cash year
+
+
+def periods(ex):
+    """(invested, total) rebalances of a results node."""
+    invested = ex.get("invested_periods", 0)
+    return invested, invested + ex.get("cash_periods", 0)
+
+
+def too_thin(ex):
+    """Invested in fewer than half its periods: too thin to test, not a result."""
+    invested, total = periods(ex)
+    return invested * 2 < total
+
+
+def cash_years(ex):
+    """Start years of the periods held in cash."""
+    return {int(p["rebalance_date"][:4]) for p in ex.get("period_data") or [] if p.get("stocks_held") == 0}
+
 
 def get_cumulative_growth(exchange_key, initial=10000, src=None):
     """Compute cumulative growth from annual returns."""
@@ -75,30 +94,14 @@ def get_cumulative_growth(exchange_key, initial=10000, src=None):
     return years, values
 
 
-def get_spy_cumulative(initial=10000):
-    """Get SPY cumulative growth from US exchange data."""
-    ex = data["NYSE_NASDAQ_AMEX"]
-    values = [initial]
-    years = [ex["annual_returns"][0]["year"] - 1]
-    for ar in ex["annual_returns"]:
-        values.append(values[-1] * (1 + ar["spy"] / 100))
-        years.append(ar["year"])
-    return years, values
-
-
 def chart_cumulative(exchanges, filename, title, footer_universe, src=None):
-    """Generate cumulative growth chart vs SPY, or vs src's own local benchmark."""
+    """Generate cumulative growth chart vs the market's own benchmark (the US: S&P 500)."""
+    src = data if src is None else src
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    if src is None:
-        src = data
-        spy_years, spy_vals = get_spy_cumulative()
-        spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
-        bench = "S&P 500"
-    else:
-        spy_years, spy_vals = benchmark_cumulative(src, exchanges[0])
-        spy_cagr = benchmark_cagr(src, exchanges[0])
-        bench = benchmark_label(src, exchanges[0])
+    spy_years, spy_vals = benchmark_cumulative(src, exchanges[0])
+    spy_cagr = benchmark_cagr(src, exchanges[0])
+    bench = benchmark_legend(src, exchanges[0])
     ax.plot(spy_years, spy_vals, color=COLORS["SPY"], linewidth=1.8,
             label=f"{bench} ({spy_cagr}% CAGR)", linestyle="--")
 
@@ -109,8 +112,14 @@ def chart_cumulative(exchanges, filename, title, footer_universe, src=None):
         ex = src[ex_key]
         years, vals = get_cumulative_growth(ex_key, src=src)
         cagr = ex["portfolio"]["cagr"]
-        label = f"{EXCHANGE_LABELS.get(ex_key, ex_key)} ({cagr}% CAGR)"
+        invested, total = periods(ex)
+        cash = f", cash {total - invested} of {total} yrs" if total > invested else ""
+        label = f"{EXCHANGE_LABELS.get(ex_key, ex_key)} ({cagr}% CAGR{cash})"
         ax.plot(years, vals, color=COLORS.get(ex_key, "#95a5a6"), linewidth=2.2, label=label)
+        # Legacy axis: period Y's value sits at x=Y, so a cash year is the flat stretch Y-1 to Y.
+        for i, y in enumerate(sorted(cash_years(ex))):
+            ax.axvspan(y - 1, y, color=COLORS["SPY"], alpha=0.25, linewidth=0,
+                       label=f"In cash (fewer than {MIN_STOCKS} stocks to buy)" if i == 0 else None)
 
         final_k = vals[-1] / 1000
         ax.annotate(money(final_k, exchanges[0], suffix="K"),
@@ -119,7 +128,7 @@ def chart_cumulative(exchanges, filename, title, footer_universe, src=None):
                     fontsize=9, fontweight="bold", color=COLORS.get(ex_key, "#95a5a6"))
 
     spy_final_k = spy_vals[-1] / 1000
-    ax.annotate(money(spy_final_k, exchanges[0], suffix="K"),
+    ax.annotate(benchmark_money(spy_final_k, src, exchanges[0], suffix="K"),
                 xy=(spy_years[-1], spy_vals[-1]),
                 xytext=(8, -12), textcoords="offset points",
                 fontsize=9, fontweight="bold", color=COLORS["SPY"])
@@ -145,8 +154,8 @@ def chart_cumulative(exchanges, filename, title, footer_universe, src=None):
 
 def chart_annual_bars(exchanges, filename, title, footer_universe, src=None):
     """Generate annual returns bar chart."""
-    bench = "S&P 500" if src is None else benchmark_label(src, exchanges[0])
     src = data if src is None else src
+    bench = benchmark_legend(src, exchanges[0])
     ex = src[exchanges[0]]
     years = [ar["year"] for ar in ex["annual_returns"]]
     spy_returns = [ar["spy"] for ar in ex["annual_returns"]]
@@ -168,6 +177,12 @@ def chart_annual_bars(exchanges, filename, title, footer_universe, src=None):
         ax.bar([o + (idx + 1) * width for o in offsets], returns, width,
                label=EXCHANGE_LABELS.get(ex_key, ex_key),
                color=COLORS.get(ex_key, "#95a5a6"), alpha=0.85)
+        # A cash year has no bar: label it so it does not read as a 0% invested year.
+        cash = cash_years(src[ex_key])
+        for i, y in enumerate(years):
+            if y in cash:
+                ax.text(offsets[i] + (idx + 1) * width, 0, "cash", rotation=90, ha="center",
+                        va="bottom", fontsize=7, color="#555555")
 
     ax.set_ylabel("Annual Return (%)", fontsize=12, fontweight="bold")
     ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
@@ -188,17 +203,46 @@ def chart_annual_bars(exchanges, filename, title, footer_universe, src=None):
     plt.close()
 
 
+def ranked(metric):
+    """(key, node) of the markets fit to rank on `metric`, and the footer.
+
+    Not drawn: a market too thin to test (its figures are mostly the cash line)
+    and one whose benchmark could not price the full window.
+    """
+    legs, thin = [], []
+    for k, v in data.items():
+        if (not isinstance(v, dict) or v.get("window_truncated", False)
+                or v.get("portfolio", {}).get(metric) is None):
+            continue
+        (thin if too_thin(v) else legs).append((k, v))
+    thin.sort(key=lambda kv: periods(kv[1])[1] - periods(kv[1])[0])
+    thin_names = [f"{EXCHANGE_LABELS.get(k, k).replace('Defensive ', '')} "
+                  f"({periods(v)[1] - periods(v)[0]} of {periods(v)[1]})" for k, v in thin]
+    print(f"  Drawn: {', '.join(k for k, _ in legs)}")
+    print(f"  Too thin to test, not drawn: {', '.join(thin_names) or 'none'}")
+    footer = ("Data: Ceta Research | Consumer Defensive + Utilities + Healthcare, annual rebalance, "
+              "2000-2025. Returns in local currency.\n"
+              f"\"yrs cash\": years with fewer than {MIN_STOCKS} stocks to buy. "
+              "A cash year earns 0% and counts in the CAGR and drawdown.")
+    if thin_names:
+        footer += ("\nNot shown, too thin to test (in cash in more than half the years; years in cash): "
+                   + ", ".join(thin_names) + ".")
+    return legs, footer
+
+
+def leg_label(k, v):
+    """Tick label of a drawn market, naming its cash years."""
+    invested, total = periods(v)
+    cash = total - invested
+    return EXCHANGE_LABELS.get(k, k) + (f" ({cash} yr{'' if cash == 1 else 's'} cash)" if cash else "")
+
+
 def chart_comparison_cagr(filename):
     """Horizontal bar chart: CAGR by exchange vs S&P 500."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if isinstance(v, dict) and v.get("invested_periods", 0) > 0
-        and not v.get("window_truncated", False)
-           and v.get("portfolio", {}).get("cagr") is not None
-    ]
+    exchanges_with_data, footer = ranked("cagr")
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
-    names = [EXCHANGE_LABELS.get(k, k) for k, v in exchanges_with_data]
+    names = [leg_label(k, v) for k, v in exchanges_with_data]
     cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
     raw_keys = [k for k, v in exchanges_with_data]
     colors = [COLORS.get(k, "#95a5a6") for k in raw_keys]
@@ -223,9 +267,7 @@ def chart_comparison_cagr(filename):
         x_pos = max(cagr, 0) + 0.2
         ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
 
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Consumer Defensive + Utilities + Healthcare, annual rebalance",
-             ha="center", fontsize=8, color="#7f8c8d")
+    fig.text(0.5, -0.01, footer, ha="center", va="top", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / filename
@@ -236,15 +278,10 @@ def chart_comparison_cagr(filename):
 
 def chart_comparison_drawdown(filename):
     """Horizontal bar chart: Max drawdown by exchange."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if isinstance(v, dict) and v.get("invested_periods", 0) > 0
-        and not v.get("window_truncated", False)
-           and v.get("portfolio", {}).get("max_drawdown") is not None
-    ]
+    exchanges_with_data, footer = ranked("max_drawdown")
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"])  # Most negative first
 
-    names = [EXCHANGE_LABELS.get(k, k) for k, v in exchanges_with_data]
+    names = [leg_label(k, v) for k, v in exchanges_with_data]
     drawdowns = [v["portfolio"]["max_drawdown"] for k, v in exchanges_with_data]
     raw_keys = [k for k, v in exchanges_with_data]
     colors = [COLORS.get(k, "#95a5a6") for k in raw_keys]
@@ -267,10 +304,9 @@ def chart_comparison_drawdown(filename):
 
     for i, dd in enumerate(drawdowns):
         ax.text(dd - 0.5, i, f"{dd:.1f}%", va="center", ha="right", fontsize=10)
+    ax.set_xlim(min(drawdowns + [spy_dd]) * 1.12, 0)  # room for the deepest bar's label
 
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Consumer Defensive + Utilities + Healthcare, annual rebalance",
-             ha="center", fontsize=8, color="#7f8c8d")
+    fig.text(0.5, -0.01, footer, ha="center", va="top", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
     out = charts_dir / filename
@@ -313,7 +349,7 @@ if "SHZ_SHH" in data:
     print("\nChina charts...")
     chart_cumulative(
         ["SHZ_SHH"], "1_china_cumulative_growth.png",
-        "Growth of $10,000: Defensive Quality China vs S&P 500 (2000-2025)",
+        "Growth of $10,000: Defensive Quality China vs SSE Composite (2000-2025)",
         "SHZ + SHH (returns in CNY)"
     )
     chart_annual_bars(

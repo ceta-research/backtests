@@ -1,200 +1,1694 @@
 {
   "universe": "SIX",
+  "n_periods": 20,
+  "total_rebalances": 20,
+  "cash_periods": 14,
+  "invested_periods": 6,
+  "measured_start": "2005",
+  "measured_end": "2024",
+  "requested_start": "2005",
+  "requested_end": "2024",
+  "benchmark_symbol": "^SSMI",
+  "benchmark_first_date": null,
+  "window_truncated": false,
+  "unmeasured_periods": 0,
+  "window_label": "2005-2024",
   "n_years": 20,
   "years": "2005-2024",
   "frequency": "annual",
-  "cash_periods": 13,
-  "invested_periods": 7,
-  "avg_pairs_when_invested": 5.0,
+  "execution": "next-day close (MOC)",
+  "benchmark_name": "SMI",
+  "avg_pairs_when_invested": 7.5,
+  "legs_capped": 0,
   "portfolio": {
-    "cagr": 2.9,
-    "max_drawdown": -8.5,
-    "annualized_volatility": 13.67,
-    "sharpe_ratio": 0.175,
-    "sortino_ratio": 1.116,
-    "calmar_ratio": 0.341,
-    "total_return": 77.06
+    "cagr": 1.79,
+    "max_drawdown": -3.58,
+    "annualized_volatility": 6.83,
+    "sharpe_ratio": 0.189,
+    "sortino_ratio": 1.308,
+    "calmar_ratio": 0.501,
+    "total_return": 42.67
   },
   "spy": {
-    "cagr": 10.01,
-    "max_drawdown": -36.23,
-    "annualized_volatility": 16.99,
-    "sharpe_ratio": 0.56,
-    "sortino_ratio": 1.013,
-    "calmar_ratio": 0.276,
-    "total_return": 574.24
+    "cagr": 3.57,
+    "max_drawdown": -35.47,
+    "annualized_volatility": 15.43,
+    "sharpe_ratio": 0.199,
+    "sortino_ratio": 0.354,
+    "calmar_ratio": 0.101,
+    "total_return": 101.5
   },
   "comparison": {
-    "excess_cagr": -7.11,
-    "win_rate": 25.0,
-    "information_ratio": -0.357,
-    "up_capture": 24.68,
-    "down_capture": -0.0,
-    "beta": -0.025,
-    "alpha": 2.63
+    "excess_cagr": -1.77,
+    "win_rate": 50.0,
+    "information_ratio": -0.169,
+    "up_capture": 19.28,
+    "down_capture": -7.81,
+    "beta": 0.054,
+    "alpha": 1.13
   },
-  "excess_cagr": -7.11,
-  "win_rate_vs_spy": 25.0,
+  "excess_cagr": -1.77,
+  "win_rate_vs_spy": 50.0,
   "annual_returns": [
     {
       "year": 2005,
       "portfolio": 0.0,
-      "spy": 7.17,
-      "excess": -7.17,
-      "pairs_active": 2,
-      "pairs_formed": 7
+      "spy": 32.24,
+      "excess": -32.24,
+      "pairs_active": 0,
+      "pairs_formed": 4,
+      "pairs_entered": 2,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 97,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 2,
+      "eligible": 95,
+      "candidates": 95,
+      "sectors": 10,
+      "min_size_usd": 2196.633941093969,
+      "sector_cut_usd": {},
+      "no_cost_cap": 23,
+      "pairs": [
+        {
+          "a": "VATN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7994
+        },
+        {
+          "a": "CLN.SW",
+          "b": "EMSN.SW",
+          "sector": "Basic Materials",
+          "corr": 0.7796
+        },
+        {
+          "a": "EMSN.SW",
+          "b": "SIKA.SW",
+          "sector": "Basic Materials",
+          "corr": 0.7213
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7037
+        }
+      ]
     },
     {
       "year": 2006,
-      "portfolio": -8.5,
-      "spy": 13.65,
-      "excess": -22.15,
-      "pairs_active": 4,
-      "pairs_formed": 11
+      "portfolio": 0.0,
+      "spy": 16.93,
+      "excess": -16.93,
+      "pairs_active": 0,
+      "pairs_formed": 5,
+      "pairs_entered": 2,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 100,
+      "no_fx": 0,
+      "same_isin": 0,
+      "same_company": 2,
+      "eligible": 98,
+      "candidates": 98,
+      "sectors": 10,
+      "min_size_usd": 10.428560554160004,
+      "sector_cut_usd": {},
+      "no_cost_cap": 11,
+      "pairs": [
+        {
+          "a": "SLHN.SW",
+          "b": "VATN.SW",
+          "sector": "Financial Services",
+          "corr": 0.9352
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8506
+        },
+        {
+          "a": "CLN.SW",
+          "b": "EMSN.SW",
+          "sector": "Basic Materials",
+          "corr": 0.8307
+        },
+        {
+          "a": "VATN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8011
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "ADEN.SW",
+          "sector": "Industrials",
+          "corr": 0.7844
+        }
+      ]
     },
     {
       "year": 2007,
-      "portfolio": 56.72,
-      "spy": 5.33,
-      "excess": 51.39,
-      "pairs_active": 5,
-      "pairs_formed": 14
+      "portfolio": 0.0,
+      "spy": -6.74,
+      "excess": 6.74,
+      "pairs_active": 0,
+      "pairs_formed": 7,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 105,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 102,
+      "candidates": 102,
+      "sectors": 10,
+      "min_size_usd": 192.2608540589346,
+      "sector_cut_usd": {},
+      "no_cost_cap": 4,
+      "pairs": [
+        {
+          "a": "MOBN.SW",
+          "b": "PSPN.SW",
+          "sector": "Real Estate",
+          "corr": 0.9093
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8553
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "VATN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8465
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "ADEN.SW",
+          "sector": "Industrials",
+          "corr": 0.8275
+        },
+        {
+          "a": "CLN.SW",
+          "b": "EMSN.SW",
+          "sector": "Basic Materials",
+          "corr": 0.7991
+        },
+        {
+          "a": "VATN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7506
+        },
+        {
+          "a": "ISN.SW",
+          "b": "PSPN.SW",
+          "sector": "Real Estate",
+          "corr": 0.7356
+        }
+      ]
     },
     {
       "year": 2008,
       "portfolio": 0.0,
-      "spy": -36.23,
-      "excess": 36.23,
-      "pairs_active": 1,
-      "pairs_formed": 10
+      "spy": -30.81,
+      "excess": 30.81,
+      "pairs_active": 0,
+      "pairs_formed": 3,
+      "pairs_entered": 2,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 111,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 108,
+      "candidates": 108,
+      "sectors": 10,
+      "min_size_usd": 1455.9380211596326,
+      "sector_cut_usd": {},
+      "no_cost_cap": 2,
+      "pairs": [
+        {
+          "a": "MOBN.SW",
+          "b": "PSPN.SW",
+          "sector": "Real Estate",
+          "corr": 0.9091
+        },
+        {
+          "a": "BBN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8503
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "ADEN.SW",
+          "sector": "Industrials",
+          "corr": 0.7303
+        }
+      ]
     },
     {
       "year": 2009,
-      "portfolio": 22.46,
-      "spy": 22.66,
-      "excess": -0.2,
+      "portfolio": 29.35,
+      "spy": 15.21,
+      "excess": 14.14,
       "pairs_active": 4,
-      "pairs_formed": 20
+      "pairs_formed": 9,
+      "pairs_entered": 4,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 111,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 108,
+      "candidates": 108,
+      "sectors": 10,
+      "min_size_usd": 228.11712813427678,
+      "sector_cut_usd": {},
+      "no_cost_cap": 2,
+      "pairs": [
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7821
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7795
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "SUN.SW",
+          "sector": "Industrials",
+          "corr": 0.7694
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "ADEN.SW",
+          "sector": "Industrials",
+          "corr": 0.7627
+        },
+        {
+          "a": "SREN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.758
+        },
+        {
+          "a": "SREN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.725
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7199
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7128
+        },
+        {
+          "a": "BAER.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7086
+        }
+      ]
     },
     {
       "year": 2010,
       "portfolio": 0.0,
-      "spy": 13.13,
-      "excess": -13.13,
-      "pairs_active": 2,
-      "pairs_formed": 7
+      "spy": -2.07,
+      "excess": 2.07,
+      "pairs_active": 0,
+      "pairs_formed": 1,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 115,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 112,
+      "candidates": 112,
+      "sectors": 10,
+      "min_size_usd": 164.90384801034887,
+      "sector_cut_usd": {
+        "Industrials": 2022.474079508814
+      },
+      "no_cost_cap": 2,
+      "pairs": [
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8092
+        }
+      ]
     },
     {
       "year": 2011,
       "portfolio": 0.0,
-      "spy": 2.46,
-      "excess": -2.46,
-      "pairs_active": 1,
-      "pairs_formed": 20
+      "spy": -6.82,
+      "excess": 6.82,
+      "pairs_active": 0,
+      "pairs_formed": 3,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 114,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 111,
+      "candidates": 110,
+      "sectors": 10,
+      "min_size_usd": 642.2126366039795,
+      "sector_cut_usd": {
+        "Industrials": 3603.776210303231
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8414
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7597
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7031
+        }
+      ]
     },
     {
       "year": 2012,
-      "portfolio": 0.0,
-      "spy": 14.17,
-      "excess": -14.17,
-      "pairs_active": 2,
-      "pairs_formed": 20
+      "portfolio": 7.67,
+      "spy": 16.02,
+      "excess": -8.35,
+      "pairs_active": 10,
+      "pairs_formed": 20,
+      "pairs_entered": 10,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 119,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 116,
+      "candidates": 115,
+      "sectors": 10,
+      "min_size_usd": 457.5817947434026,
+      "sector_cut_usd": {
+        "Industrials": 2502.050861361772
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.9118
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.837
+        },
+        {
+          "a": "BALN.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8291
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "ADEN.SW",
+          "sector": "Industrials",
+          "corr": 0.8131
+        },
+        {
+          "a": "SREN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7878
+        },
+        {
+          "a": "BALN.SW",
+          "b": "CSGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7853
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7794
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7761
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7735
+        },
+        {
+          "a": "BAER.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7683
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7625
+        },
+        {
+          "a": "HELN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.759
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "GEBN.SW",
+          "sector": "Industrials",
+          "corr": 0.7546
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "SUN.SW",
+          "sector": "Industrials",
+          "corr": 0.7338
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7269
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.719
+        },
+        {
+          "a": "BALN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7153
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "EFGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7132
+        },
+        {
+          "a": "BAER.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7118
+        },
+        {
+          "a": "UBSG.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7092
+        }
+      ]
     },
     {
       "year": 2013,
       "portfolio": 0.0,
-      "spy": 29.0,
-      "excess": -29.0,
-      "pairs_active": 1,
-      "pairs_formed": 20
+      "spy": 17.81,
+      "excess": -17.81,
+      "pairs_active": 0,
+      "pairs_formed": 5,
+      "pairs_entered": 0,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 119,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 116,
+      "candidates": 116,
+      "sectors": 10,
+      "min_size_usd": 457.3603617379148,
+      "sector_cut_usd": {},
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8636
+        },
+        {
+          "a": "BALN.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7744
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7487
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7247
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7231
+        }
+      ]
     },
     {
       "year": 2014,
       "portfolio": 0.0,
-      "spy": 14.56,
-      "excess": -14.56,
-      "pairs_active": 1,
-      "pairs_formed": 20
+      "spy": 8.08,
+      "excess": -8.08,
+      "pairs_active": 0,
+      "pairs_formed": 4,
+      "pairs_entered": 0,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 124,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 121,
+      "candidates": 119,
+      "sectors": 10,
+      "min_size_usd": 1086.5780932379466,
+      "sector_cut_usd": {
+        "Industrials": 3446.7267887826956
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "NOVN.SW",
+          "b": "RO.SW",
+          "sector": "Healthcare",
+          "corr": 0.7404
+        },
+        {
+          "a": "BALN.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7387
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7308
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7222
+        }
+      ]
     },
     {
       "year": 2015,
-      "portfolio": 1.43,
-      "spy": 1.29,
-      "excess": 0.14,
-      "pairs_active": 4,
-      "pairs_formed": 7
+      "portfolio": 0.0,
+      "spy": -3.16,
+      "excess": 3.16,
+      "pairs_active": 0,
+      "pairs_formed": 1,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 125,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 122,
+      "candidates": 121,
+      "sectors": 10,
+      "min_size_usd": 249.55221477590615,
+      "sector_cut_usd": {
+        "Industrials": 9282.738634305379
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7243
+        }
+      ]
     },
     {
       "year": 2016,
-      "portfolio": -2.12,
-      "spy": 14.45,
-      "excess": -16.58,
-      "pairs_active": 7,
-      "pairs_formed": 20
+      "portfolio": 0.56,
+      "spy": -3.93,
+      "excess": 4.49,
+      "pairs_active": 11,
+      "pairs_formed": 20,
+      "pairs_entered": 11,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 132,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 129,
+      "candidates": 125,
+      "sectors": 10,
+      "min_size_usd": 145.4985692273828,
+      "sector_cut_usd": {
+        "Industrials": 27284.77377784003
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "BALN.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8406
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8262
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8242
+        },
+        {
+          "a": "NOVN.SW",
+          "b": "RO.SW",
+          "sector": "Healthcare",
+          "corr": 0.82
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7941
+        },
+        {
+          "a": "BALN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7823
+        },
+        {
+          "a": "SREN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7702
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.749
+        },
+        {
+          "a": "SREN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7362
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7305
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7277
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "SCHP.SW",
+          "sector": "Industrials",
+          "corr": 0.7247
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "SGSN.SW",
+          "sector": "Industrials",
+          "corr": 0.7211
+        },
+        {
+          "a": "BALN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7187
+        },
+        {
+          "a": "BAER.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7159
+        },
+        {
+          "a": "BAER.SW",
+          "b": "BALN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7139
+        },
+        {
+          "a": "GEBN.SW",
+          "b": "SCHP.SW",
+          "sector": "Industrials",
+          "corr": 0.7136
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7132
+        },
+        {
+          "a": "BAER.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7098
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "GEBN.SW",
+          "sector": "Industrials",
+          "corr": 0.7093
+        }
+      ]
     },
     {
       "year": 2017,
-      "portfolio": 0.0,
-      "spy": 21.64,
-      "excess": -21.64,
-      "pairs_active": 0,
-      "pairs_formed": 20
+      "portfolio": -3.46,
+      "spy": 13.98,
+      "excess": -17.44,
+      "pairs_active": 3,
+      "pairs_formed": 20,
+      "pairs_entered": 3,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 132,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 129,
+      "candidates": 125,
+      "sectors": 10,
+      "min_size_usd": 225.34616102752582,
+      "sector_cut_usd": {
+        "Industrials": 16539.170982419248
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.8277
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8097
+        },
+        {
+          "a": "BAER.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.8066
+        },
+        {
+          "a": "BALN.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8017
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.798
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7892
+        },
+        {
+          "a": "NOVN.SW",
+          "b": "RO.SW",
+          "sector": "Healthcare",
+          "corr": 0.7861
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7746
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7674
+        },
+        {
+          "a": "SREN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7673
+        },
+        {
+          "a": "BAER.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7589
+        },
+        {
+          "a": "BAER.SW",
+          "b": "CSGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7497
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7467
+        },
+        {
+          "a": "BAER.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7376
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7374
+        },
+        {
+          "a": "BAER.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7347
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7264
+        },
+        {
+          "a": "BALN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7215
+        },
+        {
+          "a": "BAER.SW",
+          "b": "BALN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7176
+        },
+        {
+          "a": "BAER.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7084
+        }
+      ]
     },
     {
       "year": 2018,
       "portfolio": 0.0,
-      "spy": -5.25,
-      "excess": 5.25,
-      "pairs_active": 1,
-      "pairs_formed": 20
+      "spy": -10.69,
+      "excess": 10.69,
+      "pairs_active": 0,
+      "pairs_formed": 4,
+      "pairs_entered": 0,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 138,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 135,
+      "candidates": 130,
+      "sectors": 10,
+      "min_size_usd": 7.327661408676197,
+      "sector_cut_usd": {
+        "Industrials": 98194.76800870289
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "BALN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7564
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7387
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7197
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7013
+        }
+      ]
     },
     {
       "year": 2019,
-      "portfolio": -0.63,
-      "spy": 31.09,
-      "excess": -31.71,
-      "pairs_active": 8,
-      "pairs_formed": 20
+      "portfolio": -0.12,
+      "spy": 26.39,
+      "excess": -26.51,
+      "pairs_active": 12,
+      "pairs_formed": 20,
+      "pairs_entered": 12,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 143,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 2,
+      "eligible": 139,
+      "candidates": 133,
+      "sectors": 10,
+      "min_size_usd": 284.0880215480002,
+      "sector_cut_usd": {
+        "Industrials": 96511.15515576562
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.8786
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8293
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8264
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8258
+        },
+        {
+          "a": "BAER.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.803
+        },
+        {
+          "a": "BAER.SW",
+          "b": "CSGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8018
+        },
+        {
+          "a": "BALN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7925
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7915
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.791
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7699
+        },
+        {
+          "a": "BAER.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7434
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7386
+        },
+        {
+          "a": "SREN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7386
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7385
+        },
+        {
+          "a": "BALN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7382
+        },
+        {
+          "a": "BALN.SW",
+          "b": "CSGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7337
+        },
+        {
+          "a": "UBSG.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7314
+        },
+        {
+          "a": "BAER.SW",
+          "b": "BALN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7191
+        },
+        {
+          "a": "BALN.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7184
+        },
+        {
+          "a": "BAER.SW",
+          "b": "PGHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7055
+        }
+      ]
     },
     {
       "year": 2020,
-      "portfolio": 2.2,
-      "spy": 17.23,
-      "excess": -15.03,
-      "pairs_active": 3,
-      "pairs_formed": 12
+      "portfolio": 0.0,
+      "spy": -0.05,
+      "excess": 0.05,
+      "pairs_active": 0,
+      "pairs_formed": 6,
+      "pairs_entered": 2,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 151,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 2,
+      "eligible": 147,
+      "candidates": 139,
+      "sectors": 10,
+      "min_size_usd": 45.49543494669796,
+      "sector_cut_usd": {
+        "Industrials": 43216.527250731546
+      },
+      "no_cost_cap": 1,
+      "pairs": [
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.8659
+        },
+        {
+          "a": "BAER.SW",
+          "b": "CSGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7868
+        },
+        {
+          "a": "BAER.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7738
+        },
+        {
+          "a": "BUCN.SW",
+          "b": "OERL.SW",
+          "sector": "Industrials",
+          "corr": 0.7448
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7403
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7214
+        }
+      ]
     },
     {
       "year": 2021,
       "portfolio": 0.0,
-      "spy": 30.51,
-      "excess": -30.51,
+      "spy": 20.99,
+      "excess": -20.99,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 20,
+      "pairs_entered": 1,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 158,
+      "no_fx": 0,
+      "same_isin": 2,
+      "same_company": 2,
+      "eligible": 154,
+      "candidates": 145,
+      "sectors": 10,
+      "min_size_usd": 39.9738024797308,
+      "sector_cut_usd": {
+        "Financial Services": 39.9738024797308,
+        "Industrials": 88276.7463131507
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.9434
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.9146
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.9021
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8868
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8864
+        },
+        {
+          "a": "BALN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8778
+        },
+        {
+          "a": "BALN.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8768
+        },
+        {
+          "a": "SREN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8743
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8739
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8647
+        },
+        {
+          "a": "BAER.SW",
+          "b": "CSGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8644
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8579
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.8522
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8503
+        },
+        {
+          "a": "BAER.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.8463
+        },
+        {
+          "a": "BALN.SW",
+          "b": "CSGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8443
+        },
+        {
+          "a": "UBSG.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8383
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.8358
+        },
+        {
+          "a": "BAER.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8347
+        },
+        {
+          "a": "ABBN.SW",
+          "b": "ADEN.SW",
+          "sector": "Industrials",
+          "corr": 0.8279
+        }
+      ]
     },
     {
       "year": 2022,
-      "portfolio": 0.0,
-      "spy": -18.99,
-      "excess": 18.99,
-      "pairs_active": 0,
-      "pairs_formed": 20
+      "portfolio": 5.64,
+      "spy": -15.15,
+      "excess": 20.79,
+      "pairs_active": 5,
+      "pairs_formed": 14,
+      "pairs_entered": 5,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 161,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 2,
+      "eligible": 156,
+      "candidates": 147,
+      "sectors": 10,
+      "min_size_usd": 24.05475665536872,
+      "sector_cut_usd": {
+        "Financial Services": 24.05475665536872,
+        "Industrials": 86461.00014259545
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "SLHN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7937
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7824
+        },
+        {
+          "a": "SREN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7754
+        },
+        {
+          "a": "BALN.SW",
+          "b": "HELN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7664
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7654
+        },
+        {
+          "a": "HELN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.758
+        },
+        {
+          "a": "BALN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.754
+        },
+        {
+          "a": "BALN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7497
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7493
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7464
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7436
+        },
+        {
+          "a": "BAER.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7426
+        },
+        {
+          "a": "CSGN.SW",
+          "b": "UBSG.SW",
+          "sector": "Financial Services",
+          "corr": 0.7197
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7181
+        }
+      ]
     },
     {
       "year": 2023,
       "portfolio": 0.0,
-      "spy": 26.0,
-      "excess": -26.0,
+      "spy": 1.75,
+      "excess": -1.75,
       "pairs_active": 0,
-      "pairs_formed": 20
+      "pairs_formed": 20,
+      "pairs_entered": 2,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 161,
+      "no_fx": 0,
+      "same_isin": 3,
+      "same_company": 2,
+      "eligible": 156,
+      "candidates": 147,
+      "sectors": 10,
+      "min_size_usd": 119.02829627225019,
+      "sector_cut_usd": {
+        "Industrials": 157753.17859654818
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "BALN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8907
+        },
+        {
+          "a": "ALPN.SW",
+          "b": "NBEN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8405
+        },
+        {
+          "a": "HELN.SW",
+          "b": "SLHN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8257
+        },
+        {
+          "a": "HELN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8244
+        },
+        {
+          "a": "BALN.SW",
+          "b": "VATN.SW",
+          "sector": "Financial Services",
+          "corr": 0.819
+        },
+        {
+          "a": "SREN.SW",
+          "b": "VATN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8165
+        },
+        {
+          "a": "EMSN.SW",
+          "b": "SIKA.SW",
+          "sector": "Basic Materials",
+          "corr": 0.8159
+        },
+        {
+          "a": "ALPN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.8024
+        },
+        {
+          "a": "ALPN.SW",
+          "b": "VATN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7992
+        },
+        {
+          "a": "ALPN.SW",
+          "b": "BALN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7967
+        },
+        {
+          "a": "SOON.SW",
+          "b": "STMN.SW",
+          "sector": "Healthcare",
+          "corr": 0.792
+        },
+        {
+          "a": "CFR.SW",
+          "b": "UHR.SW",
+          "sector": "Consumer Cyclical",
+          "corr": 0.7823
+        },
+        {
+          "a": "SLHN.SW",
+          "b": "ZURN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7741
+        },
+        {
+          "a": "NBEN.SW",
+          "b": "SREN.SW",
+          "sector": "Financial Services",
+          "corr": 0.773
+        },
+        {
+          "a": "BAER.SW",
+          "b": "EFGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7704
+        },
+        {
+          "a": "BALN.SW",
+          "b": "EFGN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7681
+        },
+        {
+          "a": "ALLN.SW",
+          "b": "MOBN.SW",
+          "sector": "Real Estate",
+          "corr": 0.7667
+        },
+        {
+          "a": "NREN.SW",
+          "b": "VARN.SW",
+          "sector": "Real Estate",
+          "corr": 0.7662
+        },
+        {
+          "a": "BALN.SW",
+          "b": "NBEN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7644
+        },
+        {
+          "a": "BAER.SW",
+          "b": "BALN.SW",
+          "sector": "Financial Services",
+          "corr": 0.7594
+        }
+      ]
     },
     {
       "year": 2024,
       "portfolio": 0.0,
-      "spy": 25.59,
-      "excess": -25.59,
+      "spy": 4.06,
+      "excess": -4.06,
       "pairs_active": 0,
-      "pairs_formed": 10
+      "pairs_formed": 2,
+      "pairs_entered": 0,
+      "legs_capped": 0,
+      "same_company_pairs": 0,
+      "listed": 157,
+      "no_fx": 0,
+      "same_isin": 1,
+      "same_company": 2,
+      "eligible": 154,
+      "candidates": 145,
+      "sectors": 10,
+      "min_size_usd": 16.246538548389015,
+      "sector_cut_usd": {
+        "Industrials": 244474.39417168798
+      },
+      "no_cost_cap": 0,
+      "pairs": [
+        {
+          "a": "ALLN.SW",
+          "b": "PSPN.SW",
+          "sector": "Real Estate",
+          "corr": 0.7148
+        },
+        {
+          "a": "ALLN.SW",
+          "b": "MOBN.SW",
+          "sector": "Real Estate",
+          "corr": 0.7063
+        }
+      ]
     }
-  ]
+  ],
+  "universe_rule": {
+    "rule": "per formation year: lines with a sector and an FY filing of any date (not point-in-time), funds out, listed through the year and traded; one line per security and per company; top N per sector by size",
+    "filing": "operating-company test: at least one FY key_metrics row with a market cap, dated at any time, so a filing first made after the formation year admits a line to that year",
+    "size": "formation-year median of daily close x volume, in USD at the year-end rate",
+    "cost_cap": "latest FY market cap dated 45 to 540 days before the trading year, in USD at the same rate; none: the smallest-cap cost tier",
+    "sector": "profile sector as fetched, not point-in-time",
+    "top_n_per_sector": 30,
+    "min_formation_bars": 200
+  },
+  "listing_filter": "country CH",
+  "isin_dedup": true,
+  "company_dedup": true,
+  "exit_method": "ltp",
+  "ltp": {
+    "exit_method": "ltp",
+    "source": "last common bar of the pair",
+    "delist_grace_days": 7,
+    "missing_exits": 0,
+    "ltp_filled": 0,
+    "still_missing": 0,
+    "fills": []
+  }
 }
