@@ -253,7 +253,8 @@ def generate_comparison_chart(all_results, output_dir):
     keys = [k for k, _ in rows]
     cagrs = [v["portfolio"]["cagr"] for _, v in rows]
     benches = [v["spy"]["cagr"] for _, v in rows]
-    excesses = [v.get("comparison", {}).get("excess_cagr", c - b)
+    # Rounded as printed, so a bar's colour and the counts match its label.
+    excesses = [round(v.get("comparison", {}).get("excess_cagr", c - b), 2)
                 for (_, v), c, b in zip(rows, cagrs, benches)]
     tie_colour = "#f0b429"
     colors = ["#9E9E9E" if k in proxy else "#27ae60" if e >= TIE_PP
