@@ -62,7 +62,7 @@ python3 ev-ebitda/generate_charts.py
 
 SPY benchmark: 7.64% CAGR.
 
-\* Not ranked: truncated window, and too thin to test. The Oslo All Share series starts in March 2013, so Norway's CAGR, Sharpe and drawdown cover the 11 annual periods from January 2014 to January 2025. Over them it returned 12.83% a year against 9.84% for the Oslo All Share (+2.99 points), an index that includes dividends. An excess against SPY's 2000-2025 figure would compare different windows, so none is shown. The book held cash in 17 of all 25 rebalances (68%) and in 4 of the 11 measured years (2017, 2020, 2021, 2022). No measured year lost money, so the drawdown on annual periods is 0.0%. This row is the October 2026 rerun of the Norway leg, with fewer than 10 names buyable at entry meaning cash; the other rows predate it.
+\* Not ranked: short window. The Oslo All Share series starts in March 2013, so Norway's CAGR, Sharpe and drawdown cover the 11 annual periods from January 2014 to January 2025. Over them it returned 12.83% a year against 9.84% for the Oslo All Share (+2.99 points), an index that includes dividends. An excess against SPY's 2000-2025 figure would compare different windows, so none is shown. The book was invested in 7 of the 11 measured years, so it isn't too thin to test over its window. It held cash in the other 4 (2017, 2020, 2021, 2022) and in 17 of all 25 rebalances (68%). No measured year lost money, so the drawdown on annual periods is 0.0%. This row is the October 2026 rerun of the Norway leg, with fewer than 10 names buyable at entry meaning cash; the other rows predate it.
 
 ## Exclusions
 

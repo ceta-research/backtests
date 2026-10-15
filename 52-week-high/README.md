@@ -40,13 +40,12 @@ On each rebalance date, for every line on the market's exchanges:
 
 ## Results (January 2000 to October 2025)
 
-Of the 15 markets measured against their own index, the screen beat it in 11: Taiwan (+7.61pp a year), Hong Kong (+6.81), Korea (+4.84), Sweden (+4.80), Switzerland (+4.39), Thailand (+4.29), Norway (+3.60, measured 2013-2025), India (+3.00), the UK (+2.83), Canada (+2.16) and Singapore (+1.48). Germany ties the DAX (0.11pp behind, under the 0.2pp line). The US (-3.45pp against SPY), China (-0.93) and Japan (-0.84) trail. Every market was invested in at least half of its quarters, so none is too thin to test.
+Of the 14 markets measured against their own index over the full window, the screen beat it in 10: Taiwan (+7.61pp a year), Hong Kong (+6.81), Korea (+4.84), Sweden (+4.80), Switzerland (+4.39), Thailand (+4.29), India (+3.00), the UK (+2.83), Canada (+2.16) and Singapore (+1.48). Germany ties the DAX (0.11pp behind, under the 0.2pp line). The US (-3.45pp against SPY), China (-0.93) and Japan (-0.84) trail. Norway beat the Oslo All Share by 3.60pp a year, measured 2013-2025 only, so it isn't ranked with them. Every market was invested in at least half of its quarters (Norway in all 50 of its measured quarters), so none is too thin to test.
 
 Three benchmarks include dividends, as the portfolio's returns do: SPY (US), the DAX (Germany) and the Oslo All Share GR (Norway). Norway's +3.60pp is like for like; Germany's tie and the US shortfall are too. The other twelve local indices are price indices, so those margins are overstated by roughly the index's dividend yield. India's +3.00, the UK's +2.83, Canada's +2.16 and Singapore's +1.48 are small enough that they may not survive a total-return comparison, and Japan and China would trail by more.
 
 | Market | Benchmark | CAGR | Benchmark CAGR | Excess (pp) | Sharpe | Max DD | Cash quarters | Avg names |
 |--------|-----------|------|----------------|-------------|--------|--------|---------------|-----------|
-| Norway (OSL), 2013-2025 | Oslo All Share (`^OSEAX`) | 14.51% | 10.91% | +3.60 | 0.829 | -22.93% | 0 of 50 measured | 28.3 |
 | India (NSE) | Sensex | 14.12% | 11.12% | +3.00 | 0.336 | -57.08% | 17 (2000-01 to 2004-01) | 29.8 |
 | Taiwan (TAI) | TAIEX | 11.99% | 4.38% | +7.61 | 0.670 | -47.69% | 21 (2000-01 to 2005-01) | 30.0 |
 | South Africa (JNB) | S&P 500 in USD | 10.00% | 8.02% | +1.99 | 0.067 | -36.62% | 18 (2000-01 to 2004-04) | 26.7 |
@@ -64,6 +63,7 @@ Three benchmarks include dividends, as the portfolio's returns do: SPY (US), the
 | Singapore (SES) | STI | 3.65% | 2.17% | +1.48 | 0.074 | -52.89% | 14 (2000-01 to 2002-04, 2003-04 to 2004-01) | 17.6 |
 | China (SHZ + SHH) | SSE Composite | 3.26% | 4.19% | -0.93 | 0.025 | -72.47% | 0 | 29.3 |
 | Japan (JPX) | Nikkei 225 | 2.56% | 3.40% | -0.84 | 0.157 | -59.03% | 2 (2000-01, 2000-04) | 30.0 |
+| Norway (OSL), 2013-2025, short window, not ranked | Oslo All Share (`^OSEAX`) | 14.51% | 10.91% | +3.60 | 0.829 | -22.93% | 0 of 50 measured | 28.3 |
 
 Returns are in local currency, after costs. Cash quarters are counted over the 103 rebalances and labelled by their rebalance month. Avg names is the average number of lines held in invested quarters; two lines of one company count as two. A figure below 30 means fewer than 30 names passed the screen, or the entry test (see Parameters) dropped some of them. The entry test dropped 40.2% of screened names in Singapore (17.6 held of 29.4 screened), 12.4% in Malaysia, 8.0% in Hong Kong, 7.1% in Italy and 2.3% in China. Norway's 28.3 is over its 50 measured quarters; the file's `avg_stocks_when_invested`, 24.4, averages all 74 invested rebalances of the run, including the 24 before its window.
 

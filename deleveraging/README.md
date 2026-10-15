@@ -54,7 +54,7 @@ Of the 13 markets that can be ranked, the screen beat its own index in 6 (UK, Sw
 
 \* Too thin to test: in cash for more than half of the 103 quarters. South Africa was invested in 27 quarters and Singapore in 29, so those CAGRs mostly measure the cash. South Africa's benchmark is also in another currency.
 
-\*\* Truncated window, and too thin. The Oslo All Share series starts in 2013, so Norway's CAGR, Sharpe and drawdown cover the 50 quarters from April 2013 to October 2025; the other 53 rebalances are unmeasured. The book was in cash for 77 of all 103 quarters and for 24 of the 50 measured ones.
+\*\* Short window, not ranked. The Oslo All Share series starts in 2013, so Norway's CAGR, Sharpe and drawdown cover the 50 quarters from April 2013 to October 2025; the other 53 rebalances are unmeasured. The book was invested in 26 of the 50 measured quarters, so it isn't too thin to test over its window. It was in cash for the other 24 and for all 53 rebalances before the window opened in April 2013, 77 of 103 in all. That splits the cash by window; the cash-quarter table below splits the same 77 by cause, also 53 and 24, but not the same quarters.
 
 Returns are in local currency, after costs. Excess is computed from unrounded CAGRs, so it can differ by 0.01 from the difference of the two rounded columns. Avg stocks is the average book in invested quarters.
 

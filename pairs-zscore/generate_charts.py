@@ -49,6 +49,17 @@ CONTENT_EXCHANGES = {
     "TSX":              ("canada",   "Canada (TSX)"),
 }
 
+# Set aside, not ranked (owner decision, DATA_QUALITY_ISSUES.md): distinct companies in
+# South Africa's recorded pairs correlate at 0.97-0.99, a sign of bad price bars.
+UNRANKED = {"JNB": "South Africa"}
+UNRANKED_NOTE = "South Africa not ranked: unreliable price data"
+
+
+def add_unranked_note(fig, all_data):
+    """Footer naming the set-aside markets present in the results. Call after tight_layout."""
+    if any(k in all_data for k in UNRANKED):
+        fig.text(0.5, -0.01, UNRANKED_NOTE, ha="center", va="top", fontsize=9, color="#555555")
+
 
 def cumulative_growth(returns):
     """Compute cumulative growth index starting at 1.0."""
@@ -156,6 +167,8 @@ def plot_comparison_cagr(all_data, output_path):
     # Sort by CAGR descending (best to worst)
     ordered = []
     for exch_key, (_, label) in CONTENT_EXCHANGES.items():
+        if exch_key in UNRANKED:
+            continue
         data = all_data.get(exch_key)
         if not data or "error" in data or not data.get("portfolio"):
             continue
@@ -197,6 +210,7 @@ def plot_comparison_cagr(all_data, output_path):
     ax.invert_yaxis()
 
     plt.tight_layout()
+    add_unranked_note(fig, all_data)
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")
@@ -212,6 +226,8 @@ def plot_convergence_vs_profit(all_data, output_path):
     avg_trades = []
 
     for exch_key, (_, label) in CONTENT_EXCHANGES.items():
+        if exch_key in UNRANKED:
+            continue
         data = all_data.get(exch_key)
         if not data or "error" in data or not data.get("trade_stats"):
             continue
@@ -253,6 +269,7 @@ def plot_convergence_vs_profit(all_data, output_path):
                       edgecolor="orange", alpha=0.9))
 
     plt.tight_layout()
+    add_unranked_note(fig, all_data)
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")

@@ -118,12 +118,42 @@ def annual_returns_chart(results, exchange_name, output_path):
     print(f"  Saved: {output_path}")
 
 
-def comparison_cagr_chart(all_results, output_path):
-    """CAGR comparison across all exchanges."""
-    data = []
+SHORT_WINDOW_NAMES = {"OSL": "Norway (OSL)"}
+US_KEY = "NYSE_NASDAQ"   # the SPY reference lines read this leg's benchmark
+
+
+def measured_span(r):
+    """'2013-2025' for a leg whose benchmark priced only part of the run, else None."""
+    if not r.get("window_truncated"):
+        return None
+    start, end = r.get("measured_start"), r.get("measured_end")
+    return f"{start[:4]}-{end[:4]}" if start and end else r.get("window_label")
+
+
+def ranked_legs(all_results):
+    """Legs fit to rank across markets, plus a footnote naming the ones left out.
+
+    A leg measured over a shorter window (Norway: its index starts in 2013) does
+    not rank against full-window CAGRs and drawdowns.
+    """
+    legs, cut = {}, []
     for uni, r in all_results.items():
         if "error" in r or not r.get("portfolio"):
             continue
+        if r.get("window_truncated"):
+            cut.append(f"{SHORT_WINDOW_NAMES.get(uni, uni)}, measured {measured_span(r)}")
+        else:
+            legs[uni] = r
+    note = ("Not ranked, benchmark covers only part of the window: " + "; ".join(cut) + "."
+            if cut else "")
+    return legs, note
+
+
+def comparison_cagr_chart(all_results, output_path):
+    """CAGR comparison across all exchanges."""
+    data = []
+    legs, cut_note = ranked_legs(all_results)
+    for uni, r in legs.items():
         cagr = r["portfolio"].get("cagr")
         excess = r["comparison"].get("excess_cagr")
         avg_ratio = r.get("avg_ownership_ratio", 0)
@@ -142,7 +172,8 @@ def comparison_cagr_chart(all_results, output_path):
         label = f" {cagr:.1f}% (ex: {excess:+.1f}%)"
         ax.text(max(cagr + 0.3, 0.5), i, label, va="center", fontsize=8)
 
-    ax.axvline(x=10.59, color=SPY_COLOR, linewidth=2, linestyle="--", label="SPY (10.59%)")
+    spy_cagr = all_results[US_KEY]["spy"]["cagr"]
+    ax.axvline(x=spy_cagr, color=SPY_COLOR, linewidth=2, linestyle="--", label=f"SPY ({spy_cagr:.2f}%)")
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=9)
     ax.set_xlabel("CAGR (%)")
@@ -152,6 +183,8 @@ def comparison_cagr_chart(all_results, output_path):
     ax.grid(True, alpha=0.3, axis="x")
     ax.invert_yaxis()
     fig.tight_layout()
+    if cut_note:
+        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved: {output_path}")
@@ -160,9 +193,8 @@ def comparison_cagr_chart(all_results, output_path):
 def comparison_drawdown_chart(all_results, output_path):
     """Max drawdown comparison across exchanges."""
     data = []
-    for uni, r in all_results.items():
-        if "error" in r or not r.get("portfolio"):
-            continue
+    legs, cut_note = ranked_legs(all_results)
+    for uni, r in legs.items():
         maxdd = r["portfolio"].get("max_drawdown")
         if maxdd is not None:
             data.append((uni, maxdd))
@@ -173,8 +205,10 @@ def comparison_drawdown_chart(all_results, output_path):
 
     fig, ax = plt.subplots(figsize=(12, 8))
     ax.barh(range(len(names)), drawdowns, color="#E53935", alpha=0.75)
-    ax.axvline(x=-36.27, color=SPY_COLOR, linewidth=2, linestyle="--",
-               label="SPY (-36.27%)")
+    # Read from the US leg: the hard-coded -36.27% was stale (the US results say -38.01%).
+    spy_dd = all_results[US_KEY]["spy"]["max_drawdown"]
+    ax.axvline(x=spy_dd, color=SPY_COLOR, linewidth=2, linestyle="--",
+               label=f"SPY ({spy_dd:.2f}%)")
 
     for i, (name, dd) in enumerate(data):
         ax.text(dd - 1, i, f"{dd:.1f}%", va="center", ha="right", fontsize=8, color="white")
@@ -182,11 +216,13 @@ def comparison_drawdown_chart(all_results, output_path):
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=9)
     ax.set_xlabel("Max Drawdown (%)")
-    ax.set_title(f"{STRATEGY_NAME}: Max Drawdown by Exchange",
+    ax.set_title(f"{STRATEGY_NAME}: Max Drawdown by Exchange (2005-2025)",
                  fontsize=13, fontweight="bold")
     ax.legend(loc="lower left")
     ax.grid(True, alpha=0.3, axis="x")
     fig.tight_layout()
+    if cut_note:
+        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved: {output_path}")
