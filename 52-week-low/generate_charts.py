@@ -1,4 +1,6 @@
 """Generate all 52-Week Low Quality charts for blog posts from exchange_comparison.json."""
+import matplotlib
+matplotlib.use("Agg")  # headless and reproducible: the macOS default backend renders text differently
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import json
@@ -172,13 +174,32 @@ def chart_annual_bars(exchange_key, filename, title, footer_universe):
     plt.close()
 
 
+# Legs whose benchmark prices only part of the 2002-2025 run. These result files predate the
+# window_truncated field, so Norway is named here: its benchmark, the Oslo All Share (^OSEAX),
+# starts in 2013.
+SHORT_WINDOW = {"OSL": "Norway (OSL)"}
+
+
+def ranked_legs(extra=lambda v: True):
+    """Legs fit to rank across markets (PAR and never-invested legs dropped), plus a
+    footnote naming the short-window legs left out."""
+    keep, cut = [], []
+    for k, v in data.items():
+        if k == "PAR" or v["invested_periods"] <= 0 or not extra(v):
+            continue
+        if v.get("window_truncated") or k in SHORT_WINDOW:
+            years = [ar["year"] for ar in v.get("annual_returns") or []]
+            cut.append(f"{SHORT_WINDOW.get(k, k)}, measured {min(years)}-{max(years)}")
+        else:
+            keep.append((k, v))
+    note = ("Not ranked, benchmark covers only part of the window: " + "; ".join(cut) + "."
+            if cut else "")
+    return keep, note
+
+
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange (excluding PAR)."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
-        and k != "PAR"
-    ]
+    """Horizontal bar chart: CAGR by exchange (excluding PAR and short-window legs)."""
+    exchanges_with_data, cut_note = ranked_legs()
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
 
     names = [k for k, v in exchanges_with_data]
@@ -203,13 +224,14 @@ def chart_comparison_cagr(filename):
     ax.grid(True, alpha=0.3, axis="x", linestyle="--")
 
     for i, cagr in enumerate(cagrs):
-        x_pos = cagr + 0.2 if cagr >= 0 else cagr - 1.5
         ax.text(max(cagr, 0) + 0.2, i, f"{cagr:.1f}%", va="center", fontsize=10,
                 fontweight="bold")
 
     fig.text(0.5, -0.02,
              "Data: Ceta Research | Price within 15% of 52w low + Piotroski F-score >= 7, quarterly rebalance",
              ha="center", fontsize=8, color="#7f8c8d")
+    if cut_note:
+        fig.text(0.5, -0.045, cut_note, ha="center", fontsize=8, color="#555555")
 
     plt.tight_layout()
     out = charts_dir / filename
@@ -219,13 +241,8 @@ def chart_comparison_cagr(filename):
 
 
 def chart_comparison_sharpe(filename):
-    """Horizontal bar chart: Sharpe ratio by exchange (excluding PAR)."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if v["invested_periods"] > 0 and not v.get("window_truncated", False)
-        and k != "PAR"
-           and v["portfolio"]["sharpe_ratio"] is not None
-    ]
+    """Horizontal bar chart: Sharpe ratio by exchange (excluding PAR and short-window legs)."""
+    exchanges_with_data, cut_note = ranked_legs(lambda v: v["portfolio"]["sharpe_ratio"] is not None)
     exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["sharpe_ratio"], reverse=True)
 
     names = [k for k, v in exchanges_with_data]
@@ -256,6 +273,8 @@ def chart_comparison_sharpe(filename):
     fig.text(0.5, -0.02,
              "Data: Ceta Research | Price within 15% of 52w low + Piotroski F-score >= 7, quarterly rebalance",
              ha="center", fontsize=8, color="#7f8c8d")
+    if cut_note:
+        fig.text(0.5, -0.045, cut_note, ha="center", fontsize=8, color="#555555")
 
     plt.tight_layout()
     out = charts_dir / filename

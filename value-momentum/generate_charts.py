@@ -22,6 +22,7 @@ try:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mtick
+    from matplotlib.patches import Patch
     import numpy as np
 except ImportError:
     print("Error: matplotlib not installed. Run: pip install matplotlib")
@@ -39,6 +40,8 @@ STRATEGY_COLOR = "#E65100"    # Deep orange (value investing classic)
 BENCHMARK_COLOR = "#9E9E9E"   # Gray
 POSITIVE_COLOR = "#43A047"    # Green
 NEGATIVE_COLOR = "#E53935"    # Red
+TIE_COLOR = "#CFCFCF"         # Light grey: within TIE_BAND of its own benchmark
+TIE_BAND = 0.2                # CAGR points
 
 
 def cumulative_growth(returns):
@@ -180,10 +183,28 @@ def full_window(legs):
     return f"{min(years)}-{max(years)}" if years else ""
 
 
+def excess_color(data):
+    """Bar colour from the leg's CAGR against ITS OWN benchmark, not the S&P 500 line."""
+    bench = (data.get("spy") or {}).get("cagr")
+    if bench is None:
+        return TIE_COLOR
+    excess = round(data["portfolio"]["cagr"] - bench, 2)
+    if abs(excess) < TIE_BAND:
+        return TIE_COLOR
+    return POSITIVE_COLOR if excess > 0 else NEGATIVE_COLOR
+
+
+def excess_legend_handles():
+    return [Patch(color=POSITIVE_COLOR, alpha=0.85, label=f"Ahead by {TIE_BAND} pts or more"),
+            Patch(color=NEGATIVE_COLOR, alpha=0.85, label=f"Behind by {TIE_BAND} pts or more"),
+            Patch(color=TIE_COLOR, alpha=0.85, label=f"Within {TIE_BAND} pts (tie)")]
+
+
 def plot_comparison_cagr(all_data, output_path):
     """CAGR comparison bar chart across all exchanges."""
     exchanges = []
     cagrs = []
+    colors = []
     # Cross-market reference line. This is legitimately the S&P 500, so read it
     # from the US entry explicitly: taking whichever exchange happened to sort
     # first drew that market's LOCAL benchmark under an "S&P 500" label.
@@ -197,18 +218,20 @@ def plot_comparison_cagr(all_data, output_path):
         if cagr is not None:
             exchanges.append(exch.replace("_", "+"))
             cagrs.append(cagr)
+            colors.append(excess_color(data))
 
     if not exchanges:
         return
 
     fig, ax = plt.subplots(figsize=(12, 6))
-    colors = [POSITIVE_COLOR if c >= (spy_cagr or 0) else NEGATIVE_COLOR for c in cagrs]
     bars = ax.barh(exchanges, cagrs, color=colors, alpha=0.85)
 
+    handles = excess_legend_handles()
     if spy_cagr:
-        ax.axvline(spy_cagr, color=BENCHMARK_COLOR, linewidth=2, linestyle="--",
-                   label=f"S&P 500 ({spy_cagr:.1f}%)")
-        ax.legend(fontsize=11)
+        handles.append(ax.axvline(spy_cagr, color=BENCHMARK_COLOR, linewidth=2, linestyle="--",
+                                  label=f"S&P 500 ({spy_cagr:.1f}%)"))
+    ax.legend(handles=handles, title="Bar colour: CAGR vs its own benchmark",
+              fontsize=10, title_fontsize=10, loc="lower right")
 
     for bar, val in zip(bars, cagrs):
         ax.text(val + 0.1, bar.get_y() + bar.get_height() / 2,

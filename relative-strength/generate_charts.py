@@ -16,7 +16,7 @@ Usage:
 import json
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title
+from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title, is_usd_benchmark_proxy
 import os
 import sys
 
@@ -195,6 +195,26 @@ def full_window(legs):
     return f"{min(years)}-{max(years)}" if years else ""
 
 
+BENCH_LEGEND = "Benchmark (local index unless noted)"
+
+
+def usd_benchmark_note(all_data, legs):
+    """Footnote naming the ranked legs measured against the S&P 500 in USD (no local index)."""
+    names = [EXCHANGE_LABELS.get(k, (k, None))[0] for k in legs
+             if is_usd_benchmark_proxy(all_data, k)]
+    if not names:
+        return ""
+    names = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+    return f"{names}: benchmark is the S&P 500 in USD, not a local index."
+
+
+def add_footnotes(fig, *notes):
+    """Footnotes under the figure. Call after tight_layout."""
+    text = "\n".join(n for n in notes if n)
+    if text:
+        fig.text(0.5, -0.01, text, ha="center", va="top", fontsize=9, color="#555555")
+
+
 def plot_cagr_comparison(all_data, output_path):
     """Horizontal bar chart comparing CAGR across all exchanges."""
     items = []
@@ -224,7 +244,7 @@ def plot_cagr_comparison(all_data, output_path):
     bars1 = ax.barh(y + height / 2, strategy_cagrs, height,
                     color=STRATEGY_COLOR, alpha=0.85, label="Relative Strength")
     bars2 = ax.barh(y - height / 2, spy_cagrs, height,
-                    color=BENCHMARK_COLOR, alpha=0.65, label="Local Benchmark")
+                    color=BENCHMARK_COLOR, alpha=0.65, label=BENCH_LEGEND)
 
     # Annotate excess CAGR
     for i, (bar, exc) in enumerate(zip(bars1, excesses)):
@@ -243,8 +263,7 @@ def plot_cagr_comparison(all_data, output_path):
     ax.axvline(x=0, color="black", linewidth=0.8)
 
     plt.tight_layout()
-    if cut_note:
-        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
+    add_footnotes(fig, usd_benchmark_note(all_data, legs), cut_note)
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")
@@ -277,9 +296,9 @@ def plot_drawdown_comparison(all_data, output_path):
     ax.barh(y + height / 2, strat_dds, height,
             color=NEGATIVE_COLOR, alpha=0.75, label="Relative Strength")
     ax.barh(y - height / 2, spy_dds, height,
-            color=BENCHMARK_COLOR, alpha=0.5, label="Local Benchmark")
+            color=BENCHMARK_COLOR, alpha=0.5, label=BENCH_LEGEND)
 
-    ax.set_title("Sector-Adjusted Momentum: Max Drawdown by Exchange",
+    ax.set_title(f"Sector-Adjusted Momentum: Max Drawdown by Exchange ({full_window(legs)})",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Max Drawdown (%)", fontsize=12)
     ax.set_yticks(y)
@@ -289,8 +308,7 @@ def plot_drawdown_comparison(all_data, output_path):
     ax.grid(True, alpha=0.3, linestyle=":", axis="x")
 
     plt.tight_layout()
-    if cut_note:
-        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
+    add_footnotes(fig, usd_benchmark_note(all_data, legs), cut_note)
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")

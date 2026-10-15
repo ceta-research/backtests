@@ -49,6 +49,18 @@ CONTENT_EXCHANGES = {
     "TSX":              ("canada",   "Canada (TSX)"),
 }
 
+# Point labels on the convergence chart (the first word of the label gave "United" twice).
+SHORT_NAMES = {
+    "NYSE_NASDAQ_AMEX": "US",
+    "JPX":              "Japan",
+    "LSE":              "UK",
+    "HKSE":             "Hong Kong",
+    "TAI_TWO":          "Taiwan",
+    "XETRA":            "Germany",
+    "TSX":              "Canada",
+}
+US_KEY = "NYSE_NASDAQ_AMEX"
+
 # Set aside, not ranked (owner decision, DATA_QUALITY_ISSUES.md): distinct companies in
 # South Africa's recorded pairs correlate at 0.97-0.99, a sign of bad price bars.
 UNRANKED = {"JNB": "South Africa"}
@@ -162,7 +174,8 @@ def plot_comparison_cagr(all_data, output_path):
     """CAGR comparison bar chart across clean exchanges."""
     exchanges = []
     cagrs = []
-    spy_cagr = None
+    # The reference line is the S&P 500: read the US leg, not whichever market is listed first.
+    spy_cagr = ((all_data.get(US_KEY) or {}).get("spy") or {}).get("cagr")
 
     # Sort by CAGR descending (best to worst)
     ordered = []
@@ -175,8 +188,6 @@ def plot_comparison_cagr(all_data, output_path):
         cagr = data["portfolio"].get("cagr")
         if cagr is not None:
             ordered.append((label.replace("(", "").replace(")", ""), cagr))
-            if spy_cagr is None:
-                spy_cagr = data["spy"].get("cagr")
 
     ordered.sort(key=lambda x: x[1], reverse=True)
     exchanges = [o[0] for o in ordered]
@@ -232,7 +243,7 @@ def plot_convergence_vs_profit(all_data, output_path):
         if not data or "error" in data or not data.get("trade_stats"):
             continue
         ts = data["trade_stats"]
-        exchanges.append(label.split(" ")[0])  # Short name
+        exchanges.append(SHORT_NAMES.get(exch_key, exch_key))
         conv_rates.append(ts.get("convergence_rate", 0))
         avg_trades.append(ts.get("avg_trade_return_pct", 0))
 
@@ -260,11 +271,12 @@ def plot_convergence_vs_profit(all_data, output_path):
     ax.yaxis.set_major_formatter(mtick.PercentFormatter())
     ax.grid(True, alpha=0.3, linestyle=":")
 
-    # Add annotation box explaining the key insight
-    ax.text(0.02, 0.05,
-            "All exchanges: 77-87% convergence\nAll exchanges: negative or near-zero CAGR",
+    # Key insight, computed from the plotted points. Top left: clear of every point and label.
+    ax.text(0.02, 0.97,
+            f"All exchanges shown: {min(conv_rates):.0f}-{max(conv_rates):.0f}% convergence\n"
+            "All exchanges shown: negative or near-zero CAGR",
             transform=ax.transAxes, fontsize=9,
-            verticalalignment="bottom", fontfamily="monospace",
+            verticalalignment="top", fontfamily="monospace",
             bbox=dict(boxstyle="round,pad=0.4", facecolor="#FFF9C4",
                       edgecolor="orange", alpha=0.9))
 

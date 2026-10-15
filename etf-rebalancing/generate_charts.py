@@ -210,8 +210,10 @@ def comparison_drawdown_chart(all_results, output_path):
     ax.axvline(x=spy_dd, color=SPY_COLOR, linewidth=2, linestyle="--",
                label=f"SPY ({spy_dd:.2f}%)")
 
+    # Inside the bar's tip: white on the red bar (outside it, white sat on the white background).
     for i, (name, dd) in enumerate(data):
-        ax.text(dd - 1, i, f"{dd:.1f}%", va="center", ha="right", fontsize=8, color="white")
+        ax.text(dd + 1, i, f"{dd:.1f}%", va="center", ha="left", fontsize=8, color="white",
+                fontweight="bold")
 
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=9)

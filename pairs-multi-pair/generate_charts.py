@@ -163,6 +163,7 @@ def chart_cumulative_growth(us_data, output_path):
     # money labels off the universe rather than hardcoding the dollar.
     ex_key = us_data.get("universe")
     ax.yaxis.set_major_formatter(money_formatter(ex_key))
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))  # 2005, not 2005.0 / 2007.5
     ax.set_xlabel("Year", fontsize=11)
     ax.set_ylabel(f"Portfolio Value (starting {money(1000, ex_key)})", fontsize=11)
 
