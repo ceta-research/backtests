@@ -761,9 +761,11 @@ alone, and it is small:
 - Not separable from the files: inside fully invested periods, the dedup, the price-filter
   fix, the tie-breaks and data revised since the published run. Where a market's move sits
   there, its cause is not determined.
-- 38 of the 96 legs are invested in fewer than half their periods and are too thin to test:
+- 37 of the 96 legs are invested in fewer than half their periods and are too thin to test:
   fcf-compounders 17 of 18 (every market but the US), fcf-yield 7, price-to-sales 7,
-  deleveraging 3, revenue-accel 2, dividend-sustainability 2.
+  deleveraging 2, revenue-accel 2, dividend-sustainability 2. A Norway leg is counted over its
+  measured periods: fcf-compounders' is invested in 0 of 12 years and fcf-yield's in 2 of 12,
+  while deleveraging's, invested in 26 of 50 quarters, is testable but not ranked.
 
 **The other six topics, 93 market legs (2026-10-13).** The published files of low-debt,
 dividend-growth, graham-number, pe-mean-revert, rising-yield and dogs-of-dow were written
@@ -804,10 +806,10 @@ cover the same 25 annual periods on every leg, so no difference below is a new p
   carries a CAGR, a Sharpe ratio and a drawdown. They mostly measure cash years and must
   not be read as results: pe-mean-revert Switzerland's 0.97% a year and 0.00% drawdown
   describe one invested year of 25.
-- graham-number's Norway leg is window-truncated, not too thin. It is invested in 17 of its
-  25 years, but its benchmark starts in 2014, so its metrics cover 11 of the 25 rebalances,
-  and its record says so (`window_truncated: true`). The leg isn't in the topic's
-  comparison file.
+- graham-number's Norway leg is window-truncated, not too thin. Its benchmark starts in 2014,
+  so its metrics cover 11 of the 25 rebalances, and its record says so
+  (`window_truncated: true`). It is invested in all 11 of those years (17 of the 25 in all).
+  The leg isn't in the topic's comparison file.
 - Benchmarks: the 25-year benchmark CAGR is the same to two decimals in both vintages on 92
   of the 93 legs. The exception is graham-number Singapore, whose benchmark changed from
   the S&P 500 to the STI. Single benchmark years did move (under "Not fixed yet").
@@ -937,9 +939,12 @@ repair is to the period accounting (under "Re-run population" below): 8 of the 1
 records had a negative `invested_periods`, and every new one counts cash and invested periods
 over all rebalances, carries `total_rebalances` and labels its 2013-2025 or 2014-2025 window.
 Returns are unchanged in 7 and changed in 6, the largest garp's (9.24% to 3.56% a year: 12
-measured quarters are now guard cash). 9 of the 13 are too thin to test over all rebalances;
-ev-ebitda, relative-strength and value-momentum among them are invested in most of their
-measured window. etf-underowned's published comparison node was an older 20-period run and
+measured quarters are now guard cash). Counted over their measured periods, 6 of the 13 are
+too thin to test (earnings-consistency, etf-underowned, ev-ebitda-relative, garp,
+oversold-quality, pe-compression). The other 7 are testable on their truncated windows and
+aren't ranked with full-window markets, among them ev-ebitda (7 of 11 years invested),
+relative-strength (38 of 50 quarters) and value-momentum (18 of 24 half-years).
+etf-underowned's published comparison node was an older 20-period run and
 is now measured over 12 of 20 rebalances, so it joined the truncated set.
 
 Not fixed yet:
@@ -1119,7 +1124,10 @@ Not fixed yet, found in the third wave:
 - pairs-zscore and pairs-multi-pair South Africa: distinct companies correlate at 0.97 to 0.99
   in the recorded pairs (Standard Bank and Sanlam, SBK/SLM, at 0.9927 in 2005), the bad-bar
   pattern the design review found; the leg is invested in 11 of 20 years on the thinnest book of either topic and is measured
-  against the S&P 500 in USD.
+  against the S&P 500 in USD. The posts set the leg aside as unreliable data and don't rank
+  it, and both topics' chart generators leave it out of the comparison charts with the footer
+  "South Africa not ranked: unreliable price data"; at 11 of 20 years it isn't too thin, so
+  the reasons are the data and the dollar benchmark against a book in rand.
 - 52-week-high's entry floor reads `adjClose`, back-adjusted for later dividends: in
   Singapore's invested quarters it drops 1,053 of 2,620 screened names (40.2%), and the slots
   aren't refilled, so the book averages 17.6 lines. It decides 14 cash quarters (Italy 4,
@@ -1147,11 +1155,17 @@ Not fixed yet, found in the third wave:
   (ISIN not checked), and Schibsted's A and B shares, which have separate ISINs, sit together
   in peg-ratio's book in 39 of 50 measured quarters and in etf-rebalancing's in 2 years.
 - The comparison charts of price-momentum, relative-strength and value-momentum never read
-  `invested_periods` or `window_truncated`, so they draw Norway's 2013-2025 bar among 2000-2025
-  siblings, as an ordinary bar in the two where it is too thin to test. Gate 12 of
-  `scripts/verify_floor_guard.py` inspects only conditions that test `invested_periods`, so it
-  passes them. peg-ratio's charts leave out its Norway leg, which is testable (+2.62 points),
-  because their filter drops every truncated window.
+  `invested_periods` and read `window_truncated` only from 2026-10-15, so until then they drew
+  Norway's 2013-2025 bar among 2000-2025 siblings as an ordinary, ranked bar, although a leg
+  measured over a shorter window isn't ranked with full-window ones (all three are testable
+  over their measured periods). The three scripts now leave Norway out and name it in a
+  footnote ("Not ranked, benchmark covers only part of the window"). Their `charts/` folders
+  are gitignored, so no image is committed, and the live momentum-07 and factor-03 comparison
+  images were drawn before either fix and keep the Norway bar until those posts are
+  republished. The scripts test no `invested_periods` gate, so gate 12 of
+  `scripts/verify_floor_guard.py` doesn't cover them. peg-ratio's charts leave out its Norway
+  leg, which is testable (+2.62 points), because their filter drops every truncated window.
+  Leaving it unranked is the rule, but no footnote names it.
 - The live screens don't match the reruns: `52-week-high/screen.py` still ranks
   `adjClose / MAX(high)` with no traded-bar rule, listing rule or dedup; `dcf-discount/screen.py`
   has no currency, fund, cap, listing or dedup rule; the pairs screens rank today's actively
@@ -1820,7 +1834,7 @@ disappears the moment the record carries a real `total_rebalances`.
 `returns_OSL.json`, `oversold_quality_osl.json` and the comparison node now carry
 `total_rebalances` 103 with cash 101 and invested 2, so the cash chart reads 98% (101 of 103).
 Returns are unchanged (1.49% a year against 10.91% for the Oslo All-share index); the leg is
-invested in 2 quarters and too thin to test.
+invested in 2 of its 50 measured quarters and too thin to test.
 
 ### sector-momentum and sector-rotation count unrunnable trailing periods as cash
 
@@ -1897,8 +1911,10 @@ repaired by reruns: volume-confirmed-momentum (2026-09-12, which also removed it
 2026-10). Their Norway records now carry `total_rebalances` and `window_truncated: true`,
 and cash + invested equals `total_rebalances`: deleveraging 77 + 26 of 103 quarters (50
 measured), fcf-compounders 25 + 0 of 25 years (12 measured), fcf-yield 23 + 2 of 25 (12
-measured). The legs stay benchmark-truncated, because `^OSEAX` still starts in 2013, and
-all three are too thin to test. The table keeps the records as they were; the last column
+measured). The legs stay benchmark-truncated, because `^OSEAX` still starts in 2013. Counted
+over their measured periods, deleveraging is invested in 26 of 50 quarters and is testable
+but not ranked with full-window markets, and fcf-compounders (0 of 12 years) and fcf-yield
+(2 of 12) are too thin to test. The table keeps the records as they were; the last column
 says which are repaired. The three second-wave posts have not been rewritten yet, so the
 findings about live posts below still apply to them.
 
@@ -1909,10 +1925,12 @@ drop`, so it matches their other markets, which aren't rerun. Their records now 
 `total_rebalances`. Cash + invested of all rebalances, and measured periods: earnings-consistency
 25 + 0 of 25 (12 measured), etf-underowned 20 + 0 of 20 (12), ev-ebitda 17 + 8 of 25 (11),
 ev-ebitda-relative 25 + 0 of 25 (11), garp 89 + 14 of 103 (50), oversold-quality 101 + 2 of
-103 (50), relative-strength 65 + 38 of 103 (50), value-momentum 29 + 22 of 51 (24). All eight
-are too thin to test over all rebalances; ev-ebitda (7 of its 11 measured years invested),
-relative-strength (38 of 50 quarters) and value-momentum (18 of 24 half-years) are invested
-in most of their measured window. Their posts haven't been rewritten yet either.
+103 (50), relative-strength 65 + 38 of 103 (50), value-momentum 29 + 22 of 51 (24). Counted
+over their measured periods, five of the eight are too thin to test (earnings-consistency,
+etf-underowned and ev-ebitda-relative never invest, garp invests in 14 of 50 quarters and
+oversold-quality in 2 of 50); ev-ebitda (7 of its 11 measured years invested),
+relative-strength (38 of 50 quarters) and value-momentum (18 of 24 half-years) are testable
+but not ranked with full-window markets. Their posts haven't been rewritten yet either.
 
 `^OSEAX` starting 2013-03-05 is the whole cause, re-verified against the
 warehouse on 2026-09-03: `^OSEAX` 2013-03-05 (3,377 rows), `^TWII` 1997-07-02
@@ -2098,35 +2116,43 @@ byte-identical until a re-run.
 volume-confirmed-momentum and yield-gap now carry `window_truncated: true` on their
 Norway record, so the gate excludes those legs because the record says so, and the
 "no-op" sentence above is true only of topics not yet rerun. deleveraging's Norway
-leg is too thin to test: 77 of 103 quarters are in cash, and it reads 5.52% a year
-over its 50 measured quarters (was 9.85% with a reported 53 cash quarters). Its
+leg is invested in 26 of its 50 measured quarters (77 of all 103 are in cash), so it is
+testable but not ranked with full-window markets, and it reads 5.52% a year over those 50
+quarters (was 9.85% with a reported 53 cash quarters). Its
 charts leave the leg out as a truncated window. The other four rows (ev-ebitda,
 oversold-quality, relative-strength, value-momentum) still describe committed legacy records.
 
 **Update 2026-10-14: the other four rows have been rerun too** (the Norway leg, in drop mode,
 in the third wave). Their records carry `window_truncated: true`, and their
-`invested_periods` are 8, 2, 38 and 22, all too thin to test over all rebalances. Two rows
-of the table above were wrong about the charts: relative-strength's and value-momentum's
-chart scripts never gated on `invested_periods` or `window_truncated`, so their comparison
-charts drew Norway before the fix and still do, and the live momentum-07 and factor-03
-comparison images match a render from the pre-rerun data (found in the third-wave install
-check). price-momentum's script has the same gap. Gate 12 inspects only conditions that test
-`invested_periods`, so it passes all three. The truncated legs that do drop out now include
-peg-ratio's Norway leg, which the rerun makes testable (+2.62 points against the Oslo
-All-share index): the predicate excludes every truncated window, the open editorial
-question below.
+`invested_periods` are 8, 2, 38 and 22 of all rebalances. Over their measured periods they
+are invested in 7 of 11, 2 of 50, 38 of 50 and 18 of 24, so only oversold-quality's is too
+thin to test. Two rows of the table above were wrong about the charts: relative-strength's
+and value-momentum's chart scripts gated on neither `invested_periods` nor
+`window_truncated`, so their comparison charts drew Norway both before and after the
+`invested_periods` fix, and the live momentum-07 and factor-03 comparison images match a
+render from the pre-rerun data (found in the third-wave install check). price-momentum's
+script had the same gap. Since 2026-10-15 all three scripts leave a truncated leg out of their
+comparison charts and name it in a footnote; the live images keep the Norway bar until those
+posts are republished. The three scripts test no `invested_periods` gate, so gate 12 doesn't
+cover them. The truncated legs that do drop out now include peg-ratio's Norway leg, which
+the rerun makes testable (+2.62 points against the Oslo All-share index): the predicate
+excludes every truncated window, the question decided below.
 
-**Two consequences to expect after the re-run, and one open call for a human.**
+**Two consequences to expect after the re-run, and one call for a human (decided below).**
 Once re-run records carry `window_truncated = True`, the ~8 currently-rendered
 truncated legs from the defect-(b) list above (`peg-ratio` OSL and the rest)
 will DROP out of ranked comparisons. That is intended: it is the fix for the
 live 2013-2025-Norway-bar-under-a-2000-2025-header defect. But the predicate is
 blunt — it excludes ANY truncated leg, including a trivially truncated one.
 **Whether a truncated leg should instead appear WITH its measured window
-annotated on the bar is a real editorial question and it is deliberately left
-open.** `window_truncated` / `window_label` are already carried into every
-results record and already read by the 54 stdout printers, so the chart layer
-only needs to read them if that is the call.
+annotated on the bar was a real editorial question, deliberately left open until
+2026-10-15 (decided below).** `window_truncated` / `window_label` are already
+carried into every results record and already read by the 54 stdout printers, so
+the chart layer only needs to read them if that is the call.
+
+**Decided 2026-10-15:** a leg measured over a shorter window is never ranked with
+full-window legs, and its too-thin test counts its measured periods (METHODOLOGY.md,
+"Reading a market's result").
 
 ### Bisect warning: three interior commits publish mismatched denominators
 

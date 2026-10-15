@@ -25,6 +25,7 @@ try:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mtick
+    from matplotlib.patches import Patch
     import numpy as np
 except ImportError:
     print("Error: matplotlib not installed. Run: pip install matplotlib")
@@ -37,6 +38,8 @@ STRATEGY_COLOR = "#7B1FA2"    # Purple (momentum = energy/speed)
 BENCHMARK_COLOR = "#9E9E9E"   # Gray
 POSITIVE_COLOR = "#43A047"    # Green
 NEGATIVE_COLOR = "#E53935"    # Red
+TIE_COLOR = "#CFCFCF"         # Light grey: within TIE_BAND of its own benchmark
+TIE_BAND = 0.2                # CAGR points
 
 
 def cumulative_growth(returns):
@@ -136,42 +139,95 @@ def plot_annual_returns(data, label, bench_label, output_path):
     print(f"  Saved: {output_path}")
 
 
+def measured_span(data):
+    """'2013-2025' for a leg whose benchmark priced only part of the run, else None."""
+    if not data.get("window_truncated"):
+        return None
+    start, end = data.get("measured_start"), data.get("measured_end")
+    return f"{start[:4]}-{end[:4]}" if start and end else data.get("window_label")
+
+
+def ranked_legs(all_data):
+    """Legs fit to rank across markets, plus a footnote naming the ones left out.
+
+    A leg measured over a shorter window (Norway: its index starts in 2013) does
+    not rank against full-window CAGRs and drawdowns.
+    """
+    legs, cut = {}, []
+    for exch, data in all_data.items():
+        if "error" in data or not data.get("portfolio"):
+            continue
+        if data.get("window_truncated"):
+            label = EXCHANGE_LABELS.get(exch, (None, exch))[1]
+            cut.append(f"{label}, measured {measured_span(data)}")
+        else:
+            legs[exch] = data
+    note = ("Not ranked, benchmark covers only part of the window: " + "; ".join(cut) + "."
+            if cut else "")
+    return legs, note
+
+
+def full_window(legs):
+    """'2000-2025': first and last annual-return year across the ranked legs."""
+    years = [ar["year"] for d in legs.values() for ar in d.get("annual_returns") or []]
+    return f"{min(years)}-{max(years)}" if years else ""
+
+
+def excess_color(data):
+    """Bar colour from the leg's CAGR against ITS OWN benchmark, not the S&P 500 line."""
+    bench = (data.get("spy") or {}).get("cagr")
+    if bench is None:
+        return TIE_COLOR
+    excess = round(data["portfolio"]["cagr"] - bench, 2)
+    if abs(excess) < TIE_BAND:
+        return TIE_COLOR
+    return POSITIVE_COLOR if excess > 0 else NEGATIVE_COLOR
+
+
+def excess_legend_handles():
+    return [Patch(color=POSITIVE_COLOR, alpha=0.85, label=f"Ahead by {TIE_BAND} pts or more"),
+            Patch(color=NEGATIVE_COLOR, alpha=0.85, label=f"Behind by {TIE_BAND} pts or more"),
+            Patch(color=TIE_COLOR, alpha=0.85, label=f"Within {TIE_BAND} pts (tie)")]
+
+
 def plot_comparison_cagr(all_data, output_path):
     """CAGR comparison bar chart across all exchanges."""
     exchanges = []
     cagrs = []
+    colors = []
     # Explicit US lookup. The reference line on this cross-market chart is
     # meant to be the S&P 500; taking it from the first exchange out of the
     # sort picked up that market's LOCAL benchmark instead.
     spy_cagr = (all_data.get("NYSE_NASDAQ_AMEX") or {}).get("spy", {}).get("cagr")
+    legs, cut_note = ranked_legs(all_data)
 
-    for exch, data in sorted(all_data.items(),
+    for exch, data in sorted(legs.items(),
                               key=lambda x: (x[1].get("portfolio") or {}).get("cagr") or -999,
                               reverse=True):
-        if "error" in data or not data.get("portfolio"):
-            continue
         cagr = data["portfolio"].get("cagr")
         if cagr is not None:
             exchanges.append(exch.replace("_", "+"))
             cagrs.append(cagr)
+            colors.append(excess_color(data))
 
     if not exchanges:
         return
 
     fig, ax = plt.subplots(figsize=(12, 6))
-    colors = [POSITIVE_COLOR if c >= (spy_cagr or 0) else NEGATIVE_COLOR for c in cagrs]
     bars = ax.barh(exchanges, cagrs, color=colors, alpha=0.85)
 
+    handles = excess_legend_handles()
     if spy_cagr:
-        ax.axvline(spy_cagr, color=BENCHMARK_COLOR, linewidth=2, linestyle="--",
-                   label=f"S&P 500 ({spy_cagr:.1f}%)")
-        ax.legend(fontsize=11)
+        handles.append(ax.axvline(spy_cagr, color=BENCHMARK_COLOR, linewidth=2, linestyle="--",
+                                  label=f"S&P 500 ({spy_cagr:.1f}%)"))
+    ax.legend(handles=handles, title="Bar colour: CAGR vs its own benchmark",
+              fontsize=10, title_fontsize=10, loc="lower right")
 
     for bar, val in zip(bars, cagrs):
         ax.text(val + 0.1, bar.get_y() + bar.get_height() / 2,
                 f"{val:.1f}%", va="center", fontsize=9)
 
-    ax.set_title("12-Month Momentum: CAGR by Exchange (2001–2024)",
+    ax.set_title(f"12-Month Momentum: CAGR by Exchange ({full_window(legs)})",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("CAGR (%)", fontsize=12)
     ax.xaxis.set_major_formatter(mtick.PercentFormatter())
@@ -179,6 +235,8 @@ def plot_comparison_cagr(all_data, output_path):
     ax.invert_yaxis()
 
     plt.tight_layout()
+    if cut_note:
+        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")
@@ -188,11 +246,10 @@ def plot_comparison_drawdown(all_data, output_path):
     """Max drawdown comparison chart across all exchanges."""
     exchanges = []
     drawdowns = []
+    legs, cut_note = ranked_legs(all_data)
 
-    for exch, data in sorted(all_data.items(),
+    for exch, data in sorted(legs.items(),
                               key=lambda x: (x[1].get("portfolio") or {}).get("max_drawdown") or 0):
-        if "error" in data or not data.get("portfolio"):
-            continue
         mdd = data["portfolio"].get("max_drawdown")
         if mdd is not None:
             exchanges.append(exch.replace("_", "+"))
@@ -204,7 +261,7 @@ def plot_comparison_drawdown(all_data, output_path):
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.barh(exchanges, drawdowns, color=NEGATIVE_COLOR, alpha=0.75)
 
-    ax.set_title("12-Month Momentum: Max Drawdown by Exchange (2001–2024)",
+    ax.set_title(f"12-Month Momentum: Max Drawdown by Exchange ({full_window(legs)})",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Max Drawdown (%)", fontsize=12)
     ax.xaxis.set_major_formatter(mtick.PercentFormatter())
@@ -216,6 +273,8 @@ def plot_comparison_drawdown(all_data, output_path):
                 f"{val:.1f}%", va="center", ha="right", fontsize=9)
 
     plt.tight_layout()
+    if cut_note:
+        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")

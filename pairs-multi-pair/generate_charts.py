@@ -26,6 +26,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import numpy as np
 
 import os as _os, sys as _sys
@@ -47,8 +49,14 @@ COLOR_POSITIVE = "#1a5276"   # dark blue bars (positive annual returns)
 COLOR_NEGATIVE = "#c0392b"   # red bars (negative annual returns)
 COLOR_SHARPE   = "#1a5276"   # dark blue line for Sharpe
 COLOR_MDD      = "#c0392b"   # red line for MaxDD
+COLOR_INDEX    = "#555555"   # dark gray marker: each market's own index CAGR
 
 FOOTER_TEXT = "Data: Ceta Research (FMP warehouse) | 2005-2024 | Costs: size-tiered"
+
+# Set aside, not ranked (owner decision, DATA_QUALITY_ISSUES.md): distinct companies in
+# South Africa's recorded pairs correlate at 0.97-0.99, a sign of bad price bars.
+UNRANKED = {"JNB": "South Africa"}
+UNRANKED_NOTE = "South Africa not ranked: unreliable price data"
 
 
 def load_results(path):
@@ -155,6 +163,7 @@ def chart_cumulative_growth(us_data, output_path):
     # money labels off the universe rather than hardcoding the dollar.
     ex_key = us_data.get("universe")
     ax.yaxis.set_major_formatter(money_formatter(ex_key))
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))  # 2005, not 2005.0 / 2007.5
     ax.set_xlabel("Year", fontsize=11)
     ax.set_ylabel(f"Portfolio Value (starting {money(1000, ex_key)})", fontsize=11)
 
@@ -212,15 +221,16 @@ def chart_annual_returns(us_data, output_path):
         ax.bar(i + width / 2, sr, width, color=color, alpha=0.7,
                edgecolor="white", linewidth=0.5)
 
-    # Legend proxies
-    from matplotlib.patches import Patch
+    # Legend proxies. The cash entry only when a cash year exists; the rule counts pairs entered.
+    n_cash = sum(1 for c in is_cash if c)
     legend_elements = [
         Patch(facecolor=COLOR_INV_VOL, label="20-pair inv-vol (positive)"),
         Patch(facecolor=COLOR_NEGATIVE, label="20-pair inv-vol (negative)"),
         Patch(facecolor=COLOR_SPY, label="SPY", alpha=0.7),
-        Patch(facecolor="white", hatch="////", edgecolor="gray",
-              label="Cash period (< 3 active pairs)"),
     ]
+    if n_cash:
+        legend_elements.append(Patch(facecolor="white", hatch="////", edgecolor="gray",
+                                     label="Cash year (< 3 pairs entered)"))
     ax.legend(handles=legend_elements, fontsize=9)
 
     ax.axhline(0, color="black", linewidth=0.8)
@@ -229,7 +239,6 @@ def chart_annual_returns(us_data, output_path):
     ax.set_ylabel("Annual Return (%)", fontsize=11)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:.0f}%"))
 
-    n_cash = sum(1 for c in is_cash if c)
     ax.set_title(
         f"Multi-Pair Portfolio: Annual Returns vs SPY (US, 20-pair inv-vol)\n"
         f"Cash periods: {n_cash}/{len(years)} years",
@@ -347,12 +356,11 @@ def chart_diversification_curve(us_data, output_path):
 
 
 def chart_exchange_comparison(all_data, output_path):
-    """Chart 4: Horizontal bar chart of CAGR by exchange (20-pair inv-vol, excluding JNB).
+    """Chart 4: Horizontal bar chart of CAGR by exchange (20-pair inv-vol).
 
-    Bars colored by sign. SPY CAGR shown as vertical reference line.
-    Exchanges sorted by CAGR descending.
+    Bars colored by sign, sorted by CAGR (best at top). A diamond marks each
+    market's own index CAGR. UNRANKED markets are left out and named in a footer.
     """
-    EXCLUDE = {"JNB"}
     EXCHANGE_LABELS = {
         "KSC": "Korea (KSC)",
         "LSE": "UK (LSE)",
@@ -362,39 +370,32 @@ def chart_exchange_comparison(all_data, output_path):
         "TAI_TWO": "Taiwan (TAI+TWO)",
         "HKSE": "Hong Kong (HKSE)",
         "JPX": "Japan (JPX)",
-        "NYSE_NASDAQ_AMEX": "US (NYSE+NASDAQ)",
-        "XETRA": "Germany (XETRA)*",
+        "NYSE_NASDAQ_AMEX": "US (NYSE+NASDAQ+AMEX)",
+        "XETRA": "Germany (XETRA)",
         "TSX": "Canada (TSX)",
     }
 
     rows = []
-    spy_cagr = None
     for ex, v in all_data.items():
-        if ex in EXCLUDE:
+        if ex in UNRANKED:
             continue
-        p = v.get("portfolio", {})
-        cagr = p.get("cagr")
-        if cagr is None:
+        cagr = (v.get("portfolio") or {}).get("cagr")
+        bench = (v.get("spy") or {}).get("cagr")
+        if cagr is None or bench is None:
             continue
-        if spy_cagr is None:
-            spy_cagr = (v.get("spy") or {}).get("cagr")
-        label = EXCHANGE_LABELS.get(ex, ex)
-        # B006: divide by total_rebalances, not n_years. Cash is counted over
-        # every year the strategy ran; n_years is the nominal span. Fallback
-        # keeps pre-B006 result files renderable.
-        tr = v.get("total_rebalances") or v.get("n_years", 20)
-        cash_pct = round(100 * v.get("cash_periods", 0) / max(tr, 1))
-        rows.append((label, cagr, cash_pct))
+        rows.append((EXCHANGE_LABELS.get(ex, ex), cagr, bench))
 
     rows.sort(key=lambda x: x[1])  # ascending so best is at top in horizontal bar
 
-    labels = [r[0] for r in rows]
-    cagrs  = [r[1] for r in rows]
-    colors = [COLOR_INV_VOL if c >= 0 else COLOR_NEGATIVE for c in cagrs]
+    labels  = [r[0] for r in rows]
+    cagrs   = [r[1] for r in rows]
+    benches = [r[2] for r in rows]
+    colors  = [COLOR_INV_VOL if c >= 0 else COLOR_NEGATIVE for c in cagrs]
+    y = np.arange(len(rows))
 
     fig, ax = plt.subplots(figsize=(11, 6))
 
-    bars = ax.barh(labels, cagrs, color=colors, edgecolor="white", linewidth=0.5)
+    bars = ax.barh(y, cagrs, color=colors, edgecolor="white", linewidth=0.5)
 
     # Value labels
     for bar, val in zip(bars, cagrs):
@@ -403,25 +404,35 @@ def chart_exchange_comparison(all_data, output_path):
         ax.text(x_pos, bar.get_y() + bar.get_height() / 2,
                 f"{val:+.2f}%", va="center", ha=ha, fontsize=9)
 
-    # SPY reference line
-    if spy_cagr is not None:
-        ax.axvline(x=spy_cagr, color=COLOR_SPY, linewidth=1.8, linestyle="--",
-                   label=f"SPY: {spy_cagr:.2f}% CAGR")
-        ax.legend(fontsize=10)
+    # Each market's own index, not one SPY line
+    ax.scatter(benches, y, marker="D", s=36, color=COLOR_INDEX, zorder=3)
+    for yi, b in zip(y, benches):
+        ax.text(b + 0.3, yi, f"{b:.2f}%", va="center", ha="left", fontsize=8, color=COLOR_INDEX)
 
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.set_xlim(min(cagrs) - 1.5, max(benches) + 1.8)
     ax.axvline(x=0, color="black", linewidth=0.8)
     ax.set_xlabel("CAGR (%)", fontsize=11)
     ax.set_title(
-        "Multi-Pair Pairs Trading: CAGR by Exchange (20-pair inv-vol, 2005-2024)\n"
-        "*XETRA: 40% cash periods — limited cointegrated pairs",
+        "Multi-Pair Pairs Trading: Book CAGR vs Each Market's Own Index (20-pair inv-vol, 2005-2024)",
         fontsize=12, pad=14,
     )
+    ax.legend(handles=[
+        Patch(facecolor=COLOR_NEGATIVE, label="Pairs book CAGR"),
+        Line2D([0], [0], marker="D", color="w", markerfacecolor=COLOR_INDEX, markersize=7,
+               label="Own index CAGR"),
+    ], fontsize=10, loc="lower right")
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:+.1f}%"))
     ax.grid(axis="x", alpha=0.3, linestyle="--")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    fig.text(0.5, -0.02, FOOTER_TEXT, ha="center", fontsize=8, color="#666666")
+    if any(ex in all_data for ex in UNRANKED):
+        fig.text(0.5, -0.02, UNRANKED_NOTE, ha="center", fontsize=9, color="#555555")
+        fig.text(0.5, -0.06, FOOTER_TEXT, ha="center", fontsize=8, color="#666666")
+    else:
+        fig.text(0.5, -0.02, FOOTER_TEXT, ha="center", fontsize=8, color="#666666")
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -432,7 +443,7 @@ def chart_exchange_comparison(all_data, output_path):
 def chart_india_alpha_dilution(all_data, output_path):
     """Chart 5: India CAGR vs portfolio size (equal weight vs inv-vol).
 
-    Shows the alpha-dilution curve — how India CAGR drops as more pairs are added.
+    Shows how India's CAGR changes as more pairs are added.
     Benchmark reference line included (Sensex for NSE-only, SPY for BSE+NSE).
     """
     # Look for NSE-only results first (new), then BSE_NSE (old) for backward compat
@@ -462,7 +473,7 @@ def chart_india_alpha_dilution(all_data, output_path):
     ax.set_xlabel("Portfolio Size (N pairs)", fontsize=11)
     ax.set_ylabel("CAGR (%)", fontsize=11)
     ax.set_title(
-        "India (NSE): CAGR vs Portfolio Size — The Alpha-Dilution Curve\n"
+        "India (NSE): CAGR vs Portfolio Size\n"
         "2005-2024 | Equal weight vs Inverse-vol",
         fontsize=12, pad=14,
     )

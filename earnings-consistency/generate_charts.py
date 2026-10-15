@@ -139,18 +139,45 @@ def plot_annual_returns(data, label, output_path, bench_label="S&P 500 (SPY)"):
     print(f"  Saved: {output_path}")
 
 
+def measured_span(data):
+    """'2013-2025' for a leg whose benchmark priced only part of the run, else None."""
+    if not data.get("window_truncated"):
+        return None
+    start, end = data.get("measured_start"), data.get("measured_end")
+    return f"{start[:4]}-{end[:4]}" if start and end else data.get("window_label")
+
+
+def ranked_legs(all_data):
+    """Legs fit to rank across markets, plus a footnote naming the ones left out.
+
+    A leg measured over a shorter window (Norway: its index starts in 2013) does
+    not rank against full-window CAGRs and drawdowns.
+    """
+    legs, cut = {}, []
+    for exch, data in all_data.items():
+        if "error" in data or not data.get("portfolio"):
+            continue
+        if data.get("window_truncated"):
+            label = EXCHANGE_LABELS.get(exch, (None, exch))[1]
+            cut.append(f"{label}, measured {measured_span(data)}")
+        else:
+            legs[exch] = data
+    note = ("Not ranked, benchmark covers only part of the window: " + "; ".join(cut) + "."
+            if cut else "")
+    return legs, note
+
+
 def plot_comparison_cagr(all_data, output_path):
     """CAGR comparison bar chart across all exchanges."""
     exchanges = []
     cagrs = []
     # SPY (USD) reference line uses the actual US benchmark, not the first exchange's local index
     spy_cagr = ((all_data.get("NYSE_NASDAQ_AMEX", {}) or {}).get("spy") or {}).get("cagr")
+    legs, cut_note = ranked_legs(all_data)
 
-    for exch, data in sorted(all_data.items(),
+    for exch, data in sorted(legs.items(),
                               key=lambda x: (x[1].get("portfolio") or {}).get("cagr") or -999,
                               reverse=True):
-        if "error" in data or not data.get("portfolio"):
-            continue
         cagr = data["portfolio"].get("cagr")
         if cagr is not None:
             exchanges.append(exch.replace("_", "+"))
@@ -180,6 +207,8 @@ def plot_comparison_cagr(all_data, output_path):
     ax.invert_yaxis()
 
     plt.tight_layout()
+    if cut_note:
+        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")
@@ -189,11 +218,10 @@ def plot_comparison_drawdown(all_data, output_path):
     """Max drawdown comparison chart across all exchanges."""
     exchanges = []
     drawdowns = []
+    legs, cut_note = ranked_legs(all_data)
 
-    for exch, data in sorted(all_data.items(),
+    for exch, data in sorted(legs.items(),
                               key=lambda x: (x[1].get("portfolio") or {}).get("max_drawdown") or 0):
-        if "error" in data or not data.get("portfolio"):
-            continue
         mdd = data["portfolio"].get("max_drawdown")
         if mdd is not None:
             exchanges.append(exch.replace("_", "+"))
@@ -217,6 +245,8 @@ def plot_comparison_drawdown(all_data, output_path):
                 f"{val:.1f}%", va="center", ha="right", fontsize=9)
 
     plt.tight_layout()
+    if cut_note:
+        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")

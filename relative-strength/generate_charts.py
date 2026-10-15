@@ -16,7 +16,7 @@ Usage:
 import json
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title
+from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title, is_usd_benchmark_proxy
 import os
 import sys
 
@@ -161,12 +161,65 @@ def plot_annual_returns(data, label, output_path):
     print(f"  Saved: {output_path}")
 
 
-def plot_cagr_comparison(all_data, output_path):
-    """Horizontal bar chart comparing CAGR across all exchanges."""
-    items = []
+def measured_span(data):
+    """'2013-2025' for a leg whose benchmark priced only part of the run, else None."""
+    if not data.get("window_truncated"):
+        return None
+    start, end = data.get("measured_start"), data.get("measured_end")
+    return f"{start[:4]}-{end[:4]}" if start and end else data.get("window_label")
+
+
+def ranked_legs(all_data):
+    """Legs fit to rank across markets, plus a footnote naming the ones left out.
+
+    A leg measured over a shorter window (Norway: its index starts in 2013) does
+    not rank against full-window CAGRs and drawdowns.
+    """
+    legs, cut = {}, []
     for key, data in all_data.items():
         if "error" in data or not data.get("portfolio"):
             continue
+        if data.get("window_truncated"):
+            label = EXCHANGE_LABELS.get(key, (key, None))[0]
+            cut.append(f"{label}, measured {measured_span(data)}")
+        else:
+            legs[key] = data
+    note = ("Not ranked, benchmark covers only part of the window: " + "; ".join(cut) + "."
+            if cut else "")
+    return legs, note
+
+
+def full_window(legs):
+    """'2000-2025': first and last annual-return year across the ranked legs."""
+    years = [ar["year"] for d in legs.values() for ar in d.get("annual_returns") or []]
+    return f"{min(years)}-{max(years)}" if years else ""
+
+
+BENCH_LEGEND = "Benchmark (local index unless noted)"
+
+
+def usd_benchmark_note(all_data, legs):
+    """Footnote naming the ranked legs measured against the S&P 500 in USD (no local index)."""
+    names = [EXCHANGE_LABELS.get(k, (k, None))[0] for k in legs
+             if is_usd_benchmark_proxy(all_data, k)]
+    if not names:
+        return ""
+    names = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+    return f"{names}: benchmark is the S&P 500 in USD, not a local index."
+
+
+def add_footnotes(fig, *notes):
+    """Footnotes under the figure. Call after tight_layout."""
+    text = "\n".join(n for n in notes if n)
+    if text:
+        fig.text(0.5, -0.01, text, ha="center", va="top", fontsize=9, color="#555555")
+
+
+def plot_cagr_comparison(all_data, output_path):
+    """Horizontal bar chart comparing CAGR across all exchanges."""
+    items = []
+    legs, cut_note = ranked_legs(all_data)
+    for key, data in legs.items():
         label, _ = EXCHANGE_LABELS.get(key, (key, key.lower()))
         cagr = data["portfolio"].get("cagr")
         spy_cagr = data["spy"].get("cagr")
@@ -191,7 +244,7 @@ def plot_cagr_comparison(all_data, output_path):
     bars1 = ax.barh(y + height / 2, strategy_cagrs, height,
                     color=STRATEGY_COLOR, alpha=0.85, label="Relative Strength")
     bars2 = ax.barh(y - height / 2, spy_cagrs, height,
-                    color=BENCHMARK_COLOR, alpha=0.65, label="Local Benchmark")
+                    color=BENCHMARK_COLOR, alpha=0.65, label=BENCH_LEGEND)
 
     # Annotate excess CAGR
     for i, (bar, exc) in enumerate(zip(bars1, excesses)):
@@ -199,7 +252,7 @@ def plot_cagr_comparison(all_data, output_path):
         ax.text(bar.get_width() + 0.1, bar.get_y() + bar.get_height() / 2,
                 f"{exc:+.1f}%", va="center", ha="left", fontsize=8, color=color)
 
-    ax.set_title("Sector-Adjusted Momentum: CAGR by Exchange (2000-2025)",
+    ax.set_title(f"Sector-Adjusted Momentum: CAGR by Exchange ({full_window(legs)})",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("CAGR (%)", fontsize=12)
     ax.set_yticks(y)
@@ -210,6 +263,7 @@ def plot_cagr_comparison(all_data, output_path):
     ax.axvline(x=0, color="black", linewidth=0.8)
 
     plt.tight_layout()
+    add_footnotes(fig, usd_benchmark_note(all_data, legs), cut_note)
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")
@@ -218,9 +272,8 @@ def plot_cagr_comparison(all_data, output_path):
 def plot_drawdown_comparison(all_data, output_path):
     """Bar chart comparing max drawdown across all exchanges."""
     items = []
-    for key, data in all_data.items():
-        if "error" in data or not data.get("portfolio"):
-            continue
+    legs, cut_note = ranked_legs(all_data)
+    for key, data in legs.items():
         label, _ = EXCHANGE_LABELS.get(key, (key, key.lower()))
         maxdd = data["portfolio"].get("max_drawdown")
         spy_dd = data["spy"].get("max_drawdown")
@@ -243,9 +296,9 @@ def plot_drawdown_comparison(all_data, output_path):
     ax.barh(y + height / 2, strat_dds, height,
             color=NEGATIVE_COLOR, alpha=0.75, label="Relative Strength")
     ax.barh(y - height / 2, spy_dds, height,
-            color=BENCHMARK_COLOR, alpha=0.5, label="Local Benchmark")
+            color=BENCHMARK_COLOR, alpha=0.5, label=BENCH_LEGEND)
 
-    ax.set_title("Sector-Adjusted Momentum: Max Drawdown by Exchange",
+    ax.set_title(f"Sector-Adjusted Momentum: Max Drawdown by Exchange ({full_window(legs)})",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Max Drawdown (%)", fontsize=12)
     ax.set_yticks(y)
@@ -255,6 +308,7 @@ def plot_drawdown_comparison(all_data, output_path):
     ax.grid(True, alpha=0.3, linestyle=":", axis="x")
 
     plt.tight_layout()
+    add_footnotes(fig, usd_benchmark_note(all_data, legs), cut_note)
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")
