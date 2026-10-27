@@ -5,7 +5,10 @@ import json
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_cumulative, benchmark_label, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_cumulative, benchmark_label, localize_money_title, market_name,
+                         money, money_axis_label, money_formatter, not_ranked_lines,
+                         own_index_counts, own_index_verdict, save_own_index_chart,
+                         short_window_lines)
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -173,97 +176,48 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
 
 
 # Excluded from the cross-exchange comparison charts:
-#   OSL = >30% cash (not a clean test), SAO = corrupted adjusted-close data.
+#   OSL = measured over a shorter window, SAO = corrupted adjusted-close data.
 EXCLUDE_FROM_COMPARISON = {"OSL", "SAO"}
+
+# Ahead of a price index by less than its missing dividends, as the comparison post counts it
+NOT_CLEAR_WIN = {"SES", "LSE", "SHZ_SHH", "SIX", "KSC"}
+
+DATA_LINE = "Data: Ceta Research | Same P/B screen, annual rebalance, equal weight, 2000-2025."
+
+
+def comparison_legs():
+    return [k for k, v in data.items()
+            if v.get("invested_periods", 0) > 0 and k not in EXCLUDE_FROM_COMPARISON
+            and not v.get("window_truncated", False)]
 
 
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange (all exchanges with data)."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0 and k not in EXCLUDE_FROM_COMPARISON
-        and not v.get("window_truncated", False)
-    ]
-    exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
-
-    names = [EXCHANGE_LABELS.get(k, k) for k, v in exchanges_with_data]
-    cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k, v in exchanges_with_data]
-
-    fig, ax = plt.subplots(figsize=(12, 9))
-    bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
-    ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr}% CAGR)")
-
-    ax.set_yticks(range(len(names)))
-    ax.set_yticklabels(names, fontsize=10)
-    ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Price-to-Book CAGR by Exchange (2000-2025)", fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
-    ax.grid(True, alpha=0.3, axis="x", linestyle="--")
-    ax.set_axisbelow(True)
-
-    for i, (bar, cagr) in enumerate(zip(bars, cagrs)):
-        x_pos = max(cagr, 0) + 0.3
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=9, fontweight="bold")
-
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Same P/B screen, annual rebalance, equal weight. Local currency returns.",
-             ha="center", fontsize=8, color="#7f8c8d")
-
-    plt.tight_layout()
-    out = charts_dir / filename
-    plt.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
-    print(f"  Saved: {out}")
-    plt.close()
+    """CAGR by exchange, each against its own index."""
+    keys = sorted(comparison_legs(), key=lambda k: data[k]["portfolio"]["cagr"], reverse=True)
+    verdicts = [own_index_verdict(data, k, NOT_CLEAR_WIN) for k in keys]
+    c = own_index_counts(verdicts)
+    save_own_index_chart(
+        data, keys, [market_name(k) for k in keys], charts_dir / filename,
+        "Price-to-Book: CAGR vs Own Index by Exchange (2000-2025)",
+        [DATA_LINE,
+         f"Each market in its own currency against its own index. {c['beat']} of the {c['ranked']} "
+         f"full-window markets with a local index beat it; {c['clear']} of those {c['beat']} keep "
+         "the edge after the dividends price indices leave out."]
+        + not_ranked_lines(data, keys, verdicts) + short_window_lines(data, data.keys()),
+        not_clear_win=NOT_CLEAR_WIN)
 
 
 def chart_comparison_drawdown(filename):
-    """Horizontal bar chart: Max drawdown by exchange."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0 and k not in EXCLUDE_FROM_COMPARISON
-        and not v.get("window_truncated", False)
-    ]
-    exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"], reverse=True)
-
-    names = [EXCHANGE_LABELS.get(k, k) for k, v in exchanges_with_data]
-    drawdowns = [v["portfolio"]["max_drawdown"] for k, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k, v in exchanges_with_data]
-
-    fig, ax = plt.subplots(figsize=(12, 9))
-    bars = ax.barh(range(len(names)), drawdowns, color=colors, alpha=0.85, height=0.6)
-
-    spy_dd = data["NYSE_NASDAQ_AMEX"]["spy"]["max_drawdown"]
-    ax.axvline(x=spy_dd, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_dd:.1f}%)")
-
-    ax.set_yticks(range(len(names)))
-    ax.set_yticklabels(names, fontsize=10)
-    ax.invert_yaxis()
-    ax.set_xlabel("Max Drawdown (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Price-to-Book Max Drawdown by Exchange (2000-2025)", fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10, loc="lower left")
-    ax.grid(True, alpha=0.3, axis="x", linestyle="--")
-    ax.set_axisbelow(True)
-
-    for i, (bar, dd) in enumerate(zip(bars, drawdowns)):
-        x_pos = dd - 2.0
-        ax.text(x_pos, i, f"{dd:.1f}%", va="center", fontsize=9, fontweight="bold",
-                ha="right")
-
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Same P/B screen, annual rebalance, equal weight.",
-             ha="center", fontsize=8, color="#7f8c8d")
-
-    plt.tight_layout()
-    out = charts_dir / filename
-    plt.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
-    print(f"  Saved: {out}")
-    plt.close()
+    """Max drawdown by exchange, each against its own index's."""
+    keys = sorted(comparison_legs(), key=lambda k: data[k]["portfolio"]["max_drawdown"],
+                  reverse=True)
+    verdicts = [own_index_verdict(data, k, NOT_CLEAR_WIN) for k in keys]
+    save_own_index_chart(
+        data, keys, [market_name(k) for k in keys], charts_dir / filename,
+        "Price-to-Book: Max Drawdown vs Own Index by Exchange (2000-2025)",
+        [DATA_LINE, "Each market in its own currency; the tick is its own index's max drawdown."]
+        + not_ranked_lines(data, keys, verdicts) + short_window_lines(data, data.keys()),
+        metric="max_drawdown", decimals=1)
 
 
 # ---- Generate all charts ----
