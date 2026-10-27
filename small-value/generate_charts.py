@@ -1,16 +1,15 @@
 """Generate all Small-Cap Value charts for blog posts from the per-region returns_<KEY>.json files."""
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
 import json
 import re
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 from chart_utils import (benchmark_cumulative, benchmark_label, benchmark_legend, benchmark_money,
-                         is_usd_benchmark_proxy, localize_money_title, money, money_axis_label,
-                         money_formatter)
+                         is_usd_benchmark_proxy, leg_excess, localize_money_title, market_name,
+                         money, money_axis_label, money_formatter, not_ranked_lines,
+                         own_index_counts, own_index_verdict, save_own_index_chart)
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -184,63 +183,30 @@ def chart_annual_bars(exchanges, filename, title, footer_universe):
     plt.close()
 
 
+# Ahead of a price index by less than its missing dividends, as the comparison post counts it
+NOT_CLEAR_WIN = {"HKSE"}
+
+
 def chart_comparison_cagr(filename):
-    """CAGR by exchange, each against its own benchmark (marker); S&P-proxy markets in grey."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)
-    ]
-    exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
-
-    keys = [k for k, v in exchanges_with_data]
-    names = [EXCHANGE_LABELS.get(k, k).replace("Small-Cap Value ", "") for k in keys]
-    names = ["US (NYSE+NASDAQ+AMEX)" if k == "NYSE_NASDAQ_AMEX" else n for k, n in zip(keys, names)]
-    cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
-    benches = [v["spy"]["cagr"] for k, v in exchanges_with_data]
-    excesses = [v["comparison"]["excess_cagr"] for k, v in exchanges_with_data]
-    proxy = [is_usd_benchmark_proxy(data, k) for k in keys]
-    colors = ["#9E9E9E" if p else "#27ae60" if c > b else "#c0392b"
-              for p, c, b in zip(proxy, cagrs, benches)]
-
-    fig, ax = plt.subplots(figsize=(12, 9))
-    ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-    ax.scatter(benches, range(len(names)), marker="|", s=500, linewidths=3, color="black", zorder=3)
-
-    ax.set_yticks(range(len(names)))
-    ax.set_yticklabels(names, fontsize=10)
-    ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%, local currency)", fontsize=12, fontweight="bold")
-    ax.set_xlim(0, max(cagrs + benches) + 9)
-    ax.set_title("Small-Cap Value CAGR vs Own Benchmark by Exchange (2000-2025)",
-                 fontsize=14, fontweight="bold", pad=15)
-    ax.legend(handles=[
-        Patch(color="#27ae60", alpha=0.85, label="Beat its own local index"),
-        Patch(color="#c0392b", alpha=0.85, label="Trailed its own local index"),
-        Patch(color="#9E9E9E", alpha=0.85, label="No local index (vs S&P 500, USD)"),
-        Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
-               markeredgewidth=3, label="Benchmark CAGR"),
-    ], fontsize=9, loc="lower right")
-    ax.grid(True, alpha=0.3, axis="x", linestyle="--")
-    ax.set_axisbelow(True)
-
-    for i, (k, c, b, e, p) in enumerate(zip(keys, cagrs, benches, excesses, proxy)):
-        note = f"S&P 500 {b:.2f}%, USD" if p else f"{e:+.2f} vs {benchmark_label(data, k)}"
-        ax.text(max(c, b, 0) + 0.3, i, f"{c:.2f}% ({note})", va="center", fontsize=9)
-
-    n_local = sum(not p for p in proxy)
-    beat = sum(c > b for c, b, p in zip(cagrs, benches, proxy) if not p)
-    proxy_names = ", ".join(n.split(" (")[0] for n, p in zip(names, proxy) if p)
-    fig.text(0.5, -0.03,
-             "Data: Ceta Research | Same signal (P/B<1.5, small-cap, ROE>5%), annual July rebalance, equal weight.\n"
-             f"Returns in local currency, each against its own market's index; {proxy_names} against the S&P 500 "
-             f"in USD (no local index in the data). {beat} of {n_local} with a local index beat it.",
-             ha="center", fontsize=8, color="#7f8c8d")
-
-    plt.tight_layout()
-    out = charts_dir / filename
-    plt.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
-    print(f"  Saved: {out}")
-    plt.close()
+    """CAGR by exchange, each against its own index."""
+    keys = [k for k, v in data.items()
+            if v.get("invested_periods", 0) > 0 and not v.get("window_truncated", False)]
+    keys.sort(key=lambda k: data[k]["portfolio"]["cagr"], reverse=True)
+    verdicts = [own_index_verdict(data, k, NOT_CLEAR_WIN) for k in keys]
+    c = own_index_counts(verdicts)
+    in_band = [f"{market_name(k, short=True)}'s {leg_excess(data[k]):+.2f} over the "
+               f"{benchmark_label(data, k)}" for k, v in zip(keys, verdicts) if v == "dividend"]
+    save_own_index_chart(
+        data, keys, [market_name(k) for k in keys], charts_dir / filename,
+        "Small-Cap Value: CAGR vs Own Index by Exchange (2000-2025)",
+        ["Data: Ceta Research | Same signal (P/B<1.5, small-cap, ROE>5%), annual July rebalance, "
+         "equal weight.",
+         f"Each market in its own currency against its own index. {c['beat']} of the {c['ranked']} "
+         f"markets with a local index beat it.",
+         f"{c['clear']} of those {c['beat']} keep the edge after the dividends price indices leave "
+         f"out ({', '.join(in_band)} doesn't)."]
+        + not_ranked_lines(data, keys, verdicts),
+        not_clear_win=NOT_CLEAR_WIN)
 
 
 def chart_comparison_sharpe(filename):
