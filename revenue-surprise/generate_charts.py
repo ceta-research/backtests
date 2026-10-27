@@ -2,7 +2,9 @@
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import currency_prefix, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (currency_prefix, localize_money_title, market_name, money,
+                         money_axis_label, money_formatter, not_ranked_lines, own_index_verdict,
+                         save_own_index_chart)
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -160,44 +162,35 @@ def chart_annual_returns(exchange_key, filename, title):
     plt.close()
 
 
+# Ahead of a price index by less than its missing dividends, as the comparison post counts it
+NOT_CLEAR_WIN = {"LSE"}
+
+
 def chart_comparison_cagr():
-    """Generate CAGR comparison across all exchanges."""
-    exchanges = sorted([k for k in data.keys() if "error" not in data[k]],
-                       key=lambda x: data[x]["portfolio"]["cagr"], reverse=True)
+    """CAGR by exchange, each against its own index."""
+    keys = sorted([k for k in data.keys() if "error" not in data[k]],
+                  key=lambda x: data[x]["portfolio"]["cagr"], reverse=True)
+    verdicts = [own_index_verdict(data, k, NOT_CLEAR_WIN) for k in keys]
 
-    cagr_values = [data[e]["portfolio"]["cagr"] for e in exchanges]
-    excess_values = [data[e]["comparison"]["excess_cagr"] for e in exchanges]
-    labels = [EXCHANGE_LABELS.get(e, e).replace("Revenue Surprise ", "") for e in exchanges]
+    def named(verdict):
+        return [market_name(k, short=True) for k, v in zip(keys, verdicts) if v == verdict]
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-
-    # CAGR chart
-    colors = [COLORS.get(e, "#333") for e in exchanges]
-    ax1.barh(range(len(exchanges)), cagr_values, color=colors, alpha=0.8)
-    ax1.set_yticks(range(len(exchanges)))
-    ax1.set_yticklabels(labels)
     y0, y1 = year_range()
-    ax1.set_xlabel("CAGR (%)", fontsize=12)
-    ax1.set_title(f"Revenue Surprise CAGR by Exchange ({y0}-{y1})", fontsize=14, fontweight="bold")
-    ax1.axvline(x=0, color='black', linewidth=0.8)
-    ax1.grid(True, alpha=0.3, axis='x')
-
-    # Excess CAGR chart. Each bar is excess over that exchange's OWN local
-    # index (Sensex, DAX, Hang Seng...), not over the S&P 500.
-    ax2.barh(range(len(exchanges)), excess_values,
-             color=['#27ae60' if v > 0 else '#e74c3c' for v in excess_values], alpha=0.8)
-    ax2.set_yticks(range(len(exchanges)))
-    ax2.set_yticklabels(labels)
-    ax2.set_xlabel("Excess vs local benchmark (%)", fontsize=12)
-    ax2.set_title("Revenue Surprise Excess Return vs Local Benchmark",
-                  fontsize=14, fontweight="bold")
-    ax2.axvline(x=0, color='black', linewidth=0.8)
-    ax2.grid(True, alpha=0.3, axis='x')
-
-    plt.tight_layout()
-    plt.savefig(charts_dir / "1_comparison_cagr.png", dpi=150, bbox_inches="tight")
-    print("  Saved: 1_comparison_cagr.png")
-    plt.close()
+    summary = [f"Clear lead over its own index: {', '.join(named('ahead'))}."]
+    if named("dividend"):
+        summary[0] += (f" {', '.join(named('dividend'))}: ahead, but by less than the dividends "
+                       "its price index leaves out.")
+    if named("tie"):
+        summary.append(f"Level (within 0.2 points): {', '.join(named('tie'))}. "
+                       f"Trailed: {', '.join(named('behind'))}.")
+    save_own_index_chart(
+        data, keys, [market_name(k) for k in keys], charts_dir / "1_comparison_cagr.png",
+        f"Revenue Surprise: CAGR vs Own Index by Exchange ({y0}-{y1})",
+        ["Data: Ceta Research | Revenue beat 0-50%, ROE > 8%, D/E < 2.5, quarterly rebalance, "
+         "equal weight.",
+         "Each market in its own currency against its own index."]
+        + summary + not_ranked_lines(data, keys, verdicts),
+        not_clear_win=NOT_CLEAR_WIN)
 
 
 def chart_comparison_drawdown():
