@@ -405,13 +405,15 @@ TIE_BAND = 0.2  # excess CAGR points, either way, that count as a tie
 
 OWN_INDEX_STYLE = {  # verdict -> (colour, hatch, legend label)
     "ahead": ("#27ae60", None, "Beat its own index"),
+    "not_called": ("#a9cce3", None, "Ahead, within the 1.3%-3.5% dividend range: not called"),
     "dividend": ("#f0b429", None, "Ahead by less than the dividends its index leaves out"),
+    "div_tie": ("#d5d8dc", None, "Ahead as measured, a tie after its index's missing dividends"),
     "tie": ("#d5d8dc", None, f"Within {TIE_BAND} pts of its own index (tie)"),
     "behind": ("#c0392b", None, "Trailed its own index"),
     "no_index": ("#9e9e9e", "//", "No local index in the data: not ranked"),
     "thin": ("#9e9e9e", "..", "Too thin to test: not ranked"),
 }
-RANKED_VERDICTS = ("ahead", "dividend", "tie", "behind")
+RANKED_VERDICTS = ("ahead", "not_called", "dividend", "div_tie", "tie", "behind")
 
 
 def leg_excess(entry):
@@ -437,8 +439,8 @@ def leg_is_too_thin(entry):
     return counts is not None and counts[0] < counts[1] / 2
 
 
-def own_index_verdict(data, key, not_clear_win=()):
-    """'ahead', 'dividend', 'tie', 'behind', 'no_index' or 'thin' for one leg."""
+def own_index_verdict(data, key, not_clear_win=(), dividend_ties=(), not_called=()):
+    """One leg's OWN_INDEX_STYLE key; the three sets carry the post's dividend calls."""
     entry = data[key]
     if is_usd_benchmark_proxy(data, key):
         return "no_index"
@@ -449,6 +451,10 @@ def own_index_verdict(data, key, not_clear_win=()):
         return "tie"
     if excess < 0:
         return "behind"
+    if key in dividend_ties:
+        return "div_tie"
+    if key in not_called:
+        return "not_called"
     return "dividend" if key in not_clear_win else "ahead"
 
 
@@ -512,7 +518,7 @@ def own_index_counts(verdicts):
     ranked = [v for v in verdicts if v in RANKED_VERDICTS]
     return {
         "ranked": len(ranked),
-        "beat": sum(v in ("ahead", "dividend") for v in ranked),
+        "beat": sum(v in ("ahead", "not_called", "dividend", "div_tie") for v in ranked),
         "clear": sum(v == "ahead" for v in ranked),
         "behind": sum(v == "behind" for v in ranked),
         "tie": sum(v == "tie" for v in ranked),
@@ -521,18 +527,20 @@ def own_index_counts(verdicts):
 
 def save_own_index_chart(data, keys, names, out_path, title, footer_lines,
                          metric="cagr", not_clear_win=(), bar_color="#5d6d7e",
-                         figsize=None, decimals=2):
+                         figsize=None, decimals=2, dividend_ties=(), not_called=(), notes=None):
     """Horizontal bars, one per leg, each with its own index as a black tick.
 
     metric "cagr": bars coloured by own_index_verdict(). metric "max_drawdown":
     bars take `bar_color`. Unranked legs are grey and hatched and get no tick.
-    `keys` are drawn top to bottom in the order given. Returns the verdicts.
+    `keys` are drawn top to bottom in the order given; `notes` overrides a bar's
+    bracketed label by key. Returns the verdicts.
     """
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
 
-    verdicts = [own_index_verdict(data, k, not_clear_win) for k in keys]
+    verdicts = [own_index_verdict(data, k, not_clear_win, dividend_ties, not_called)
+                for k in keys]
     values = [data[k]["portfolio"][metric] for k in keys]
     benches = [data[k]["spy"][metric] for k in keys]
     unranked = [v not in RANKED_VERDICTS for v in verdicts]
@@ -558,7 +566,9 @@ def save_own_index_chart(data, keys, names, out_path, title, footer_lines,
         ax.set_xlim(lo - span * 0.05, 0)
     labels = []
     for i, (k, val, b, verdict) in enumerate(zip(keys, values, benches, verdicts)):
-        if verdict == "no_index":
+        if notes and k in notes:
+            note = notes[k]
+        elif verdict == "no_index":
             note = "no local index"
         elif verdict == "thin":
             inv, tot = leg_invested(data[k])
