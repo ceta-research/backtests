@@ -2,7 +2,9 @@
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (localize_money_title, market_name, money, money_axis_label,
+                         money_formatter, not_ranked_lines, own_index_counts, own_index_verdict,
+                         save_own_index_chart)
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
@@ -174,48 +176,28 @@ def chart_annual_bars(exchanges, filename, title, footer_universe,
     plt.close()
 
 
+# Ahead of a price index by less than its missing dividends, as the comparison post counts it
+NOT_CLEAR_WIN = {"TAI_TWO", "SES", "SET"}
+
+
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange."""
-    exchanges_with_data = [
-        (k, v) for k, v in data.items()
-        if not v.get("error") and v.get("invested_periods", 0) > 0
-        and not v.get("window_truncated", False)
-    ]
-    exchanges_with_data.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
-
-    names = [EXCHANGE_LABELS.get(k, k) for k, v in exchanges_with_data]
-    cagrs = [v["portfolio"]["cagr"] for k, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k, v in exchanges_with_data]
-
-    fig, ax = plt.subplots(figsize=(10, max(6, len(names) * 0.5 + 2)))
-    ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-
-    spy_cagr = data["NYSE_NASDAQ_AMEX"]["spy"]["cagr"]
-    ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr}% CAGR)")
-
-    ax.set_yticks(range(len(names)))
-    ax.set_yticklabels(names, fontsize=11)
-    ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Price-to-Tangible-Book CAGR by Exchange (2000-2025)",
-                 fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
-    ax.grid(True, alpha=0.3, axis="x", linestyle="--")
-
-    for i, cagr in enumerate(cagrs):
-        x_pos = max(cagr, 0) + 0.3
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
-
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | P/TBV < median, ROE > 8%, ROA > 3%, OPM > 10%, annual rebalance",
-             ha="center", fontsize=8, color="#7f8c8d")
-
-    plt.tight_layout()
-    out = charts_dir / filename
-    plt.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
-    print(f"  Saved: {out}")
-    plt.close()
+    """CAGR by exchange, each against its own index."""
+    keys = [k for k, v in data.items()
+            if not v.get("error") and v.get("invested_periods", 0) > 0
+            and not v.get("window_truncated", False)]
+    keys.sort(key=lambda k: data[k]["portfolio"]["cagr"], reverse=True)
+    verdicts = [own_index_verdict(data, k, NOT_CLEAR_WIN) for k in keys]
+    c = own_index_counts(verdicts)
+    save_own_index_chart(
+        data, keys, [market_name(k) for k in keys], charts_dir / filename,
+        "Price-to-Tangible-Book: CAGR vs Own Index (2000-2025)",
+        ["Data: Ceta Research | Lowest 30 by P/TBV with ROE > 8%, ROA > 3%, OPM > 10%, annual July "
+         "rebalance, equal weight, 2000-2025.",
+         f"Each market in its own currency against its own index. {c['beat']} of the {c['ranked']} "
+         f"markets with a local index beat it; {c['clear']} of those {c['beat']} keep the edge after "
+         "the dividends price indices leave out."]
+        + not_ranked_lines(data, keys, verdicts),
+        not_clear_win=NOT_CLEAR_WIN)
 
 
 # Generate all charts

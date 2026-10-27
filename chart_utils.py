@@ -395,3 +395,275 @@ def localize_money_title(title, exchange_key):
     if prefix == "$":
         return title
     return _MONEY_TITLE.sub(lambda m: f"{prefix}{m.group(1)}", title)
+
+
+# ---------------------------------------------------------------------------
+# Comparison charts: each market against its own index, never one S&P 500 line.
+# ---------------------------------------------------------------------------
+
+TIE_BAND = 0.2  # excess CAGR points, either way, that count as a tie
+
+OWN_INDEX_STYLE = {  # verdict -> (colour, hatch, legend label)
+    "ahead": ("#27ae60", None, "Beat its own index"),
+    "not_called": ("#a9cce3", None, "Ahead, within the 1.3%-3.5% dividend range: not called"),
+    "dividend": ("#f0b429", None, "Ahead by less than the dividends its index leaves out"),
+    "div_tie": ("#d5d8dc", None, "Ahead as measured, a tie after its index's missing dividends"),
+    "tie": ("#d5d8dc", None, f"Within {TIE_BAND} pts of its own index (tie)"),
+    "behind": ("#c0392b", None, "Trailed its own index"),
+    "no_index": ("#9e9e9e", "//", "No local index in the data: not ranked"),
+    "thin": ("#9e9e9e", "..", "Too thin to test: not ranked"),
+}
+RANKED_VERDICTS = ("ahead", "not_called", "dividend", "div_tie", "tie", "behind")
+
+
+def leg_excess(entry):
+    """Excess CAGR over the leg's own benchmark, as the results file records it."""
+    for v in (entry.get("excess_cagr"), (entry.get("comparison") or {}).get("excess_cagr")):
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return v
+    return round(entry["portfolio"]["cagr"] - entry["spy"]["cagr"], 2)
+
+
+def leg_invested(entry):
+    """(invested, total) periods, or None if the file doesn't record them."""
+    invested = entry.get("invested_periods")
+    total = entry.get("total_rebalances") or entry.get("n_periods")
+    if invested is None or not total:
+        return None
+    return invested, total
+
+
+def leg_is_too_thin(entry):
+    """Invested in fewer than half its rebalance periods (METHODOLOGY)."""
+    counts = leg_invested(entry)
+    return counts is not None and counts[0] < counts[1] / 2
+
+
+def own_index_verdict(data, key, not_clear_win=(), dividend_ties=(), not_called=()):
+    """One leg's OWN_INDEX_STYLE key; the three sets carry the post's dividend calls."""
+    entry = data[key]
+    if is_usd_benchmark_proxy(data, key):
+        return "no_index"
+    if leg_is_too_thin(entry):
+        return "thin"
+    excess = leg_excess(entry)
+    if abs(excess) < TIE_BAND:
+        return "tie"
+    if excess < 0:
+        return "behind"
+    if key in dividend_ties:
+        return "div_tie"
+    if key in not_called:
+        return "not_called"
+    return "dividend" if key in not_clear_win else "ahead"
+
+
+MARKET_NAMES = {  # results key -> (market, exchange label) for comparison charts
+    "NYSE_NASDAQ_AMEX": ("US", "NYSE+NASDAQ+AMEX"), "US_MAJOR": ("US", "NYSE+NASDAQ+AMEX"),
+    "SHH": ("China", "SHH"), "NSE": ("India", "NSE"),
+    "XETRA": ("Germany", "XETRA"), "STO": ("Sweden", "STO"), "TSX": ("Canada", "TSX"),
+    "SHZ_SHH": ("China", "SHZ+SHH"), "SHH_SHZ": ("China", "SHH+SHZ"), "HKSE": ("Hong Kong", "HKSE"),
+    "JPX": ("Japan", "JPX"), "LSE": ("UK", "LSE"), "KSC": ("Korea", "KSC"),
+    "SIX": ("Switzerland", "SIX"), "TAI": ("Taiwan", "TAI"), "TAI_TWO": ("Taiwan", "TAI+TWO"),
+    "SET": ("Thailand", "SET"), "JNB": ("South Africa", "JNB"), "SES": ("Singapore", "SES"),
+    "KLS": ("Malaysia", "KLS"), "OSL": ("Norway", "OSL"), "MIL": ("Italy", "MIL"),
+    "JKT": ("Indonesia", "JKT"), "SAU": ("Saudi Arabia", "SAU"), "WSE": ("Poland", "WSE"),
+    "SAO": ("Brazil", "SAO"),
+}
+
+
+def market_name(key, short=False):
+    """'UK (LSE)', or 'UK' with short=True."""
+    market, exchange = MARKET_NAMES.get(key, (key, None))
+    return market if short or not exchange else f"{market} ({exchange})"
+
+
+def _join_names(names):
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def not_ranked_lines(data, keys, verdicts):
+    """Footnote lines naming the unranked legs and why."""
+    lines = []
+    no_index = [market_name(k, short=True) for k, v in zip(keys, verdicts) if v == "no_index"]
+    if no_index:
+        lines.append(f"Not ranked: {_join_names(no_index)} {'has' if len(no_index) == 1 else 'have'} "
+                     "no local index in the data, so the run used the S&P 500 in USD, "
+                     "which isn't comparable with a local-currency return.")
+    thin = [f"{market_name(k, short=True)} ({leg_invested(data[k])[0]} of {leg_invested(data[k])[1]})"
+            for k, v in zip(keys, verdicts) if v == "thin"]
+    if thin:
+        lines.append(f"Not ranked, too thin to test (invested in fewer than half its periods): "
+                     f"{_join_names(thin)}.")
+    return lines
+
+
+def short_window_lines(data, keys):
+    """Footnote naming legs measured over a shorter window, which aren't drawn."""
+    parts = []
+    for k in keys:
+        entry = data[k]
+        if not entry.get("window_truncated"):
+            continue
+        start, end = entry.get("measured_start"), entry.get("measured_end")
+        span = f"{start[:4]}-{end[:4]}" if start and end else entry.get("window_label", "")
+        parts.append(f"{market_name(k, short=True)} (measured {span} only)")
+    if not parts:
+        return []
+    return [f"Not shown: {_join_names(parts)}, because its index covers only part of the "
+            "window, so it isn't ranked with full-window markets."]
+
+
+def own_index_counts(verdicts):
+    """Counts for a caption: ranked legs, legs ahead as measured, clear leads."""
+    ranked = [v for v in verdicts if v in RANKED_VERDICTS]
+    return {
+        "ranked": len(ranked),
+        "beat": sum(v in ("ahead", "not_called", "dividend", "div_tie") for v in ranked),
+        "clear": sum(v == "ahead" for v in ranked),
+        "behind": sum(v == "behind" for v in ranked),
+        "tie": sum(v == "tie" for v in ranked),
+    }
+
+
+def save_own_index_chart(data, keys, names, out_path, title, footer_lines,
+                         metric="cagr", not_clear_win=(), bar_color="#5d6d7e",
+                         figsize=None, decimals=2, dividend_ties=(), not_called=(), notes=None):
+    """Horizontal bars, one per leg, each with its own index as a black tick.
+
+    metric "cagr": bars coloured by own_index_verdict(). metric "max_drawdown":
+    bars take `bar_color`. Unranked legs are grey and hatched and get no tick.
+    `keys` are drawn top to bottom in the order given; `notes` overrides a bar's
+    bracketed label by key. Returns the verdicts.
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+
+    verdicts = [own_index_verdict(data, k, not_clear_win, dividend_ties, not_called)
+                for k in keys]
+    values = [data[k]["portfolio"][metric] for k in keys]
+    benches = [data[k]["spy"][metric] for k in keys]
+    unranked = [v not in RANKED_VERDICTS for v in verdicts]
+
+    fig, ax = plt.subplots(figsize=figsize or (12, max(5.5, 0.5 * len(keys) + 2)))
+    for i, (val, verdict) in enumerate(zip(values, verdicts)):
+        colour, hatch, _ = OWN_INDEX_STYLE[verdict]
+        if metric != "cagr" and verdict in RANKED_VERDICTS:
+            colour = bar_color
+        ax.barh(i, val, color=colour, alpha=0.85, height=0.6, hatch=hatch,
+                edgecolor="white" if hatch else None, linewidth=0)
+    ticked = [(b, i) for i, (b, u) in enumerate(zip(benches, unranked)) if not u]
+    if ticked:
+        ax.scatter([b for b, _ in ticked], [i for _, i in ticked], marker="|", s=500,
+                   linewidths=3, color="black", zorder=3)
+
+    lo, hi = min(values + benches + [0]), max(values + benches + [0])
+    span = hi - lo
+    pad = span * 0.012
+    if metric == "cagr":
+        ax.set_xlim(min(lo * 1.15, 0), hi + span * 0.05)
+    else:
+        ax.set_xlim(lo - span * 0.05, 0)
+    labels = []
+    for i, (k, val, b, verdict) in enumerate(zip(keys, values, benches, verdicts)):
+        if notes and k in notes:
+            note = notes[k]
+        elif verdict == "no_index":
+            note = "no local index"
+        elif verdict == "thin":
+            inv, tot = leg_invested(data[k])
+            note = f"too thin: invested {inv} of {tot} periods"
+        elif metric == "cagr":
+            note = f"{leg_excess(data[k]):+.2f} vs {benchmark_label(data, k)}"
+        else:
+            note = f"{benchmark_label(data, k)} {b:.{decimals}f}%"
+        text = f"{val:.{decimals}f}% ({note})"
+        if metric == "cagr":
+            labels.append(ax.text(max(val, b if not unranked[i] else val, 0) + pad, i, text,
+                                  va="center", fontsize=9))
+        else:
+            labels.append(ax.text(min(val, b if not unranked[i] else val, 0) - pad, i, text,
+                                  va="center", ha="right", fontsize=9))
+
+    ax.set_yticks(range(len(names)))
+    ax.set_yticklabels(names, fontsize=10)
+    ax.invert_yaxis()
+    if metric == "cagr":
+        ax.set_xlabel("CAGR (%, each market in its own currency)", fontsize=12, fontweight="bold")
+    else:
+        ax.set_xlabel("Max drawdown (%, each market in its own currency)", fontsize=12,
+                      fontweight="bold")
+    # widen the axis until every bar label fits (repeat: widening changes the scale)
+    plt.tight_layout()
+    for _ in range(6):
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        to_data = ax.transData.inverted()
+        edges = [to_data.transform(t.get_window_extent(renderer))[:, 0] for t in labels]
+        x0, x1 = ax.get_xlim()
+        if metric == "cagr":
+            need = max(e[1] for e in edges) + span * 0.02
+            if need <= x1:
+                break
+            ax.set_xlim(x0, need)
+        else:
+            need = min(e[0] for e in edges) - span * 0.02
+            if need >= x0:
+                break
+            ax.set_xlim(need, x1)
+    ax.axvline(0, color="black", linewidth=0.6)
+    ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
+    ax.grid(True, alpha=0.3, axis="x", linestyle="--")
+    ax.set_axisbelow(True)
+
+    handles = []
+    if metric == "cagr":
+        for verdict in OWN_INDEX_STYLE:
+            if verdict in verdicts:
+                colour, hatch, label = OWN_INDEX_STYLE[verdict]
+                handles.append(Patch(facecolor=colour, alpha=0.85, hatch=hatch,
+                                     edgecolor="white" if hatch else colour, label=label))
+    else:
+        if not all(unranked):
+            handles.append(Patch(color=bar_color, alpha=0.85, label="Strategy max drawdown"))
+        for verdict in ("no_index", "thin"):
+            if verdict in verdicts:
+                colour, hatch, label = OWN_INDEX_STYLE[verdict]
+                handles.append(Patch(facecolor=colour, alpha=0.85, hatch=hatch,
+                                     edgecolor="white", label=label))
+    if ticked:
+        handles.append(Line2D([], [], color="black", marker="|", linestyle="none", markersize=14,
+                              markeredgewidth=3,
+                              label="Its own index" + (" CAGR" if metric == "cagr" else
+                                                       " max drawdown")))
+    # first corner where the legend covers no bar, tick or label; else below the axes
+    plt.tight_layout()
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    taken = [t.get_window_extent(renderer) for t in labels]
+    taken += [p.get_window_extent(renderer) for p in ax.patches]
+    tick_px = ax.transData.transform(ticked) if ticked else []
+    corners = (["lower right", "upper right", "lower left", "upper left"] if metric == "cagr"
+               else ["upper left", "lower left", "upper right", "lower right"])
+    legend, footer_y = None, -0.01
+    for loc in corners:
+        legend = ax.legend(handles=handles, fontsize=9, loc=loc)
+        fig.canvas.draw()
+        box = legend.get_window_extent(renderer).padded(4)
+        if not any(box.overlaps(b) for b in taken) and \
+                not any(box.contains(x, y) for x, y in tick_px):
+            break
+    else:
+        legend = ax.legend(handles=handles, fontsize=9, loc="upper center", ncol=2,
+                           bbox_to_anchor=(0.5, -0.1))
+        fig.canvas.draw()
+        footer_y = fig.transFigure.inverted().transform(
+            legend.get_window_extent(renderer))[0, 1] - 0.01
+
+    fig.text(0.5, footer_y, "\n".join(footer_lines), ha="center", va="top", fontsize=8.5,
+             color="#555555")
+    plt.savefig(out_path, dpi=200, bbox_inches="tight", facecolor="white")
+    plt.close()
+    print(f"  Saved: {out_path}")
+    return verdicts

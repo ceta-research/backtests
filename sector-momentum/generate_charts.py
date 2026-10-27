@@ -13,7 +13,9 @@ from pathlib import Path
 
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, benchmark_cumulative
+from chart_utils import (benchmark_cumulative, benchmark_label, leg_excess, leg_invested,
+                         leg_is_too_thin, market_name, not_ranked_lines, own_index_counts,
+                         own_index_verdict, save_own_index_chart)
 
 results_dir = Path(__file__).parent / "results"
 charts_dir = Path(__file__).parent / "charts"
@@ -175,85 +177,65 @@ def chart_annual_bars(key, filename, footer_universe):
     plt.close()
 
 
+# Ahead of a price index by less than its missing dividends, as the comparison post counts it
+NOT_CLEAR_WIN = {"SHH_SHZ"}
+
+DATA_LINE = "Data: Ceta Research | Top 2 sectors by 12M trailing return, quarterly rebalance, 2000-2025."
+
+
+def comparison_legs():
+    return [k for k, v in data.items()
+            if v.get("invested_periods", 0) > 0 and v.get("portfolio", {}).get("cagr") is not None
+            and not v.get("window_truncated", False)]
+
+
+def left_out_lines():
+    """Markets with a results file but left out of the comparison (too thin to test)."""
+    thin = []
+    for p in sorted(results_dir.glob("returns_*.json")):
+        key = p.stem[len("returns_"):]
+        if key in data:
+            continue
+        with open(p) as f:
+            entry = json.load(f)
+        if leg_is_too_thin(entry):
+            inv, tot = leg_invested(entry)
+            thin.append(f"{market_name(key, short=True)} (too thin to test, invested {inv} of "
+                        f"{tot} quarters)")
+    return [f"Not shown: {', '.join(thin)}."] if thin else []
+
+
 def chart_comparison_cagr(filename):
-    """Horizontal bar: CAGR by exchange with SPY reference line."""
-    valid = [(k, v) for k, v in data.items()
-             if v.get("invested_periods", 0) > 0 and v.get("portfolio", {}).get("cagr") is not None
-             and not v.get("window_truncated", False)]
-    valid.sort(key=lambda x: x[1]["portfolio"]["cagr"], reverse=True)
-
-    names = [EXCHANGE_LABELS.get(k, k) for k, _ in valid]
-    cagrs = [v["portfolio"]["cagr"] for _, v in valid]
-    colors = [COLORS.get(k, "#95a5a6") for k, _ in valid]
-
-    # SPY CAGR from US result
-    spy_cagr = data.get("NYSE_NASDAQ_AMEX", {}).get("spy", {}).get("cagr", 8.02)
-
-    fig, ax = plt.subplots(figsize=(11, max(6, len(names) * 0.55)))
-    ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-    ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_cagr:.1f}% CAGR)")
-
-    ax.set_yticks(range(len(names)))
-    ax.set_yticklabels(names, fontsize=10)
-    ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Sector Momentum Rotation CAGR by Exchange (2000-2025)",
-                 fontsize=13, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
-    ax.grid(True, alpha=0.3, axis="x", linestyle="--")
-
-    for i, cagr in enumerate(cagrs):
-        ax.text(max(cagr, 0) + 0.2, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
-
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Top 2 sectors by 12M trailing return, quarterly rebalance",
-             ha="center", fontsize=8, color="#7f8c8d")
-
-    plt.tight_layout()
-    out = charts_dir / filename
-    plt.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
-    print(f"  Saved: {out}")
-    plt.close()
+    """CAGR by exchange, each against its own index."""
+    keys = sorted(comparison_legs(), key=lambda k: data[k]["portfolio"]["cagr"], reverse=True)
+    verdicts = [own_index_verdict(data, k, NOT_CLEAR_WIN) for k in keys]
+    c = own_index_counts(verdicts)
+    in_band = [f"{market_name(k, short=True)}'s {leg_excess(data[k]):+.2f} over the "
+               f"{benchmark_label(data, k)}" for k, v in zip(keys, verdicts) if v == "dividend"]
+    beat = f"All {c['beat']}" if c["beat"] == c["ranked"] else f"{c['beat']} of the {c['ranked']}"
+    save_own_index_chart(
+        data, keys, [market_name(k) for k in keys], charts_dir / filename,
+        "Sector Momentum Rotation: CAGR vs Own Index by Exchange (2000-2025)",
+        [DATA_LINE,
+         f"Each market in its own currency against its own index. {beat} markets beat it as "
+         "measured.",
+         f"{c['clear']} keep a clear lead after the dividends price indices leave out "
+         f"({', '.join(in_band)} doesn't)."]
+        + not_ranked_lines(data, keys, verdicts) + left_out_lines(),
+        not_clear_win=NOT_CLEAR_WIN)
 
 
 def chart_comparison_drawdown(filename):
-    """Horizontal bar: Max drawdown by exchange."""
-    valid = [(k, v) for k, v in data.items()
-             if v.get("portfolio", {}).get("max_drawdown") is not None]
-    valid.sort(key=lambda x: x[1]["portfolio"]["max_drawdown"])  # Most negative first
-
-    names = [EXCHANGE_LABELS.get(k, k) for k, _ in valid]
-    drawdowns = [v["portfolio"]["max_drawdown"] for _, v in valid]
-    colors = [COLORS.get(k, "#95a5a6") for k, _ in valid]
-
-    spy_dd = data.get("NYSE_NASDAQ_AMEX", {}).get("spy", {}).get("max_drawdown", -45.53)
-
-    fig, ax = plt.subplots(figsize=(11, max(6, len(names) * 0.55)))
-    ax.barh(range(len(names)), drawdowns, color=colors, alpha=0.85, height=0.6)
-    ax.axvline(x=spy_dd, color="#e74c3c", linewidth=1.5, linestyle="--",
-               label=f"S&P 500 ({spy_dd:.1f}%)")
-
-    ax.set_yticks(range(len(names)))
-    ax.set_yticklabels(names, fontsize=10)
-    ax.set_xlabel("Max Drawdown (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Sector Momentum Rotation: Max Drawdown by Exchange (2000-2025)",
-                 fontsize=13, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
-    ax.grid(True, alpha=0.3, axis="x", linestyle="--")
-
-    for i, dd in enumerate(drawdowns):
-        ax.text(dd - 0.5, i, f"{dd:.1f}%", va="center", ha="right", fontsize=10, fontweight="bold")
-
-    fig.text(0.5, -0.02,
-             "Data: Ceta Research | Top 2 sectors by 12M trailing return, quarterly rebalance",
-             ha="center", fontsize=8, color="#7f8c8d")
-
-    plt.tight_layout()
-    out = charts_dir / filename
-    plt.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
-    print(f"  Saved: {out}")
-    plt.close()
+    """Max drawdown by exchange, each against its own index's."""
+    keys = sorted(comparison_legs(), key=lambda k: data[k]["portfolio"]["max_drawdown"],
+                  reverse=True)
+    verdicts = [own_index_verdict(data, k, NOT_CLEAR_WIN) for k in keys]
+    save_own_index_chart(
+        data, keys, [market_name(k) for k in keys], charts_dir / filename,
+        "Sector Momentum Rotation: Max Drawdown vs Own Index by Exchange (2000-2025)",
+        [DATA_LINE, "Each market in its own currency; the tick is its own index's max drawdown."]
+        + not_ranked_lines(data, keys, verdicts) + left_out_lines(),
+        metric="max_drawdown", decimals=1)
 
 
 # --- Generate charts ---
