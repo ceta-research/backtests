@@ -186,9 +186,10 @@ def chart_comparison_cagr(filename):
         data, keys, [market_name(k) for k in keys], charts_dir / filename,
         "Compounding Equity Screen: CAGR vs Own Index (2000-2025)",
         [DATA_LINE,
-         f"Each market in its own currency against its own index. {c['beat']} of the {len(keys)} "
-         f"markets beat it; {c['clear']} of those {c['beat']} keep the edge after the dividends "
-         f"price indices leave out ({', '.join(dropped)} doesn't)."]
+         f"Each market in its own currency against its own index. {c['beat']} of the {c['ranked']} "
+         f"markets with a local index beat it.",
+         f"{c['clear']} of those {c['beat']} keep the edge after the dividends price indices leave "
+         f"out ({', '.join(dropped)} doesn't)."]
         + not_ranked_lines(data, keys, verdicts),
         not_clear_win=NOT_CLEAR_WIN)
 
