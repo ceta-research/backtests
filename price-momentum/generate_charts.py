@@ -18,14 +18,15 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from chart_utils import benchmark_label, currency_prefix, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_label, currency_prefix, localize_money_title, market_name, money,
+                         money_axis_label, money_formatter, not_ranked_lines, own_index_counts,
+                         own_index_verdict, save_own_index_chart, short_window_lines)
 
 try:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mtick
-    from matplotlib.patches import Patch
     import numpy as np
 except ImportError:
     print("Error: matplotlib not installed. Run: pip install matplotlib")
@@ -38,8 +39,6 @@ STRATEGY_COLOR = "#7B1FA2"    # Purple (momentum = energy/speed)
 BENCHMARK_COLOR = "#9E9E9E"   # Gray
 POSITIVE_COLOR = "#43A047"    # Green
 NEGATIVE_COLOR = "#E53935"    # Red
-TIE_COLOR = "#CFCFCF"         # Light grey: within TIE_BAND of its own benchmark
-TIE_BAND = 0.2                # CAGR points
 
 
 def cumulative_growth(returns):
@@ -173,73 +172,30 @@ def full_window(legs):
     return f"{min(years)}-{max(years)}" if years else ""
 
 
-def excess_color(data):
-    """Bar colour from the leg's CAGR against ITS OWN benchmark, not the S&P 500 line."""
-    bench = (data.get("spy") or {}).get("cagr")
-    if bench is None:
-        return TIE_COLOR
-    excess = round(data["portfolio"]["cagr"] - bench, 2)
-    if abs(excess) < TIE_BAND:
-        return TIE_COLOR
-    return POSITIVE_COLOR if excess > 0 else NEGATIVE_COLOR
-
-
-def excess_legend_handles():
-    return [Patch(color=POSITIVE_COLOR, alpha=0.85, label=f"Ahead by {TIE_BAND} pts or more"),
-            Patch(color=NEGATIVE_COLOR, alpha=0.85, label=f"Behind by {TIE_BAND} pts or more"),
-            Patch(color=TIE_COLOR, alpha=0.85, label=f"Within {TIE_BAND} pts (tie)")]
+# Ahead of a price index by less than its missing dividends, as the comparison post counts it
+NOT_CLEAR_WIN = {"SET", "JPX", "SES"}
 
 
 def plot_comparison_cagr(all_data, output_path):
-    """CAGR comparison bar chart across all exchanges."""
-    exchanges = []
-    cagrs = []
-    colors = []
-    # Explicit US lookup. The reference line on this cross-market chart is
-    # meant to be the S&P 500; taking it from the first exchange out of the
-    # sort picked up that market's LOCAL benchmark instead.
-    spy_cagr = (all_data.get("NYSE_NASDAQ_AMEX") or {}).get("spy", {}).get("cagr")
-    legs, cut_note = ranked_legs(all_data)
-
-    for exch, data in sorted(legs.items(),
-                              key=lambda x: (x[1].get("portfolio") or {}).get("cagr") or -999,
-                              reverse=True):
-        cagr = data["portfolio"].get("cagr")
-        if cagr is not None:
-            exchanges.append(exch.replace("_", "+"))
-            cagrs.append(cagr)
-            colors.append(excess_color(data))
-
-    if not exchanges:
+    """CAGR by exchange, each against its own index."""
+    legs, _ = ranked_legs(all_data)
+    keys = sorted((k for k, d in legs.items() if d["portfolio"].get("cagr") is not None),
+                  key=lambda k: legs[k]["portfolio"]["cagr"], reverse=True)
+    if not keys:
         return
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-    bars = ax.barh(exchanges, cagrs, color=colors, alpha=0.85)
-
-    handles = excess_legend_handles()
-    if spy_cagr:
-        handles.append(ax.axvline(spy_cagr, color=BENCHMARK_COLOR, linewidth=2, linestyle="--",
-                                  label=f"S&P 500 ({spy_cagr:.1f}%)"))
-    ax.legend(handles=handles, title="Bar colour: CAGR vs its own benchmark",
-              fontsize=10, title_fontsize=10, loc="lower right")
-
-    for bar, val in zip(bars, cagrs):
-        ax.text(val + 0.1, bar.get_y() + bar.get_height() / 2,
-                f"{val:.1f}%", va="center", fontsize=9)
-
-    ax.set_title(f"12-Month Momentum: CAGR by Exchange ({full_window(legs)})",
-                 fontsize=14, fontweight="bold", pad=12)
-    ax.set_xlabel("CAGR (%)", fontsize=12)
-    ax.xaxis.set_major_formatter(mtick.PercentFormatter())
-    ax.grid(True, alpha=0.3, linestyle=":", axis="x")
-    ax.invert_yaxis()
-
-    plt.tight_layout()
-    if cut_note:
-        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close()
-    print(f"  Saved: {output_path}")
+    verdicts = [own_index_verdict(all_data, k, NOT_CLEAR_WIN) for k in keys]
+    c = own_index_counts(verdicts)
+    lead_in_band = [market_name(k, short=True) for k, v in zip(keys, verdicts) if v == "dividend"]
+    save_own_index_chart(
+        all_data, keys, [market_name(k) for k in keys], output_path,
+        f"12-Month Momentum: CAGR vs Own Index by Exchange ({full_window(legs)})",
+        ["Data: Ceta Research | Top 30 by 12M-1M return, semi-annual rebalance, equal weight.",
+         f"Each market in its own currency against its own index. {c['beat']} of the {c['ranked']} "
+         f"full-window markets with a local index beat it before dividends.",
+         f"{', '.join(lead_in_band[:-1])} and {lead_in_band[-1]} lead by less than the dividends "
+         f"their price indices leave out, which would make it {c['clear']} of {c['ranked']}."]
+        + not_ranked_lines(all_data, keys, verdicts) + short_window_lines(all_data, all_data.keys()),
+        not_clear_win=NOT_CLEAR_WIN)
 
 
 def plot_comparison_drawdown(all_data, output_path):
