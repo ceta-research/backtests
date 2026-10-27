@@ -2,24 +2,16 @@
 import matplotlib.pyplot as plt
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, benchmark_legend, benchmark_money, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (benchmark_label, benchmark_legend, benchmark_money, localize_money_title,
+                         market_name, money, money_axis_label, money_formatter, not_ranked_lines,
+                         own_index_counts, own_index_verdict, save_own_index_chart)
 import matplotlib.ticker as mticker
 import json
 from pathlib import Path
 
 results_dir = Path(__file__).parent / "results"
-# Charts go to the content directory, not backtests
-content_charts_dir = (
-    Path(__file__).parent.parent.parent
-    / "ts-content-creator" / "content" / "_ready"
-    / "factor-01-magic-formula" / "charts"
-)
-content_charts_dir.mkdir(parents=True, exist_ok=True)
-
-# Load exchange comparison (nested under 'exchanges')
-with open(results_dir / "exchange_comparison.json") as f:
-    ec_raw = json.load(f)
-ec_data = ec_raw["exchanges"]
+content_charts_dir = Path(__file__).parent / "charts"
+content_charts_dir.mkdir(exist_ok=True)
 
 # Load individual result files (have annual_returns for growth charts)
 individual = {}
@@ -159,59 +151,42 @@ def chart_cumulative(exchanges, filename, title, footer_universe):
     plt.close()
 
 
+# The comparison's 16 markets from the current factor-01 run (India NSE-only, China SHH)
+COMPARISON_FILES = {
+    "US_MAJOR": "factor-01_us.json", "NSE": "factor-01_nse.json", "LSE": "factor-01_lse.json",
+    "STO": "factor-01_sto.json", "HKSE": "factor-01_hkse.json", "SIX": "factor-01_six.json",
+    "TAI": "factor-01_tai.json", "XETRA": "factor-01_xetra.json", "JPX": "factor-01_jpx.json",
+    "KSC": "factor-01_ksc.json", "SET": "factor-01_set.json", "TSX": "factor-01_tsx.json",
+    "SHH": "factor-01_shh.json", "JNB": "factor-01_jnb.json", "JKT": "factor-01_jkt.json",
+    "SAU": "factor-01_sau.json",
+}
+# Leads over a price index below the bottom of the 1.3%-3.5% dividend range: ties
+DIVIDEND_TIES = {"SHH", "SET", "TSX"}
+
+
 def chart_comparison_cagr(filename):
-    """Horizontal bar chart: CAGR by exchange."""
-    # B006: the gate's intent is "drop a leg that never traded" (PAR is 103/103
-    # cash). Comparing against `total_periods` -- which is n_periods, the
-    # benchmark-priced window -- instead reads a TRUNCATED leg as a 100%-cash
-    # one and drops it silently: an OSL leg at 84 cash over 95 rebalances with
-    # only 50 priced fails `84 < 50` and vanishes from the chart. Cash is
-    # counted over every rebalance run, so it must be compared against
-    # total_rebalances. The fallback keeps pre-B006 comparison files rendering
-    # exactly as they do today.
-    def _ran(v):
-        return v.get("total_rebalances") or v.get("total_periods", 1)
-
-    exchanges_with_data = [
-        (k, v) for k, v in ec_data.items()
-        if v.get("total_periods", 0) > 0
-        and v.get("cash_periods", 0) < _ran(v)
-    ]
-    exchanges_with_data.sort(key=lambda x: x[1]["cagr"], reverse=True)
-
-    names = [EXCHANGE_LABELS.get(k, k) for k, _ in exchanges_with_data]
-    cagrs = [v["cagr"] for _, v in exchanges_with_data]
-    colors = [COLORS.get(k, "#95a5a6") for k, _ in exchanges_with_data]
-
-    fig, ax = plt.subplots(figsize=(10, max(5, len(names) * 0.6)))
-    bars = ax.barh(range(len(names)), cagrs, color=colors, alpha=0.85, height=0.6)
-
-    # SPY reference line
-    spy_cagr = individual.get("US_MAJOR", {}).get("spy", {}).get("cagr")
-    if spy_cagr:
-        ax.axvline(x=spy_cagr, color="#e74c3c", linewidth=1.5, linestyle="--",
-                   label=f"S&P 500 ({spy_cagr}% CAGR)")
-
-    ax.set_yticks(range(len(names)))
-    ax.set_yticklabels(names, fontsize=10)
-    ax.invert_yaxis()
-    ax.set_xlabel("CAGR (%)", fontsize=12, fontweight="bold")
-    ax.set_title("Magic Formula CAGR by Exchange (2000-2025)", fontsize=14, fontweight="bold", pad=15)
-    ax.legend(fontsize=10)
-    ax.grid(True, alpha=0.3, axis="x", linestyle="--")
-    ax.set_axisbelow(True)
-
-    for i, (bar, cagr) in enumerate(zip(bars, cagrs)):
-        x_pos = max(cagr, 0) + 0.3
-        ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
-
-    fig.text(0.5, -0.02, FOOTER, ha="center", fontsize=8, color="#7f8c8d")
-
-    plt.tight_layout()
-    out = content_charts_dir / filename
-    plt.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
-    print(f"  Saved: {out}")
-    plt.close()
+    """CAGR by exchange, each against its own index."""
+    legs = {}
+    for key, name in COMPARISON_FILES.items():
+        with open(results_dir / name) as f:
+            legs[key] = json.load(f)
+    keys = sorted(legs, key=lambda k: legs[k]["portfolio"]["cagr"], reverse=True)
+    verdicts = [own_index_verdict(legs, k, dividend_ties=DIVIDEND_TIES) for k in keys]
+    c = own_index_counts(verdicts)
+    ties = [market_name(k, short=True) for k, v in zip(keys, verdicts) if v == "div_tie"]
+    beat = ("Every market with a local index leads it as measured."
+            if c["beat"] == c["ranked"] else
+            f"{c['beat']} of the {c['ranked']} markets with a local index lead it as measured.")
+    save_own_index_chart(
+        legs, keys, [market_name(k) for k in keys], content_charts_dir / filename,
+        "Magic Formula: CAGR vs Own Index by Exchange (2000-2025)",
+        [FOOTER + ".",
+         f"Each market in its own currency against its own index. {beat}",
+         f"{', '.join(ties[:-1])} and {ties[-1]} lead by less than the bottom of the 1.3%-3.5% "
+         "dividend range their price indices leave out: ties."]
+        + not_ranked_lines(legs, keys, verdicts)
+        + ["Not shown: Brazil and Australia, excluded for split-adjustment errors in their price data."],
+        dividend_ties=DIVIDEND_TIES)
 
 
 # ---- Generate all charts ----

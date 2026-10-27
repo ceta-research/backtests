@@ -459,7 +459,8 @@ def own_index_verdict(data, key, not_clear_win=(), dividend_ties=(), not_called=
 
 
 MARKET_NAMES = {  # results key -> (market, exchange label) for comparison charts
-    "NYSE_NASDAQ_AMEX": ("US", "NYSE+NASDAQ+AMEX"), "NSE": ("India", "NSE"),
+    "NYSE_NASDAQ_AMEX": ("US", "NYSE+NASDAQ+AMEX"), "US_MAJOR": ("US", "NYSE+NASDAQ+AMEX"),
+    "SHH": ("China", "SHH"), "NSE": ("India", "NSE"),
     "XETRA": ("Germany", "XETRA"), "STO": ("Sweden", "STO"), "TSX": ("Canada", "TSX"),
     "SHZ_SHH": ("China", "SHZ+SHH"), "SHH_SHZ": ("China", "SHH+SHZ"), "HKSE": ("Hong Kong", "HKSE"),
     "JPX": ("Japan", "JPX"), "LSE": ("UK", "LSE"), "KSC": ("Korea", "KSC"),
