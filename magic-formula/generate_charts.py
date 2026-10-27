@@ -162,6 +162,8 @@ COMPARISON_FILES = {
 }
 # Leads over a price index below the bottom of the 1.3%-3.5% dividend range: ties
 DIVIDEND_TIES = {"SHH", "SET", "TSX"}
+# Leads over a price index inside that range, which the comparison post doesn't call
+NOT_CALLED = {"TAI", "JPX", "KSC"}
 
 
 def chart_comparison_cagr(filename):
@@ -171,9 +173,11 @@ def chart_comparison_cagr(filename):
         with open(results_dir / name) as f:
             legs[key] = json.load(f)
     keys = sorted(legs, key=lambda k: legs[k]["portfolio"]["cagr"], reverse=True)
-    verdicts = [own_index_verdict(legs, k, dividend_ties=DIVIDEND_TIES) for k in keys]
+    verdicts = [own_index_verdict(legs, k, dividend_ties=DIVIDEND_TIES, not_called=NOT_CALLED)
+                for k in keys]
     c = own_index_counts(verdicts)
     ties = [market_name(k, short=True) for k, v in zip(keys, verdicts) if v == "div_tie"]
+    uncalled = [market_name(k, short=True) for k, v in zip(keys, verdicts) if v == "not_called"]
     beat = ("Every market with a local index leads it as measured."
             if c["beat"] == c["ranked"] else
             f"{c['beat']} of the {c['ranked']} markets with a local index lead it as measured.")
@@ -183,10 +187,12 @@ def chart_comparison_cagr(filename):
         [FOOTER + ".",
          f"Each market in its own currency against its own index. {beat}",
          f"{', '.join(ties[:-1])} and {ties[-1]} lead by less than the bottom of the 1.3%-3.5% "
-         "dividend range their price indices leave out: ties."]
+         "dividend range their price indices leave out: ties.",
+         f"{', '.join(uncalled[:-1])} and {uncalled[-1]} lead by amounts within the 1.3%-3.5% "
+         "dividend range, not called either way."]
         + not_ranked_lines(legs, keys, verdicts)
         + ["Not shown: Brazil and Australia, excluded for split-adjustment errors in their price data."],
-        dividend_ties=DIVIDEND_TIES)
+        dividend_ties=DIVIDEND_TIES, not_called=NOT_CALLED)
 
 
 # ---- Generate all charts ----
