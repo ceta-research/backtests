@@ -801,33 +801,39 @@ T1_FLAT = (("1114.HK", 7.30, 1.01), ("BC88.L", 95.0, 15.22), ("GBGLOBAL.NS", 930
 
 
 def t1_failures():
-    """A line with no traded row in the window keeps its rows only when its close takes two or more values
-    there (q4's table): 1114.HK at a suspended 7.30, BC88.L, GBGLOBAL.NS, 76ID.L and BR.BK at one flat
-    close lose every row and are not bought; TRUE.BK 2006-04 (8 closes) and ADVANC-R.BK 2005-01 (4) keep
-    theirs. Before, all seven windows kept their rows and the flat lines were bought."""
-    d = date(2022, 7, 1)
-    days = list(weekdays(d, d + timedelta(days=11)))
-    rows = fillers(30, days)
+    """A line with no traded row in the window keeps its rows only when its close takes three or more
+    values there: 1114.HK at a suspended 7.30, BC88.L, GBGLOBAL.NS, 76ID.L and BR.BK at one flat close
+    lose every row and are not bought; so does BC88.L's real 2009-10 window, a stale quote that steps
+    once (95 on 10-01 and 10-02, then 70 for six days, volume 0 throughout, 2 closes). TRUE.BK 2006-04
+    (7 closes) and ADVANC-R.BK 2005-01 (4) keep theirs: in the measured no-volume feeds every window
+    has 4 closes or more. Before, all eight windows kept their rows and the stale lines were bought."""
+    d, d2 = date(2022, 7, 1), date(2009, 10, 1)
+    days, days2 = list(weekdays(d, d + timedelta(days=11))), list(weekdays(d2, d2 + timedelta(days=11)))
+    rows = fillers(30, days + days2)
     for s, c, a in T1_FLAT:
         rows += [(s, day, a, c, 0.0) for day in days]
     true = [6.4, 6.52, 6.22, 6.238918, 6.22, 6.28, 5.92, 5.63, 5.63]
     rows += [("TRUE.BK", day, round(c * 0.9, 4), c, 0.0) for day, c in zip(days, true)]
     adv = [111.0, 107.0, 109.0, 112.0, 111.0, 111.0, 111.0, 111.0, 111.0]
     rows += [("ADVANC-R.BK", day, round(c * 0.29, 4), c, 0.0) for day, c in zip(days, adv)]
+    bc88 = [(day, 18.61, 95.0) if day < date(2009, 10, 5) else (day, 13.71, 70.0) for day in days2]
+    rows += [("BC88.L", day, a, c, 0.0) for day, a, c in bc88]
     con = cache(rows)
-    st = clean_price_cache(con, set(), [d])
+    st = clean_price_cache(con, set(), [d2, d])
     f = []
     for s, _, _ in T1_FLAT:
         if get_prices(con, [s], d, offset_days=1).get(s) is not None:
             f.append(f"{s}: a flat line with no volume is still buyable")
+    if get_prices(con, ["BC88.L"], d2, offset_days=1).get("BC88.L") is not None:
+        f.append("BC88.L 2009-10: a stale quote that steps once (95, then 70) with no volume is still buyable at 18.61")
     for s, want in (("TRUE.BK", round(6.52 * 0.9, 4)), ("ADVANC-R.BK", round(107.0 * 0.29, 4))):
         if get_prices(con, [s], d, offset_days=1).get(s) != want:
             f.append(f"{s}: a moving feed with no volume keeps its rows (entry {want})")
-    if (st["symbol_windows_without_volume"], st.get("flat_windows_moved")) != (7, 5):
+    if (st["symbol_windows_without_volume"], st.get("flat_windows_moved")) != (8, 6):
         f.append(f"counts: {st['symbol_windows_without_volume']} windows without volume, "
-                 f"{st.get('flat_windows_moved')} flat windows moved, want 7 and 5")
-    if st["rows_moved"]["zero_volume"] != 5 * len(days):
-        f.append(f"rows_moved.zero_volume {st['rows_moved']['zero_volume']}, want {5 * len(days)}")
+                 f"{st.get('flat_windows_moved')} flat windows moved, want 8 and 6")
+    if st["rows_moved"]["zero_volume"] != 5 * len(days) + len(days2):
+        f.append(f"rows_moved.zero_volume {st['rows_moved']['zero_volume']}, want {5 * len(days) + len(days2)}")
     reasons = {r[0] for r in con.execute("SELECT DISTINCT reason FROM prices_dropped").fetchall()}
     if reasons != {"flat_no_volume"}:
         f.append(f"prices_dropped reasons {reasons}")
