@@ -20,10 +20,12 @@ pref, Samsung Heavy's pref, BP-B.L, 1935.HK), three classes, the liquid line, th
 rows and the trigger. A third review added: Thai NVDR feeds that tick between two prices keep their
 rows (BH-R.BK, RATCH-R.BK, MCS-R.BK), and a failing row whose divisor is 1 is 'unchecked', not a
 silent 'stands' (HAO FY2025). A fourth review added: a date with no close is skipped, not read as a
-change, and changes are counted within one window (NUL.L, XW.L, GAP.BK). Then both opted-in topics
-run end to end on a synthetic SET leg through a fake client, in drop, ltp, both and uncapped modes,
-and the results pass the LTP gate's stage-a comparison and the results scanners, with and without
---full-holdings.
+change, and changes are counted within one window (NUL.L, XW.L, GAP.BK); M's divisor edges (1.25
+lowers, unknown turnover with a divisor of 1 is 'unchecked', a k-only divisor lowers); and an
+'unchecked' row on the synthetic leg (A07.BK FY2010) keeps FMP's cap at the floors. Then both
+opted-in topics run end to end on a synthetic SET leg through a fake client, in drop, ltp, both and
+uncapped modes, and the results pass the LTP gate's stage-a comparison and the results scanners,
+with and without --full-holdings.
 
 Shared code: against the base commit (BASE, the last one before data checks), isin_dedup_sql
 (twin_key=False) returns the same SQL, LtpExits(traded_only=False) sends the same SQL and builds
@@ -809,8 +811,9 @@ def m_unchecked_failures():
     """A failing row whose divisor is 1 is not silent. HAO FY2025 (the server's inputs): pf_raw 1.0, the
     later consolidations 2560 open the gate, no forward split, k 0.9995 (no K), u 9.13e-5 under the
     1e-4 test, not strict. Lowering by 1 changes nothing, so the row is 'unchecked' at FMP's 388m (no
-    divisor), counted in cap_rows_flagged and listed in the block's cap_unchecked; before, it was
-    written 'stands' and counted nowhere. GRPN-like CLEAR (gate closed) stands and is not flagged."""
+    divisor), counted in cap_rows_flagged and listed in the block's cap_unchecked with its own price
+    factor, split products, turnover ratio, lines and k; before, it was written 'stands' and counted
+    nowhere. GRPN-like CLEAR (gate closed) stands and is not flagged."""
     con = duckdb.connect()
     con.execute(CAP_INPUTS_DDL)
     fe = ep(date(2025, 6, 30))
@@ -830,9 +833,14 @@ def m_unchecked_failures():
         f.append(f"CLEAR: {got['CLEAR']['rule']}, want stands")
     if (stats["cap_rows_checked"], stats["cap_rows_flagged"]) != (2, 1):
         f.append(f"stats {stats}, want 2 checked and 1 flagged (HAO)")
-    listed = [(u["symbol"], u["fy"], u["cap"]) for u in stats.get("cap_unchecked", [])]
-    if listed != [("HAO", "2025-06-30", 388400896.0)]:
-        f.append(f"cap_unchecked {listed}, want HAO FY2025 at 388400896")
+    listed = stats.get("cap_unchecked", [])
+    want = {"symbol": "HAO", "fy": "2025-06-30", "cap": 388400896.0, "pf": 1.0, "pf_source": "raw", "pf_cons": 2560.0,
+            "pf_fwd": 1.0, "u": 35460.94 / 388400896.0, "lines": 1, "k": 116707.0 * 33.2 / 3876680.0}
+    got_u = listed[0] if len(listed) == 1 else {}
+    off = [k for k, v in want.items() if not (got_u.get(k) == v if isinstance(v, (str, int)) else
+                                              isinstance(got_u.get(k), float) and abs(got_u[k] / v - 1) < 1e-5)]
+    if len(listed) != 1 or set(got_u) != set(want) or off:
+        f.append(f"cap_unchecked {listed}, want one HAO FY2025 entry {want} (off: {off})")
     dc = DataChecks("on")
     dc.record_cap(stats)
     blk = dc.block()
@@ -841,7 +849,36 @@ def m_unchecked_failures():
     return f
 
 
-T1_FLAT = (("1114.HK", 7.30, 1.01), ("BC88.L", 95.0, 15.22), ("GBGLOBAL.NS", 930.0, 930.0), ("76ID.L", 165.0, 33.71),
+def m_divisor_failures():
+    """The divisor's edges, on crafted rows whose gate the later consolidations alone open (pf_cons 5), so
+    none is strict and a failing cap lowers. LOW_D: price factor 1.25, no forward split, no k, u 1e-6:
+    lowered by 1.25 ('cap_over_pf'), since only a divisor of 1 leaves the cap as it is. NO_U: price
+    factor 1 and 5 traded bars, so u is unknown and the divisor is 1: 'unchecked' and listed, not a
+    silent 'stands'. K_ONLY: price factor 1 with k 10 (disagreeing): the divisor is max(k, D) = 10, so
+    the row lowers by 10 and is not 'unchecked', though D alone is 1."""
+    con = duckdb.connect()
+    con.execute(CAP_INPUTS_DDL)
+    cap = 2e9
+    base = {"filing_epoch": 1000, "market_cap": cap, "n_bars": 20, "n_traded": 20, "turnover": 1e-6 * cap,
+            "pf_splits": 5.0, "pf_cons": 5.0, "pf_fwd": 1.0}
+    cap_insert(con, [{**base, "symbol": "LOW_D", "pf_raw": 1.25},
+                     {**base, "symbol": "NO_U", "pf_raw": 1.0, "n_traded": 5},
+                     {**base, "symbol": "K_ONLY", "pf_raw": 1.0, "eps": 10.0, "net_income": 1e8, "shares": 1e8}])
+    stats = apply_cap_rule(con)
+    got = cap_rows(con)
+    f = []
+    for s, rule, div in (("LOW_D", "cap_over_pf", 1.25), ("NO_U", "unchecked", None), ("K_ONLY", "cap_over_pf", 10.0)):
+        r = got[s]
+        if r["rule"] != rule or (div is None) != (r["cap_div"] is None) or (div and abs(r["cap_div"] - div) > 1e-9):
+            f.append(f"{s}: {r['rule']} cap_div {r['cap_div']}, want {rule} {div}")
+    listed = [(u["symbol"], u["u"]) for u in stats["cap_unchecked"]]
+    if listed != [("NO_U", None)] or (stats["cap_rows_checked"], stats["cap_rows_flagged"]) != (3, 3):
+        f.append(f"stats {stats['cap_rows_checked']} checked, {stats['cap_rows_flagged']} flagged, cap_unchecked "
+                 f"{listed}, want 3, 3 and NO_U alone (u unknown)")
+    return f
+
+
+T1_FLAT =(("1114.HK", 7.30, 1.01), ("BC88.L", 95.0, 15.22), ("GBGLOBAL.NS", 930.0, 930.0), ("76ID.L", 165.0, 33.71),
            ("BR.BK", 35.0, 28.88))
 
 
@@ -1620,7 +1657,11 @@ def price(s, d):
 
 def synthetic_source():
     """A SET leg: 20 clean names, an ordinary/NVDR pair, an NVDR standing in, a KIO-like closed-day
-    exit, an EASTW-like stale entry, an SOS-like inflated cap, a real +150% move, a delisting."""
+    exit, an EASTW-like stale entry, an SOS-like inflated cap, a real +150% move, a delisting, and a
+    clean name whose FY2010 row check M writes 'unchecked' (A07.BK: a later 1:5 consolidation opens the
+    gate, and 20 thin December bars whose raw close is the close give a price factor of 1, k 1 and
+    turnover 1e-8 of the cap, so the divisor is 1. Its other FY rows have no bars and lower by 5 to
+    10.01bn, over the 10bn floor)."""
     src = cap_source()
     src.execute("CREATE TABLE profile(symbol VARCHAR, exchange VARCHAR, country VARCHAR, isin VARCHAR, sector VARCHAR,"
                 " marketCap DOUBLE, isActivelyTrading BOOLEAN, currency VARCHAR)")
@@ -1648,6 +1689,12 @@ def synthetic_source():
                     src.execute("INSERT INTO stock_prices_non_split_adjusted_daily VALUES (?, ?, ?, 3.69, 1)",
                                 [s, day.isoformat(), ep(day)])
     src.execute("INSERT INTO splits_calendar VALUES ('A05.BK', '2019-03-01', ?, 2, 1)", [ep(date(2019, 3, 1))])
+    src.execute("INSERT INTO splits_calendar VALUES ('A07.BK', '2019-06-03', ?, 1, 5)", [ep(date(2019, 6, 3))])
+    fy10 = date(2010, 12, 31)
+    for day in weekdays(fy10 - timedelta(days=29), fy10):
+        src.execute("INSERT INTO stock_eod VALUES ('A07.BK', ?, ?, 50.0, 50.0, 10.0)", [day.isoformat(), ep(day)])
+        src.execute("INSERT INTO stock_prices_non_split_adjusted_daily VALUES ('A07.BK', ?, ?, 50.0, 10)",
+                    [day.isoformat(), ep(day)])
     rows = []
     for d in du.generate_rebalance_dates(2000, 2025, "quarterly"):
         for day in weekdays(d, d + timedelta(days=11)):
@@ -1797,6 +1844,18 @@ def topic_failures(topic, src, tmp):
     reasons = {e["reason"] for e in ev if e["check"] == "twin"}
     if reasons != {"ordinary_first", "stand_in"} or c["twins_linked"] != 2:
         f.append(f"{topic}: twins {reasons} linked {c['twins_linked']}")
+    # A07.BK FY2010 is 'unchecked' through cap_check_sql and the floors: listed, no cap event, and held
+    # in the books that read that row, as in the uncapped arm (FMP's cap clears the floor)
+    un = [(u["symbol"], u["fy"], u["cap"]) for u in dcb.get("cap_unchecked", [])]
+    if un != [("A07.BK", "2010-12-31", 5.007e10)]:
+        f.append(f"{topic}: cap_unchecked {un}, want A07.BK FY2010 at 5.007e10")
+    if any(e["symbol"] == "A07.BK" and e["check"] in ("cap", "signal_cap") for e in ev):
+        f.append(f"{topic}: A07.BK has a cap event, but an unchecked row keeps FMP's cap")
+    held = lambda res: {r["rebalance_date"] for r in res["period_data"] if "A07.BK" in r["holdings"].split(",")}
+    fy10 = {"2011-04-01", "2011-07-01", "2011-10-01", "2012-01-01"} if topic == "deleveraging" else {"2011-07-01"}
+    if not fy10 <= held(unc) or held(ltp) != held(unc):
+        f.append(f"{topic}: A07.BK not held at {sorted(fy10 - held(ltp))} (books on its FY2010 row), or held "
+                 f"apart from the uncapped arm: {sorted(held(ltp) ^ held(unc))}")
     keys = ["entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost", "twins_collapsed", "cap_excluded",
             "factor_flags"]
     keys += ["signal_cap_excluded"] if topic == "cyclical-timing" else []
@@ -1917,6 +1976,7 @@ def main():
     expect("M siblings share two FY caps: 1789.HK / 1935.HK", m_class_fy_failures())
     expect("M lowers, not excludes, unless strict: ERIC-A.ST FY1999", m_strict_failures())
     expect("M a divisor of 1 is unchecked, not stands: HAO FY2025", m_unchecked_failures())
+    expect("M divisor edges: 1.25 lowers, unknown turnover unchecked, k alone lowers", m_divisor_failures())
     expect("T1 flat lines with no volume", t1_failures())
     expect("T1 two-price NVDR feeds: BH-R.BK, RATCH-R.BK, MCS-R.BK", t1_feed_failures())
     expect("T1 halted exit reads the last traded bar", t1_exit_failures())
