@@ -370,7 +370,7 @@ CAP_CASES = [
     ("CIM", 3.0, None, 20, 0.01, 0.275, 1e8, 1e8, "stands", None),
     ("THIN1", 30.0, None, 9, 1e-6, 1.0, 1e8, 1e8, "cap_over_pf", 30.0),    # under 10 traded bars: u unknown, lowered
     ("THIN8", 30.0, None, 9, 1e-6, 8.0, 1e8, 1e8, "cap_over_pf", 30.0),
-    ("SPLIT", None, 40.0, 20, 1e-5, 1.0, 1e8, 1e8, "cap_over_pf", 40.0),   # no raw price: splits fallback
+    ("SPLIT", None, 40.0, 20, 1e-5, 1.0, 1e8, 1e8, "ineligible", None),    # no raw price: no divisor; strict, u fails
     ("NOPF", None, None, 20, 1e-6, 50.0, 1e8, 1e8, "stands", None),        # no pf: the cap stands
     ("LOWPF", 2.99, None, 20, 1e-6, 50.0, 1e8, 1e8, "stands", None),
     ("SMALLEPS", 30.0, None, 20, 0.01, 0.04, 1e8, 1e10, "stands", None),   # |eps| < 0.05: no k
@@ -699,23 +699,31 @@ def m2_failures():
 
 def m3_failures():
     """Inflations the pf gate could not see. Bonjour FY2007, FY2008: forward and reverse splits net out
-    to pf_raw 1.375 while the later consolidations multiply to 600, so the gate now opens, u fails and
-    the cap lowers by pf x the forward splits (1.375 x 12 = 16.5) to 0.39bn and 0.63bn, under the floor
-    (the 2008 and 2009 holdings leave). FY2009 lowers the same way to 2.32bn and stays (the 2010
-    holding): the divisor is not the 600 product. CETX FY2016 (3 traded bars), TOPS FY2004 and PIXY
-    FY2018 (none) have no u: with pf >= 3 the cap now lowers by pf, where before it stood."""
+    to pf_raw 1.375 while the later consolidations multiply to 600, so the gate opens, u fails and
+    the cap lowers by pf x the forward splits FMP's FY share count was restated for (the 2010 6:1 and
+    2:1: 1.375 x 12 = 16.5) to 0.39bn and 0.63bn, under the floor (the 2008 and 2009 holdings leave).
+    FY2009 lowers the same way to 2.32bn and stays (the 2010 holding): the divisor is not the 600
+    product. CETX FY2016 (3 traded bars) and PIXY FY2018 (none) have no u: with pf >= 3 the cap lowers
+    by pf. TOPS FY2004 has bars but no raw close; its FY2006 row has one (pf_raw 4.54e13) with no split
+    record between the two period ends, so FY2004 reads that price factor ('raw_fy') and lowers too."""
     rows = []
     for fe, cap, u in ((2007, 6468811877.0, 6.12e-5), (2008, 10321654150.5, 3.68e-5), (2009, 38230217471.74, 6.02e-5)):
-        rows.append({"symbol": f"0653.HK/{fe}", "filing_epoch": fe, "market_cap": cap, "shares": 3.1e9, "eps": 0.0424,
+        rows.append({"symbol": "0653.HK", "filing_epoch": fe, "market_cap": cap, "shares": 3.1e9, "eps": 0.0424,
                      "net_income": 0.0424 * 3.1e9, "n_traded": 20, "turnover": u * cap, "pf_raw": 1.375,
-                     "pf_splits": 45.45, "pf_cons": 600.0, "pf_fwd": 12.0})
-    for s, cap, nt, pfr, pfs in (("CETX", 59.4e9, 3, 2.52e5, 2.06e3), ("TOPS", 6.49e16, 0, None, 4.54e13),
-                                 ("PIXY", 1.44e9, 0, 3.46e7, 1.44e6)):
-        rows.append({"symbol": s, "filing_epoch": 2016, "market_cap": cap, "shares": 1e6, "eps": 1.0, "net_income": 1e6,
+                     "pf_splits": 45.45, "pf_cons": 600.0, "pf_fwd": 12.0, "sh_restated": 12.0, "sh_step": 1.0})
+    for s, fe, cap, nt, pfr, pfs in (("CETX", 2016, 59.4e9, 3, 2.52e5, 2.06e3),
+                                     ("TOPS", 2004, 6.49e16, 0, None, 4.54e13),
+                                     ("TOPS", 2006, 2.15e16, 0, 4.54e13, 4.54e13),
+                                     ("PIXY", 2016, 1.44e9, 0, 3.46e7, 1.44e6)):
+        rows.append({"symbol": s, "filing_epoch": fe, "market_cap": cap, "shares": 1e6, "eps": 1.0, "net_income": 1e6,
                      "n_traded": nt, "turnover": 0.0 if nt else None, "pf_raw": pfr, "pf_splits": pfs,
-                     "pf_cons": pfs, "pf_fwd": 1.0})
-    got = cap_case(rows)
+                     "pf_cons": pfs, "pf_fwd": 1.0, "next_split": 3000})
+    by = cap_case(rows, by_fy=True)
+    got = {f"0653.HK/{fe}": by[("0653.HK", fe)] for fe in (2007, 2008, 2009)}
+    got.update({s: by[(s, fe)] for s, fe in (("CETX", 2016), ("TOPS", 2004), ("PIXY", 2016))})
     f = []
+    if got["TOPS"]["pf_source"] != "raw_fy" or got["TOPS"]["pf"] != 4.54e13:
+        f.append(f"TOPS FY2004 price factor {got['TOPS']['pf']} from {got['TOPS']['pf_source']}, want FY2006's 4.54e13")
     for s, want_in in (("0653.HK/2007", False), ("0653.HK/2008", False), ("0653.HK/2009", True)):
         used = cap_used_of(got[s])
         if (used is not None and used > 2e9) != want_in:
@@ -760,46 +768,53 @@ def m_class_fy_failures():
 
 def m_strict_failures():
     """A row is made ineligible only when pf itself opened the gate and every line of its group has
-    bars; otherwise a failing cap lowers (the server's inputs, as measured). ERIC-A.ST FY1999 (SEK 786bn):
-    pf_raw 1.25, so only the 2008 1:5 consolidation (pf_cons 5) opens the gate, and ERIC-B.ST has no
-    stock_eod rows before 2000-01-03, so u 1.58e-5 is the thin A class alone. It lowers by D = 1.25 x 4
-    = 5 to 157bn (B by 0.90 x 4 to 218bn), over the SEK 5bn floor; before, both were ineligible.
-    02826K.KS FY2008 (pf 3.17): its common 028260.KS listed in December 2014, so no bars; it lowers to
-    5.26T, over the 500bn floor. 0760.HK FY2006 (pf_raw 2, pf_cons 400, u 1.5e-8): lowered by 2 x 10 to
-    0.35bn, out on the HK$2bn floor either way. HAO and the 8038.T shape (pf >= 3, bars) stay ineligible
-    in m2_failures."""
+    bars; otherwise a failing cap lowers by the divisor, and where no evidence gives a divisor it is
+    'unchecked' at FMP's cap (the server's inputs, as measured, with FMP's FY share counts).
+    ERIC-A.ST FY1999 (SEK 786bn): pf_raw 1.25, so only the 2008 1:5 consolidation (pf_cons 5) opens
+    the gate, and ERIC-B.ST has no stock_eod rows before 2000-01-03, so u 1.58e-5 is the thin A class
+    alone. The FY share count shows no step at the 2000 4:1 or the 2008 1:5 (sh_restated 0.8), so D =
+    1.25 x 0.8 is under 1: unchecked at 786bn for both lines, over the SEK 5bn floor (round 3 lowered
+    them by 1.25 x 4 to 157bn and B to 218bn, with pf_fwd multiplying a price factor near 1). 02826K.KS
+    FY2008: pf 3.17 from the split records only (no raw close) and its common 028260.KS listed in
+    December 2014, so no bars; no record steps the share count, so it is unchecked at 16.67T. 0760.HK
+    FY2006 (pf_raw 2, u 1.5e-8, records restated in the share count to 0.5): unchecked at 6.91bn.
+    Before any of this, all four were ineligible; none is now. HAO and the 8038.T shape (pf >= 3,
+    bars) stay ineligible in m2_failures."""
     rows = []
     for s, pfs in (("ERIC-A.ST", 1.25), ("ERIC-B.ST", 0.9027777777777777)):
         rows.append({"symbol": s, "filing_epoch": 1998, "market_cap": 800437396000.0, "net_income": 13049054360.0,
                      "eps": 8.52, "shares": 1597520000.0, "n_bars": None, "n_traded": None, "turnover": None,
-                     "pf_splits": pfs, "pf_cons": 5.0, "pf_fwd": 4.0})
+                     "pf_splits": pfs, "pf_cons": 5.0, "pf_fwd": 4.0, "sh_restated": 0.8, "sh_step": 1.0})
     rows.append({"symbol": "ERIC-A.ST", "filing_epoch": 1999, "market_cap": 785954286206.1, "net_income": 12119249870.0,
                  "eps": 7.73, "shares": 1568614482.0, "n_bars": 20, "n_traded": 20, "turnover": 12404403.0,
-                 "pf_raw": 1.25, "pf_splits": 1.25, "pf_cons": 5.0, "pf_fwd": 4.0})
+                 "pf_raw": 1.25, "pf_splits": 1.25, "pf_cons": 5.0, "pf_fwd": 4.0, "sh_restated": 0.8, "sh_step": 1.0})
     rows.append({"symbol": "ERIC-B.ST", "filing_epoch": 1999, "market_cap": 785954286206.1, "net_income": 12119249870.0,
                  "eps": 7.73, "shares": 1568614482.0, "n_bars": None, "n_traded": None, "turnover": None,
-                 "pf_splits": 0.9027777777777777, "pf_cons": 5.0, "pf_fwd": 4.0})
-    for s, fe, cap, ni, eps, sh, nb, to, pfr, pfs in (
-            ("02826K.KS", 2008, 16670267781299.49, 345649895000.0, 2378.68, 145311629.0, 20, 325253717.22, None, 3.1667588816),
-            ("028260.KS", 2008, 16670267781299.49, 345649895000.0, 2378.68, 145311629.0, None, None, None, 1.0254832590),
-            ("02826K.KS", 2014, 16552833502000.0, 455646975000.0, 4349.24, 104764769.0, 20, 293912633.53, None, 3.1667588816),
+                 "pf_splits": 0.9027777777777777, "pf_cons": 5.0, "pf_fwd": 4.0, "sh_restated": 0.8, "sh_step": 1.0})
+    for s, fe, cap, ni, eps, sh, nb, to, pfr, pfs, shr in (
+            ("02826K.KS", 2008, 16670267781299.49, 345649895000.0, 2378.68, 145311629.0, 20, 325253717.22, None,
+             3.1667588816, 0.350089),
+            ("028260.KS", 2008, 16670267781299.49, 345649895000.0, 2378.68, 145311629.0, None, None, None, 1.0254832590,
+             1.0),
+            ("02826K.KS", 2014, 16552833502000.0, 455646975000.0, 4349.24, 104764769.0, 20, 293912633.53, None,
+             3.1667588816, 0.350089),
             ("028260.KS", 2014, 16552833502000.0, 455646975000.0, 4349.24, 104764769.0, 9, 589469496000.0, 1.0254832590,
-             1.0254832590)):
+             1.0254832590, 1.0)):
         rows.append({"symbol": s, "filing_epoch": fe, "market_cap": cap, "net_income": ni, "eps": eps, "shares": sh,
                      "n_bars": nb, "n_traded": nb, "turnover": to, "pf_raw": pfr, "pf_splits": pfs, "pf_cons": pfs,
-                     "pf_fwd": 1.0})
+                     "pf_fwd": 1.0, "sh_restated": shr, "sh_step": 1.0})
     rows.append({"symbol": "0760.HK", "filing_epoch": 2006, "market_cap": 6912949072.77, "net_income": -16268814.698129,
                  "eps": -0.0106, "shares": 1533910040.0, "n_bars": 20, "n_traded": 17, "turnover": 104.0, "pf_raw": 2.0,
-                 "pf_splits": 40.0, "pf_cons": 400.0, "pf_fwd": 10.0})
+                 "pf_splits": 2.0, "pf_cons": 20.0, "pf_fwd": 10.0, "sh_restated": 0.5, "sh_step": 1.0})
     by = cap_case(rows, by_fy=True)
     f = []
-    for key, want, floor in ((("ERIC-A.ST", 1999), 157.19e9, 5e9), (("ERIC-B.ST", 1999), 217.65e9, 5e9),
-                             (("02826K.KS", 2008), 5.2641e12, 5e11), (("0760.HK", 2006), 0.34565e9, None)):
+    for key, want, floor in ((("ERIC-A.ST", 1999), 785954286206.1, 5e9), (("ERIC-B.ST", 1999), 785954286206.1, 5e9),
+                             (("02826K.KS", 2008), 16670267781299.49, 5e11), (("0760.HK", 2006), 6912949072.77, 2e9)):
         r = by[key]
         used = cap_used_of(r)
-        if r["rule"] != "cap_over_pf" or used is None or abs(used / want - 1) > 1e-3:
-            f.append(f"{key[0]} FY{key[1]}: {r['rule']} cap_used {used}, want cap_over_pf at about {want / 1e9:.4g}bn")
-        elif floor and used <= floor:
+        if r["rule"] != "unchecked" or used is None or abs(used / want - 1) > 1e-9:
+            f.append(f"{key[0]} FY{key[1]}: {r['rule']} cap_used {used}, want unchecked at FMP's {want / 1e9:.4g}bn")
+        elif used <= floor:
             f.append(f"{key[0]} FY{key[1]}: cap_used {used} under the floor {floor}")
     r = by[("02826K.KS", 2014)]
     if r["rule"] != "stands" or r["lines"] != 2:
@@ -835,9 +850,10 @@ def m_unchecked_failures():
         f.append(f"stats {stats}, want 2 checked and 1 flagged (HAO)")
     listed = stats.get("cap_unchecked", [])
     want = {"symbol": "HAO", "fy": "2025-06-30", "cap": 388400896.0, "pf": 1.0, "pf_source": "raw", "pf_cons": 2560.0,
-            "pf_fwd": 1.0, "u": 35460.94 / 388400896.0, "lines": 1, "k": 116707.0 * 33.2 / 3876680.0}
+            "pf_fwd": 1.0, "sh_restated": None, "sh_step": None, "u": 35460.94 / 388400896.0, "lines": 1,
+            "k": 116707.0 * 33.2 / 3876680.0}
     got_u = listed[0] if len(listed) == 1 else {}
-    off = [k for k, v in want.items() if not (got_u.get(k) == v if isinstance(v, (str, int)) else
+    off = [k for k, v in want.items() if not (got_u.get(k) == v if v is None or isinstance(v, (str, int)) else
                                               isinstance(got_u.get(k), float) and abs(got_u[k] / v - 1) < 1e-5)]
     if len(listed) != 1 or set(got_u) != set(want) or off:
         f.append(f"cap_unchecked {listed}, want one HAO FY2025 entry {want} (off: {off})")
@@ -875,6 +891,130 @@ def m_divisor_failures():
     if listed != [("NO_U", None)] or (stats["cap_rows_checked"], stats["cap_rows_flagged"]) != (3, 3):
         f.append(f"stats {stats['cap_rows_checked']} checked, {stats['cap_rows_flagged']} flagged, cap_unchecked "
                  f"{listed}, want 3, 3 and NO_U alone (u unknown)")
+    return f
+
+
+def m6_evidence_failures():
+    """The divisor needs evidence beyond the split records (rows shaped like the measured ones). WEST3:
+    no bars before its FY end (it listed after), pf 10 from a later 1:10 the FY share count was
+    restated for: unchecked at FMP's real 1.30bn. GOL: no bars, records netting to 1 (pf_cons 10,
+    pf_fwd 10): unchecked at 4.31bn, where pf x pf_fwd gave 10. S0568: pf_raw 1.0 and the 5:1, 1:10
+    and 2:1 all restated in the share count: unchecked at 3.64bn. INPEX: pf_raw 1.786, pf_fwd 400 and
+    a 7:5000 record on its listing day, all restated: unchecked at 3.6T. DCC: bars but no raw close and
+    a 2:137 record the share count never shows: unchecked at 0.86bn. BONJ: pf_raw 1.375 and pf_fwd 12
+    with no share evidence: pf_fwd does not multiply a price factor near 1, so it lowers by 1.375 alone.
+    PHANT: no bars, pf 25 from the split records, no share step: unchecked. NOBAR (SAGA.L's shape): no
+    bars at FY2004, while its FY2006 row has bars and pf_raw 10: a row with no bars never reads another
+    FY's price factor (FMP's cap there may sit on a price the feed does not hold), so FY2004 is
+    unchecked. XREC: bars but no raw close at FY2004 and a split record before FY2006, whose pf_raw is
+    3: a record between the period ends stops the borrowing, so unchecked. Must stay lowered: CETX
+    (pf_raw 2.52e5, 3 traded bars, the share count restated for the 35:1) by 2.52e5 x 35; P1124
+    (1124.HK FY2008: pf_raw 9, the share count restated for the later 1:10) by 9, price evidence alone;
+    HAOS (no bars, the FY share count steps at the 1:25 and the 1:128) by 3200, the steps, not the
+    6.4e4 product."""
+    base = {"n_bars": 20, "n_traded": 20, "eps": 1.0, "pf_fwd": 1.0, "sh_step": 1.0}
+    rows = [
+        {**base, "symbol": "WEST3", "market_cap": 1.30e9, "shares": 1.09e7, "net_income": 1.06e7, "n_bars": None,
+         "n_traded": None, "pf_splits": 10.0, "pf_cons": 10.0, "sh_restated": 0.1},
+        {**base, "symbol": "GOL", "market_cap": 4.31e9, "shares": 1.64e8, "net_income": 1.64e8, "n_bars": None,
+         "n_traded": None, "pf_splits": 1.0, "pf_cons": 10.0, "pf_fwd": 10.0, "sh_restated": 0.5},
+        {**base, "symbol": "S0568", "market_cap": 3.64e9, "n_traded": 19, "turnover": 1.81e-7 * 3.64e9, "pf_raw": 1.0,
+         "pf_splits": 1.0, "pf_cons": 10.0, "pf_fwd": 10.0, "sh_restated": 0.5},
+        {**base, "symbol": "INPEX", "market_cap": 3.6e12, "n_traded": 16, "turnover": 7.06e-6 * 3.6e12,
+         "pf_raw": 1.785708598437964, "pf_splits": 1.7857142857142858, "pf_cons": 714.2857142857141,
+         "pf_fwd": 400.0, "sh_restated": 0.5599999999999999},
+        {**base, "symbol": "DCC", "market_cap": 8.57e8, "n_traded": 5, "turnover": 2e6, "pf_splits": 68.5,
+         "pf_cons": 68.5, "sh_restated": 0.0146},
+        {**base, "symbol": "BONJ", "market_cap": 1.03e10, "turnover": 3.68e-5 * 1.03e10, "pf_raw": 1.375,
+         "pf_splits": 45.45, "pf_cons": 600.0, "pf_fwd": 12.0, "sh_restated": None, "sh_step": None},
+        {**base, "symbol": "PHANT", "market_cap": 1.64e10, "n_bars": None, "n_traded": None, "pf_splits": 25.0,
+         "pf_cons": 25.0, "sh_restated": 1.0},
+        {**base, "symbol": "CETX", "market_cap": 4.08e10, "n_traded": 3, "turnover": 0.0, "pf_raw": 2.52e5,
+         "pf_splits": 2.06e3, "pf_cons": 7.2e4, "pf_fwd": 35.0, "sh_restated": 35.0},
+        {**base, "symbol": "HAOS", "market_cap": 1.87e11, "n_bars": None, "n_traded": None, "pf_splits": 6.4e4,
+         "pf_cons": 6.4e4, "sh_restated": 1.0, "sh_step": 3200.0},
+        {**base, "symbol": "P1124", "market_cap": 30901836139.2, "turnover": 4.57e-5 * 30901836139.2, "pf_raw": 9.0,
+         "pf_splits": 8.985, "pf_cons": 10.0, "sh_restated": 0.1},
+        {**base, "symbol": "NOBAR", "market_cap": 2.05e9, "n_bars": None, "n_traded": None, "pf_splits": 13.7,
+         "pf_cons": 15.0, "sh_restated": 1.0, "next_split": 3000},
+        {**base, "symbol": "NOBAR", "filing_epoch": 2006, "market_cap": 1.84e9, "turnover": 0.02 * 1.84e9,
+         "pf_raw": 13.7, "pf_splits": 13.7, "pf_cons": 15.0, "sh_restated": 1.0, "next_split": 3000},
+        {**base, "symbol": "XREC", "market_cap": 3e9, "n_traded": 5, "turnover": 1e6, "pf_splits": 50.0,
+         "pf_cons": 50.0, "sh_restated": 1.0, "next_split": 1500},
+        {**base, "symbol": "XREC", "filing_epoch": 2006, "market_cap": 3e9, "turnover": 1e7, "pf_raw": 3.0,
+         "pf_splits": 3.0, "pf_cons": 3.0, "sh_restated": 1.0, "next_split": 2500}]
+    con = duckdb.connect()
+    con.execute(CAP_INPUTS_DDL)
+    cap_insert(con, [{"filing_epoch": 1000, **r} for r in rows])
+    stats = apply_cap_rule(con)
+    cur = con.execute("SELECT * FROM cap_check WHERE filing_epoch = 1000")
+    names = [c[0] for c in cur.description]
+    got = {r[0]: dict(zip(names, r)) for r in cur.fetchall()}
+    f = []
+    for s, rule, div in (("WEST3", "unchecked", None), ("GOL", "unchecked", None), ("S0568", "unchecked", None),
+                         ("INPEX", "unchecked", None), ("DCC", "unchecked", None), ("BONJ", "cap_over_pf", 1.375),
+                         ("PHANT", "unchecked", None), ("NOBAR", "unchecked", None), ("XREC", "unchecked", None),
+                         ("CETX", "cap_over_pf", 2.52e5 * 35.0), ("P1124", "cap_over_pf", 9.0),
+                         ("HAOS", "cap_over_pf", 3200.0)):
+        r = got[s]
+        if r["rule"] != rule or (div is None) != (r["cap_div"] is None) or (div and abs(r["cap_div"] / div - 1) > 1e-9):
+            f.append(f"{s}: {r['rule']} cap_div {r['cap_div']}, want {rule} {div}")
+    if got["NOBAR"]["pf_source"] != "splits" or got["XREC"]["pf_source"] != "splits":
+        f.append(f"pf_source NOBAR {got['NOBAR']['pf_source']}, XREC {got['XREC']['pf_source']}: neither borrows")
+    listed = sorted(u["symbol"] for u in stats["cap_unchecked"])
+    if listed != ["DCC", "GOL", "INPEX", "NOBAR", "PHANT", "S0568", "WEST3", "XREC"]:
+        f.append(f"cap_unchecked {listed}")
+    return f
+
+
+def m6_sql_failures():
+    """cap_check_sql on a local copy: split records and FMP's FY share counts. DUP (AMCR's shape): the
+    same 1:5 twice on one day counts once, pf_cons 5. K71 (071970.KS's shape): 1:8 twice 38 days apart,
+    1:20 twice 129 days apart, then a third 1:8 400 days later and a 1:4 30 days after the first 1:8:
+    pf_cons 8 x 20 x 8 x 4 = 5120, where every record counted gave 819,200. SHR: FY share counts 1e8 to
+    FY2012, then 3.63e6, 4e6, 2.56e6, 2.6e6: a 1:10 in 2012 the count was restated for (no step), a
+    1:10 in 2013 at which it falls 27.5x (HAO's shape: the log of the change 1.44 times the record's,
+    inside share_step), an 11:10 bonus too small to read, a 1:20 that moves it to 0.64x (neither) and
+    a 1:4 after the last FY (untestable); FY2010 reads sh_restated 0.1, sh_step 10 and next_split the
+    2012 record, FY2013 reads 1 and 1."""
+    src = cap_source()
+    rec = []
+    for y in range(2010, 2017):
+        fy = date(y, 12, 31)
+        sh = 1e8 if y <= 2012 else {2013: 3.63e6, 2014: 4e6, 2015: 2.56e6, 2016: 2.6e6}[y]
+        src.execute("INSERT INTO key_metrics VALUES ('SHR', 'FY', ?, ?, 0.1, 0.05, 5e10)", [fy.isoformat(), ep(fy)])
+        src.execute("INSERT INTO income_statement VALUES ('SHR', 'FY', ?, ?, 1, 1e8, 1.0, ?, ?)",
+                    [fy.isoformat(), ep(fy), sh, (fy + timedelta(days=60)).isoformat()])
+    rec += [("SHR", date(2012, 6, 1), 1, 10), ("SHR", date(2013, 6, 3), 1, 10), ("SHR", date(2014, 6, 2), 11, 10),
+            ("SHR", date(2015, 6, 1), 1, 20), ("SHR", date(2017, 3, 1), 1, 4)]
+    fy = date(2020, 12, 31)
+    for s in ("DUP", "K71"):
+        src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.1, 0.05, 1.64e10)", [s, fy.isoformat(), ep(fy)])
+    rec += [("DUP", date(2026, 1, 15), 1, 5), ("DUP", date(2026, 1, 15), 1, 5)]
+    x, y = date(2021, 3, 30), date(2022, 1, 17)
+    rec += [("K71", x, 1, 8), ("K71", x + timedelta(days=38), 1, 8), ("K71", x + timedelta(days=30), 1, 4),
+            ("K71", y, 1, 20), ("K71", y + timedelta(days=129), 1, 20), ("K71", y + timedelta(days=400), 1, 8)]
+    for s, d, n, dn in rec:
+        src.execute("INSERT INTO splits_calendar VALUES (?, ?, ?, ?, ?)", [s, d.isoformat(), ep(d), n, dn])
+    cur = src.execute(cap_check_sql("symbol IN ('SHR', 'DUP', 'K71')", 1e9, [("2009-11-01", "2020-12-31")]))
+    names = [c[0] for c in cur.description]
+    rows = {(r[0], du.utc_date(r[1]).year): dict(zip(names, r)) for r in cur.fetchall()}
+    f = []
+    close = lambda a, b: a is not None and abs(a / b - 1) < 1e-9
+    if not close(rows[("DUP", 2020)]["pf_cons"], 5.0):
+        f.append(f"DUP pf_cons {rows[('DUP', 2020)]['pf_cons']}, want 5 (one record)")
+    if not close(rows[("K71", 2020)]["pf_cons"], 5120.0):
+        f.append(f"K71 pf_cons {rows[('K71', 2020)]['pf_cons']}, want 5120 (duplicates within 150 days once)")
+    want_cols = {"next_split", "sh_restated", "sh_step"}
+    if want_cols - set(names):
+        return f + [f"cap_check_sql has no {sorted(want_cols - set(names))}"]
+    r10, r13 = rows[("SHR", 2010)], rows[("SHR", 2013)]
+    if not (close(r10["sh_restated"], 0.1) and close(r10["sh_step"], 10.0)
+            and r10["next_split"] == ep(date(2012, 6, 1))):
+        f.append(f"SHR FY2010 sh_restated {r10['sh_restated']} sh_step {r10['sh_step']} next {r10['next_split']}, "
+                 "want 0.1, 10 and the 2012-06-01 record")
+    if not (close(r13["sh_restated"], 1.0) and close(r13["sh_step"], 1.0)):
+        f.append(f"SHR FY2013 sh_restated {r13['sh_restated']} sh_step {r13['sh_step']}, want 1 and 1")
     return f
 
 
@@ -1660,8 +1800,8 @@ def synthetic_source():
     exit, an EASTW-like stale entry, an SOS-like inflated cap, a real +150% move, a delisting, and a
     clean name whose FY2010 row check M writes 'unchecked' (A07.BK: a later 1:5 consolidation opens the
     gate, and 20 thin December bars whose raw close is the close give a price factor of 1, k 1 and
-    turnover 1e-8 of the cap, so the divisor is 1. Its other FY rows have no bars and lower by 5 to
-    10.01bn, over the 10bn floor)."""
+    turnover 1e-8 of the cap, so the divisor is 1. Its other FY rows have no bars, and its FY share
+    count does not step at the 1:5, so no evidence gives a divisor: unchecked at FMP's cap as well)."""
     src = cap_source()
     src.execute("CREATE TABLE profile(symbol VARCHAR, exchange VARCHAR, country VARCHAR, isin VARCHAR, sector VARCHAR,"
                 " marketCap DOUBLE, isActivelyTrading BOOLEAN, currency VARCHAR)")
@@ -1845,10 +1985,11 @@ def topic_failures(topic, src, tmp):
     if reasons != {"ordinary_first", "stand_in"} or c["twins_linked"] != 2:
         f.append(f"{topic}: twins {reasons} linked {c['twins_linked']}")
     # A07.BK FY2010 is 'unchecked' through cap_check_sql and the floors: listed, no cap event, and held
-    # in the books that read that row, as in the uncapped arm (FMP's cap clears the floor)
+    # in the books that read that row, as in the uncapped arm (FMP's cap clears the floor). Its FY rows
+    # before the 1:5 with no bars are unchecked too: the split record alone gives no divisor.
     un = [(u["symbol"], u["fy"], u["cap"]) for u in dcb.get("cap_unchecked", [])]
-    if un != [("A07.BK", "2010-12-31", 5.007e10)]:
-        f.append(f"{topic}: cap_unchecked {un}, want A07.BK FY2010 at 5.007e10")
+    if un != [("A07.BK", f"{y}-12-31", 5.007e10) for y in range(1998, 2019)]:
+        f.append(f"{topic}: cap_unchecked {un}, want A07.BK FY1998 to FY2018 at 5.007e10")
     if any(e["symbol"] == "A07.BK" and e["check"] in ("cap", "signal_cap") for e in ev):
         f.append(f"{topic}: A07.BK has a cap event, but an unchecked row keeps FMP's cap")
     held = lambda res: {r["rebalance_date"] for r in res["period_data"] if "A07.BK" in r["holdings"].split(",")}
@@ -1977,6 +2118,8 @@ def main():
     expect("M lowers, not excludes, unless strict: ERIC-A.ST FY1999", m_strict_failures())
     expect("M a divisor of 1 is unchecked, not stands: HAO FY2025", m_unchecked_failures())
     expect("M divisor edges: 1.25 lowers, unknown turnover unchecked, k alone lowers", m_divisor_failures())
+    expect("M divisor needs evidence: WEST3, GOL, 0568.HK, INPEX, DCC back; CETX, HAO stay", m6_evidence_failures())
+    expect("M split records once, FY share steps: AMCR, 071970.KS, restated and stepping counts", m6_sql_failures())
     expect("T1 flat lines with no volume", t1_failures())
     expect("T1 two-price NVDR feeds: BH-R.BK, RATCH-R.BK, MCS-R.BK", t1_feed_failures())
     expect("T1 halted exit reads the last traded bar", t1_exit_failures())

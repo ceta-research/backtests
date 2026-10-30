@@ -1373,15 +1373,20 @@ DATA_CHECKS_V1 = {
               "the ordinary line, then isActivelyTrading, home currency, symbol"),
     "cap": {"pf_min": 3.0, "turnover_max": 1e-4, "bars": 20, "lookback_days": 45, "min_traded_bars": 10,
             "k_min": 3.0, "eps_min": 0.05, "net_income_min": 1e6, "k_tol": 1.5, "split_max": 1e4,
-            "split_min": 2.0, "lower_only": True,
+            "split_min": 2.0, "split_dup_days": 150, "share_tol": 1.5, "share_step": [0.5, 2.0], "lower_only": True,
             "order": ("gate on pf or the later consolidations; turnover over every line with the same FY cap "
                       "(lines that share an identical FY cap in sibling.min_shared_fy FYs or more); k within "
                       "k_tol of pf lowers first and turnover is tested on the lowered cap; a failing cap is "
-                      "lowered by pf times the later forward splits (and k) when turnover clears on the "
-                      "lowered cap, else ineligible; a k that disagrees with pf keeps turnover-then-k; unknown "
-                      "turnover lowers; a row is only made ineligible when pf itself opened the gate and every "
-                      "line of its group has bars in the lookback, else a failing cap lowers; a failing row "
-                      "whose divisor is 1 keeps FMP's cap as unchecked, counted in cap_rows_flagged")},
+                      "lowered by the divisor (and k) when turnover clears on the lowered cap, else "
+                      "ineligible; a k that disagrees with pf keeps turnover-then-k; unknown turnover lowers; "
+                      "the divisor needs evidence beyond the split records: a measured price factor P (raw "
+                      "close against stock_eod at the period end, or the same line's nearest FY with no split "
+                      "record between) of pf_min or more gives P times the later forward splits, a P under "
+                      "pf_min gives P times the records FMP's FY share count was restated for, no P gives the "
+                      "records at which that count steps; a record repeating an earlier ratio within "
+                      "split_dup_days counts once; a row is only made ineligible when pf opened the gate and "
+                      "every line of its group has bars in the lookback, else a failing cap lowers; a failing "
+                      "row whose divisor is 1 keeps FMP's cap as unchecked, counted in cap_rows_flagged")},
     "factor": {"band": [1 / 1.05, 1.15], "split_min": 2.0, "mode": "flag only: no price or return is changed"},
     "large_move_log": math.log(2),
 }
@@ -1655,10 +1660,11 @@ def nvdr_twins_sql(candidates_sql, target_date, offset_days, min_entry_price, wi
 
 CAP_CHECK_DDL = ("CREATE OR REPLACE TABLE cap_check(symbol VARCHAR, filing_epoch BIGINT, market_cap DOUBLE,"
                  " pf DOUBLE, pf_source VARCHAR, pf_cons DOUBLE, pf_fwd DOUBLE, u DOUBLE, n_traded BIGINT,"
-                 " lines BIGINT, k DOUBLE, rule VARCHAR, cap_div DOUBLE)")
+                 " lines BIGINT, k DOUBLE, rule VARCHAR, cap_div DOUBLE, sh_restated DOUBLE, sh_step DOUBLE)")
 CAP_INPUTS_DDL = ("CREATE OR REPLACE TABLE cap_inputs(symbol VARCHAR, filing_epoch BIGINT, market_cap DOUBLE,"
                   " net_income DOUBLE, eps DOUBLE, shares DOUBLE, n_bars BIGINT, n_traded BIGINT,"
-                  " turnover DOUBLE, pf_raw DOUBLE, pf_splits DOUBLE, pf_cons DOUBLE, pf_fwd DOUBLE)")
+                  " turnover DOUBLE, pf_raw DOUBLE, pf_splits DOUBLE, pf_cons DOUBLE, pf_fwd DOUBLE,"
+                  " next_split BIGINT, sh_restated DOUBLE, sh_step DOUBLE)")
 # A floor's failing side, for check M's events: over the floor on the raw cap, not on cap_used.
 CAP_FAIL_TEST = "km.marketCap > ? AND (km.cap_used IS NULL OR km.cap_used <= ?)"
 
@@ -1684,12 +1690,23 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
     splits_calendar events after the period end: the product of denominator / numerator (pf_splits),
     of the consolidations alone (pf_cons) and of the forward splits of split_min or more (pf_fwd).
     An event whose ratio passes split_max either way (4541.T's 1:70,384,700 is a delisting cash-out,
-    and FMP's prices do not carry it) is left out of all three.
+    and FMP's prices do not carry it) is left out of all three. A record repeating an earlier record's
+    ratio within split_dup_days is a duplicate and counts once (AMCR's two 2026-01-15 1:5 rows).
+    next_split is the first later record's date. FMP's FY share counts (weightedAverageShsOut) tell how
+    the row's shares sit against each later record: the count of the last FY before it against the first
+    FY on or after it (records between the same two FYs taken together, ratio q = numerator /
+    denominator). Within share_tol of 1 the count was restated for the record (no step); when the log
+    of its change is share_step times the log of q (the same direction, at least half as large and at
+    most twice) it steps there (the count is as traded); records under share_tol squared either way,
+    or with no FY on one side, tell nothing. sh_restated is the product of q over the restated records,
+    sh_step that of 1 / q over the stepping ones.
     date_ranges [(first, last)] bound the bar scans to the days before each period end.
     """
     c = cfg["cap"]
     look = int(c["lookback_days"]) * 86400
     smax, smin = math.log(float(c["split_max"])), math.log(float(c["split_min"]))
+    dup, lt = int(c["split_dup_days"]) * 86400, math.log(float(c["share_tol"]))
+    st_lo, st_hi = (float(v) for v in c["share_step"])
     days = lambda col: " OR ".join(f"({col} >= '{a}' AND {col} <= '{b}')" for a, b in date_ranges) or "FALSE"
     return f"""
         WITH km AS (
@@ -1727,30 +1744,55 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
                    SUM(CASE WHEN volume > 0 AND close > 0 THEN 1 ELSE 0 END) AS n_traded,
                    MEDIAN(CASE WHEN volume > 0 AND close > 0 THEN close * volume END) AS turnover
             FROM lb GROUP BY symbol, fe),
+        spr AS (
+            SELECT DISTINCT symbol, dateEpoch AS se, numerator AS num, denominator AS den FROM splits_calendar
+            WHERE symbol IN (SELECT symbol FROM km) AND numerator > 0 AND denominator > 0
+              AND ABS(LN(denominator / numerator)) <= {smax}),
+        sp AS (
+            SELECT a.symbol, a.se, LN(a.num / a.den) AS lq FROM spr a
+            WHERE NOT EXISTS (
+                SELECT 1 FROM spr b WHERE b.symbol = a.symbol AND b.num * a.den = a.num * b.den
+                  AND b.se >= a.se - {dup} AND (b.se < a.se OR (b.se = a.se AND b.num < a.num)))),
         spl AS (
-            SELECT km.symbol, km.fe, EXP(SUM(LN(s.denominator / s.numerator))) AS pf_splits,
-                   EXP(SUM(GREATEST(LN(s.denominator / s.numerator), 0))) AS pf_cons,
-                   EXP(SUM(CASE WHEN LN(s.numerator / s.denominator) >= {smin}
-                                THEN LN(s.numerator / s.denominator) ELSE 0 END)) AS pf_fwd
-            FROM km JOIN splits_calendar s ON s.symbol = km.symbol AND s.dateEpoch > km.fe
-            WHERE s.numerator > 0 AND s.denominator > 0 AND ABS(LN(s.denominator / s.numerator)) <= {smax}
+            SELECT km.symbol, km.fe, EXP(SUM(-s.lq)) AS pf_splits, EXP(SUM(GREATEST(-s.lq, 0))) AS pf_cons,
+                   EXP(SUM(CASE WHEN s.lq >= {smin} THEN s.lq ELSE 0 END)) AS pf_fwd, MIN(s.se) AS next_split
+            FROM km JOIN sp s ON s.symbol = km.symbol AND s.se > km.fe
+            GROUP BY km.symbol, km.fe),
+        sh AS (SELECT symbol, fe AS sfe, weightedAverageShsOut AS s FROM inc WHERE weightedAverageShsOut > 0),
+        sb AS (
+            SELECT p.symbol, p.se, p.lq, MAX(CASE WHEN h.sfe < p.se THEN h.sfe END) AS bfe,
+                   MIN(CASE WHEN h.sfe >= p.se THEN h.sfe END) AS afe
+            FROM sp p JOIN sh h ON h.symbol = p.symbol GROUP BY p.symbol, p.se, p.lq),
+        iv AS (
+            SELECT b.symbol, MIN(b.se) AS first_se, SUM(b.lq) AS lq, LN(ha.s / hb.s) AS lr
+            FROM sb b JOIN sh hb ON hb.symbol = b.symbol AND hb.sfe = b.bfe
+            JOIN sh ha ON ha.symbol = b.symbol AND ha.sfe = b.afe
+            GROUP BY b.symbol, b.bfe, b.afe, ha.s, hb.s),
+        shv AS (
+            SELECT km.symbol, km.fe,
+                   EXP(SUM(CASE WHEN ABS(v.lq) > {2 * lt} AND ABS(v.lr) <= {lt} THEN v.lq ELSE 0 END)) AS sh_restated,
+                   EXP(SUM(CASE WHEN ABS(v.lq) > {2 * lt} AND v.lr / v.lq BETWEEN {st_lo} AND {st_hi}
+                                THEN -v.lq ELSE 0 END)) AS sh_step
+            FROM km JOIN iv v ON v.symbol = km.symbol AND v.first_se > km.fe
             GROUP BY km.symbol, km.fe)
         SELECT km.symbol, km.fe AS filing_epoch, km.marketCap AS market_cap, inc.netIncome AS net_income,
                inc.eps, inc.weightedAverageShsOut AS shares, agg.n_bars, agg.n_traded, agg.turnover,
-               pfr.pf_raw, spl.pf_splits, spl.pf_cons, spl.pf_fwd
+               pfr.pf_raw, spl.pf_splits, spl.pf_cons, spl.pf_fwd, spl.next_split, shv.sh_restated, shv.sh_step
         FROM km
         LEFT JOIN inc ON inc.symbol = km.symbol AND inc.fe = km.fe
         LEFT JOIN agg ON agg.symbol = km.symbol AND agg.fe = km.fe
         LEFT JOIN pfr ON pfr.symbol = km.symbol AND pfr.fe = km.fe
         LEFT JOIN spl ON spl.symbol = km.symbol AND spl.fe = km.fe
+        LEFT JOIN shv ON shv.symbol = km.symbol AND shv.fe = km.fe
         ORDER BY km.symbol, km.fe"""
 
 
 def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     """Check M's rule, from cap_inputs into cap_check (one row per symbol and FY period end).
 
-    Inputs: pf = close / raw close at the period end, else the later splits' product (pf_splits);
-    pf_cons and pf_fwd = the later consolidations' and forward splits' products (cap_check_sql);
+    Inputs: pf_raw = close / raw close at the period end; pf_splits, pf_cons and pf_fwd = the later
+    split records', consolidations' and forward splits' products; sh_restated, sh_step and next_split
+    from FMP's FY share counts and the records (cap_check_sql);
     k = shares x EPS / net income, when |EPS| >= eps_min, |net income| >= net_income_min and the
     signs agree; u = the turnover of every line that carries the same FY cap as this row and shares
     an identical FY cap with it in at least sibling.min_shared_fy FYs (share classes of one company,
@@ -1758,7 +1800,19 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     companies): the sum of each line's median close x volume of its traded bars, over marketCap,
     unknown when the lines hold under min_traded_bars traded bars between them. A line with no bars
     in the lookback (not listed yet, or gone) adds nothing to u, and the row is then not strict.
-    D = max(1, pf x pf_fwd): the share count carries the later forward splits.
+
+    D, the divisor, needs evidence beyond the split records that FMP's cap sits on as-traded shares
+    times a restated price. P, the measured price factor, is pf_raw, or for a row with bars but no raw
+    close the pf_raw of the same line's nearest FY row that has one with no split record between the
+    two period ends (pf_source 'raw_fy'; TOPS FY2004 from FY2006). Then
+      P >= pf_min       price evidence: D = P x pf_fwd (the share count carries the forward splits).
+      P under pf_min    D = P x sh_restated: only records FMP's FY share count was seen restated for
+                        move it, so pf_fwd never multiplies a price factor near 1 (0568.HK FY2006:
+                        5:1, 1:10 and 2:1 restated, D 1; Bonjour FY2008: the 2010 forward splits
+                        restated, D = 1.375 x 12).
+      no P              share evidence: D = sh_step, the records at which the FY share count steps
+                        (a line with no bars, or no raw close: the split products alone never lower).
+    D = max(1, D). pf (gate, k agreement, the events) is P, else pf_splits.
 
     The row is checked when pf >= pf_min or pf_cons >= pf_min (forward and reverse splits can net
     out in pf). It is strict when pf >= pf_min and every line of its group has bars. Then, with
@@ -1773,13 +1827,15 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     turnover_max or the row is not strict, else the row is 'ineligible' (cap_used NULL). An unknown
     u lowers it the same way. So a gate opened by the consolidations alone (pf under pf_min), or a
     group whose liquid line has no bars yet (ERIC-B.ST before 2000), lowers the cap and never
-    excludes the row. Where that divisor is 1 (pf x pf_fwd at most 1 and no K: HAO FY2025, pf 1.0,
-    consolidations 2560), nothing can lower the cap: the row is 'unchecked', keeps FMP's cap and is
-    counted in cap_rows_flagged. It never raises a cap. pf and the split products come from later
-    splits but only gate and size the lowering: the decision reads k (same filing) and u (trading
-    before the period end).
+    excludes the row. Where that divisor is 1 (no evidence and no K: HAO FY2025, pf 1.0,
+    consolidations 2560; a line with no bars whose share count never steps), nothing can lower the
+    cap: the row is 'unchecked', keeps FMP's cap and is counted in cap_rows_flagged. It never raises a
+    cap. pf, the split products and the later FY share counts come from after the period end but only
+    gate and size the lowering (they say how FMP restated the row): the decision reads k (same filing)
+    and u (trading before the period end).
     Returns {cap_rows_checked, cap_rows_flagged, cap_unchecked}: every row, those whose rule is not
-    'stands', and the 'unchecked' rows ({symbol, fy, cap, pf, pf_source, pf_cons, pf_fwd, u, lines, k}).
+    'stands', and the 'unchecked' rows ({symbol, fy, cap, pf, pf_source, pf_cons, pf_fwd, sh_restated,
+    sh_step, u, lines, k}).
     """
     c = cfg["cap"]
     pf_min, u_max, k_min = float(c["pf_min"]), float(c["turnover_max"]), float(c["k_min"])
@@ -1787,17 +1843,32 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     con.execute(CAP_CHECK_DDL)
     con.execute(f"""
         INSERT INTO cap_check
-        WITH x AS (
+        WITH x0 AS (
             SELECT symbol, CAST(filing_epoch AS BIGINT) AS filing_epoch, CAST(market_cap AS DOUBLE) AS market_cap,
-                   CAST(COALESCE(pf_raw, pf_splits) AS DOUBLE) AS pf,
-                   CASE WHEN pf_raw IS NOT NULL THEN 'raw' WHEN pf_splits IS NOT NULL THEN 'splits' END AS pf_source,
+                   CAST(pf_raw AS DOUBLE) AS pf_raw, CAST(pf_splits AS DOUBLE) AS pf_splits,
                    CAST(pf_cons AS DOUBLE) AS pf_cons, CAST(pf_fwd AS DOUBLE) AS pf_fwd,
+                   CAST(next_split AS BIGINT) AS next_split, CAST(sh_restated AS DOUBLE) AS sh_restated,
+                   CAST(sh_step AS DOUBLE) AS sh_step,
                    CAST(n_bars AS BIGINT) AS n_bars, CAST(n_traded AS BIGINT) AS n_traded,
                    CAST(turnover AS DOUBLE) AS turnover,
                    CASE WHEN ABS(eps) >= {float(c["eps_min"])} AND ABS(net_income) >= {float(c["net_income_min"])}
                              AND SIGN(eps) = SIGN(net_income) AND shares > 0
                         THEN CAST(shares AS DOUBLE) * eps / net_income END AS k
             FROM {inputs}),
+        bw AS (
+            SELECT a.symbol, a.filing_epoch,
+                   arg_min(b.pf_raw, ABS(b.filing_epoch - a.filing_epoch) * 2
+                                     + CASE WHEN b.filing_epoch > a.filing_epoch THEN 0 ELSE 1 END) AS pf_line
+            FROM x0 a JOIN x0 b ON b.symbol = a.symbol AND b.pf_raw IS NOT NULL
+             AND ((b.filing_epoch > a.filing_epoch AND COALESCE(a.next_split > b.filing_epoch, TRUE))
+               OR (b.filing_epoch < a.filing_epoch AND COALESCE(b.next_split > a.filing_epoch, TRUE)))
+            WHERE a.pf_raw IS NULL AND COALESCE(a.n_bars, 0) > 0
+            GROUP BY a.symbol, a.filing_epoch),
+        x AS (
+            SELECT x0.*, COALESCE(x0.pf_raw, bw.pf_line) AS pp, COALESCE(x0.pf_raw, bw.pf_line, x0.pf_splits) AS pf,
+                   CASE WHEN x0.pf_raw IS NOT NULL THEN 'raw' WHEN bw.pf_line IS NOT NULL THEN 'raw_fy'
+                        WHEN x0.pf_splits IS NOT NULL THEN 'splits' END AS pf_source
+            FROM x0 LEFT JOIN bw ON bw.symbol = x0.symbol AND bw.filing_epoch = x0.filing_epoch),
         cls AS (
             SELECT a.symbol AS a, b.symbol AS b FROM x a JOIN x b
               ON a.filing_epoch = b.filing_epoch AND a.market_cap = b.market_cap AND a.symbol <> b.symbol
@@ -1819,7 +1890,9 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
                         THEN g.g_turnover / x.market_cap END AS u,
                    COALESCE(x.pf >= {pf_min} OR x.pf_cons >= {pf_min}, FALSE) AS gate,
                    COALESCE(x.pf >= {pf_min}, FALSE) AND NOT g.missing AS strict,
-                   GREATEST(1.0, COALESCE(x.pf, 1.0) * COALESCE(x.pf_fwd, 1.0)) AS d,
+                   GREATEST(1.0, CASE WHEN x.pp >= {pf_min} THEN x.pp * COALESCE(x.pf_fwd, 1.0)
+                                      WHEN x.pp IS NOT NULL THEN x.pp * COALESCE(x.sh_restated, 1.0)
+                                      ELSE COALESCE(x.sh_step, 1.0) END) AS d,
                    CASE WHEN x.k > {k_min} THEN x.k END AS kk,
                    COALESCE(x.k > {k_min} AND x.pf > 0 AND ABS(LN(x.k / x.pf)) <= LN({float(c["k_tol"])}), FALSE) AS agree
             FROM x JOIN g ON g.symbol = x.symbol AND g.filing_epoch = x.filing_epoch),
@@ -1837,7 +1910,7 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
             FROM y)
         SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, u, g_traded, lines, k,
                CASE WHEN r = 'lower' AND dk > 1.0 THEN 'cap_over_pf' WHEN r = 'lower' THEN 'unchecked' ELSE r END,
-               CASE WHEN r = 'cap_over_k' THEN kk WHEN r = 'lower' AND dk > 1.0 THEN dk END
+               CASE WHEN r = 'cap_over_k' THEN kk WHEN r = 'lower' AND dk > 1.0 THEN dk END, sh_restated, sh_step
         FROM z""")
     dup = con.execute("SELECT COUNT(*) FROM (SELECT symbol, filing_epoch FROM cap_check"
                       " GROUP BY symbol, filing_epoch HAVING COUNT(*) > 1)").fetchone()[0]
@@ -1846,10 +1919,11 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     n, flagged = con.execute("SELECT COUNT(*), COUNT(*) FILTER (WHERE rule <> 'stands') FROM cap_check").fetchone()
     # an unchecked row keeps FMP's cap, so it never fails a floor and leaves no cap event: listed here
     unchecked = [{"symbol": s, "fy": utc_date(fe).isoformat(), "cap": cap, "pf": _sig(pf), "pf_source": src,
-                  "pf_cons": _sig(pfc), "pf_fwd": _sig(pff), "u": _sig(u), "lines": lines, "k": _sig(k)}
-                 for s, fe, cap, pf, src, pfc, pff, u, lines, k in con.execute(
-                     "SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, u, lines, k"
-                     " FROM cap_check WHERE rule = 'unchecked' ORDER BY symbol, filing_epoch").fetchall()]
+                  "pf_cons": _sig(pfc), "pf_fwd": _sig(pff), "sh_restated": _sig(shr), "sh_step": _sig(shs),
+                  "u": _sig(u), "lines": lines, "k": _sig(k)}
+                 for s, fe, cap, pf, src, pfc, pff, shr, shs, u, lines, k in con.execute(
+                     "SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, sh_restated, sh_step,"
+                     " u, lines, k FROM cap_check WHERE rule = 'unchecked' ORDER BY symbol, filing_epoch").fetchall()]
     return {"cap_rows_checked": int(n), "cap_rows_flagged": int(flagged), "cap_unchecked": unchecked}
 
 
@@ -1964,16 +2038,17 @@ class DataChecks:
         n = 0
         if self.on:
             rows = con.execute(f"""
-                SELECT DISTINCT c.symbol, c.km_epoch, c.raw_cap, cc.pf, cc.pf_source, cc.pf_cons, cc.pf_fwd, cc.u,
-                       cc.lines, cc.k, cc.rule, cc.cap_div
+                SELECT DISTINCT c.symbol, c.km_epoch, c.raw_cap, cc.pf, cc.pf_source, cc.pf_cons, cc.pf_fwd,
+                       cc.sh_restated, cc.sh_step, cc.u, cc.lines, cc.k, cc.rule, cc.cap_div
                 FROM ({sql}) c LEFT JOIN cap_check cc ON cc.symbol = c.symbol AND cc.filing_epoch = c.km_epoch
                 ORDER BY c.symbol, c.km_epoch""", list(params)).fetchall()
-            for sym, fe, cap, pf, src, pfc, pff, u, lines, k, rule, div in rows:
+            for sym, fe, cap, pf, src, pfc, pff, shr, shs, u, lines, k, rule, div in rows:
                 n += 1
                 used = None if rule == "ineligible" else (cap / div if div else cap)
                 self._event(target_date, sym, check, fy=utc_date(fe).isoformat(), cap=cap, k=_sig(k), pf=_sig(pf),
-                            pf_source=src, pf_cons=_sig(pfc), pf_fwd=_sig(pff), u=_sig(u), lines=lines, rule=rule,
-                            cap_div=_sig(div), cap_used=_sig(used, 10), floor=floor)
+                            pf_source=src, pf_cons=_sig(pfc), pf_fwd=_sig(pff), sh_restated=_sig(shr),
+                            sh_step=_sig(shs), u=_sig(u), lines=lines, rule=rule, cap_div=_sig(div),
+                            cap_used=_sig(used, 10), floor=floor)
         self._period(target_date)[f"{check}_excluded"] = n
         return n
 
