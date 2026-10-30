@@ -803,9 +803,10 @@ class LtpExits:
     Every fill passes remove_price_oscillations, like the topic's own exit prices.
     local=True reads the topic's own prices_cache, which must use the trade_epoch schema.
     traded_only=True (data check T, rule 2): the remote query also reads close and volume; a symbol
-    with a traded row in the fetched span loses its zero-volume rows before the filter, and each
-    fill records ltp_close and ltp_volume. With local=True the topic's prices_cache must then carry
-    close and volume. False sends the SQL and builds the temp table this class always did.
+    with a traded row in its LTP window (entry bar, hi] loses its zero-volume rows over the fetched
+    span before the filter, and a symbol with none keeps them all (as T keeps a window with no
+    traded row). Each fill records ltp_close and ltp_volume. With local=True the topic's prices_cache
+    must then carry close and volume. False sends the SQL and builds the temp table this class always did.
     """
 
     # Remote cleaning context each side of the window; the filter's widest neighbour span is 20 days.
@@ -932,10 +933,15 @@ class LtpExits:
                     tmp.executemany("INSERT INTO prices_cache VALUES (?, ?, ?, ?, ?)",
                                     [(r["symbol"], int(r["dateEpoch"]), r["adjClose"], r.get("close"),
                                       r.get("volume")) for r in rows])
-                    # T rule 2 over the fetched span: a line that traded loses its zero-volume rows
+                    # T rule 2: a line that traded inside its LTP window loses its zero-volume rows
+                    day_end = lambda d: utc_epoch(d + timedelta(days=1))
+                    tmp.execute("CREATE TABLE ltp_win(symbol VARCHAR, lo BIGINT, hi BIGINT)")
+                    tmp.executemany("INSERT INTO ltp_win VALUES (?, ?, ?)",
+                                    [(s, day_end(lo), day_end(hi)) for s, (lo, hi, _, _) in remote.items()])
                     self.zero_volume_moved += tmp.execute(
-                        "DELETE FROM prices_cache WHERE (volume IS NULL OR volume <= 0)"
-                        " AND symbol IN (SELECT symbol FROM prices_cache WHERE volume > 0)").fetchone()[0]
+                        "DELETE FROM prices_cache WHERE (volume IS NULL OR volume <= 0) AND symbol IN ("
+                        "SELECT p.symbol FROM prices_cache p JOIN ltp_win w ON p.symbol = w.symbol"
+                        " WHERE p.volume > 0 AND p.trade_epoch >= w.lo AND p.trade_epoch < w.hi)").fetchone()[0]
                 else:
                     tmp.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
                     tmp.executemany("INSERT INTO prices_cache VALUES (?, ?, ?)",
@@ -1526,7 +1532,8 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
     """Check M's server query: the inputs for every FY key_metrics row over the leg's floor.
 
     Per (symbol, FY period end): marketCap, the same FY's net income, EPS and weighted shares, the
-    last `bars` stock_eod bars up to the period end (count, traded count, median close x volume of
+    last `bars` stock_eod dates up to the period end, one row per date with the traded row kept
+    first (count, traded count, median close x volume of
     the traded ones), stock_eod close over the raw close on the latest day both exist, and the
     product of denominator / numerator over splits_calendar events after the period end.
     date_ranges [(first, last)] bound the bar scans to the days before each period end.
@@ -1549,11 +1556,13 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
             SELECT symbol, fe, fe // {look} AS blk FROM km
             UNION ALL SELECT symbol, fe, fe // {look} - 1 FROM km),
         bars AS (
-            SELECT kb.symbol, kb.fe, e.dateEpoch AS e, e.close, e.volume,
-                   ROW_NUMBER() OVER (PARTITION BY kb.symbol, kb.fe ORDER BY e.dateEpoch DESC,
-                                      e.volume DESC NULLS LAST, e.close DESC NULLS LAST) AS rn
-            FROM stock_eod e JOIN kb ON e.symbol = kb.symbol AND e.dateEpoch // {look} = kb.blk
-            WHERE ({days("e.date")}) AND e.dateEpoch <= kb.fe AND e.dateEpoch > kb.fe - {look}),
+            SELECT symbol, fe, e, close, volume, ROW_NUMBER() OVER (PARTITION BY symbol, fe ORDER BY e DESC) AS rn
+            FROM (
+                SELECT kb.symbol, kb.fe, e.dateEpoch AS e, e.close, e.volume
+                FROM stock_eod e JOIN kb ON e.symbol = kb.symbol AND e.dateEpoch // {look} = kb.blk
+                WHERE ({days("e.date")}) AND e.dateEpoch <= kb.fe AND e.dateEpoch > kb.fe - {look}
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY kb.symbol, kb.fe, e.dateEpoch
+                                           ORDER BY e.volume DESC NULLS LAST, e.close DESC NULLS LAST) = 1) one_per_day),
         lb AS (SELECT * FROM bars WHERE rn <= {int(c["bars"])}),
         raw AS (
             SELECT symbol, dateEpoch AS e, MAX(adjClose) AS raw_close FROM stock_prices_non_split_adjusted_daily
@@ -1674,11 +1683,12 @@ class DataChecks:
     arm, issues no query and leaves every count at 0. Both modes book with max_single_return=None.
     A topic's run_backtest builds an "uncapped" instance when it is called without one.
     Window bars only: nothing here reads an LTP fill, so a drop run and a both run write the same
-    block (annotate_ltp writes into the ltp block, which strip_ltp removes).
+    block (annotate_ltp writes F and L for the fills into the ltp block, which strip_ltp removes).
     """
 
     MODES = ("on", "uncapped")
-    PRICE_KEYS = ("entry_bars_moved", "exit_bars_moved", "entries_lost")
+    PRICE_KEYS = ("entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost")
+    LOST = {"entry": "entries_lost", "exit": "exits_lost"}
 
     def __init__(self, mode="on", cfg=DATA_CHECKS_V1):
         if mode not in self.MODES:
@@ -1805,7 +1815,7 @@ class DataChecks:
         same at the entry bar) leaves the band, a split of ratio split_min or more falls in (entry bar,
         exit bar], or it is on L."""
         p = self._period(entry_date)
-        p.update(entry_bars_moved=0, exit_bars_moved=0, entries_lost=0, factor_flags=0)
+        p.update(entry_bars_moved=0, exit_bars_moved=0, entries_lost=0, exits_lost=0, factor_flags=0)
         if not self.on:
             return
         syms = [s for s, *_ in symbol_data]
@@ -1820,9 +1830,9 @@ class DataChecks:
         for side, d in (("entry", entry_date), ("exit", exit_date)):
             for s, row in sorted(self._first_moved(con, syms, d, offset_days).items()):
                 used = bars[side].get(s)
-                if side == "entry" and used is None:
-                    p["entries_lost"] += 1
-                    self._event(entry_date, s, "entry_lost", side=side, first_bar=row)
+                if used is None:   # T moved every row of the window
+                    p[self.LOST[side]] += 1
+                    self._event(entry_date, s, f"{side}_lost", side=side, first_bar=row)
                 else:
                     p[f"{side}_bars_moved"] += 1
                     self._event(entry_date, s, f"{side}_bar", side=side, first_bar=row, used_bar=out(used))
@@ -1855,12 +1865,13 @@ class DataChecks:
                             splits=splits.get(s, []), reasons=sorted(reasons))
 
     def annotate_ltp(self, con, ltp, block):
-        """F's flag on each LTP fill (traded_only), written into the ltp block: drift from the entry bar
-        to the fill and the splits between. Changes no fill."""
+        """F and L on each LTP fill (traded_only), written into the ltp block: the drift from the entry
+        bar to the fill, the splits between, and the fill's return against large_move_log (listed in
+        the block's large_moves). Changes no fill and adds nothing to the window-bar block."""
         if not (self.on and getattr(ltp, "traded_only", False)):
             return
         lo, hi = self.cfg["factor"]["band"]
-        n = 0
+        n, moves = 0, []
         for f in ltp.fills:
             e0 = utc_epoch(date.fromisoformat(f["entry_bar"]))
             e = con.execute("SELECT adjClose, close FROM prices_cache WHERE symbol = ? AND trade_epoch = ?"
@@ -1870,10 +1881,21 @@ class DataChecks:
             if e and e[0] and e[1] and e[1] > 0 and f.get("ltp_close") and f["ltp_close"] > 0:
                 drift = (f["ltp"] / f["ltp_close"]) / (e[0] / e[1])
             sp = self._splits(con, {f["symbol"]: (e0, utc_epoch(date.fromisoformat(f["last_bar"])))}).get(f["symbol"], [])
-            flagged = bool(sp) or (drift is not None and not lo <= drift <= hi)
-            f["factor_check"] = {"drift": _sig(drift), "splits": sp, "flagged": flagged}
-            n += flagged
+            reasons, ep, px = [], f.get("entry_price"), f["ltp"]
+            if ep and ep > 0 and px and px > 0 and abs(math.log(px / ep)) >= self.cfg["large_move_log"]:
+                reasons.append("large_move")
+                moves.append({"rebalance_date": f["entry_date"], "symbol": f["symbol"], "return": _sig(px / ep - 1),
+                              "entry_bar": f["entry_bar"], "entry_price": ep, "last_bar": f["last_bar"], "ltp": px})
+            if drift is not None and not lo <= drift <= hi:
+                reasons.append("band")
+            if sp:
+                reasons.append("split")
+            f["factor_check"] = {"drift": _sig(drift), "splits": sp, "reasons": sorted(reasons),
+                                 "flagged": bool(reasons)}
+            n += bool(reasons)
         block["factor_flagged"] = n
+        block["large_move_fills"] = len(moves)
+        block["large_moves"] = sorted(moves, key=lambda m: (m["rebalance_date"], m["symbol"]))
 
     def row(self, d, screened=True, priced=True, signal=False):
         """A period record's data-check counts: an int where the step ran, None where it did not."""
@@ -1894,6 +1916,7 @@ class DataChecks:
             "symbol_windows_without_volume": self.clean["symbol_windows_without_volume"],
             "closed_day_test_skipped": self.clean["closed_day_test_skipped"],
             "entry_bars_moved": n("entry_bar"), "exit_bars_moved": n("exit_bar"), "entries_lost": n("entry_lost"),
+            "exits_lost": n("exit_lost"),
             "twins_linked": self.twins_linked, "twins_collapsed": n("twin"),
             "nvdr_stand_ins": sum(1 for e in ev if e["check"] == "twin" and e["reason"] == "stand_in"),
             "cap_rows_checked": self.cap["cap_rows_checked"], "cap_rows_flagged": self.cap["cap_rows_flagged"],
@@ -1909,7 +1932,8 @@ class DataChecks:
     def summary(self):
         c = self.block()["counts"]
         return (f"Data checks ({self.mode}): rows moved {c['rows_moved']}, entry/exit bars moved "
-                f"{c['entry_bars_moved']}/{c['exit_bars_moved']}, entries lost {c['entries_lost']}, twins "
+                f"{c['entry_bars_moved']}/{c['exit_bars_moved']}, entries/exits lost {c['entries_lost']}/"
+                f"{c['exits_lost']}, twins "
                 f"{c['twins_collapsed']} ({c['nvdr_stand_ins']} stand-ins), cap rows flagged {c['cap_rows_flagged']}, "
                 f"cap excluded {c['cap_excluded']} + signal {c['signal_cap_excluded']}, factor flags "
                 f"{c['factor_flags']}, large moves {c['large_moves']}")
