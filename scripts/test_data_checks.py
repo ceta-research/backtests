@@ -551,15 +551,20 @@ def cap_screen_failures(with_check=True):
     return f
 
 
-# ---------------------------------------------------------------- review cases (fix round 2)
+# ---------------------------------------------------------------- cases from the same-day reviews
 
-def cap_case(rows, cap=1e10):
-    """apply_cap_rule on dict rows (period end defaults to 1000, n_bars to 20); {symbol: cap_check row}."""
+def cap_case(rows, by_fy=False):
+    """apply_cap_rule on dict rows (period end defaults to 1000, n_bars to 20); {symbol: cap_check row},
+    or {(symbol, filing_epoch): row} with by_fy."""
     con = duckdb.connect()
     con.execute(CAP_INPUTS_DDL)
     cap_insert(con, [{"filing_epoch": 1000, "n_bars": 20, **r} for r in rows])
     apply_cap_rule(con)
-    return cap_rows(con)
+    if not by_fy:
+        return cap_rows(con)
+    cur = con.execute("SELECT * FROM cap_check")
+    names = [c[0] for c in cur.description]
+    return {(r[0], r[1]): dict(zip(names, r)) for r in cur.fetchall()}
 
 
 def m1_failures():
@@ -645,10 +650,12 @@ def m2_failures():
     for a, b, fe, cap, ua, ub, nb, pf in (("BBD-A.TO", "BBD-B.TO", 2001, 22815626902.7175, 4.68e-5, 3.04e-3, 20, 25.0),
                                           ("ERIC-A.ST", "ERIC-B.ST", 2006, 447.562e9, 1.17e-5, 7.62e-3, 18, 5.0),
                                           ("02826K.KS", "028260.KS", 2014, 16552833502000.0, 1.78e-5, 0.0356, 9, 3.17)):
-        rows.append({"symbol": a, "filing_epoch": fe, "market_cap": cap, "n_traded": 20, "turnover": ua * cap,
-                     "pf_splits": pf, "pf_cons": pf, "pf_fwd": 1.0})
-        rows.append({"symbol": b, "filing_epoch": fe, "market_cap": cap, "n_traded": nb, "turnover": ub * cap,
-                     "pf_raw": 1.0 if b == "028260.KS" else pf, "pf_splits": pf, "pf_cons": pf, "pf_fwd": 1.0})
+        # each pair shares its FY cap in a later year too: one shared FY alone does not make siblings
+        for f, c in ((fe, cap), (fe + 1, cap * 1.1)):
+            rows.append({"symbol": a, "filing_epoch": f, "market_cap": c, "n_traded": 20, "turnover": ua * c,
+                         "pf_splits": pf, "pf_cons": pf, "pf_fwd": 1.0})
+            rows.append({"symbol": b, "filing_epoch": f, "market_cap": c, "n_traded": nb, "turnover": ub * c,
+                         "pf_raw": 1.0 if b == "028260.KS" else pf, "pf_splits": pf, "pf_cons": pf, "pf_fwd": 1.0})
     rows.append({"symbol": "ZEST", "filing_epoch": 2018, "market_cap": 1.82e9, "shares": 10.202e6, "eps": -1.12,
                  "net_income": -11.407e6, "n_traded": 20, "turnover": 7.49e-5 * 1.82e9, "pf_raw": 150.0,
                  "pf_splits": 150.0, "pf_cons": 150.0, "pf_fwd": 1.0})
@@ -658,15 +665,16 @@ def m2_failures():
     rows.append({"symbol": "8038.T", "filing_epoch": 2006, "market_cap": 1.8e16, "shares": 1e9, "eps": 1.0,
                  "net_income": 1e9, "n_traded": 19, "turnover": 3.92e-9 * 1.8e16, "pf_raw": 10.0, "pf_splits": 10.0,
                  "pf_cons": 10.0, "pf_fwd": 1.0})
-    got = cap_case(rows)
+    by = cap_case(rows, by_fy=True)
+    got = {s: r for (s, _), r in by.items()}
     f = []
     for s, want, floor in (("0653.HK/2011", 4.53e9, 2e9), ("0653.HK/2012", 3.68e9, 2e9), ("0653.HK/2013", 6.58e9, 2e9),
                            ("1124.HK", 3.43e9, 2e9)):
         used = cap_used_of(got[s])
         if used is None or abs(used / want - 1) > 0.01 or used <= floor:
             f.append(f"{s}: {got[s]['rule']} cap_used {used}, want about {want / 1e9:.2f}bn (over {floor / 1e9:.0f}bn)")
-    for s, floor in (("BBD-A.TO", 5e8), ("ERIC-A.ST", 5e9), ("02826K.KS", 5e11)):
-        r = got[s]
+    for s, fe in (("BBD-A.TO", 2001), ("ERIC-A.ST", 2006), ("02826K.KS", 2014)):
+        r = by[(s, fe)]
         if r["rule"] != "stands" or r.get("lines") != 2:
             f.append(f"{s}: {r['rule']} over {r.get('lines')} lines, want the cap to stand on its sibling's turnover")
     for s, floor in (("ZEST", 1e9), ("HAO", 1e9), ("8038.T", 1e11)):
@@ -707,6 +715,84 @@ def m3_failures():
         used = cap_used_of(got[s])
         if used is None or used > 1e9 or got[s]["rule"] != "cap_over_pf":
             f.append(f"{s}: {got[s]['rule']} cap_used {used}, want cap_over_pf under the $1bn floor")
+    return f
+
+
+def m_class_fy_failures():
+    """Two unrelated companies can carry one identical FY cap: 1789.HK (AK Medical) and 1935.HK (JH
+    Educational) share only FY2016's 2,362,800,000. Lines are share classes only when they share an
+    identical cap in min_shared_fy (2) FYs or more, so 1935.HK's turnover is its own (crafted here: pf
+    4, u 2e-5 against 1789.HK's 5e-3). Before, the pair pooled and 1935.HK stood on 1789.HK's trading;
+    now it is read alone, fails on cap / 4 as well and is ineligible. ELUX-A/B, sharing two FYs, pool."""
+    cap = 2362800000.0
+    rows = [{"symbol": "1935.HK", "filing_epoch": 2016, "market_cap": cap, "n_traded": 20, "turnover": 2e-5 * cap,
+             "pf_raw": 4.0, "pf_splits": 4.0, "pf_cons": 4.0, "pf_fwd": 1.0},
+            {"symbol": "1789.HK", "filing_epoch": 2016, "market_cap": cap, "n_traded": 20, "turnover": 5e-3 * cap,
+             "pf_raw": 1.0},
+            {"symbol": "1789.HK", "filing_epoch": 2017, "market_cap": 5.1e9, "n_traded": 20, "turnover": 5e-3 * 5.1e9,
+             "pf_raw": 1.0}]
+    for fe, cap2 in ((2005, 27.529e9), (2006, 36.204e9)):
+        rows += [{"symbol": "ELUX-A.ST", "filing_epoch": fe, "market_cap": cap2, "n_traded": 20,
+                  "turnover": 2e-5 * cap2, "pf_raw": 4.0, "pf_splits": 4.0, "pf_cons": 4.0, "pf_fwd": 1.0},
+                 {"symbol": "ELUX-B.ST", "filing_epoch": fe, "market_cap": cap2, "n_traded": 20,
+                  "turnover": 5e-3 * cap2, "pf_raw": 4.0, "pf_splits": 4.0, "pf_cons": 4.0, "pf_fwd": 1.0}]
+    by = cap_case(rows, by_fy=True)
+    f = []
+    r = by[("1935.HK", 2016)]
+    if r["lines"] != 1 or r["rule"] != "ineligible":
+        f.append(f"1935.HK FY2016: {r['rule']} over {r['lines']} lines, want its own turnover (1 line): ineligible")
+    r = by[("ELUX-A.ST", 2006)]
+    if r["lines"] != 2 or r["rule"] != "stands":
+        f.append(f"ELUX-A.ST FY2006: {r['rule']} over {r['lines']} lines, want 2 lines (two shared FYs): stands")
+    return f
+
+
+def m_strict_failures():
+    """A row is made ineligible only when pf itself opened the gate and every line of its group has
+    bars; otherwise a failing cap lowers (the server's inputs, as measured). ERIC-A.ST FY1999 (SEK 786bn):
+    pf_raw 1.25, so only the 2008 1:5 consolidation (pf_cons 5) opens the gate, and ERIC-B.ST has no
+    stock_eod rows before 2000-01-03, so u 1.58e-5 is the thin A class alone. It lowers by D = 1.25 x 4
+    = 5 to 157bn (B by 0.90 x 4 to 218bn), over the SEK 5bn floor; before, both were ineligible.
+    02826K.KS FY2008 (pf 3.17): its common 028260.KS listed in December 2014, so no bars; it lowers to
+    5.26T, over the 500bn floor. 0760.HK FY2006 (pf_raw 2, pf_cons 400, u 1.5e-8): lowered by 2 x 10 to
+    0.35bn, out on the HK$2bn floor either way. HAO and the 8038.T shape (pf >= 3, bars) stay ineligible
+    in m2_failures."""
+    rows = []
+    for s, pfs in (("ERIC-A.ST", 1.25), ("ERIC-B.ST", 0.9027777777777777)):
+        rows.append({"symbol": s, "filing_epoch": 1998, "market_cap": 800437396000.0, "net_income": 13049054360.0,
+                     "eps": 8.52, "shares": 1597520000.0, "n_bars": None, "n_traded": None, "turnover": None,
+                     "pf_splits": pfs, "pf_cons": 5.0, "pf_fwd": 4.0})
+    rows.append({"symbol": "ERIC-A.ST", "filing_epoch": 1999, "market_cap": 785954286206.1, "net_income": 12119249870.0,
+                 "eps": 7.73, "shares": 1568614482.0, "n_bars": 20, "n_traded": 20, "turnover": 12404403.0,
+                 "pf_raw": 1.25, "pf_splits": 1.25, "pf_cons": 5.0, "pf_fwd": 4.0})
+    rows.append({"symbol": "ERIC-B.ST", "filing_epoch": 1999, "market_cap": 785954286206.1, "net_income": 12119249870.0,
+                 "eps": 7.73, "shares": 1568614482.0, "n_bars": None, "n_traded": None, "turnover": None,
+                 "pf_splits": 0.9027777777777777, "pf_cons": 5.0, "pf_fwd": 4.0})
+    for s, fe, cap, ni, eps, sh, nb, to, pfr, pfs in (
+            ("02826K.KS", 2008, 16670267781299.49, 345649895000.0, 2378.68, 145311629.0, 20, 325253717.22, None, 3.1667588816),
+            ("028260.KS", 2008, 16670267781299.49, 345649895000.0, 2378.68, 145311629.0, None, None, None, 1.0254832590),
+            ("02826K.KS", 2014, 16552833502000.0, 455646975000.0, 4349.24, 104764769.0, 20, 293912633.53, None, 3.1667588816),
+            ("028260.KS", 2014, 16552833502000.0, 455646975000.0, 4349.24, 104764769.0, 9, 589469496000.0, 1.0254832590,
+             1.0254832590)):
+        rows.append({"symbol": s, "filing_epoch": fe, "market_cap": cap, "net_income": ni, "eps": eps, "shares": sh,
+                     "n_bars": nb, "n_traded": nb, "turnover": to, "pf_raw": pfr, "pf_splits": pfs, "pf_cons": pfs,
+                     "pf_fwd": 1.0})
+    rows.append({"symbol": "0760.HK", "filing_epoch": 2006, "market_cap": 6912949072.77, "net_income": -16268814.698129,
+                 "eps": -0.0106, "shares": 1533910040.0, "n_bars": 20, "n_traded": 17, "turnover": 104.0, "pf_raw": 2.0,
+                 "pf_splits": 40.0, "pf_cons": 400.0, "pf_fwd": 10.0})
+    by = cap_case(rows, by_fy=True)
+    f = []
+    for key, want, floor in ((("ERIC-A.ST", 1999), 157.19e9, 5e9), (("ERIC-B.ST", 1999), 217.65e9, 5e9),
+                             (("02826K.KS", 2008), 5.2641e12, 5e11), (("0760.HK", 2006), 0.34565e9, None)):
+        r = by[key]
+        used = cap_used_of(r)
+        if r["rule"] != "cap_over_pf" or used is None or abs(used / want - 1) > 1e-3:
+            f.append(f"{key[0]} FY{key[1]}: {r['rule']} cap_used {used}, want cap_over_pf at about {want / 1e9:.4g}bn")
+        elif floor and used <= floor:
+            f.append(f"{key[0]} FY{key[1]}: cap_used {used} under the floor {floor}")
+    r = by[("02826K.KS", 2014)]
+    if r["rule"] != "stands" or r["lines"] != 2:
+        f.append(f"02826K.KS FY2014: {r['rule']} over {r['lines']} lines, want stands on 028260.KS's 9 bars")
     return f
 
 
@@ -1472,11 +1558,13 @@ def main():
     expect("M server SQL", cap_sql_failures())
     expect("M at every floor", cap_screen_failures())
     expect_fail("M with cap_check empty (SOS, ZEST pass)", cap_screen_failures(with_check=False))
-    # review cases (fix round 2)
+    # cases from the same-day reviews
     expect("M1 k first: 7211.T FY2003", m1_failures())
     expect("M k guard: 4541.T delisting record", k_guard_failures())
     expect("M2 sibling turnover, lowered not excluded", m2_failures())
     expect("M3 consolidation gate, unknown turnover", m3_failures())
+    expect("M siblings share two FY caps: 1789.HK / 1935.HK", m_class_fy_failures())
+    expect("M lowers, not excludes, unless strict: ERIC-A.ST FY1999", m_strict_failures())
     expect("T1 flat lines with no volume", t1_failures())
     expect("T1 halted exit reads the last traded bar", t1_exit_failures())
     expect("T2 sibling gap: ELUX-A.ST 2006", t2_failures())

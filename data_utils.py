@@ -1352,7 +1352,7 @@ DATA_CHECKS_V1 = {
                     "and its close takes one value there (a flat line with no volume is not buyable); a line with "
                     "no traded row whose close varies keeps every row"),
     "nonpositive_price": "rows with adjClose NULL or <= 0 moved",
-    "sibling": {"gap": 1.25, "ref_days": 400, "ref_min_days": 5, "stable_share": 0.8,
+    "sibling": {"min_shared_fy": 2, "gap": 1.25, "ref_days": 400, "ref_min_days": 5, "stable_share": 0.8,
                 "rule": ("siblings are lines that carry the same FY key_metrics cap; in a window where T moved rows "
                          "of a line, a remaining row whose close over a sibling's traded close that day sits more "
                          "than gap from the pair's median ratio (traded days of both within ref_days, outside the "
@@ -1365,11 +1365,13 @@ DATA_CHECKS_V1 = {
     "cap": {"pf_min": 3.0, "turnover_max": 1e-4, "bars": 20, "lookback_days": 45, "min_traded_bars": 10,
             "k_min": 3.0, "eps_min": 0.05, "net_income_min": 1e6, "k_tol": 1.5, "split_max": 1e4,
             "split_min": 2.0, "lower_only": True,
-            "order": ("gate on pf or the later consolidations; turnover over every line with the same FY cap; "
-                      "k within k_tol of pf lowers first and turnover is tested on the lowered cap; a failing "
-                      "cap is lowered by pf times the later forward splits (and k) when turnover clears on the "
+            "order": ("gate on pf or the later consolidations; turnover over every line with the same FY cap "
+                      "(lines that share an identical FY cap in sibling.min_shared_fy FYs or more); k within "
+                      "k_tol of pf lowers first and turnover is tested on the lowered cap; a failing cap is "
+                      "lowered by pf times the later forward splits (and k) when turnover clears on the "
                       "lowered cap, else ineligible; a k that disagrees with pf keeps turnover-then-k; unknown "
-                      "turnover lowers")},
+                      "turnover lowers; a row is only made ineligible when pf itself opened the gate and every "
+                      "line of its group has bars in the lookback, else a failing cap lowers")},
     "factor": {"band": [1 / 1.05, 1.15], "split_min": 2.0, "mode": "flag only: no price or return is changed"},
     "large_move_log": math.log(2),
 }
@@ -1685,26 +1687,35 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     Inputs: pf = close / raw close at the period end, else the later splits' product (pf_splits);
     pf_cons and pf_fwd = the later consolidations' and forward splits' products (cap_check_sql);
     k = shares x EPS / net income, when |EPS| >= eps_min, |net income| >= net_income_min and the
-    signs agree; u = the turnover of every line that carries the same FY cap (share classes of one
-    company, so a traded sibling clears a thin class): the sum of each line's median close x volume
-    of its traded bars, over marketCap, unknown when the lines hold under min_traded_bars traded
-    bars between them. D = max(1, pf x pf_fwd): the share count carries the later forward splits.
+    signs agree; u = the turnover of every line that carries the same FY cap as this row and shares
+    an identical FY cap with it in at least sibling.min_shared_fy FYs (share classes of one company,
+    so a traded sibling clears a thin class; one shared FY can be a coincidence between unrelated
+    companies): the sum of each line's median close x volume of its traded bars, over marketCap,
+    unknown when the lines hold under min_traded_bars traded bars between them. A line with no bars
+    in the lookback (not listed yet, or gone) adds nothing to u, and the row is then not strict.
+    D = max(1, pf x pf_fwd): the share count carries the later forward splits.
 
     The row is checked when pf >= pf_min or pf_cons >= pf_min (forward and reverse splits can net
-    out in pf). Then, with K = k when k > k_min:
+    out in pf). It is strict when pf >= pf_min and every line of its group has bars. Then, with
+    K = k when k > k_min:
       K within k_tol of pf  the cap lowers to cap / K first, and u is read on that cap: it clears ->
                             'cap_over_k'; it fails -> as below, with divisor max(K, D).
       K disagreeing with pf turnover then k, as before: u clears -> 'cap_over_k' (cap / K); u fails ->
-                            'ineligible' (EPS, shares and prices sit on different bases, HAO).
+                            'ineligible' when strict (EPS, shares and prices sit on different bases,
+                            HAO), else lowered as below.
       no K                  u clears -> 'stands'.
     A failing u lowers the cap to cap / divisor ('cap_over_pf') when u on the lowered cap clears
-    turnover_max, else the row is 'ineligible' (cap_used NULL). An unknown u lowers it the same way.
-    It never raises a cap. pf and the split products come from later splits but only gate and size
-    the lowering: the decision reads k (same filing) and u (trading before the period end).
+    turnover_max or the row is not strict, else the row is 'ineligible' (cap_used NULL). An unknown
+    u lowers it the same way. So a gate opened by the consolidations alone (pf under pf_min), or a
+    group whose liquid line has no bars yet (ERIC-B.ST before 2000), lowers the cap and never
+    excludes the row. It never raises a cap. pf and the split products come from later splits but
+    only gate and size the lowering: the decision reads k (same filing) and u (trading before the
+    period end).
     Returns {cap_rows_checked, cap_rows_flagged}.
     """
     c = cfg["cap"]
     pf_min, u_max, k_min = float(c["pf_min"]), float(c["turnover_max"]), float(c["k_min"])
+    min_fy = int(cfg["sibling"]["min_shared_fy"])
     con.execute(CAP_CHECK_DDL)
     con.execute(f"""
         INSERT INTO cap_check
@@ -1713,33 +1724,47 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
                    CAST(COALESCE(pf_raw, pf_splits) AS DOUBLE) AS pf,
                    CASE WHEN pf_raw IS NOT NULL THEN 'raw' WHEN pf_splits IS NOT NULL THEN 'splits' END AS pf_source,
                    CAST(pf_cons AS DOUBLE) AS pf_cons, CAST(pf_fwd AS DOUBLE) AS pf_fwd,
-                   CAST(n_traded AS BIGINT) AS n_traded, CAST(turnover AS DOUBLE) AS turnover,
+                   CAST(n_bars AS BIGINT) AS n_bars, CAST(n_traded AS BIGINT) AS n_traded,
+                   CAST(turnover AS DOUBLE) AS turnover,
                    CASE WHEN ABS(eps) >= {float(c["eps_min"])} AND ABS(net_income) >= {float(c["net_income_min"])}
                              AND SIGN(eps) = SIGN(net_income) AND shares > 0
                         THEN CAST(shares AS DOUBLE) * eps / net_income END AS k
             FROM {inputs}),
+        cls AS (
+            SELECT a.symbol AS a, b.symbol AS b FROM x a JOIN x b
+              ON a.filing_epoch = b.filing_epoch AND a.market_cap = b.market_cap AND a.symbol <> b.symbol
+            GROUP BY a.symbol, b.symbol HAVING COUNT(DISTINCT a.filing_epoch) >= {min_fy}),
+        mem AS (
+            SELECT symbol AS a, filing_epoch, n_bars, n_traded, turnover FROM x
+            UNION ALL
+            SELECT s.a, m.filing_epoch, m.n_bars, m.n_traded, m.turnover
+            FROM cls s JOIN x o ON o.symbol = s.a
+            JOIN x m ON m.symbol = s.b AND m.filing_epoch = o.filing_epoch AND m.market_cap = o.market_cap),
         g AS (
-            SELECT filing_epoch, market_cap, COUNT(*) AS lines, SUM(COALESCE(n_traded, 0)) AS g_traded,
-                   SUM(CASE WHEN n_traded > 0 THEN turnover END) AS g_turnover
-            FROM x GROUP BY filing_epoch, market_cap),
+            SELECT a AS symbol, filing_epoch, COUNT(*) AS lines, SUM(COALESCE(n_traded, 0)) AS g_traded,
+                   SUM(CASE WHEN n_traded > 0 THEN turnover END) AS g_turnover,
+                   BOOL_OR(COALESCE(n_bars, 0) = 0) AS missing
+            FROM mem GROUP BY a, filing_epoch),
         y AS (
             SELECT x.*, g.lines, g.g_traded,
                    CASE WHEN g.g_traded >= {int(c["min_traded_bars"])} AND x.market_cap > 0
                         THEN g.g_turnover / x.market_cap END AS u,
                    COALESCE(x.pf >= {pf_min} OR x.pf_cons >= {pf_min}, FALSE) AS gate,
+                   COALESCE(x.pf >= {pf_min}, FALSE) AND NOT g.missing AS strict,
                    GREATEST(1.0, COALESCE(x.pf, 1.0) * COALESCE(x.pf_fwd, 1.0)) AS d,
                    CASE WHEN x.k > {k_min} THEN x.k END AS kk,
                    COALESCE(x.k > {k_min} AND x.pf > 0 AND ABS(LN(x.k / x.pf)) <= LN({float(c["k_tol"])}), FALSE) AS agree
-            FROM x JOIN g ON g.filing_epoch = x.filing_epoch AND g.market_cap = x.market_cap),
+            FROM x JOIN g ON g.symbol = x.symbol AND g.filing_epoch = x.filing_epoch),
         z AS (
             SELECT *, GREATEST(d, COALESCE(kk, 1.0)) AS dk,
                    CASE WHEN NOT gate THEN 'stands'
                         WHEN agree AND u * kk >= {u_max} THEN 'cap_over_k'
                         WHEN kk IS NOT NULL AND NOT agree AND u >= {u_max} THEN 'cap_over_k'
                         WHEN kk IS NULL AND u >= {u_max} THEN 'stands'
-                        WHEN kk IS NOT NULL AND NOT agree AND u < {u_max} THEN 'ineligible'
+                        WHEN kk IS NOT NULL AND NOT agree AND u < {u_max} AND strict THEN 'ineligible'
                         WHEN u IS NULL THEN 'lower'
                         WHEN u * GREATEST(d, COALESCE(kk, 1.0)) >= {u_max} THEN 'lower'
+                        WHEN NOT strict THEN 'lower'
                         ELSE 'ineligible' END AS r
             FROM y)
         SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, u, g_traded, lines, k,
