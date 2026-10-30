@@ -6,9 +6,15 @@ T (traded bars), N (NVDR twins), M (market-cap check), F (factor flags, detectio
 JNB 2012-01-02 holiday, NSE/SAU/SET day counts, ^FTSE, RAM.BK, the SET twins, SOS, ZEST, HAO,
 GRPN, CIM, 3003.SR, TSG.JO, 2603.TW, SALEE.BK), plus an exit lost to a closed day, a name halted
 after entry (keeps its LTP fill), large moves on LTP fills, and duplicate stock_eod rows under
-check M. Then both opted-in topics run end to end on a
+check M. The review of the first same-day runs added: M on 7211.T (k first), 4541.T (a delisting
+record left out of the split products), 0653.HK FY2011 to FY2013 and 1124.HK (lowered, not
+excluded), BBD-A.TO, ERIC-A.ST and 02826K.KS (turnover over the share classes), Bonjour FY2007 to
+FY2009 (the consolidations' gate), CETX, TOPS and PIXY (no turnover), with ZEST, HAO and 8038.T
+staying out; T on flat no-volume lines (1114.HK, BC88.L, GBGLOBAL.NS, 76ID.L, BR.BK against
+TRUE.BK and ADVANC-R.BK), 600694.SS's halted exit and ELUX-A.ST's 2006 entry off ELUX-B's scale.
+Then both opted-in topics run end to end on a
 synthetic SET leg through a fake client, in drop, ltp, both and uncapped modes, and the results
-pass the LTP gate's stage-a comparison and the results scanners.
+pass the LTP gate's stage-a comparison and the results scanners, with and without --full-holdings.
 
 Shared code: against the base commit (BASE, the last one before data checks), isin_dedup_sql
 (twin_key=False) returns the same SQL, LtpExits(traded_only=False) sends the same SQL and builds
@@ -344,41 +350,66 @@ def twin_failures():
 
 # ---------------------------------------------------------------- M: market-cap check
 
-# symbol, pf_raw, pf_splits, n_traded, u, eps, net income, shares -> want rule, k_div
+# symbol, pf_raw, pf_splits, n_traded, u, eps, net income, shares -> want rule, divisor
 CAP_CASES = [
-    ("SOS", 750.0, None, 20, 1.9e-4, 124.0, 1.47e6, 593233.0, "cap_over_k", 50.0),
-    ("ZEST", 150.0, None, 20, 2.0e-5, -1.12, -11.407e6, 10.202e6, "ineligible", None),
-    ("HAO", 25.0, None, 20, 1.6e-5, 10.0, 1e8, 1e8, "ineligible", None),
+    ("SOS", 750.0, None, 20, 1.9e-4, 124.0, 1.47e6, 593233.0, "cap_over_k", 50.0),   # k 50 disagrees with pf 750
+    ("ZEST", 150.0, None, 20, 2.0e-5, -1.12, -11.407e6, 10.202e6, "cap_over_pf", 150.0),   # lowered, still out
+    ("HAO", 25.0, None, 20, 1.6e-5, 10.0, 1e8, 1e8, "ineligible", None),   # k 10 disagrees with pf 25, u fails
     ("GRPN", 20.0, None, 20, 0.015, 1.0, 1e8, 1e8, "stands", None),
     ("CIM", 3.0, None, 20, 0.01, 0.275, 1e8, 1e8, "stands", None),
-    ("THIN1", 30.0, None, 9, 1e-6, 1.0, 1e8, 1e8, "stands", None),         # under 10 traded bars: u unknown
-    ("THIN8", 30.0, None, 9, 1e-6, 8.0, 1e8, 1e8, "cap_over_k", 8.0),
-    ("SPLIT", None, 40.0, 20, 1e-5, 1.0, 1e8, 1e8, "ineligible", None),    # no raw price: splits fallback
+    ("THIN1", 30.0, None, 9, 1e-6, 1.0, 1e8, 1e8, "cap_over_pf", 30.0),    # under 10 traded bars: u unknown, lowered
+    ("THIN8", 30.0, None, 9, 1e-6, 8.0, 1e8, 1e8, "cap_over_pf", 30.0),
+    ("SPLIT", None, 40.0, 20, 1e-5, 1.0, 1e8, 1e8, "cap_over_pf", 40.0),   # no raw price: splits fallback
     ("NOPF", None, None, 20, 1e-6, 50.0, 1e8, 1e8, "stands", None),        # no pf: the cap stands
     ("LOWPF", 2.99, None, 20, 1e-6, 50.0, 1e8, 1e8, "stands", None),
     ("SMALLEPS", 30.0, None, 20, 0.01, 0.04, 1e8, 1e10, "stands", None),   # |eps| < 0.05: no k
     ("SMALLNI", 30.0, None, 20, 0.01, 5.0, 9e5, 1e8, "stands", None),      # |net income| < 1M: no k
     ("SIGNS", 30.0, None, 20, 0.01, -5.0, 1e8, 1e8, "stands", None),       # signs disagree: no k
+    ("STILL", 10.0, None, 20, 1e-8, 1.0, 1e8, 1e8, "ineligible", None),    # 8038.T shape: fails on cap / 10 too
 ]
+
+
+def cap_insert(con, rows, table="cap_inputs"):
+    """Insert dict rows by column name; a column the table lacks (an older schema) is left out."""
+    cols = {r[0] for r in con.execute(f"DESCRIBE {table}").fetchall()}
+    for r in rows:
+        keys = [k for k in r if k in cols]
+        con.execute(f"INSERT INTO {table} ({', '.join(keys)}) VALUES ({', '.join('?' * len(keys))})",
+                    [r[k] for k in keys])
+
+
+def cap_rows(con):
+    """cap_check as {symbol: row dict}."""
+    cur = con.execute("SELECT * FROM cap_check")
+    names = [c[0] for c in cur.description]
+    return {r[0]: dict(zip(names, r)) for r in cur.fetchall()}
+
+
+def cap_used_of(r):
+    """The cap a floor reads for one cap_check row (cap_used_sql)."""
+    div = r.get("cap_div", r.get("k_div"))
+    return None if r["rule"] == "ineligible" else r["market_cap"] / (div or 1.0)
 
 
 def cap_rule_failures():
     con = duckdb.connect()
     con.execute(CAP_INPUTS_DDL)
-    for i, (s, pfr, pfs, nt, u, eps, ni, sh, _, _) in enumerate(CAP_CASES):
-        cap = 2e9
-        con.execute("INSERT INTO cap_inputs VALUES (?, ?, ?, ?, ?, ?, 20, ?, ?, ?, ?)",
-                    [s, 1000 + i, cap, ni, eps, sh, nt, u * cap, pfr, pfs])
+    cap = 2e9
+    cap_insert(con, [{"symbol": s, "filing_epoch": 1000 + i, "market_cap": cap, "net_income": ni, "eps": eps,
+                      "shares": sh, "n_bars": 20, "n_traded": nt, "turnover": u * cap, "pf_raw": pfr, "pf_splits": pfs,
+                      "pf_cons": pfr or pfs, "pf_fwd": 1.0 if (pfr or pfs) else None}
+                     for i, (s, pfr, pfs, nt, u, eps, ni, sh, _, _) in enumerate(CAP_CASES)])
     stats = apply_cap_rule(con)
-    got = {r[0]: r[1:] for r in con.execute("SELECT symbol, rule, k_div, pf_source FROM cap_check").fetchall()}
+    got = cap_rows(con)
     f = []
     for s, *_, rule, kd in CAP_CASES:
         r = got.get(s)
-        if r is None or r[0] != rule or (kd is None) != (r[1] is None) or (kd and abs(r[1] - kd) > 0.1):
-            f.append(f"{s}: {r}, want {rule} {kd}")
-    if got["SPLIT"][2] != "splits" or got["SOS"][2] != "raw":
+        div = r and r["cap_div"]
+        if r is None or r["rule"] != rule or (kd is None) != (div is None) or (kd and abs(div - kd) > 0.1):
+            f.append(f"{s}: {r and (r['rule'], div)}, want {rule} {kd}")
+    if got["SPLIT"]["pf_source"] != "splits" or got["SOS"]["pf_source"] != "raw":
         f.append("pf_source")
-    if stats != {"cap_rows_checked": len(CAP_CASES), "cap_rows_flagged": 5}:
+    if stats != {"cap_rows_checked": len(CAP_CASES), "cap_rows_flagged": 7}:
         f.append(f"stats {stats}")
     return f
 
@@ -469,11 +500,13 @@ def delev_cap_con(with_check=True):
         con.execute("INSERT INTO prices_cache VALUES (?, ?, 20, 20, 1000)", [s, ep(date(2020, 4, 2))])
     mark_nvdr_twins(con)
     con.execute(CAP_INPUTS_DDL)
-    if with_check:
-        for s, pfr, nt, u, eps, ni, sh in (("SOS", 750.0, 20, 1.9e-4, 124.0, 1.47e6, 593233.0),
-                                           ("ZEST", 150.0, 20, 2.0e-5, -1.12, -11.407e6, 10.202e6)):
-            con.execute("INSERT INTO cap_inputs VALUES (?, ?, 5e9, ?, ?, ?, 20, ?, ?, ?, NULL)",
-                        [s, ep(date(2019, 12, 31)), ni, eps, sh, nt, u * 5e9, pfr])
+    if with_check:   # distinct caps: lines with the same FY cap pool their turnover (share classes)
+        cap_insert(con, [{"symbol": s, "filing_epoch": ep(date(2019, 12, 31)), "market_cap": cap, "net_income": ni,
+                          "eps": eps, "shares": sh, "n_bars": 20, "n_traded": nt, "turnover": u * cap, "pf_raw": pfr,
+                          "pf_cons": pfr, "pf_fwd": 1.0}
+                         for s, cap, pfr, nt, u, eps, ni, sh in (
+                             ("SOS", 5e9, 750.0, 20, 1.9e-4, 124.0, 1.47e6, 593233.0),
+                             ("ZEST", 5.1e9, 150.0, 20, 2.0e-5, -1.12, -11.407e6, 10.202e6))])
     apply_cap_rule(con)
     return mod, con
 
@@ -502,7 +535,7 @@ def cap_screen_failures(with_check=True):
     if got & {"SOS", "ZEST"} or len(got) != 12:
         f.append(f"deleveraging screen holds {sorted(got)}")
     caps = sorted((e["symbol"], e["rule"]) for e in dc.events if e["check"] == "cap")
-    if caps != [("SOS", "cap_over_k"), ("ZEST", "ineligible")]:
+    if caps != [("SOS", "cap_over_k"), ("ZEST", "cap_over_pf")]:
         f.append(f"deleveraging cap events {caps}")
     mod, con = cyc_cap_con(with_check)
     dc = DataChecks("on")
@@ -515,6 +548,311 @@ def cap_screen_failures(with_check=True):
     kinds = sorted((e["check"], e["symbol"]) for e in dc.events if e["check"] in ("cap", "signal_cap"))
     if kinds != [("cap", "SOS"), ("cap", "ZEST"), ("signal_cap", "SOS"), ("signal_cap", "ZEST")]:
         f.append(f"cyclical cap events {kinds}")
+    return f
+
+
+# ---------------------------------------------------------------- review cases (fix round 2)
+
+def cap_case(rows, cap=1e10):
+    """apply_cap_rule on dict rows (period end defaults to 1000, n_bars to 20); {symbol: cap_check row}."""
+    con = duckdb.connect()
+    con.execute(CAP_INPUTS_DDL)
+    cap_insert(con, [{"filing_epoch": 1000, "n_bars": 20, **r} for r in rows])
+    apply_cap_rule(con)
+    return cap_rows(con)
+
+
+def m1_failures():
+    """7211.T Mitsubishi Motors FY2003: k 10.03 (the 2013 1:10 consolidation, EPS restated, shares not)
+    agrees with pf 10, so the cap lowers to cap / k first and u reads 7.80e-4 on 404.9bn, not 7.77e-5
+    on FMP's 4.06T: cap_over_k, over the 100bn floor. HAO FY2024 (k 10 against pf 25) and SOS FY2019
+    (k 50 against pf 750) disagree with pf and keep turnover-then-k: both stay out."""
+    cap = 4.0623e12
+    got = cap_case([
+        {"symbol": "7211.T", "market_cap": cap, "shares": 1.488016e9, "eps": 251.85, "net_income": 37.361e9,
+         "n_traded": 20, "turnover": 7.77e-5 * cap, "pf_splits": 10.0, "pf_cons": 10.0, "pf_fwd": 1.0},
+        {"symbol": "HAO", "market_cap": 2.01e11, "shares": 1e8, "eps": 10.04, "net_income": 1e8, "n_traded": 20,
+         "turnover": 1.56e-5 * 2.01e11, "pf_raw": 25.0, "pf_splits": 6.4e4, "pf_cons": 6.4e4, "pf_fwd": 1.0},
+        {"symbol": "SOS", "market_cap": 1.64e9, "shares": 593233.0, "eps": 124.0, "net_income": 1.47e6, "n_traded": 20,
+         "turnover": 1.08e-4 * 1.64e9, "pf_raw": 750.0, "pf_splits": 50.0, "pf_cons": 50.0, "pf_fwd": 1.0}])
+    f = []
+    r = got["7211.T"]
+    used = cap_used_of(r)
+    if r["rule"] != "cap_over_k" or used is None or abs(used / 1e9 - 404.9) > 0.5:
+        f.append(f"7211.T FY2003: {r['rule']}, cap_used {used}, want cap_over_k 404.9bn (over the 100bn floor)")
+    for s, floor in (("HAO", 1e9), ("SOS", 1e9)):
+        u = cap_used_of(got[s])
+        if u is not None and u > floor:
+            f.append(f"{s} must stay out: {got[s]['rule']} cap_used {u}")
+    return f
+
+
+def k_guard_failures():
+    """4541.T Nichi-Iko FY2011 (k 132 from 5.09bn fixed shares against EPS 101.54): its only later split
+    is the 1:70,384,700 delisting record, which FMP's prices do not carry. cap_check_sql leaves an event
+    past split_max out, so no pf opens the gate, k is never read and FMP's 161bn stands (true about
+    104bn, over the 100bn floor). Before, the record gave pf 7.0e7 and u 8.96e-5 made it ineligible.
+    The control, 7211.T, keeps its 1:10 (pf 10)."""
+    src = cap_source()
+    fy, cap = date(2011, 11, 30), 161.064e9
+    src.execute("INSERT INTO key_metrics VALUES ('4541.T', 'FY', ?, ?, 0.1, 0.05, ?)", [fy.isoformat(), ep(fy), cap])
+    src.execute("INSERT INTO income_statement VALUES ('4541.T', 'FY', ?, ?, 1, 3908009000, 101.54, 5088921000, ?)",
+                [fy.isoformat(), ep(fy), (fy + timedelta(days=60)).isoformat()])
+    for k in range(25):
+        day = fy - timedelta(days=k)
+        src.execute("INSERT INTO stock_eod VALUES ('4541.T', ?, ?, 31.65, 31.65, ?)",
+                    [day.isoformat(), ep(day), 8.96e-5 * cap / 31.65])
+    src.execute("INSERT INTO splits_calendar VALUES ('4541.T', '2023-03-29', ?, 1, 70384700)", [ep(date(2023, 3, 29))])
+    fy2 = date(2003, 3, 31)
+    src.execute("INSERT INTO key_metrics VALUES ('7211.T', 'FY', ?, ?, 0.1, 0.05, 4.0623e12)", [fy2.isoformat(), ep(fy2)])
+    src.execute("INSERT INTO splits_calendar VALUES ('7211.T', '2013-07-29', ?, 1, 10)", [ep(date(2013, 7, 29))])
+    cur = src.execute(cap_check_sql("symbol IN ('4541.T', '7211.T')", 1e11, [("2011-10-01", "2011-11-30")]))
+    names = [c[0] for c in cur.description]
+    rows = [dict(zip(names, r)) for r in cur.fetchall()]
+    by = {r["symbol"]: r for r in rows}
+    f = []
+    if by["4541.T"]["pf_splits"] is not None:
+        f.append(f"4541.T pf_splits {by['4541.T']['pf_splits']}: the delisting record must not count")
+    if abs((by["7211.T"]["pf_splits"] or 0) - 10.0) > 1e-9:
+        f.append(f"7211.T pf_splits {by['7211.T']['pf_splits']}, want 10")
+    got = cap_case(rows)
+    used = cap_used_of(got["4541.T"])
+    if used is None or used < 1e11:
+        f.append(f"4541.T FY2011: {got['4541.T']['rule']}, cap_used {used}, want FMP's 161bn to stand")
+    return f
+
+
+def m2_failures():
+    """Turnover over the lines that carry one FY cap, and a failing cap lowered instead of excluded.
+    0653.HK Bonjour FY2011 to FY2013 (pf_raw 16.5, u 2.9e-5 to 6.9e-5) lower to their as-traded caps
+    4.53bn, 3.68bn, 6.58bn, over the HK$2bn floor; 1124.HK FY2008 (pf_raw 9.0) to 3.43bn. BBD-A.TO
+    FY2001, ERIC-A.ST FY2006 and 02826K.KS FY2014 are thin classes on a real cap: their sibling's
+    turnover clears the test and the cap stands (028260.KS listed in December 2014, 9 traded bars). The
+    exclusions stay out: ZEST FY2018 lowers to 12m, HAO FY2024 stays ineligible, and the 8038.T shape
+    (u 1e-8, which fails on the lowered cap as well) stays ineligible."""
+    rows = []
+    for s, fe, cap, raw, u in (("0653.HK", 2011, 74757082700.12, 1.31, 2.93e-5),
+                               ("0653.HK", 2012, 60703067050.92, 1.07, 6.87e-5),
+                               ("0653.HK", 2013, 108693025442.12, 1.86, 6.02e-5)):
+        shares = cap / (raw * 16.5)   # a cap of shares x close, close = 16.5 x raw
+        rows.append({"symbol": f"{s}/{fe}", "filing_epoch": fe, "market_cap": cap, "shares": shares,
+                     "eps": 0.0685, "net_income": 0.0685 * shares, "n_traded": 20, "turnover": u * cap,
+                     "pf_raw": 16.5, "pf_splits": 545.45, "pf_cons": 600.0, "pf_fwd": 1.0})
+    cap = 30901836139.2
+    rows.append({"symbol": "1124.HK", "filing_epoch": 2008, "market_cap": cap, "shares": 2641182576.0, "eps": 0.0442,
+                 "net_income": 364694000.0, "n_traded": 20, "turnover": 4.57e-5 * cap, "pf_raw": 9.0, "pf_splits": 8.985,
+                 "pf_cons": 10.0, "pf_fwd": 1.0})
+    for a, b, fe, cap, ua, ub, nb, pf in (("BBD-A.TO", "BBD-B.TO", 2001, 22815626902.7175, 4.68e-5, 3.04e-3, 20, 25.0),
+                                          ("ERIC-A.ST", "ERIC-B.ST", 2006, 447.562e9, 1.17e-5, 7.62e-3, 18, 5.0),
+                                          ("02826K.KS", "028260.KS", 2014, 16552833502000.0, 1.78e-5, 0.0356, 9, 3.17)):
+        rows.append({"symbol": a, "filing_epoch": fe, "market_cap": cap, "n_traded": 20, "turnover": ua * cap,
+                     "pf_splits": pf, "pf_cons": pf, "pf_fwd": 1.0})
+        rows.append({"symbol": b, "filing_epoch": fe, "market_cap": cap, "n_traded": nb, "turnover": ub * cap,
+                     "pf_raw": 1.0 if b == "028260.KS" else pf, "pf_splits": pf, "pf_cons": pf, "pf_fwd": 1.0})
+    rows.append({"symbol": "ZEST", "filing_epoch": 2018, "market_cap": 1.82e9, "shares": 10.202e6, "eps": -1.12,
+                 "net_income": -11.407e6, "n_traded": 20, "turnover": 7.49e-5 * 1.82e9, "pf_raw": 150.0,
+                 "pf_splits": 150.0, "pf_cons": 150.0, "pf_fwd": 1.0})
+    rows.append({"symbol": "HAO", "filing_epoch": 2024, "market_cap": 2.01e11, "shares": 1e8, "eps": 10.04,
+                 "net_income": 1e8, "n_traded": 20, "turnover": 1.56e-5 * 2.01e11, "pf_raw": 25.0, "pf_splits": 6.4e4,
+                 "pf_cons": 6.4e4, "pf_fwd": 1.0})
+    rows.append({"symbol": "8038.T", "filing_epoch": 2006, "market_cap": 1.8e16, "shares": 1e9, "eps": 1.0,
+                 "net_income": 1e9, "n_traded": 19, "turnover": 3.92e-9 * 1.8e16, "pf_raw": 10.0, "pf_splits": 10.0,
+                 "pf_cons": 10.0, "pf_fwd": 1.0})
+    got = cap_case(rows)
+    f = []
+    for s, want, floor in (("0653.HK/2011", 4.53e9, 2e9), ("0653.HK/2012", 3.68e9, 2e9), ("0653.HK/2013", 6.58e9, 2e9),
+                           ("1124.HK", 3.43e9, 2e9)):
+        used = cap_used_of(got[s])
+        if used is None or abs(used / want - 1) > 0.01 or used <= floor:
+            f.append(f"{s}: {got[s]['rule']} cap_used {used}, want about {want / 1e9:.2f}bn (over {floor / 1e9:.0f}bn)")
+    for s, floor in (("BBD-A.TO", 5e8), ("ERIC-A.ST", 5e9), ("02826K.KS", 5e11)):
+        r = got[s]
+        if r["rule"] != "stands" or r.get("lines") != 2:
+            f.append(f"{s}: {r['rule']} over {r.get('lines')} lines, want the cap to stand on its sibling's turnover")
+    for s, floor in (("ZEST", 1e9), ("HAO", 1e9), ("8038.T", 1e11)):
+        used = cap_used_of(got[s])
+        if used is not None and used > floor:
+            f.append(f"{s} must stay out: {got[s]['rule']} cap_used {used}")
+    if got["8038.T"]["rule"] != "ineligible" or got["HAO"]["rule"] != "ineligible":
+        f.append(f"8038.T {got['8038.T']['rule']}, HAO {got['HAO']['rule']}: both stay ineligible")
+    return f
+
+
+def m3_failures():
+    """Inflations the pf gate could not see. Bonjour FY2007, FY2008: forward and reverse splits net out
+    to pf_raw 1.375 while the later consolidations multiply to 600, so the gate now opens, u fails and
+    the cap lowers by pf x the forward splits (1.375 x 12 = 16.5) to 0.39bn and 0.63bn, under the floor
+    (the 2008 and 2009 holdings leave). FY2009 lowers the same way to 2.32bn and stays (the 2010
+    holding): the divisor is not the 600 product. CETX FY2016 (3 traded bars), TOPS FY2004 and PIXY
+    FY2018 (none) have no u: with pf >= 3 the cap now lowers by pf, where before it stood."""
+    rows = []
+    for fe, cap, u in ((2007, 6468811877.0, 6.12e-5), (2008, 10321654150.5, 3.68e-5), (2009, 38230217471.74, 6.02e-5)):
+        rows.append({"symbol": f"0653.HK/{fe}", "filing_epoch": fe, "market_cap": cap, "shares": 3.1e9, "eps": 0.0424,
+                     "net_income": 0.0424 * 3.1e9, "n_traded": 20, "turnover": u * cap, "pf_raw": 1.375,
+                     "pf_splits": 45.45, "pf_cons": 600.0, "pf_fwd": 12.0})
+    for s, cap, nt, pfr, pfs in (("CETX", 59.4e9, 3, 2.52e5, 2.06e3), ("TOPS", 6.49e16, 0, None, 4.54e13),
+                                 ("PIXY", 1.44e9, 0, 3.46e7, 1.44e6)):
+        rows.append({"symbol": s, "filing_epoch": 2016, "market_cap": cap, "shares": 1e6, "eps": 1.0, "net_income": 1e6,
+                     "n_traded": nt, "turnover": 0.0 if nt else None, "pf_raw": pfr, "pf_splits": pfs,
+                     "pf_cons": pfs, "pf_fwd": 1.0})
+    got = cap_case(rows)
+    f = []
+    for s, want_in in (("0653.HK/2007", False), ("0653.HK/2008", False), ("0653.HK/2009", True)):
+        used = cap_used_of(got[s])
+        if (used is not None and used > 2e9) != want_in:
+            f.append(f"Bonjour {s[-4:]}: {got[s]['rule']} cap_used {used}, want {'in' if want_in else 'out'} at the 2bn floor")
+    if abs(cap_used_of(got["0653.HK/2008"]) - 10321654150.5 / 16.5) > 1e3:
+        f.append(f"Bonjour 2008 divisor {got['0653.HK/2008'].get('cap_div')}, want 16.5")
+    for s in ("CETX", "TOPS", "PIXY"):
+        used = cap_used_of(got[s])
+        if used is None or used > 1e9 or got[s]["rule"] != "cap_over_pf":
+            f.append(f"{s}: {got[s]['rule']} cap_used {used}, want cap_over_pf under the $1bn floor")
+    return f
+
+
+T1_FLAT = (("1114.HK", 7.30, 1.01), ("BC88.L", 95.0, 15.22), ("GBGLOBAL.NS", 930.0, 930.0), ("76ID.L", 165.0, 33.71),
+           ("BR.BK", 35.0, 28.88))
+
+
+def t1_failures():
+    """A line with no traded row in the window keeps its rows only when its close takes two or more values
+    there (q4's table): 1114.HK at a suspended 7.30, BC88.L, GBGLOBAL.NS, 76ID.L and BR.BK at one flat
+    close lose every row and are not bought; TRUE.BK 2006-04 (8 closes) and ADVANC-R.BK 2005-01 (4) keep
+    theirs. Before, all seven windows kept their rows and the flat lines were bought."""
+    d = date(2022, 7, 1)
+    days = list(weekdays(d, d + timedelta(days=11)))
+    rows = fillers(30, days)
+    for s, c, a in T1_FLAT:
+        rows += [(s, day, a, c, 0.0) for day in days]
+    true = [6.4, 6.52, 6.22, 6.238918, 6.22, 6.28, 5.92, 5.63, 5.63]
+    rows += [("TRUE.BK", day, round(c * 0.9, 4), c, 0.0) for day, c in zip(days, true)]
+    adv = [111.0, 107.0, 109.0, 112.0, 111.0, 111.0, 111.0, 111.0, 111.0]
+    rows += [("ADVANC-R.BK", day, round(c * 0.29, 4), c, 0.0) for day, c in zip(days, adv)]
+    con = cache(rows)
+    st = clean_price_cache(con, set(), [d])
+    f = []
+    for s, _, _ in T1_FLAT:
+        if get_prices(con, [s], d, offset_days=1).get(s) is not None:
+            f.append(f"{s}: a flat line with no volume is still buyable")
+    for s, want in (("TRUE.BK", round(6.52 * 0.9, 4)), ("ADVANC-R.BK", round(107.0 * 0.29, 4))):
+        if get_prices(con, [s], d, offset_days=1).get(s) != want:
+            f.append(f"{s}: a moving feed with no volume keeps its rows (entry {want})")
+    if (st["symbol_windows_without_volume"], st.get("flat_windows_moved")) != (7, 5):
+        f.append(f"counts: {st['symbol_windows_without_volume']} windows without volume, "
+                 f"{st.get('flat_windows_moved')} flat windows moved, want 7 and 5")
+    if st["rows_moved"]["zero_volume"] != 5 * len(days):
+        f.append(f"rows_moved.zero_volume {st['rows_moved']['zero_volume']}, want {5 * len(days)}")
+    reasons = {r[0] for r in con.execute("SELECT DISTINCT reason FROM prices_dropped").fetchall()}
+    if reasons != {"flat_no_volume"}:
+        f.append(f"prices_dropped reasons {reasons}")
+    return f
+
+
+def t1_exit_failures():
+    """600694.SS deleveraging China 2006-04: halted from 07-03, its exit window holds flat zero-volume rows
+    (close 27.78, adjClose 17.06 on a halt-row factor step). T moves them, the window exit is gone, and
+    the LTP fill (traded_only) reads the last traded bar, adjClose 13.65 on 06-30: +66.7% against the
+    entry's 8.19, where the halt rows booked +108.3%."""
+    d, x = date(2006, 4, 1), date(2006, 7, 1)
+    days_e, days_x = list(weekdays(d, d + timedelta(days=11))), list(weekdays(x, x + timedelta(days=11)))
+    rows = fillers(30, days_e + days_x)
+    rows += [("600694.SS", day, 8.19, 13.34, 5e5) for day in days_e]
+    rows += [("600694.SS", day, 17.06, 27.78, 0.0) for day in days_x if day >= date(2006, 7, 3)]
+    con = cache(rows)
+    clean_price_cache(con, set(), [d, x])
+    e, xp = (get_prices(con, ["600694.SS"], t, offset_days=1).get("600694.SS") for t in (d, x))
+    f = []
+    if e != 8.19 or xp is not None:
+        f.append(f"600694.SS window bars: entry {e}, exit {xp}, want 8.19 and none (the halt rows move)")
+    remote = [("600694.SS", day, 8.19 + (13.65 - 8.19) * k / 60, 13.34, 4e5)
+              for k, day in enumerate(weekdays(date(2006, 3, 3), date(2006, 6, 30)))]
+    remote[-1] = ("600694.SS", date(2006, 6, 30), 13.65, 22.23, 4e5)
+    remote += [("600694.SS", day, 17.06, 27.78, 0.0) for day in weekdays(date(2006, 7, 3), date(2006, 7, 31))]
+    ltp = du.LtpExits(LtpClient(ltp_src(remote)), con, traded_only=True)
+    fill = ltp.fill(["600694.SS"], {"600694.SS": e}, {"600694.SS": xp}, d, x, offset_days=1, min_entry_price=1.0)
+    if fill.get("600694.SS") != 13.65:
+        f.append(f"600694.SS LTP fill {fill}, want the last traded bar 13.65")
+    elif abs(fill["600694.SS"] / e - 1 - 0.6667) > 1e-3:
+        f.append(f"600694.SS books {fill['600694.SS'] / e - 1:+.1%}")
+    return f
+
+
+def elux_con(extra=()):
+    """ELUX-A.ST and ELUX-B.ST around 2006-07 (cyclical-timing STO, annual windows), with the FY caps they
+    share in cap_inputs. A's traded rows from 2006-06-08 sit near 52 while B trades 84 to 100 on millions
+    of shares; A's zero-volume rows open the 2006 window (84.18 on 07-03); both meet again by 2007."""
+    rows, wins = [], (date(2005, 7, 1), date(2006, 7, 1), date(2007, 7, 1))
+    for w in wins:
+        rows += fillers(30, list(weekdays(w, w + timedelta(days=11))))
+    for day in weekdays(date(2005, 7, 1), date(2005, 7, 12)):
+        rows += [("ELUX-A.ST", day, 80.0 * 1.04, 80.0 * 1.04, 3000.0), ("ELUX-B.ST", day, 80.0, 80.0, 2e6)]
+    b06 = {date(2006, 7, 3): 92.0, date(2006, 7, 4): 93.0, date(2006, 7, 5): 94.5, date(2006, 7, 6): 95.0,
+           date(2006, 7, 7): 95.62, date(2006, 7, 10): 96.0, date(2006, 7, 11): 95.2, date(2006, 7, 12): 94.8}
+    for day, b in b06.items():
+        rows.append(("ELUX-B.ST", day, b * 0.55, b, 1.48e6))
+        if day < date(2006, 7, 7):
+            rows.append(("ELUX-A.ST", day, 48.25, 84.18, 0.0))
+        else:
+            rows.append(("ELUX-A.ST", day, 30.05 if day == date(2006, 7, 7) else 30.2,
+                         52.43 if day == date(2006, 7, 7) else 52.7, 950.0 if day == date(2006, 7, 7) else 213.0))
+    for day in weekdays(date(2007, 7, 2), date(2007, 7, 12)):
+        rows += [("ELUX-A.ST", day, 92.4, 156.37, 4000.0), ("ELUX-B.ST", day, 86.4, 153.72, 3e6)]
+    rows += list(extra)
+    con = cache(rows)
+    con.execute(CAP_INPUTS_DDL)
+    for s in ("ELUX-A.ST", "ELUX-B.ST"):
+        cap_insert(con, [{"symbol": s, "filing_epoch": ep(date(y, 12, 31)), "market_cap": cap}
+                         for y, cap in ((2005, 27.529e9), (2006, 36.204e9))])
+    return con, wins
+
+
+def t2_failures():
+    """ELUX-A.ST 2006 (cyclical-timing Sweden): T moved the entry off the zero-volume 07-03 row onto 07-07,
+    52.43 on 950 shares, while ELUX-B traded 95.62 on 1.48m: A over B 0.548 against a median 1.04 in
+    the 2005 and 2007 windows. Every traded A row of the window sits that far off, so they move
+    (sibling_gap) and the entry is lost, where before it booked from 30.05 (+207.5% to 2007). B is
+    untouched, and the 2007 window, where A traded on B's scale, too."""
+    con, (w05, w06, w07) = elux_con()
+    clean_price_cache(con, set(), [w05, w06, w07])
+    f = []
+    if get_prices(con, ["ELUX-A.ST"], w06, offset_days=1).get("ELUX-A.ST") != 30.05:
+        f.append("without the sibling test the 2006 entry is the 07-07 print (30.05): the case would test nothing")
+    con, _ = elux_con()
+    try:
+        st = clean_price_cache(con, set(), [w05, w06, w07], siblings="cap_inputs")
+    except TypeError as e:
+        return f + [f"clean_price_cache has no sibling test ({e})"]
+    ref = statistics.median([1.04] * 8 + [156.37 / 153.72] * 9)   # the 2005 and 2007 windows' traded days
+    a = get_prices(con, ["ELUX-A.ST", "ELUX-B.ST"], w06, offset_days=1)
+    if "ELUX-A.ST" in a:
+        f.append(f"ELUX-A.ST 2006 entry {a['ELUX-A.ST']}, want none (every traded row off B's scale)")
+    if abs(a.get("ELUX-B.ST", 0) - 92.0 * 0.55) > 1e-9:
+        f.append(f"ELUX-B.ST 2006 entry {a.get('ELUX-B.ST')}")
+    if get_prices(con, ["ELUX-A.ST"], w07, offset_days=1).get("ELUX-A.ST") != 92.4:
+        f.append("ELUX-A.ST 2007 (on B's scale) keeps its rows")
+    if st.get("sibling_gap_rows") != 4 or {g["sibling"] for g in st.get("sibling_gaps", [])} != {"ELUX-B.ST"}:
+        f.append(f"sibling gaps: {st.get('sibling_gap_rows')} rows {st.get('sibling_gaps')}")
+    elif abs(st["sibling_gaps"][0]["ref"] - ref) > 1e-4 or abs(st["sibling_gaps"][0]["ratio"] - 52.43 / 95.62) > 1e-4:
+        f.append(f"gap {st['sibling_gaps'][0]}, want ratio 0.548 against a reference {ref:.4f}")
+    # controls: a print 24% above B's scale (ELUX-A 2008 shape) stays; a pair that trades apart is not tested
+    d08 = date(2006, 7, 10)
+    con, wins = elux_con()
+    con.execute("UPDATE prices_cache SET close = ?, adjClose = 50.0 WHERE symbol = 'ELUX-A.ST' AND trade_epoch = ?",
+                [96.0 * ref * 1.24, ep(d08)])
+    con.execute("DELETE FROM prices_cache WHERE symbol = 'ELUX-A.ST' AND trade_epoch = ?", [ep(date(2006, 7, 7))])
+    st = clean_price_cache(con, set(), list(wins), siblings="cap_inputs")
+    if get_prices(con, ["ELUX-A.ST"], w06, offset_days=1).get("ELUX-A.ST") != 50.0:
+        f.append(f"a print 24% above B's scale is kept: {st.get('sibling_gaps')}")
+    wild = [("W.ST", day, 1.0, 1.0 + 0.6 * (k % 2), 1e5) for w in wins
+            for k, day in enumerate(weekdays(w, w + timedelta(days=11)))]
+    wild += [("V.ST", day, 1.0, 1.0, 1e5) for w in wins for day in weekdays(w, w + timedelta(days=11))]
+    wild += [("V.ST", w06, 1.0, 1.0, 0.0)]
+    con, _ = elux_con(wild)
+    cap_insert(con, [{"symbol": s, "filing_epoch": 1, "market_cap": 1e9} for s in ("V.ST", "W.ST")])
+    con.execute("UPDATE prices_cache SET close = 3.0 WHERE symbol = 'V.ST' AND trade_epoch = ?", [ep(date(2006, 7, 4))])
+    st = clean_price_cache(con, set(), list(wins), siblings="cap_inputs")
+    if any(g["symbol"] == "V.ST" for g in st["sibling_gaps"]):
+        f.append(f"a pair that trades apart is not tested: {st['sibling_gaps']}")
     return f
 
 
@@ -894,17 +1232,76 @@ def synthetic_source():
     return src
 
 
-def run_topic(topic, src, run_mode, data_checks, tmp):
+def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False):
     """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both)."""
     mod = load_topic(topic)
-    out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}.json")
+    out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}{'.full' if full_holdings else ''}.json")
     client = FakeClient(src)
     freq = "quarterly" if topic == "deleveraging" else "annual"
+    kw = {"full_holdings": True} if full_holdings else {}
     with contextlib.redirect_stdout(io.StringIO()):
         mod.run_single(client, ["SET"], "SET", freq, True, 0.02, False, out, offset_days=1,
-                       exit_method=run_mode, data_checks=data_checks)
+                       exit_method=run_mode, data_checks=data_checks, **kw)
     with open(out) as fh:
         return json.load(fh), client.sqls
+
+
+def holdings_full_failures(topic, src, tmp):
+    """--full-holdings: each invested period row lists every booked name (holdings_full) with its entry and
+    exit bars, prices, exit source and return; nothing else in the file changes, cash rows carry no list,
+    LTP fills show their last bar, and the LTP gate and scanners still pass. Off by default."""
+    f = []
+    try:
+        runs = {m: run_topic(topic, src, m, "on", tmp, full_holdings=True)[0] for m in ("drop", "ltp", "both")}
+    except TypeError as e:
+        return [f"{topic}: run_single has no full_holdings ({e})"]
+    plain = run_topic(topic, src, "ltp", "on", tmp)[0]
+    ltp = runs["ltp"]
+    strip = lambda res: {**res, "period_data": [{k: v for k, v in r.items() if k != "holdings_full"}
+                                                for r in res["period_data"]]}
+    if strip(ltp) != plain:
+        f.append(f"{topic}: full holdings changed something else: {first_diff(strip(ltp), plain)}")
+    if any("holdings_full" in r for r in plain["period_data"]):
+        f.append(f"{topic}: holdings_full written without the flag")
+    g = {"topic": topic, "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}]}
+    _, probs = check_stage_a(g, runs["both"], runs["drop"], ltp, with_ltp=True)
+    f += [f"{topic} full-holdings stage-a: {p}" for p in probs]
+    hits, counts = [], {}
+    sri.walk(ltp, "", topic, hits, counts, False)
+    sri.funnel_scan(ltp, "", topic, hits, {})
+    if hits:
+        f.append(f"{topic}: scanners {hits}")
+    fills = {(x["entry_date"], x["symbol"]): x for x in ltp["ltp"]["fills"]}
+    n_ltp = n_named = 0
+    for r in ltp["period_data"]:
+        hf = r.get("holdings_full")
+        if not r["stocks_held"]:
+            if hf is not None:
+                f.append(f"{topic} {r['rebalance_date']}: a cash row carries holdings_full")
+            continue
+        names = [h["symbol"] for h in hf or []]
+        shown = r["holdings"].split(",")
+        if len(names) != r["stocks_held"] or names[:len(shown)] != shown:
+            f.append(f"{topic} {r['rebalance_date']}: holdings_full {names} against {r['stocks_held']} held, {shown}")
+            break
+        n_named += len(names) - len(shown)
+        for h in hf:
+            if set(h) != {"symbol", "entry_bar", "entry_price", "exit_bar", "exit_price", "exit", "return"} or \
+                    abs(h["return"] - round(h["exit_price"] / h["entry_price"] - 1, 6)) > 1e-9 or \
+                    not h["entry_bar"] < h["exit_bar"] or h["exit"] not in ("window", "last_traded"):
+                f.append(f"{topic} {r['rebalance_date']}: bad item {h}")
+            if h["exit"] == "last_traded":
+                n_ltp += 1
+                fill = fills.get((r["rebalance_date"], h["symbol"]))
+                if not fill or (fill["last_bar"], fill["ltp"]) != (h["exit_bar"], h["exit_price"]):
+                    f.append(f"{topic} {r['rebalance_date']}: {h} does not match its fill {fill}")
+    if topic == "deleveraging" and not n_ltp:
+        f.append(f"{topic}: no LTP-filled name listed (DLST.BK)")
+    if topic == "cyclical-timing" and not n_named:
+        f.append(f"{topic}: the synthetic books never pass the 10-name holdings string: the case tests nothing")
+    if any(h["exit"] != "window" for r in runs["drop"]["period_data"] for h in r.get("holdings_full", [])):
+        f.append(f"{topic}: a drop run lists an LTP exit")
+    return f
 
 
 def topic_failures(topic, src, tmp):
@@ -1073,6 +1470,14 @@ def main():
     expect("M server SQL", cap_sql_failures())
     expect("M at every floor", cap_screen_failures())
     expect_fail("M with cap_check empty (SOS, ZEST pass)", cap_screen_failures(with_check=False))
+    # review cases (fix round 2)
+    expect("M1 k first: 7211.T FY2003", m1_failures())
+    expect("M k guard: 4541.T delisting record", k_guard_failures())
+    expect("M2 sibling turnover, lowered not excluded", m2_failures())
+    expect("M3 consolidation gate, unknown turnover", m3_failures())
+    expect("T1 flat lines with no volume", t1_failures())
+    expect("T1 halted exit reads the last traded bar", t1_exit_failures())
+    expect("T2 sibling gap: ELUX-A.ST 2006", t2_failures())
     # F and L
     expect("F flags, L list", f_failures())
     expect_fail("F detection stubbed", f_failures(NoFlags, f_mutant_cfg()))
@@ -1098,6 +1503,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         for t in DATA_CHECKS_TOPICS:
             expect(f"{t} end to end", topic_failures(t, src, tmp))
+            expect(f"{t} full holdings", holdings_full_failures(t, src, tmp))
     expect("gate 15 on the real topics and mutants", gate15_failures())
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_data_checks: PASS ({len(ran)} checks)")
