@@ -4,7 +4,9 @@
 T (traded bars), N (NVDR twins), M (market-cap check), F (factor flags, detection only) and L
 (large-move list) on crafted rows shaped like the measured cases (EASTW-R.BK, TRUE.BK 2006, the
 JNB 2012-01-02 holiday, NSE/SAU/SET day counts, ^FTSE, RAM.BK, the SET twins, SOS, ZEST, HAO,
-GRPN, CIM, 3003.SR, TSG.JO, 2603.TW, SALEE.BK). Then both opted-in topics run end to end on a
+GRPN, CIM, 3003.SR, TSG.JO, 2603.TW, SALEE.BK), plus an exit lost to a closed day, a name halted
+after entry (keeps its LTP fill), large moves on LTP fills, and duplicate stock_eod rows under
+check M. Then both opted-in topics run end to end on a
 synthetic SET leg through a fake client, in drop, ltp, both and uncapped modes, and the results
 pass the LTP gate's stage-a comparison and the results scanners.
 
@@ -13,7 +15,8 @@ Shared code: against the base commit (BASE, the last one before data checks), is
 the same temp table, filter_returns' default gives the same output, and every other function,
 class and constant of data_utils is unchanged (ast). Each "must fail" check is also run on a
 mutant and has to fail: clean_price_cache stubbed (KIO books +299.5%), cap_check empty (SOS and
-ZEST pass the floor), F's detection stubbed, and gate 15 on mutated topic sources.
+ZEST pass the floor), F's detection stubbed, and gate 15 on mutated topic sources (opted-in
+topics with their wiring cut, capped topics with a None cap in any form, an uncapped results file).
 
 Usage: python scripts/test_data_checks.py [--base REF]
 """
@@ -45,7 +48,8 @@ from data_utils import (DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr
                         utc_epoch as ep, CAP_INPUTS_DDL)
 from gate_ltp import check_stage_a, has_ltp_keys, strip_ltp, first_diff   # noqa: E402
 import scan_results_invariant as sri   # noqa: E402
-from verify_floor_guard import dc_wiring, DATA_CHECKS_TOPICS   # noqa: E402
+from verify_floor_guard import dc_wiring, dc_uses, dc_results_problem, DATA_CHECKS_TOPICS   # noqa: E402
+from test_floor_guard import NO_RETURN_CAP   # noqa: E402
 
 BASE = "e1ecb7c"   # backtests main before data checks
 
@@ -179,6 +183,31 @@ def kio_failures(clean=clean_price_cache):
     dc.prices(con, x, date(2012, 4, 1), sd, 1, 1.0, held=False)
     if [v["check"] for v in dc.events] != ["entry_lost"] or dc.row(x)["entries_lost"] != 1:
         f.append(f"ONLYD.JO entry_lost: {dc.events}")
+    return f
+
+
+def exit_lost_failures():
+    """GONE's only exit-window row is a traded row on a closed day (4 of 44 lines trade on 2013-07-02).
+    T empties its exit window: the event and the counts say the exit was lost, not moved."""
+    d, x, D = date(2013, 4, 1), date(2013, 7, 1), date(2013, 7, 2)
+    days_e, days_x = list(weekdays(d, d + timedelta(days=11))), list(weekdays(x, x + timedelta(days=11)))
+    rows = fillers(43, days_e + days_x, traded=lambda i, day: day != D or i < 3)
+    rows += [("GONE", day, 10.0, 10.0, 100.0) for day in days_e] + [("GONE", D, 12.0, 12.0, 100.0)]
+    con = cache(rows)
+    st = clean_price_cache(con, set(), [d, x])
+    con.execute("CREATE TABLE splits(symbol VARCHAR, split_epoch BIGINT, numerator DOUBLE, denominator DOUBLE)")
+    e, xp = (get_prices(con, ["GONE"], t, offset_days=1).get("GONE") for t in (d, x))
+    f = []
+    if [c["date"] for c in st["closed_dates"]] != ["2013-07-02"] or e != 10.0 or xp is not None:
+        f.append(f"GONE setup: closed {st['closed_dates']}, entry {e}, exit {xp}")
+    dc = DataChecks("on")
+    dc.prices(con, d, x, [("GONE", e, xp, 1e10)], 1, 1.0)
+    got = [(v["check"], v["side"], v.get("first_bar", {}).get("reason")) for v in dc.events]
+    if got != [("exit_lost", "exit", "closed_day")]:
+        f.append(f"GONE events {got}, want one exit_lost")
+    row, c = dc.row(d), dc.block()["counts"]
+    if (row.get("exits_lost"), row["exit_bars_moved"], c.get("exits_lost"), c["exit_bars_moved"]) != (1, 0, 1, 0):
+        f.append(f"GONE counts: row {row}, block exits_lost {c.get('exits_lost')} exit_bars_moved {c['exit_bars_moved']}")
     return f
 
 
@@ -355,7 +384,7 @@ def cap_rule_failures():
 
 
 def cap_source():
-    """FMP tables shaped like the server's, holding SOS's FY2019 inputs (out/cap_px.json)."""
+    """FMP tables shaped like the server's, for SOS's FY2019 inputs as measured on the warehouse."""
     src = duckdb.connect()
     src.execute("CREATE TABLE key_metrics(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch BIGINT,"
                 " returnOnEquity DOUBLE, returnOnAssets DOUBLE, marketCap DOUBLE)")
@@ -404,6 +433,21 @@ def cap_sql_failures():
         f.append(f"SOS k or median turnover {s}")
     if got.get("EDGE") is None or got["EDGE"][6] != 20:
         f.append(f"EDGE bars {got.get('EDGE')}")
+    # duplicate (symbol, date) rows count once: an exact copy, and an added zero-volume copy
+    for s in ("CLEAN", "DUPT", "DUPZ"):
+        src.execute("INSERT INTO key_metrics VALUES (?, 'FY', '2019-12-31', ?, 0.2, 0.1, 1e10)", [s, ep(fy)])
+    for k, day in enumerate(days):
+        vol = 1e4 * (k + 1)   # turnover grows with age, so a window cut short lowers the median
+        for s, extra in (("CLEAN", []), ("DUPT", [vol]), ("DUPZ", [0.0])):
+            for v in [vol] + extra:
+                src.execute("INSERT INTO stock_eod VALUES (?, ?, ?, 10, 10, ?)", [s, day.isoformat(), ep(day), v])
+    rows = src.execute(cap_check_sql("symbol IN ('CLEAN', 'DUPT', 'DUPZ')", 1e9,
+                                     [("2019-11-16", "2019-12-31")])).fetchall()
+    got = {r[0]: (r[6], r[7], r[8]) for r in rows}
+    want = (20, 20, statistics.median(1e5 * (k + 1) for k in range(20)))
+    for s in ("CLEAN", "DUPT", "DUPZ"):
+        if got.get(s) != want:
+            f.append(f"{s} (n_bars, n_traded, turnover) {got.get(s)}, want {want}")
     return f
 
 
@@ -671,31 +715,80 @@ def ltp_identity_failures(base):
     return f
 
 
-def ltp_traded_failures():
-    """traded_only=True: the zero-volume rows of a line that traded leave the fill's span; fills carry
-    ltp_close and ltp_volume."""
+def ltp_src(rows):
+    """The remote side of an LTP fill: no delisting rows, stock_eod (symbol, date, adjClose, close, volume)."""
     src = duckdb.connect()
     src.execute("CREATE TABLE delisted_companies(symbol VARCHAR, delistedDate DATE)")
     src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date VARCHAR, dateEpoch BIGINT, adjClose DOUBLE, close DOUBLE,"
                 " volume DOUBLE)")
-    for day in weekdays(date(2018, 3, 1), date(2018, 5, 15)):
-        src.execute("INSERT INTO stock_eod VALUES ('Z', ?, ?, 10, 12, 100)", [day.isoformat(), ep(day)])
-    src.execute("INSERT INTO stock_eod VALUES ('Z', '2018-05-16', ?, 15, 18, 0)", [ep(date(2018, 5, 16))])
+    src.executemany("INSERT INTO stock_eod VALUES (?, ?, ?, ?, ?, ?)",
+                    [(s, day.isoformat(), ep(day), a, c, v) for s, day, a, c, v in rows])
+    return src
+
+
+def ltp_traded_failures():
+    """traded_only=True: a line with a traded row in its LTP window (entry bar, exit date] loses its
+    zero-volume rows over the fetched span; fills carry ltp_close and ltp_volume. HALT trades only on
+    its entry bar and then prints zero-volume repeats: like a T window with no traded row, it keeps
+    them, and fills at the last one."""
+    rows = [("Z", day, 10.0, 12.0, 100.0) for day in weekdays(date(2018, 3, 1), date(2018, 5, 15))]
+    rows += [("Z", date(2018, 3, 17), 10.0, 12.0, 0.0),    # zero-volume context row before the entry bar
+             ("Z", date(2018, 5, 16), 15.0, 18.0, 0.0)]
+    rows += [("HALT", date(2018, 4, 2), 10.0, 12.0, 900.0)]
+    rows += [("HALT", day, 10.0 if day < date(2018, 6, 28) else 9.5, 12.0, 0.0)
+             for day in (date(2018, 4, 3), date(2018, 5, 1), date(2018, 6, 28))]
+    src = ltp_src(rows)
     con = duckdb.connect()
     con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE, volume DOUBLE)")
-    con.execute("INSERT INTO prices_cache VALUES ('Z', ?, 10, 12, 100)", [ep(date(2018, 4, 2))])
+    for s in ("Z", "HALT"):
+        con.execute("INSERT INTO prices_cache VALUES (?, ?, 10, 12, 100)", [s, ep(date(2018, 4, 2))])
     f = []
-    for traded, want in ((False, 15.0), (True, 10.0)):
+    for traded, want in ((False, {"Z": 15.0, "HALT": 9.5}), (True, {"Z": 10.0, "HALT": 9.5})):
         ltp = du.LtpExits(LtpClient(src), con, traded_only=traded)
-        got = ltp.fill(["Z"], {"Z": 10.0}, {}, date(2018, 4, 1), date(2018, 7, 1), offset_days=1)
-        if got.get("Z") != want:
+        got = ltp.fill(["Z", "HALT"], {"Z": 10.0, "HALT": 10.0}, {}, date(2018, 4, 1), date(2018, 7, 1), offset_days=1)
+        if got != want:
             f.append(f"traded_only={traded}: fill {got}, want {want}")
         p = ltp.provenance()
-        if traded and not (p["traded_only"] and p["zero_volume_rows_moved"] == 1
-                           and ltp.fills[0]["ltp_close"] == 12.0 and ltp.fills[0]["ltp_volume"] == 100.0):
+        z = next((x for x in ltp.fills if x["symbol"] == "Z"), {})
+        if traded and not (p["traded_only"] and p["zero_volume_rows_moved"] == 2
+                           and z.get("ltp_close") == 12.0 and z.get("ltp_volume") == 100.0):
             f.append(f"traded_only provenance {p}")
-        if not traded and ("traded_only" in p or "ltp_close" in ltp.fills[0]):
+        if not traded and ("traded_only" in p or "ltp_close" in z):
             f.append("traded_only=False adds nothing")
+    return f
+
+
+def ltp_large_move_failures():
+    """L on LTP fills: JUMP fills at +300%, DROP at -70%, FLAT at +10%. The ltp block lists the two
+    large moves and flags them on their fills; the window-bar block stays empty (strip_ltp equality)."""
+    d, x = date(2013, 4, 1), date(2013, 7, 1)
+    path = {"JUMP": (10.0, 20.0, 40.0), "DROP": (10.0, 6.0, 3.0), "FLAT": (10.0, 10.5, 11.0)}
+    rows = [(s, day, p, p, 500.0) for s, ps in path.items()
+            for day, p in zip((date(2013, 4, 2), date(2013, 5, 2), date(2013, 6, 20)), ps)]
+    con = duckdb.connect()
+    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE, volume DOUBLE)")
+    con.execute("CREATE TABLE splits(symbol VARCHAR, split_epoch BIGINT, numerator DOUBLE, denominator DOUBLE)")
+    for s in path:
+        con.execute("INSERT INTO prices_cache VALUES (?, ?, 10, 10, 1000)", [s, ep(date(2013, 4, 2))])
+    ltp = du.LtpExits(LtpClient(ltp_src(rows)), con, traded_only=True)
+    fill = ltp.fill(list(path), {s: 10.0 for s in path}, {}, d, x, offset_days=1, min_entry_price=1.0)
+    f = []
+    if fill != {"JUMP": 40.0, "DROP": 3.0, "FLAT": 11.0}:
+        f.append(f"fills {fill}")
+    block = ltp.results_block("ltp", [], 4, 0.02)
+    dc = DataChecks("on")
+    dc.annotate_ltp(con, ltp, block)
+    lm = [(m.get("symbol"), m.get("return")) for m in block.get("large_moves", [])]
+    if lm != [("DROP", -0.7), ("JUMP", 3.0)] or block.get("large_move_fills") != 2:
+        f.append(f"ltp large moves {lm}, count {block.get('large_move_fills')}")
+    fc = {x["symbol"]: x.get("factor_check", {}) for x in block["fills"]}
+    for s, want in (("JUMP", ["large_move"]), ("DROP", ["large_move"]), ("FLAT", [])):
+        if fc[s].get("reasons") != want or fc[s].get("flagged") != bool(want):
+            f.append(f"{s} factor_check {fc[s]}, want reasons {want}")
+    if block.get("factor_flagged") != 2:
+        f.append(f"factor_flagged {block.get('factor_flagged')}")
+    if dc.large_moves or dc.events:
+        f.append("an LTP fill reached the window-bar block")
     return f
 
 
@@ -868,7 +961,8 @@ def topic_failures(topic, src, tmp):
     reasons = {e["reason"] for e in ev if e["check"] == "twin"}
     if reasons != {"ordinary_first", "stand_in"} or c["twins_linked"] != 2:
         f.append(f"{topic}: twins {reasons} linked {c['twins_linked']}")
-    keys = ["entry_bars_moved", "exit_bars_moved", "entries_lost", "twins_collapsed", "cap_excluded", "factor_flags"]
+    keys = ["entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost", "twins_collapsed", "cap_excluded",
+            "factor_flags"]
     keys += ["signal_cap_excluded"] if topic == "cyclical-timing" else []
     for r in drop["period_data"]:
         if [k for k in keys if k not in r] or any(r[k] is not None and not isinstance(r[k], int) for k in keys):
@@ -883,8 +977,10 @@ def topic_failures(topic, src, tmp):
         f.append(f"{topic}: per-period cap_excluded {n_cap} != counts {c['cap_excluded']}")
     fl = ltp["ltp"]
     if not (fl["traded_only"] and all("ltp_close" in x and "factor_check" in x for x in fl["fills"])
-            and "factor_flagged" in fl):
+            and "factor_flagged" in fl and fl.get("large_move_fills") == len(fl.get("large_moves", [None]))):
         f.append(f"{topic}: ltp block lacks traded_only provenance")
+    if dc_results_problem(ltp) or not dc_results_problem(unc):
+        f.append(f"{topic}: the results check must pass mode on and refuse the uncapped arm")
     if topic == "deleveraging" and not (fl["fills"] and fl["zero_volume_rows_moved"] >= 1):
         f.append(f"{topic}: DLST.BK's LTP fill skips its stale zero-volume print ({fl['fills']})")
     ub = unc["data_checks"]
@@ -917,6 +1013,28 @@ def gate15_failures():
             check(m != src, f"gate 15 mutant {label} found nothing to change in {t}")
             if not dc_wiring(ast.parse(m), n):
                 f.append(f"gate 15 misses {label} in {t}")
+    # a capped topic that drops its cap without opting in: every form of a None cap is a use
+    ld = open(os.path.join(ROOT, "low-debt", "backtest.py")).read()
+    gn = open(os.path.join(ROOT, "graham-net-net", "backtest.py")).read()
+    call = "filter_returns(raw_returns, min_entry_price=0.50,\n                                  max_single_return=3.0,"
+    for label, s in (("low-debt as is", ld), ("graham-net-net as is", gn)):
+        if dc_uses(ast.parse(s)):
+            f.append(f"gate 15 flags {label}: {dc_uses(ast.parse(s))}")
+    for label, s, m in (("MAX_SINGLE_RETURN = None", ld, ld.replace("MAX_SINGLE_RETURN = 2.0", "MAX_SINGLE_RETURN = None", 1)),
+                        ("MAX_SINGLE_RETURN = float('inf')", ld,
+                         ld.replace("MAX_SINGLE_RETURN = 2.0", "MAX_SINGLE_RETURN = float('inf')", 1)),
+                        ("positional None", gn, gn.replace(call, "filter_returns(raw_returns, 0.50, None,", 1))):
+        check(m != s, f"gate 15 use mutant {label} found nothing to change")
+        if not dc_uses(ast.parse(m)):
+            f.append(f"gate 15 misses {label} in a capped topic")
+    # the floor-guard harness's no-cap exemption is the data-checks list plus the two topics that never had a cap
+    if NO_RETURN_CAP - {"qarp", "low-pe"} != set(DATA_CHECKS_TOPICS):
+        f.append(f"test_floor_guard NO_RETURN_CAP {sorted(NO_RETURN_CAP)} is not qarp, low-pe and DATA_CHECKS_TOPICS")
+    # only a mode-on block may sit in a committed results file
+    for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
+                     ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True)):
+        if bool(dc_results_problem(res)) != bad:
+            f.append(f"dc_results_problem({res}) {dc_results_problem(res)}")
     return f
 
 
@@ -942,10 +1060,12 @@ def main():
     stub = kio_failures(no_clean)
     expect_fail("T stubbed (KIO)", stub)
     check(any("299.5%" in s for s in stub), f"the stubbed KIO case fails for the +299.5% booking: {stub}")
+    expect("T exit lost on a closed day", exit_lost_failures())
     expect("T closed-day shapes", closed_shape_failures())
     expect("T benchmarks exempt", bench_failures())
     expect("T RAM shape", ram_failures())
-    expect("T LTP traded_only", ltp_traded_failures())
+    expect("T LTP traded_only (HALT keeps its fill)", ltp_traded_failures())
+    expect("L on LTP fills", ltp_large_move_failures())
     # N
     expect("N twins", twin_failures())
     # M
@@ -964,12 +1084,15 @@ def main():
     check([s for s, _, _ in clean] == ["A", "B"], "None keeps +250% and +462%, entry and exit rules still apply")
     ran.append("filter_returns None")
     # shared code against BASE
+    stale = (f"data_utils differs from the base {args.base} outside the data-checks surface. If that change "
+             "is intended and has had its own review, pass --base <the commit that made it> or move BASE there")
     with tempfile.TemporaryDirectory() as tmp:
         base, base_src = load_base(tmp, args.base)
-        expect("ast identity", ast_failures(base_src))
-        expect("isin_dedup_sql(twin_key=False) identity", dedup_identity_failures(base))
-        expect("filter_returns default identity (10,000 random books)", filter_identity_failures(base))
-        expect("LtpExits(traded_only=False) identity", ltp_identity_failures(base))
+        for name, failures in (("ast identity", ast_failures(base_src)),
+                               ("isin_dedup_sql(twin_key=False) identity", dedup_identity_failures(base)),
+                               ("filter_returns default identity (10,000 random books)", filter_identity_failures(base)),
+                               ("LtpExits(traded_only=False) identity", ltp_identity_failures(base))):
+            expect(name, failures + ([stale] if failures else []))
     # both topics end to end, and gate 15
     src = synthetic_source()
     with tempfile.TemporaryDirectory() as tmp:
