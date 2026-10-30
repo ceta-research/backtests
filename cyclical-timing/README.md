@@ -10,6 +10,7 @@ Buy quality cyclicals only when corporate revenues confirm economic expansion.
 **Cash rule:** Cash when the signal is off, or when fewer than 10 names pass the screen or have a usable entry price
 **Rebalancing:** Annual (July), using FY data with 45-day lag
 **Costs and execution:** Size-tiered transaction costs, trades at the next day's close
+**Data checks:** No return cap. The data checks (`dc-1`, [METHODOLOGY.md](../METHODOLOGY.md#data-checks-deleveraging-and-cyclical-timing)) move holiday rows, zero-volume rows of lines that traded and non-positive prices out of each price window, hold a Thai NVDR line and its ordinary line once, test both market-cap floors (the signal's and the screen's) on a cap checked against later reverse splits, and flag adjustment-factor steps, splits and every return above +100% or below -50% for review. The results below were produced before the checks, with a 200% cap on a single stock's annual return; the rerun on the checks replaces them.
 **Period:** 2001–2025 (24 annual periods, July 2001 to July 2025)
 
 ## Academic Basis
@@ -55,6 +56,9 @@ python3 cyclical-timing/backtest.py --exchange LSE   --output cyclical-timing/re
 # drop doesn't reproduce the pre-rerun numbers: the listing rules and dedup changed selection too.
 python3 cyclical-timing/backtest.py --exchange NSE --exit-method drop
 python3 cyclical-timing/backtest.py --exchange NSE --exit-method both
+
+# Every data check off and no return cap: measures what the checks change, never published
+python3 cyclical-timing/backtest.py --exchange SAU --data-checks uncapped
 
 # Current screen
 python3 cyclical-timing/screen.py --preset us
@@ -171,4 +175,4 @@ What moved:
 
 ## Data Source
 
-Ceta Research (FMP financial data warehouse). Revenue data from `income_statement` (FY periods). Quality metrics from `key_metrics` (FY). Prices from `stock_eod`. Sector, country, quote currency and ISIN from `profile`.
+Ceta Research (FMP financial data warehouse). Revenue data from `income_statement` (FY periods). Quality metrics from `key_metrics` (FY). Prices from `stock_eod`. Sector, country, quote currency and ISIN from `profile`. The data checks also read `income_statement` net income, EPS and weighted shares, `stock_eod` close and volume, `stock_prices_non_split_adjusted_daily` and `splits_calendar`.

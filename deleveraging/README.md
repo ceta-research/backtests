@@ -23,7 +23,7 @@ Companies that cut their debt-to-equity ratio by at least 10% in a year while st
 - **Max stocks:** 30
 - **Weighting:** Equal weight
 - **Transaction costs:** Size-tiered, one-way: 0.1% above $10B market cap, 0.3% for $2-10B, 0.5% below $2B, charged on entry and on exit. The tier thresholds are in US dollars and market caps aren't converted.
-- **Data filters:** An entry price below 1.0 in the exchange's price unit is unusable (pence on LSE). A single-stock return above 200% in a quarter is dropped as a likely data error.
+- **Data filters:** An entry price below 1.0 in the exchange's price unit is unusable (pence on LSE). There is no return cap. The data checks (`dc-1`, [METHODOLOGY.md](../METHODOLOGY.md#data-checks-deleveraging-and-cyclical-timing)) move holiday rows, zero-volume rows of lines that traded and non-positive prices out of each price window, hold a Thai NVDR line and its ordinary line once, test the market-cap floor on a cap checked against later reverse splits, and flag adjustment-factor steps, splits and every return above +100% or below -50% for review. The results below were produced before the checks, with a 200% cap on a single stock's quarterly return; the rerun on the checks replaces them.
 - **Exits:** A holding with no price after the exit date exits at its last traded price (`--exit-method ltp`, the default).
 - **Listing rules:** XETRA holds Germany-domiciled companies only, SIX Switzerland-domiciled companies only, and LSE pence-quoted (GBp) lines only. On every market, a security listed under more than one ticker (same ISIN) is held once.
 - **Benchmark:** Each market's own index, in local currency. The US is measured against SPY. South Africa has no local index series and is measured against the S&P 500 in USD. Norway's index series starts in 2013.
@@ -131,6 +131,9 @@ python3 deleveraging/generate_charts.py
 
 # The old exit rule (doesn't reproduce the June results: the listing rules, dedup, cash rule and price-filter fix still apply)
 python3 deleveraging/backtest.py --preset uk --exit-method drop
+
+# Every data check off and no return cap: measures what the checks change, never published
+python3 deleveraging/backtest.py --preset thailand --data-checks uncapped
 ```
 
 The committed files were made one market at a time, each with `--preset <name> --output deleveraging/results/<file>`:
@@ -160,13 +163,15 @@ The committed files were made one market at a time, each with `--preset <name> -
 
 - `financial_ratios` (FY): debtToEquityRatio, latest and prior fiscal year
 - `key_metrics` (FY): returnOnEquity, marketCap
-- `stock_eod`: adjClose after each rebalance date, and the last traded price for exits
+- `stock_eod`: adjClose, close and volume after each rebalance date, and the last traded price for exits
 - `profile`: exchange, country (XETRA and SIX rule), currency (LSE rule, dedup tie-break), isin and isActivelyTrading (dedup)
+- Data checks: `income_statement` (FY net income, EPS, weighted shares), `stock_eod` close and volume before each FY period end, `stock_prices_non_split_adjusted_daily` and `splits_calendar` (market-cap check and split flags)
 
 ## Known Limits
 
 - The filing date used is the fiscal period end, so the 45-day lag counts from the period end. A fiscal year that ended 45 to 90 days before a rebalance can be used before the annual report was public.
 - The size floor compares the filing's market cap, in the company's reporting currency, with a threshold set in the listing currency.
+- The market-cap check catches only caps whose price was later scaled up 3 times or more by reverse splits. Factor flags record adjustment steps the close doesn't mirror but don't repair them. Both are listed in METHODOLOGY.md (Data Checks).
 - ASX and SAO are not run: adjClose split artifacts distort returns there.
 - `screen.py` does not start at present: a syntax error in its `--cloud` branch stops Python from loading the file. The backtest doesn't use it, and no result here depends on it.
 

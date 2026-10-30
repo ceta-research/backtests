@@ -2,7 +2,7 @@
 
 Known data quality issues affecting backtests. All strategies in this repo are affected unless noted otherwise.
 
-Last updated: 2026-10-13
+Last updated: 2026-10-30
 
 ---
 
@@ -220,6 +220,8 @@ Added 2026-03-03. `filter_returns()` in `data_utils.py` provides reusable price 
 - `max_single_return=2.0`: Skips stocks with single-period return > 200% (catches price data artifacts)
 
 Used by: asset-growth. Should be adopted by all future strategies. Existing strategies (qarp, low-pe, interest-coverage) can be retrofitted.
+
+Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging and cyclical-timing pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
 
 ### How to check a new exchange
 Before adding an exchange to a backtest, run these checks:
@@ -1207,6 +1209,106 @@ Caveats:
 **Topics outside the three waves have not been changed.** Their XETRA, SIX and LSE legs
 still hold every listed line; read them with the measurements earlier in this section. The
 13 topics whose Norway leg was rerun in the third wave are among them: only that leg changed.
+
+---
+
+## Data checks in place of the return cap (deleveraging and cyclical-timing, 2026-10)
+
+**Status:** code in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks); their
+committed results predate it until both topics are rerun. Every other topic keeps the 200% cap.
+
+The 200% single-return cap drops a holding only when its return is high. Reading every holding
+it dropped from these two topics' published books, and the holdings beside them, found real
+moves the cap cut and errors it could not see, because the errors also produce large losses and
+small gains. The error classes, with the cases that defined them:
+
+**1. Holiday row sets.** The warehouse carries rows on dates an exchange was closed, sometimes
+with prices from another regime and volume 0, sometimes with copied volume.
+- JNB 2012-01-02: 8 of 100 lines traded, against 92 to 97 on the dates around it (2011-12-27:
+  6 of 105). KIO.JO's row that day reads adjClose 49,422.39 at volume 0 against 14,826.95 the
+  next day, so the JNB 2011 Q4 book exited KIO at +299.5% and the cap dropped it. On its first
+  traded bar the exit is +19.9%. The same date gave RLO.JO +148.9% and SBK.JO +124.0%, which the
+  cap kept. ABG.JO's row that day shows volume 406,612 and is a holiday row too.
+- SET 2013-01-01: 24 lines traded, all on copied volume.
+- NSE 2019-10-02: 393 of 403 rows traded against 1,562 to 1,582 on normal days, a holiday set
+  with copied volume and copied closes.
+- Open days that look thin: Saudi Sundays (2020-07-05 and 07-12) had 120 traded lines against
+  185 to 186, and SET 2013-01-02 had 333 of 347 ordinary lines traded and 0 of 36 NVDR lines.
+  One test separates all of these: a date's traded-line count against the median of the other
+  dates in the same price window, with half as the line.
+
+**2. Zero-volume stale bars.** A line can print a stale price at the wrong scale on a day it
+did not trade. EASTW-R.BK opened the SET 2013 Q1 window with 2.74 and 2.73 at volume 0 (close
+3.7) before trading at 8.25 (close 13.0) on 01-03: the book entered at 2.73 and the cap dropped
+its +250.9%. On the first traded bar the return is about +16%. The same bars closed SET 2012 Q4
+for the NVDR lines held then: EASTW-R.BK -67.4%, KBANK-R.BK -52.0% and MAJOR-R.BK -55.7%, all
+kept. RAM.BK's SET 2013 Q3 window mixed zero-volume rows at adjusted factor 0.1822 with traded
+rows at 0.8332, and the oscillation filter then deleted good rows; the cap dropped its +369.7%.
+KBANK-R.BK's stale 2013-01-02 row has a wrong close as well (69.5 against 193.5 the next day),
+so no test on the adjustment factor can see it; only the traded-bar rule does.
+
+**3. NVDR twins and NVDR feeds.** Thai non-voting depositary receipts (X-R.BK) carry their own
+ISINs, so the same-ISIN dedup kept both lines of one company: 34% of deleveraging's SET
+positions were NVDR lines, often beside their ordinary line. 125 of 128 NVDR lines share the
+first six ISIN characters with their ordinary line and have R as the tenth (BFIT-R, SF-R and
+VNT-R do not). Old NVDR feeds publish real prices with no volume: ADVANC-R.BK had volume 0 on
+every row from 2003 to 2007 while its prices matched ADVANC.BK bar for bar, KBANK-R.BK had no
+traded row from 2004 to 2006 and TRUE-R.BK none from 2010 to 2012. Some ordinary lines do the
+same (TRUE.BK in 2006: 259 rows, 3 with volume, prices moving daily). A rule that dropped every
+zero-volume row would make these lines unbuyable for whole years, so a line keeps its
+zero-volume rows in a window where it never traded. BBL.BK has no rows at all in the 2012 Q4,
+2013 Q1 and 2013 Q2 windows, so BBL-R.BK is the only line to hold then.
+
+**4. Adjustment-factor regimes.** adjClose / close should change only on a dividend or split
+that the close mirrors.
+- TSG.JO, 2011-11-23: adjClose fell from 1,392 to 893 while the close rose from 1,401 to 1,610
+  (factor 0.994 to 0.555). The JNB 2011 Q4 book held it at -39.6%; close to close it gained 7.0%.
+- 3003.SR, 2020-10-26: a zero-volume halt row moved the factor by 2.112 while the close ratio
+  over the step was 0.836; dividend_calendar dates a 13.51 SAR "dividend" on 10-28. The
+  cyclical-timing Saudi 2020 book's +205.3% for it was dropped by the cap; close to close it
+  gained 36.2%.
+- SALEE.BK, 2015-05-20: adjClose and close both fell 4.17 times, with a 4:1 split in the
+  calendar on 05-21. The factor did not move, so only the calendar shows the split was missed.
+- 2603.TW, 2023-06-30: factor 0.453 to 0.825 with the close 155.0 to 93.5, the real NT$70
+  dividend. A real step, which a flag must not be mistaken for an error.
+- JNB's split factor oscillation in 2004-2005 (noted under JNB above) is the same class.
+Check F records these steps on every held name (drift outside 1/1.05 to 1.15, or a split of
+ratio 2 or more in the calendar during the holding) and changes nothing. A repair that divides
+out the steps the close does not mirror is possible and is not in this version.
+
+**5. Market caps inflated by later reverse splits.** `key_metrics.marketCap` can be built on a
+price the warehouse later scaled up for reverse splits.
+- SOS FY2019: weighted shares 593,233 times EPS 124 over net income 1.47M gives 50.0, and the
+  split-adjusted close is 750 times the raw close at the period end. The 1.64B cap is about
+  32.8M. It passed deleveraging's US floor in 2021 Q1, and the cap dropped its +231.9%.
+- ZEST FY2019: price factor 150 and a median daily turnover of 0.002% of the cap. It passed
+  cyclical-timing's US floor in 2019, and the cap dropped its +354.3%.
+- HAO FY2024: a 200.9B cap with price factor 25, turnover 0.0016% of the cap, and shares x EPS
+  10 times net income. Held in deleveraging US 2025 Q2.
+- Also price factor 3 or more and turnover under 0.01% of the cap: CHRA FY2018 (22.5B), KDNY
+  (1,040B), SIFY (35B), GRVY FY2008 (17.5B), TRC.BK FY2011 (76.5B THB).
+- Large caps trade 0.04% to 0.7% of their cap a day across markets (Sinopec 600028.SS 3.9e-4,
+  AAPL 7.3e-3, Samsung 1.7e-3, Toyota 1.6e-3, Tencent 1.6e-3, PTT 1.5e-3), so the 0.01% line
+  holds across markets.
+- Not caught: inflated caps on lines that never reverse-split later (APTO, GLMD, ALBT, NAAS).
+  Where both price series are broken the check can exclude a sound row (RNAVAL.NS FY2011, close
+  21,684 against a raw 0.287).
+Check M runs at every market-cap floor. Without it, removing the cap would have booked SOS and
+ZEST at their full returns.
+
+**Real moves the cap cut.** DAVE (deleveraging US 2025 Q2, +217.4%), 2609.TW (Taiwan 2021 Q2,
++332.6%), SANWARIA.NS (India 2012 Q1, +201.9%), and in cyclical-timing US UAL (+462%), SE
+(+235%), NIO (+437%), CROX (+225%), AS (+207%) and BWMX (+440.0%; its market cap is in MXN, see
+"Cost tiers are USD but market caps are local currency"). They traded on both bars, with no
+factor step and no inflated cap, and the data checks keep them.
+
+**Open, not fixed here.** Fund lines with volume 0 on every row stay in universes that hold them
+(`profile.isFund`). Market caps stay in the reporting currency. A fiscal year can be used before
+its filing date, because the 45-day lag runs from the period end (ZEST's FY2019, period end
+2019-03-31, filed 2019-08-19, entered the 2019-07-01 screen). The latest-filing tie-break prefers
+the larger of two rows for the same fiscal year. Preferred lines can be held beside their common
+line (TSX, US). LTP fills have no per-date holiday test. Twelve other topics with SET legs still
+hold NVDR lines beside their ordinary lines until their own reruns.
 
 ---
 
