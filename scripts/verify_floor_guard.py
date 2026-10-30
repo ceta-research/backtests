@@ -1692,13 +1692,13 @@ def main():
 
     # ---- gate 15: data checks are opt-in per topic, and the cap goes only with M at every floor
     #
-    # Every *.py under a topic directory (scripts/ holds the tests, data_utils the definitions):
-    # outside DATA_CHECKS_TOPICS no use of the surface at all; inside it, each topic's backtest.py
-    # must be fully wired (dc_wiring). A new topic joins the dict in its own rerun.
+    # Every *.py at the root and under a topic directory (scripts/ holds the tests, data_utils the
+    # definitions): outside DATA_CHECKS_TOPICS no use of the surface at all; inside it, each topic's
+    # backtest.py must be fully wired (dc_wiring). A new topic joins the dict in its own rerun.
     stray15, wiring15, used15 = [], [], {}
-    for f in sorted(ROOT.glob("*/*.py")):
+    for f in sorted(ROOT.glob("*.py")) + sorted(ROOT.glob("*/*.py")):
         rel = str(f.relative_to(ROOT))
-        if rel.startswith("scripts/"):
+        if rel.startswith("scripts/") or rel == "data_utils.py":
             continue
         src = f.read_text()
         if not any(k in src for k in DC_NAMES + DC_KWARGS + ("max_single_return",)):
