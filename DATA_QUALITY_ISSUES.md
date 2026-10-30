@@ -1257,8 +1257,8 @@ every row from 2003 to 2007 while its prices matched ADVANC.BK bar for bar, KBAN
 traded row from 2004 to 2006 and TRUE-R.BK none from 2010 to 2012. Some ordinary lines do the
 same (TRUE.BK in 2006: 259 rows, 3 with volume, prices moving daily). A rule that dropped every
 zero-volume row would make these lines unbuyable for whole years, so a line keeps its
-zero-volume rows in a window where it never traded and its close takes three values or more (items
-6 and 7 cover the rest). BBL.BK has no rows at all in the 2012 Q4,
+zero-volume rows in a window where it never traded and its close changes on two days or more
+(items 6 and 7 cover the rest). BBL.BK has no rows at all in the 2012 Q4,
 2013 Q1 and 2013 Q2 windows, so BBL-R.BK is the only line to hold then.
 
 **4. Adjustment-factor regimes.** adjClose / close should change only on a dividend or split
@@ -1398,13 +1398,24 @@ far, and one was too loose:
   the price factor itself is 3 or more and every line of its group has bars; otherwise a failing
   cap lowers. ERIC-A.ST FY1999 lowers to 157bn and ERIC-B.ST to 218bn; 02826K.KS FY2008, FY2009
   and FY2011 to FY2013 (028260.KS listed in December 2014) lower to 5.26T won, over the floor.
-  0653.HK FY2024 and 0760.HK FY2006 lower too, still under the floor.
+  0653.HK FY2024 and 0760.HK FY2006 lower too, still under the floor. A failing row whose divisor
+  is 1 cannot be lowered: it is written unchecked at FMP's cap, counted in cap_rows_flagged and
+  listed in cap_unchecked (HAO FY2025, 388m, under the floor). 02826K.KS stays a known limit: its
+  common 028260.KS has no stock_eod rows before 2014-12-17, and ERIC-B.ST's rows also start after
+  FY1999's end (2000-01-03), so a line's first row cannot tell a line not yet listed from a feed
+  that starts late.
 - A stale quote that steps once. BC88.L's 2009-10 window reads 95 on 10-01 and 10-02, then 70
   for six days, all at volume 0: two closes, so it stayed buyable at 18.61 and was held. A line
-  with no traded row now needs three closes or more in the window to keep its rows; the measured
-  no-volume feeds show 4 or more (ADVANC-R.BK 2003 to 2008, TRUE.BK 2006). That also removes
-  BR.BK 2004-10 and 2005-04, GBGLOBAL.NS 2020-01 and most of 76ID.L's windows. 76ID.L 2000-01,
-  2000-04 and 2000-07 (160.25, 165.03, 165.09) keep theirs; none is held.
+  with no traded row now needs its close to change on two days or more in the window, day over
+  day in date order, to keep its rows. A count of distinct closes is not the test, because
+  pre-2009 Thai NVDR feeds can tick between two prices with no volume: BH-R.BK 2007-07 alternates
+  48.0 and 48.5 (a stand-in held in deleveraging Thailand), and RATCH-R.BK 2005-07 alternates
+  37.75 and 37.98 while RATCH.BK trades 38.68 and 38.91 on 0.6m to 2.3m shares. Of 532 NVDR
+  windows from 2000 to 2009 with no traded row, 40 show three closes and 5 show two; four of the
+  five change on two days or more and stay, and BCH-R.BK 2006-04 (1.55, then 1.61 once) leaves.
+  The rule also removes BR.BK 2004-10 and 2005-04, GBGLOBAL.NS 2020-01 and most of 76ID.L's
+  windows (one change or none). 76ID.L 2000-01, 2000-04, 2000-07 and 2000-10 keep theirs; none is
+  held.
 
 **Real moves the cap cut.** DAVE (deleveraging US 2025 Q2, +217.4%), 2609.TW (Taiwan 2021 Q2,
 +332.6%), SANWARIA.NS (India 2012 Q1, +201.9%), and in cyclical-timing US UAL (+462%), SE
