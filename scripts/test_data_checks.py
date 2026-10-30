@@ -19,9 +19,11 @@ T's sibling step on ELUX's real rows (2007 keeps its rows), on lines that must n
 pref, Samsung Heavy's pref, BP-B.L, 1935.HK), three classes, the liquid line, the leading run of off
 rows and the trigger. A third review added: Thai NVDR feeds that tick between two prices keep their
 rows (BH-R.BK, RATCH-R.BK, MCS-R.BK), and a failing row whose divisor is 1 is 'unchecked', not a
-silent 'stands' (HAO FY2025). Then both opted-in topics run end to end on a
-synthetic SET leg through a fake client, in drop, ltp, both and uncapped modes, and the results
-pass the LTP gate's stage-a comparison and the results scanners, with and without --full-holdings.
+silent 'stands' (HAO FY2025). A fourth review added: a date with no close is skipped, not read as a
+change, and changes are counted within one window (NUL.L, XW.L, GAP.BK). Then both opted-in topics
+run end to end on a synthetic SET leg through a fake client, in drop, ltp, both and uncapped modes,
+and the results pass the LTP gate's stage-a comparison and the results scanners, with and without
+--full-holdings.
 
 Shared code: against the base commit (BASE, the last one before data checks), isin_dedup_sql
 (twin_key=False) returns the same SQL, LtpExits(traded_only=False) sends the same SQL and builds
@@ -848,9 +850,12 @@ def t1_failures():
     more there, day over day in date order: 1114.HK at a suspended 7.30, BC88.L, GBGLOBAL.NS, 76ID.L and
     BR.BK at one flat close lose every row and are not bought; so does BC88.L's real 2009-10 window, a
     stale quote that steps once (95 on 10-01 and 10-02, then 70 for six days, volume 0 throughout: one
-    change). TRUE.BK 2006-04 (7 closes) and ADVANC-R.BK 2005-01 (4 changes) keep theirs. The two-price
-    NVDR feeds are in t1_feed_failures. Without the flat-line rule, all eight windows keep their rows and
-    the stale lines are bought."""
+    change). NUL.L is flat at 95 with one row whose close is NULL (adjClose 18.61): a date with no close
+    is skipped, so it has no change and leaves, where reading adjClose there saw two. XW.L is flat at 60
+    in 2009-10 and steps once in 2022-07 (70, then 75): changes are counted within a window, so both
+    windows leave. TRUE.BK 2006-04 (7 closes) and ADVANC-R.BK 2005-01 (4 changes) keep theirs. The
+    two-price NVDR feeds are in t1_feed_failures. Without the flat-line rule, all eleven windows keep
+    their rows and the stale lines are bought."""
     d, d2 = date(2022, 7, 1), date(2009, 10, 1)
     days, days2 = list(weekdays(d, d + timedelta(days=11))), list(weekdays(d2, d2 + timedelta(days=11)))
     rows = fillers(30, days + days2)
@@ -862,6 +867,9 @@ def t1_failures():
     rows += [("ADVANC-R.BK", day, round(c * 0.29, 4), c, 0.0) for day, c in zip(days, adv)]
     bc88 = [(day, 18.61, 95.0) if day < date(2009, 10, 5) else (day, 13.71, 70.0) for day in days2]
     rows += [("BC88.L", day, a, c, 0.0) for day, a, c in bc88]
+    rows += [("NUL.L", day, 18.61, None if i == 3 else 95.0, 0.0) for i, day in enumerate(days2)]
+    rows += [("XW.L", day, 60.0, 60.0, 0.0) for day in days2]
+    rows += [("XW.L", day, 70.0 if i < 3 else 75.0, 70.0 if i < 3 else 75.0, 0.0) for i, day in enumerate(days)]
     con = cache(rows)
     st = clean_price_cache(con, set(), [d2, d])
     f = []
@@ -870,14 +878,20 @@ def t1_failures():
             f.append(f"{s}: a flat line with no volume is still buyable")
     if get_prices(con, ["BC88.L"], d2, offset_days=1).get("BC88.L") is not None:
         f.append("BC88.L 2009-10: a stale quote that steps once (95, then 70) with no volume is still buyable at 18.61")
+    if get_prices(con, ["NUL.L"], d2, offset_days=1).get("NUL.L") is not None:
+        f.append("NUL.L 2009-10: a flat line with one NULL close is still buyable at 18.61 (a missing close read as a change)")
+    for x in (d2, d):
+        if get_prices(con, ["XW.L"], x, offset_days=1).get("XW.L") is not None:
+            f.append(f"XW.L {x:%Y-%m}: under two changes in the window, still buyable (changes counted across windows)")
     for s, want in (("TRUE.BK", round(6.52 * 0.9, 4)), ("ADVANC-R.BK", round(107.0 * 0.29, 4))):
         if get_prices(con, [s], d, offset_days=1).get(s) != want:
             f.append(f"{s}: a moving feed with no volume keeps its rows (entry {want})")
-    if (st["symbol_windows_without_volume"], st.get("flat_windows_moved")) != (8, 6):
+    if (st["symbol_windows_without_volume"], st.get("flat_windows_moved")) != (11, 9):
         f.append(f"counts: {st['symbol_windows_without_volume']} windows without volume, "
-                 f"{st.get('flat_windows_moved')} flat windows moved, want 8 and 6")
-    if st["rows_moved"]["zero_volume"] != 5 * len(days) + len(days2):
-        f.append(f"rows_moved.zero_volume {st['rows_moved']['zero_volume']}, want {5 * len(days) + len(days2)}")
+                 f"{st.get('flat_windows_moved')} flat windows moved, want 11 and 9")
+    want_rows = 6 * len(days) + 3 * len(days2)
+    if st["rows_moved"]["zero_volume"] != want_rows:
+        f.append(f"rows_moved.zero_volume {st['rows_moved']['zero_volume']}, want {want_rows}")
     reasons = {r[0] for r in con.execute("SELECT DISTINCT reason FROM prices_dropped").fetchall()}
     if reasons != {"flat_no_volume"}:
         f.append(f"prices_dropped reasons {reasons}")
@@ -916,7 +930,9 @@ def t1_feed_failures():
     changes), RATCH-R.BK 2005-07 (4) and MCS-R.BK 2007-04 (2) keep their rows and their entries;
     BCH-R.BK 2006-04 (1.55, then 1.61 once) stays out. DUP.BK is flat at 95 with a duplicate row at 70
     on one date: one close per date (the row get_prices reads, adjClose first), so it has no change and
-    stays out, where counting rows in date order would see two."""
+    stays out, where counting rows in date order would see two. GAP.BK reads 95, 95, a date with no
+    close, then 70, 70 and 80: the missing close is skipped, so it changes on two days and keeps its
+    rows; a missing close read as a break would lose the 95 to 70 change."""
     rows, dates = [], []
     for s, (d, real) in T1_FEEDS.items():
         dates.append(d)
@@ -928,6 +944,8 @@ def t1_feed_failures():
     rows += fillers(30, days0, prefix="G")
     rows += [("DUP.BK", day, 18.61, 95.0, 0.0) for day in days0]
     rows.append(("DUP.BK", days0[1], 13.71, 70.0, 0.0))
+    gap = [95.0, 95.0, None, 70.0, 70.0, 80.0, 80.0, 80.0]
+    rows += [("GAP.BK", day, 0.5 * (c or 95.0), c, 0.0) for day, c in zip(days0, gap)]
     con = cache(rows)
     st = clean_price_cache(con, set(), dates)
     f = []
@@ -938,9 +956,12 @@ def t1_feed_failures():
                                                          " its rows)" if want else " (one change: out)"))
     if get_prices(con, ["DUP.BK"], d0, offset_days=1).get("DUP.BK") is not None:
         f.append("DUP.BK: a flat line with a duplicate row on one date is buyable (rows counted, not dates)")
-    if (st["symbol_windows_without_volume"], st.get("flat_windows_moved")) != (5, 2):
+    if get_prices(con, ["GAP.BK"], d0, offset_days=1).get("GAP.BK") != 47.5:
+        f.append("GAP.BK: two changes across a date with no close, entry "
+                 f"{get_prices(con, ['GAP.BK'], d0, offset_days=1).get('GAP.BK')}, want 47.5 (a missing close skipped)")
+    if (st["symbol_windows_without_volume"], st.get("flat_windows_moved")) != (6, 2):
         f.append(f"counts: {st['symbol_windows_without_volume']} windows without volume, "
-                 f"{st.get('flat_windows_moved')} flat windows moved, want 5 and 2")
+                 f"{st.get('flat_windows_moved')} flat windows moved, want 6 and 2")
     return f
 
 

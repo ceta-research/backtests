@@ -1406,10 +1406,11 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
       2 zero_volume        a (symbol, W) with a row of volume > 0 loses its rows with volume <= 0 or
                            NULL. A (symbol, W) with no traded row is counted; it keeps every row when
                            its close changes on no_volume_min_changes (2) days or more there, day over
-                           day in date order (one close per date; a feed that prints prices with no
-                           volume, even one ticking between two prices like BH-R.BK's 48.0 and 48.5),
-                           and loses them all otherwise (reason flat_no_volume: a suspended quote, or a
-                           stale one that steps once like BC88.L's 95 then 70, is not buyable).
+                           day in date order (one close per date, a date with no close skipped; a feed
+                           that prints prices with no volume, even one ticking between two prices like
+                           BH-R.BK's 48.0 and 48.5), and loses them all otherwise (reason
+                           flat_no_volume: a suspended quote, or a stale one that steps once like
+                           BC88.L's 95 then 70, is not buyable).
       3 nonpositive_price  rows with adjClose NULL or <= 0.
       4 sibling_gap        only with `siblings`, a table of (symbol, filing_epoch, market_cap) such
                            as cap_inputs: lines that share an identical FY cap in two FYs or more are
@@ -1472,10 +1473,11 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
         con.executemany("INSERT INTO _dc_closed VALUES (?, ?)", [(ws, day) for ws, day, _, _ in closed])
     moved = {"closed_day": move("(r.ws, r.day) IN (SELECT ws, day FROM _dc_closed)", "closed_day")}
     tag()
-    # n_change: days the close differs from the previous date's, one close per date (get_prices' row order)
+    # n_change: days the close differs from the previous date's, one close per date (get_prices' row order),
+    # a date whose row has no close skipped
     con.execute("""CREATE OR REPLACE TEMP TABLE _dc_sw AS
         WITH one AS (
-            SELECT symbol, ws, day, COALESCE(close, adjClose) AS px FROM _dc_rows
+            SELECT symbol, ws, day, close AS px FROM _dc_rows
             QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol, ws, day
                                        ORDER BY adjClose DESC NULLS LAST, close DESC NULLS LAST,
                                                 volume DESC NULLS LAST) = 1),
