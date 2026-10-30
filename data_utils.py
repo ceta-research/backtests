@@ -1330,8 +1330,9 @@ def validate_price_data(con, max_price_ratio=1000, verbose=True):
 # Every other topic calls none of this and keeps filter_returns' max_single_return=2.0.
 #
 #   T traded bars   clean_price_cache(): closed-day rows, zero-volume rows of lines that traded in
-#                   the same window and non-positive prices leave the cache before
-#                   remove_price_oscillations. LtpExits(traded_only=True) applies rule 2 to fills.
+#                   the same window, flat lines with no volume and non-positive prices leave the cache
+#                   before remove_price_oscillations; then rows off their sibling share class's scale.
+#                   LtpExits(traded_only=True) applies rule 2 to fills.
 #   N NVDR twins    mark_nvdr_twins() and isin_dedup_sql(twin_key=True).
 #   M market cap    load_cap_check() and cap_used_sql() at every market-cap floor.
 #   F factor flags  DataChecks records stage-1 drift and split events; it changes no price.
@@ -1347,8 +1348,16 @@ DATA_CHECKS_V1 = {
     "closed_day_min_other_dates": 3,
     "closed_day_skip": ("a date is not tested when its window has fewer than 3 other dates or their median "
                         "traded count is under 20; closed_day_test_skipped counts windows with such a date"),
-    "zero_volume": "moved only when the same line has a traded row in the same window",
+    "zero_volume": ("moved when the same line has a traded row in the same window, or when the line has none "
+                    "and its close takes one value there (a flat line with no volume is not buyable); a line with "
+                    "no traded row whose close varies keeps every row"),
     "nonpositive_price": "rows with adjClose NULL or <= 0 moved",
+    "sibling": {"gap": 1.25, "ref_days": 400, "ref_min_days": 5, "stable_share": 0.8,
+                "rule": ("siblings are lines that carry the same FY key_metrics cap; in a window where T moved rows "
+                         "of a line, a remaining row whose close over a sibling's traded close that day sits more "
+                         "than gap from the pair's median ratio (traded days of both within ref_days, outside the "
+                         "window) moves; tested only when the pair has ref_min_days such days and stable_share of "
+                         "them sit within gap of the median")},
     "benchmarks_exempt": True,
     "twins": ("SET X-R.BK takes X.BK's ISIN as its security key when X.BK is in the leg, the ISINs share "
               "characters 1 to 6 and character 10 of the NVDR's is R; within a key: buyable at entry, then "
@@ -1371,7 +1380,8 @@ def _sig(x, digits=6):
     return None if x is None else float(f"{x:.{digits}g}")
 
 
-def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, table="prices_cache"):
+def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, table="prices_cache",
+                      siblings=None):
     """Check T on a topic's windowed price cache. Call it before remove_price_oscillations.
 
     Per fetch window W = [d, d + fetch_window_days] of each rebalance date d (overlapping windows
@@ -1382,12 +1392,22 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
                            has fewer than closed_day_min_other_dates other dates or ref(D) is under
                            closed_day_min_ref.
       2 zero_volume        a (symbol, W) with a row of volume > 0 loses its rows with volume <= 0 or
-                           NULL; a (symbol, W) with no traded row keeps every row and is counted.
+                           NULL. A (symbol, W) with no traded row is counted; it keeps every row when
+                           its close takes two or more values there (a feed that prints prices with
+                           no volume), and loses them all when the close is flat (reason
+                           flat_no_volume: a stale or suspended quote is not buyable).
       3 nonpositive_price  rows with adjClose NULL or <= 0.
+      4 sibling_gap        only with `siblings`, a table of (symbol, filing_epoch, market_cap) such
+                           as cap_inputs: lines that share a FY cap are share classes of one company.
+                           In a (symbol, W) where steps 1 to 3 moved a row, a remaining row moves when
+                           its close over a sibling's traded close that day sits more than gap from
+                           the pair's median ratio (see DATA_CHECKS_V1["sibling"]).
     Moved rows land in prices_dropped(symbol, trade_epoch, adjClose, close, volume, reason,
     window_start). The cache needs symbol, trade_epoch (UTC midnight), adjClose, close and volume.
     bench_symbols may carry SQL quotes ("'SPY'"). Benchmark rows are never touched.
-    Returns {rows_moved, symbol_windows_without_volume, closed_day_test_skipped, closed_dates}.
+    Returns {rows_moved, symbol_windows_without_volume, flat_windows_moved, closed_day_test_skipped,
+    closed_dates, sibling_gap_rows, sibling_gaps}. rows_moved.zero_volume counts the rows of both
+    rule-2 cases; sibling_gap rows are counted apart (sibling_gap_rows) and listed in sibling_gaps.
     """
     bench = sorted({str(s).strip().strip("'") for s in bench_symbols})
     keep = ("p.symbol NOT IN (" + ", ".join("'" + s.replace("'", "''") + "'" for s in bench) + ")"
@@ -1438,18 +1458,71 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
     moved = {"closed_day": move("(r.ws, r.day) IN (SELECT ws, day FROM _dc_closed)", "closed_day")}
     tag()
     con.execute("""CREATE OR REPLACE TEMP TABLE _dc_sw AS
-        SELECT symbol, ws, COALESCE(BOOL_OR(volume > 0), FALSE) AS traded FROM _dc_rows GROUP BY symbol, ws""")
-    no_volume = con.execute("SELECT COUNT(*) FROM _dc_sw WHERE NOT traded").fetchone()[0]
+        SELECT symbol, ws, COALESCE(BOOL_OR(volume > 0), FALSE) AS traded,
+               COUNT(DISTINCT COALESCE(close, adjClose)) AS n_close
+        FROM _dc_rows GROUP BY symbol, ws""")
+    no_volume, flat = con.execute("SELECT COUNT(*) FILTER (WHERE NOT traded),"
+                                  " COUNT(*) FILTER (WHERE NOT traded AND n_close < 2) FROM _dc_sw").fetchone()
     moved["zero_volume"] = move("(r.volume IS NULL OR r.volume <= 0) AND (r.symbol, r.ws) IN"
                                 " (SELECT symbol, ws FROM _dc_sw WHERE traded)", "zero_volume")
+    moved["zero_volume"] += move("(r.symbol, r.ws) IN (SELECT symbol, ws FROM _dc_sw WHERE NOT traded AND n_close < 2)",
+                                 "flat_no_volume")
     tag()
     moved["nonpositive_price"] = move("r.adjClose IS NULL OR r.adjClose <= 0", "nonpositive_price")
-    for t in ("_dc_win", "_dc_rows", "_dc_closed", "_dc_sw"):
+    gaps = []
+    if siblings is not None:
+        tag()
+        gaps = _sibling_gaps(con, siblings, cfg["sibling"])
+        if gaps:
+            con.executemany("INSERT INTO _dc_gap VALUES (?, ?)", [(g["symbol"], g["epoch"]) for g in gaps])
+            move("(r.symbol, r.trade_epoch) IN (SELECT symbol, trade_epoch FROM _dc_gap)", "sibling_gap")
+    for t in ("_dc_win", "_dc_rows", "_dc_closed", "_dc_sw", "_dc_gap"):
         con.execute(f"DROP TABLE IF EXISTS {t}")
-    return {"rows_moved": moved, "symbol_windows_without_volume": int(no_volume),
+    return {"rows_moved": moved, "symbol_windows_without_volume": int(no_volume), "flat_windows_moved": int(flat),
             "closed_day_test_skipped": len(skipped),
             "closed_dates": [{"date": utc_date(day * 86400).isoformat(), "traded": traded, "ref": round(ref, 1)}
-                             for _, day, traded, ref in sorted(closed, key=lambda c: c[1])]}
+                             for _, day, traded, ref in sorted(closed, key=lambda c: c[1])],
+            "sibling_gap_rows": len(gaps), "sibling_gaps": [{k: v for k, v in g.items() if k != "epoch"} for g in gaps]}
+
+
+def _sibling_gaps(con, siblings, c):
+    """Check T step 4 on the tagged rows (_dc_rows): the rows of dirty windows off a sibling's scale.
+
+    A dirty (symbol, window) is one prices_dropped already holds a row of. Returns one dict per row
+    to move: symbol, date, epoch, close, sibling, sibling_close, ratio and ref (the pair's median
+    close ratio), sorted. Creates _dc_gap(symbol, trade_epoch) for the caller."""
+    con.execute("CREATE OR REPLACE TEMP TABLE _dc_gap(symbol VARCHAR, trade_epoch BIGINT)")
+    gap, ref_s = math.log(float(c["gap"])), int(c["ref_days"]) * 86400
+    rows = con.execute(f"""
+        WITH sib AS (
+            SELECT DISTINCT x.symbol AS a, y.symbol AS b FROM {siblings} x JOIN {siblings} y
+              ON x.filing_epoch = y.filing_epoch AND x.market_cap = y.market_cap AND x.symbol <> y.symbol),
+        tr AS (SELECT symbol, ws, day, trade_epoch, MAX(close) AS close FROM _dc_rows
+               WHERE volume > 0 AND close > 0 AND symbol IN (SELECT a FROM sib)
+               GROUP BY symbol, ws, day, trade_epoch),
+        pd AS (SELECT s.a, s.b, ta.ws, ta.day, LN(ta.close / tb.close) AS lr
+               FROM sib s JOIN tr ta ON ta.symbol = s.a JOIN tr tb ON tb.symbol = s.b AND tb.day = ta.day),
+        dirty AS (SELECT DISTINCT symbol, window_start AS ws FROM prices_dropped
+                  WHERE symbol IN (SELECT a FROM sib)),
+        ref AS (SELECT d.symbol AS a, p.b, d.ws, MEDIAN(p.lr) AS med, COUNT(*) AS n
+                FROM dirty d JOIN pd p ON p.a = d.symbol AND p.ws <> d.ws AND ABS(p.ws - d.ws) <= {ref_s}
+                GROUP BY d.symbol, p.b, d.ws),
+        stable AS (SELECT r.a, r.b, r.ws, r.med, r.n, AVG(CASE WHEN ABS(p.lr - r.med) <= {gap} THEN 1.0 ELSE 0.0 END) AS share
+                   FROM ref r JOIN pd p ON p.a = r.a AND p.b = r.b AND p.ws <> r.ws AND ABS(p.ws - r.ws) <= {ref_s}
+                   GROUP BY r.a, r.b, r.ws, r.med, r.n),
+        cand AS (SELECT r.symbol, r.ws, r.trade_epoch, r.day, MAX(r.close) AS close FROM _dc_rows r
+                 JOIN dirty d ON d.symbol = r.symbol AND d.ws = r.ws WHERE r.close > 0
+                 GROUP BY r.symbol, r.ws, r.trade_epoch, r.day),
+        test AS (SELECT c.symbol, c.trade_epoch, c.close, st.b, tb.close AS b_close, EXP(st.med) AS ref,
+                        ABS(LN(c.close / tb.close) - st.med) > {gap} AS off
+                 FROM cand c JOIN stable st ON st.a = c.symbol AND st.ws = c.ws
+                 JOIN tr tb ON tb.symbol = st.b AND tb.day = c.day
+                 WHERE st.n >= {int(c["ref_min_days"])} AND st.share >= {float(c["stable_share"])})
+        SELECT symbol, trade_epoch, close, arg_min(b, b) AS b, arg_min(b_close, b) AS b_close, arg_min(ref, b) AS ref
+        FROM test GROUP BY symbol, trade_epoch, close HAVING BOOL_AND(off)
+        ORDER BY symbol, trade_epoch""").fetchall()
+    return [{"symbol": s, "date": utc_date(e).isoformat(), "epoch": int(e), "close": cl, "sibling": b,
+             "sibling_close": bc, "ratio": _sig(cl / bc), "ref": _sig(ref)} for s, e, cl, b, bc, ref in rows]
 
 
 def mark_nvdr_twins(con, table="isin_map"):
@@ -1744,7 +1817,8 @@ class DataChecks:
             raise ValueError(f"data checks mode {mode!r} not in {self.MODES}")
         self.mode, self.cfg, self.on = mode, cfg, mode == "on"
         self.clean = {"rows_moved": {"closed_day": 0, "zero_volume": 0, "nonpositive_price": 0},
-                      "symbol_windows_without_volume": 0, "closed_day_test_skipped": 0, "closed_dates": []}
+                      "symbol_windows_without_volume": 0, "flat_windows_moved": 0, "closed_day_test_skipped": 0,
+                      "closed_dates": [], "sibling_gap_rows": 0, "sibling_gaps": []}
         self.cap = {"cap_rows_checked": 0, "cap_rows_flagged": 0}
         self.twins_linked = self.factor_checked = 0
         self.events, self.large_moves, self.periods = [], [], {}
@@ -1965,6 +2039,8 @@ class DataChecks:
         counts = {
             "rows_moved": dict(self.clean["rows_moved"]),
             "symbol_windows_without_volume": self.clean["symbol_windows_without_volume"],
+            "flat_windows_moved": self.clean.get("flat_windows_moved", 0),
+            "sibling_gap_rows": self.clean.get("sibling_gap_rows", 0),
             "closed_day_test_skipped": self.clean["closed_day_test_skipped"],
             "entry_bars_moved": n("entry_bar"), "exit_bars_moved": n("exit_bar"), "entries_lost": n("entry_lost"),
             "exits_lost": n("exit_lost"),
@@ -1978,11 +2054,13 @@ class DataChecks:
         return {"version": self.cfg["version"], "mode": self.mode, "max_single_return": None,
                 "rules": {k: v for k, v in self.cfg.items() if k != "version"}, "counts": counts,
                 "closed_dates": list(self.clean["closed_dates"]), "events": ev,
-                "large_moves": sorted(self.large_moves, key=lambda m: (m["rebalance_date"], m["symbol"]))}
+                "large_moves": sorted(self.large_moves, key=lambda m: (m["rebalance_date"], m["symbol"])),
+                "sibling_gaps": list(self.clean.get("sibling_gaps", []))}
 
     def summary(self):
         c = self.block()["counts"]
-        return (f"Data checks ({self.mode}): rows moved {c['rows_moved']}, entry/exit bars moved "
+        return (f"Data checks ({self.mode}): rows moved {c['rows_moved']} (flat windows {c['flat_windows_moved']}, "
+                f"sibling-gap rows {c['sibling_gap_rows']}), entry/exit bars moved "
                 f"{c['entry_bars_moved']}/{c['exit_bars_moved']}, entries/exits lost {c['entries_lost']}/"
                 f"{c['exits_lost']}, twins "
                 f"{c['twins_collapsed']} ({c['nvdr_stand_ins']} stand-ins), cap rows flagged {c['cap_rows_flagged']}, "

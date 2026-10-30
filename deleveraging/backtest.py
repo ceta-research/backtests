@@ -184,8 +184,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
                           verbose=verbose, limit=5000000, timeout=600,
                           memory_mb=2048, threads=1)
     con.execute("CREATE INDEX idx_prices_sym_epoch ON prices_cache(symbol, trade_epoch)")
-    if checks:   # check T: closed days, zero-volume rows of traded lines, non-positive prices
-        dc.record_clean(clean_price_cache(con, bench_symbols, rebalance_dates, dc.cfg))
+    if checks:   # check T: closed days, zero-volume and flat lines, non-positive prices, sibling-class gaps
+        dc.record_clean(clean_price_cache(con, bench_symbols, rebalance_dates, dc.cfg, siblings="cap_inputs"))
     remove_price_oscillations(con, verbose=verbose)
     print(f"    -> {count} price rows")
 
