@@ -1751,7 +1751,7 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
                             'cap_over_k'; it fails -> as below, with divisor max(K, D).
       K disagreeing with pf turnover then k, as before: u clears -> 'cap_over_k' (cap / K); u fails ->
                             'ineligible' when strict (EPS, shares and prices sit on different bases,
-                            HAO), else lowered as below.
+                            HAO), else lowered as below, by max(K, D).
       no K                  u clears -> 'stands'.
     A failing u lowers the cap to cap / divisor ('cap_over_pf') when u on the lowered cap clears
     turnover_max or the row is not strict, else the row is 'ineligible' (cap_used NULL). An unknown
