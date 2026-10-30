@@ -1354,8 +1354,13 @@ DATA_CHECKS_V1 = {
               "characters 1 to 6 and character 10 of the NVDR's is R; within a key: buyable at entry, then "
               "the ordinary line, then isActivelyTrading, home currency, symbol"),
     "cap": {"pf_min": 3.0, "turnover_max": 1e-4, "bars": 20, "lookback_days": 45, "min_traded_bars": 10,
-            "k_min": 3.0, "eps_min": 0.05, "net_income_min": 1e6, "order": "turnover then k",
-            "lower_only": True},
+            "k_min": 3.0, "eps_min": 0.05, "net_income_min": 1e6, "k_tol": 1.5, "split_max": 1e4,
+            "split_min": 2.0, "lower_only": True,
+            "order": ("gate on pf or the later consolidations; turnover over every line with the same FY cap; "
+                      "k within k_tol of pf lowers first and turnover is tested on the lowered cap; a failing "
+                      "cap is lowered by pf times the later forward splits (and k) when turnover clears on the "
+                      "lowered cap, else ineligible; a k that disagrees with pf keeps turnover-then-k; unknown "
+                      "turnover lowers")},
     "factor": {"band": [1 / 1.05, 1.15], "split_min": 2.0, "mode": "flag only: no price or return is changed"},
     "large_move_log": math.log(2),
 }
@@ -1509,18 +1514,19 @@ def nvdr_twins_sql(candidates_sql, target_date, offset_days, min_entry_price, wi
 
 
 CAP_CHECK_DDL = ("CREATE OR REPLACE TABLE cap_check(symbol VARCHAR, filing_epoch BIGINT, market_cap DOUBLE,"
-                 " pf DOUBLE, pf_source VARCHAR, u DOUBLE, n_traded BIGINT, k DOUBLE, rule VARCHAR, k_div DOUBLE)")
+                 " pf DOUBLE, pf_source VARCHAR, pf_cons DOUBLE, pf_fwd DOUBLE, u DOUBLE, n_traded BIGINT,"
+                 " lines BIGINT, k DOUBLE, rule VARCHAR, cap_div DOUBLE)")
 CAP_INPUTS_DDL = ("CREATE OR REPLACE TABLE cap_inputs(symbol VARCHAR, filing_epoch BIGINT, market_cap DOUBLE,"
                   " net_income DOUBLE, eps DOUBLE, shares DOUBLE, n_bars BIGINT, n_traded BIGINT,"
-                  " turnover DOUBLE, pf_raw DOUBLE, pf_splits DOUBLE)")
+                  " turnover DOUBLE, pf_raw DOUBLE, pf_splits DOUBLE, pf_cons DOUBLE, pf_fwd DOUBLE)")
 # A floor's failing side, for check M's events: over the floor on the raw cap, not on cap_used.
 CAP_FAIL_TEST = "km.marketCap > ? AND (km.cap_used IS NULL OR km.cap_used <= ?)"
 
 
 def cap_used_sql(m="m", cc="cc"):
-    """The cap a floor reads under check M: NULL for an ineligible FY row, else marketCap / k_div."""
-    return (f"CASE WHEN {cc}.rule = 'ineligible' THEN NULL WHEN {cc}.k_div IS NOT NULL"
-            f" THEN {m}.marketCap / {cc}.k_div ELSE {m}.marketCap END")
+    """The cap a floor reads under check M: NULL for an ineligible FY row, else marketCap / cap_div."""
+    return (f"CASE WHEN {cc}.rule = 'ineligible' THEN NULL WHEN {cc}.cap_div IS NOT NULL"
+            f" THEN {m}.marketCap / {cc}.cap_div ELSE {m}.marketCap END")
 
 
 def empty_cap_check(con):
@@ -1534,12 +1540,16 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
     Per (symbol, FY period end): marketCap, the same FY's net income, EPS and weighted shares, the
     last `bars` stock_eod dates up to the period end, one row per date with the traded row kept
     first (count, traded count, median close x volume of
-    the traded ones), stock_eod close over the raw close on the latest day both exist, and the
-    product of denominator / numerator over splits_calendar events after the period end.
+    the traded ones), stock_eod close over the raw close on the latest day both exist, and over the
+    splits_calendar events after the period end: the product of denominator / numerator (pf_splits),
+    of the consolidations alone (pf_cons) and of the forward splits of split_min or more (pf_fwd).
+    An event whose ratio passes split_max either way (4541.T's 1:70,384,700 is a delisting cash-out,
+    and FMP's prices do not carry it) is left out of all three.
     date_ranges [(first, last)] bound the bar scans to the days before each period end.
     """
     c = cfg["cap"]
     look = int(c["lookback_days"]) * 86400
+    smax, smin = math.log(float(c["split_max"])), math.log(float(c["split_min"]))
     days = lambda col: " OR ".join(f"({col} >= '{a}' AND {col} <= '{b}')" for a, b in date_ranges) or "FALSE"
     return f"""
         WITH km AS (
@@ -1578,12 +1588,16 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
                    MEDIAN(CASE WHEN volume > 0 AND close > 0 THEN close * volume END) AS turnover
             FROM lb GROUP BY symbol, fe),
         spl AS (
-            SELECT km.symbol, km.fe, EXP(SUM(LN(s.denominator / s.numerator))) AS pf_splits
+            SELECT km.symbol, km.fe, EXP(SUM(LN(s.denominator / s.numerator))) AS pf_splits,
+                   EXP(SUM(GREATEST(LN(s.denominator / s.numerator), 0))) AS pf_cons,
+                   EXP(SUM(CASE WHEN LN(s.numerator / s.denominator) >= {smin}
+                                THEN LN(s.numerator / s.denominator) ELSE 0 END)) AS pf_fwd
             FROM km JOIN splits_calendar s ON s.symbol = km.symbol AND s.dateEpoch > km.fe
-            WHERE s.numerator > 0 AND s.denominator > 0 GROUP BY km.symbol, km.fe)
+            WHERE s.numerator > 0 AND s.denominator > 0 AND ABS(LN(s.denominator / s.numerator)) <= {smax}
+            GROUP BY km.symbol, km.fe)
         SELECT km.symbol, km.fe AS filing_epoch, km.marketCap AS market_cap, inc.netIncome AS net_income,
                inc.eps, inc.weightedAverageShsOut AS shares, agg.n_bars, agg.n_traded, agg.turnover,
-               pfr.pf_raw, spl.pf_splits
+               pfr.pf_raw, spl.pf_splits, spl.pf_cons, spl.pf_fwd
         FROM km
         LEFT JOIN inc ON inc.symbol = km.symbol AND inc.fe = km.fe
         LEFT JOIN agg ON agg.symbol = km.symbol AND agg.fe = km.fe
@@ -1595,13 +1609,26 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
 def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     """Check M's rule, from cap_inputs into cap_check (one row per symbol and FY period end).
 
-    Only when pf >= pf_min: u known and under turnover_max makes the FY row ineligible (cap_used
-    NULL); else k > k_min lowers the cap to marketCap / k ('cap_over_k'); else the cap stands. It
-    never raises a cap. pf = close / raw close at the period end, else the later splits' product;
-    u = median close x volume of the traded bars / marketCap, unknown under min_traded_bars; k =
-    shares x EPS / net income, when |EPS| >= eps_min, |net income| >= net_income_min and the signs
-    agree. pf comes from later splits but only gates: the decision reads k (same filing) and u
-    (trading before the period end). Returns {cap_rows_checked, cap_rows_flagged}.
+    Inputs: pf = close / raw close at the period end, else the later splits' product (pf_splits);
+    pf_cons and pf_fwd = the later consolidations' and forward splits' products (cap_check_sql);
+    k = shares x EPS / net income, when |EPS| >= eps_min, |net income| >= net_income_min and the
+    signs agree; u = the turnover of every line that carries the same FY cap (share classes of one
+    company, so a traded sibling clears a thin class): the sum of each line's median close x volume
+    of its traded bars, over marketCap, unknown when the lines hold under min_traded_bars traded
+    bars between them. D = max(1, pf x pf_fwd): the share count carries the later forward splits.
+
+    The row is checked when pf >= pf_min or pf_cons >= pf_min (forward and reverse splits can net
+    out in pf). Then, with K = k when k > k_min:
+      K within k_tol of pf  the cap lowers to cap / K first, and u is read on that cap: it clears ->
+                            'cap_over_k'; it fails -> as below, with divisor max(K, D).
+      K disagreeing with pf turnover then k, as before: u clears -> 'cap_over_k' (cap / K); u fails ->
+                            'ineligible' (EPS, shares and prices sit on different bases, HAO).
+      no K                  u clears -> 'stands'.
+    A failing u lowers the cap to cap / divisor ('cap_over_pf') when u on the lowered cap clears
+    turnover_max, else the row is 'ineligible' (cap_used NULL). An unknown u lowers it the same way.
+    It never raises a cap. pf and the split products come from later splits but only gate and size
+    the lowering: the decision reads k (same filing) and u (trading before the period end).
+    Returns {cap_rows_checked, cap_rows_flagged}.
     """
     c = cfg["cap"]
     pf_min, u_max, k_min = float(c["pf_min"]), float(c["turnover_max"]), float(c["k_min"])
@@ -1612,18 +1639,40 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
             SELECT symbol, CAST(filing_epoch AS BIGINT) AS filing_epoch, CAST(market_cap AS DOUBLE) AS market_cap,
                    CAST(COALESCE(pf_raw, pf_splits) AS DOUBLE) AS pf,
                    CASE WHEN pf_raw IS NOT NULL THEN 'raw' WHEN pf_splits IS NOT NULL THEN 'splits' END AS pf_source,
-                   CASE WHEN n_traded >= {int(c["min_traded_bars"])} AND market_cap > 0
-                        THEN CAST(turnover AS DOUBLE) / market_cap END AS u,
-                   CAST(n_traded AS BIGINT) AS n_traded,
+                   CAST(pf_cons AS DOUBLE) AS pf_cons, CAST(pf_fwd AS DOUBLE) AS pf_fwd,
+                   CAST(n_traded AS BIGINT) AS n_traded, CAST(turnover AS DOUBLE) AS turnover,
                    CASE WHEN ABS(eps) >= {float(c["eps_min"])} AND ABS(net_income) >= {float(c["net_income_min"])}
                              AND SIGN(eps) = SIGN(net_income) AND shares > 0
                         THEN CAST(shares AS DOUBLE) * eps / net_income END AS k
-            FROM {inputs})
-        SELECT symbol, filing_epoch, market_cap, pf, pf_source, u, n_traded, k,
-               CASE WHEN pf >= {pf_min} AND u < {u_max} THEN 'ineligible'
-                    WHEN pf >= {pf_min} AND k > {k_min} THEN 'cap_over_k' ELSE 'stands' END,
-               CASE WHEN pf >= {pf_min} AND NOT COALESCE(u < {u_max}, FALSE) AND k > {k_min} THEN k END
-        FROM x""")
+            FROM {inputs}),
+        g AS (
+            SELECT filing_epoch, market_cap, COUNT(*) AS lines, SUM(COALESCE(n_traded, 0)) AS g_traded,
+                   SUM(CASE WHEN n_traded > 0 THEN turnover END) AS g_turnover
+            FROM x GROUP BY filing_epoch, market_cap),
+        y AS (
+            SELECT x.*, g.lines, g.g_traded,
+                   CASE WHEN g.g_traded >= {int(c["min_traded_bars"])} AND x.market_cap > 0
+                        THEN g.g_turnover / x.market_cap END AS u,
+                   COALESCE(x.pf >= {pf_min} OR x.pf_cons >= {pf_min}, FALSE) AS gate,
+                   GREATEST(1.0, COALESCE(x.pf, 1.0) * COALESCE(x.pf_fwd, 1.0)) AS d,
+                   CASE WHEN x.k > {k_min} THEN x.k END AS kk,
+                   COALESCE(x.k > {k_min} AND x.pf > 0 AND ABS(LN(x.k / x.pf)) <= LN({float(c["k_tol"])}), FALSE) AS agree
+            FROM x JOIN g ON g.filing_epoch = x.filing_epoch AND g.market_cap = x.market_cap),
+        z AS (
+            SELECT *, GREATEST(d, COALESCE(kk, 1.0)) AS dk,
+                   CASE WHEN NOT gate THEN 'stands'
+                        WHEN agree AND u * kk >= {u_max} THEN 'cap_over_k'
+                        WHEN kk IS NOT NULL AND NOT agree AND u >= {u_max} THEN 'cap_over_k'
+                        WHEN kk IS NULL AND u >= {u_max} THEN 'stands'
+                        WHEN kk IS NOT NULL AND NOT agree AND u < {u_max} THEN 'ineligible'
+                        WHEN u IS NULL THEN 'lower'
+                        WHEN u * GREATEST(d, COALESCE(kk, 1.0)) >= {u_max} THEN 'lower'
+                        ELSE 'ineligible' END AS r
+            FROM y)
+        SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, u, g_traded, lines, k,
+               CASE WHEN r = 'lower' AND dk > 1.0 THEN 'cap_over_pf' WHEN r = 'lower' THEN 'stands' ELSE r END,
+               CASE WHEN r = 'cap_over_k' THEN kk WHEN r = 'lower' AND dk > 1.0 THEN dk END
+        FROM z""")
     dup = con.execute("SELECT COUNT(*) FROM (SELECT symbol, filing_epoch FROM cap_check"
                       " GROUP BY symbol, filing_epoch HAVING COUNT(*) > 1)").fetchone()[0]
     if dup:
@@ -1740,14 +1789,16 @@ class DataChecks:
         n = 0
         if self.on:
             rows = con.execute(f"""
-                SELECT DISTINCT c.symbol, c.km_epoch, c.raw_cap, cc.pf, cc.pf_source, cc.u, cc.k, cc.rule, cc.k_div
+                SELECT DISTINCT c.symbol, c.km_epoch, c.raw_cap, cc.pf, cc.pf_source, cc.pf_cons, cc.pf_fwd, cc.u,
+                       cc.lines, cc.k, cc.rule, cc.cap_div
                 FROM ({sql}) c LEFT JOIN cap_check cc ON cc.symbol = c.symbol AND cc.filing_epoch = c.km_epoch
                 ORDER BY c.symbol, c.km_epoch""", list(params)).fetchall()
-            for sym, fe, cap, pf, src, u, k, rule, kd in rows:
+            for sym, fe, cap, pf, src, pfc, pff, u, lines, k, rule, div in rows:
                 n += 1
-                used = None if rule == "ineligible" else (cap / kd if kd else cap)
+                used = None if rule == "ineligible" else (cap / div if div else cap)
                 self._event(target_date, sym, check, fy=utc_date(fe).isoformat(), cap=cap, k=_sig(k), pf=_sig(pf),
-                            pf_source=src, u=_sig(u), rule=rule, cap_used=_sig(used, 10), floor=floor)
+                            pf_source=src, pf_cons=_sig(pfc), pf_fwd=_sig(pff), u=_sig(u), lines=lines, rule=rule,
+                            cap_div=_sig(div), cap_used=_sig(used, 10), floor=floor)
         self._period(target_date)[f"{check}_excluded"] = n
         return n
 
