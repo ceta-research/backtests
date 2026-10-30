@@ -22,7 +22,13 @@ rows (BH-R.BK, RATCH-R.BK, MCS-R.BK), and a failing row whose divisor is 1 is 'u
 silent 'stands' (HAO FY2025). A fourth review added: a date with no close is skipped, not read as a
 change, and changes are counted within one window (NUL.L, XW.L, GAP.BK); M's divisor edges (1.25
 lowers, unknown turnover with a divisor of 1 is 'unchecked', a k-only divisor lowers); and an
-'unchecked' row on the synthetic leg (A07.BK FY2010) keeps FMP's cap at the floors. Then both
+'unchecked' row on the synthetic leg (A07.BK FY2010) keeps FMP's cap at the floors. A fifth review
+added: a divisor needs evidence beyond the split records (a measured price factor, or FMP's FY share
+count stepping at the record), so WEST3, GOL, 0568.HK, INPEX and DCC shapes keep FMP's cap while
+CETX and HAO shapes stay lowered and TOPS FY2004 reads its FY2006 price factor; a split record
+repeated within 150 days counts once (AMCR, 071970.KS); and an LTP fill on the other side of a
+flipping adjClose basis books the close's move (RAM.BK 2018-01), while 600875.SS 2006-01, a single
+step and a same-basis fill keep theirs. Then both
 opted-in topics run end to end on a synthetic SET leg through a fake client, in drop, ltp, both and
 uncapped modes, and the results pass the LTP gate's stage-a comparison and the results scanners,
 with and without --full-holdings.
@@ -1744,6 +1750,113 @@ def ltp_large_move_failures():
     return f
 
 
+# real stock_eod rows (yymmdd close adjClose volume): RAM.BK around its 2018-01 holding, 600875.SS around 2006-01
+RAM_ROWS = (
+    "171204 29.4 5.5 0|171206 29.4 5.5 0|171207 29.4 25.12 15000|171208 29.4 5.5 0|171212 29.4 5.5 0|171213 29.4 5.5 0|"
+    "171214 29.4 5.5 0|171215 29.4 5.5 0|171218 29.16 24.92 10000|171219 29.16 5.45 0|171220 29.16 5.45 0|"
+    "171221 29.16 5.45 0|171222 29.9 25.55 5000|171225 29.9 5.59 0|171226 29.9 5.59 0|171227 29.6 25.29 35000|"
+    "171228 29.6 5.53 0|171229 29.7 25.38 5000|180103 29.5 5.51 5000|180104 29.5 25.21 5000|180105 29.5 5.51 0|"
+    "180108 29.5 5.51 5000|180109 29.3 25.04 10000|180110 29.3 5.48 0|180111 29.3 5.48 0|180112 29.3 5.48 0|"
+    "180115 29.3 5.48 0|180116 29.5 25.21 5000|180117 29.3 25.04 5000|180118 29.22 24.97 15000|"
+    "180119 29.22 5.46 15000|180122 29.4 25.12 25000|180123 29.4 5.5 5000|180124 29.5 25.21 30000|"
+    "180125 29.32 25.05 65000|180126 29.32 5.48 0|180129 29.38 25.11 10000|180130 29.36 25.09 10000|"
+    "180131 29.36 5.49 20000|180201 29.3 25.04 5000|180202 29.3 5.48 0|180205 29.3 5.48 0|180206 28.4 24.27 85000|"
+    "180207 28.3 24.18 10000|180208 29.3 25.04 35000|180209 29.5 5.51 5000|180212 29.8 25.46 85000|"
+    "180213 29.5 5.51 0|180214 30 25.64 125000|180215 29.92 25.57 45000|180216 29.92 5.59 0|"
+    "180219 29.98 25.62 10000|180220 29.96 25.6 10000|180221 30 25.64 20000|180222 29.92 25.57 20000|"
+    "180223 30 5.61 0|180226 30 5.61 0|180227 30 5.61 0|180228 30 5.61 0|180302 29.18 24.93 30000|"
+    "180305 29 24.78 20000|180306 29 5.42 5000|180307 29 5.42 0|180308 29 24.78 25000|180309 29 5.42 0|"
+    "180312 29 5.42 0|180313 28.3 24.18 30000|180314 28.3 5.29 0|180315 28.3 5.29 0|180316 28.5 24.35 20000|"
+    "180319 28.5 5.33 0|180320 28.5 5.33 0|180321 28.5 5.33 0|180322 28.5 5.33 0|180323 28.5 5.33 0|"
+    "180326 28.5 5.34 0|180327 28.5 5.34 0|180328 28.5 5.34 0|180329 28.5 5.34 0|180330 28.5 5.34 0")
+REFORM_ROWS = (
+    "051205 4.37 2.79 873626|051206 4.44 2.83 801652|051207 4.37 2.78 631222|051208 4.43 2.82 956682|"
+    "051209 5.63 4.49 753292|051212 4.58 2.92 1505918|051213 4.59 2.93 1565842|051214 4.59 2.93 2055338|"
+    "051215 4.59 2.93 3208008|051216 5.84 4.65 2525986|051219 4.6 2.93 935072|051220 4.58 2.92 736276|"
+    "051221 5.82 4.64 534620|051222 4.81 3.07 3701252|051223 6.11 4.88 2914366|051226 4.82 3.07 1556698|"
+    "051227 4.85 3.09 990570|051228 4.94 3.15 4305274|051229 4.89 3.11 3389974|051230 6.2 4.95 1498770|"
+    "060103 4.99 3.18 2773030|060104 5.04 3.21 2725854|060105 5.02 3.2 4204850|060106 6.38 5.08 3310900|"
+    "060109 5.47 3.49 13752880|060110 5.48 3.49 10829018|060111 6.95 5.55 6909190|060112 5.52 3.51 4387512|"
+    "060113 7.01 5.59 3454728|060116 5.09 3.24 7012026|060117 5.25 3.34 5521270|060118 5.47 3.48 6942366|"
+    "060119 5.49 3.5 9451630|060120 6.97 5.56 7442214|060123 5.5 3.5 6317626|060124 5.57 3.55 4974500|"
+    "060125 7.07 5.64 2201610|060206 5.52 3.51 4805758|060207 5.87 3.74 8739264|060208 5.76 3.67 6881298|"
+    "060209 6.15 3.91 10925720|060210 7.8 6.22 8602912|060213 6.3 4.01 5023876|060214 6.16 3.92 6687646|"
+    "060215 5.84 3.72 6918236|060216 5.79 3.69 5447420|060217 7.36 5.87 3959128|060220 5.87 3.74 3859898|"
+    "060221 5.83 3.71 3390512|060222 5.89 3.75 3419672|060223 6.14 3.91 6563168|060224 7.8 6.22 5167840|"
+    "060227 7.8 6.22 0|060228 7.8 6.22 0|060301 7.8 6.22 0|060302 7.8 6.22 0|060303 7.8 6.22 0|060306 7.8 6.22 0|"
+    "060307 7.8 6.22 0|060308 7.8 6.22 0|060309 7.8 6.22 0|060310 7.8 6.22 0|060313 7.8 6.22 0|060314 7.8 6.22 0|"
+    "060315 7.8 6.22 0|060316 6.05 3.85 6760646|060317 7.68 6.13 5323334|060320 6.07 3.86 3294532|"
+    "060321 6.18 3.94 4826392|060322 6.11 3.89 3800302|060323 6.08 3.87 6256488|060324 7.72 6.16 4926360|"
+    "060327 7.72 6.16 0|060328 7.72 6.16 0|060329 7.72 6.16 0|060330 7.72 6.16 0|060331 7.72 6.16 0")
+
+
+def real_rows(symbol, packed):
+    """(symbol, day, adjClose, close, volume) from a packed 'yymmdd close adjClose volume|...' string."""
+    out = []
+    for item in packed.split("|"):
+        d, c, a, v = item.split()
+        out.append((symbol, date(2000 + int(d[:2]), int(d[2:4]), int(d[4:])), float(a), float(c), float(v)))
+    return out
+
+
+def ltp_basis_failures():
+    """An LTP fill on the other side of a feed whose adjClose basis flips row by row books the close's
+    move. RAM.BK 2018-01 (its real rows): adjClose alternates between about close / 5.35 and close x
+    0.855 on consecutive rows while the close runs 29.5 to 28.5; the entry bar (01-03) sits on the low
+    basis and the last traded bar (03-16) on the high one, so the adjClose fill books +341.9%. The fill
+    now books 5.51 x 28.5 / 29.5 (-3.4%), keeps 24.35 as ltp_adj, basis 'close', counted once, and F
+    still flags its drift. Not repaired: 600875.SS 2006-01 (its real rows: the close alternates with the
+    adjClose, two interleaved price series, so the close is no steadier; +93.7% kept), STEP (adjClose /
+    close steps once by 1.25 and stays: no reversal), SAME (RAM's rows, entry on the fill's basis:
+    drift in the band) and LATE (one step before the exit date, the flipping only after it: rows past
+    the window end never count)."""
+    rows = real_rows("RAM.BK", RAM_ROWS) + real_rows("600875.SS", REFORM_ROWS)
+    rows += [("SAME", d, a, c, v) for _, d, a, c, v in real_rows("RAM.BK", RAM_ROWS)]
+    step = {d: ((10 + 0.01 * k) * (0.797 if d >= date(2010, 2, 15) else 0.637), 10 + 0.01 * k)
+            for k, d in enumerate(weekdays(date(2009, 12, 1), date(2010, 3, 31)))}
+    rows += [("STEP", d, a, c, 1e5) for d, (a, c) in step.items()]
+    late = {d: ((20 + 0.01 * k) * (0.2 if d < date(2012, 3, 1) else 0.8 if d < date(2012, 4, 2) or k % 2 else 0.2),
+                20 + 0.01 * k) for k, d in enumerate(weekdays(date(2011, 12, 1), date(2012, 5, 15)))}
+    rows += [("LATE", d, a, c, 1e5) for d, (a, c) in late.items()]
+    con = duckdb.connect()
+    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE, volume DOUBLE)")
+    con.execute("CREATE TABLE splits(symbol VARCHAR, split_epoch BIGINT, numerator DOUBLE, denominator DOUBLE)")
+    entry = {"RAM.BK": (date(2018, 1, 3), 5.51, 29.5), "600875.SS": (date(2006, 1, 3), 3.18, 4.99),
+             "SAME": (date(2018, 1, 4), 25.21, 29.5), "STEP": (date(2010, 1, 4), *step[date(2010, 1, 4)]),
+             "LATE": (date(2012, 1, 3), *late[date(2012, 1, 3)])}
+    for s, (d, a, c) in entry.items():
+        con.execute("INSERT INTO prices_cache VALUES (?, ?, ?, ?, 1000)", [s, ep(d), a, c])
+    ltp = du.LtpExits(LtpClient(ltp_src(rows)), con, traded_only=True)
+    got = {}
+    for s, d, x in (("RAM.BK", date(2018, 1, 1), date(2018, 4, 1)), ("600875.SS", date(2006, 1, 1), date(2006, 4, 1)),
+                    ("SAME", date(2018, 1, 3), date(2018, 4, 1)), ("STEP", date(2010, 1, 1), date(2010, 4, 1)),
+                    ("LATE", date(2012, 1, 2), date(2012, 4, 1))):
+        got.update(ltp.fill([s], {s: entry[s][1]}, {}, d, x, offset_days=1, min_entry_price=1.0))
+    f = []
+    want = {"RAM.BK": 5.51 * 28.5 / 29.5, "600875.SS": 6.16, "SAME": 24.35, "STEP": step[date(2010, 3, 31)][0],
+            "LATE": late[date(2012, 3, 30)][0]}
+    for s, px in want.items():
+        if got.get(s) is None or abs(got[s] / px - 1) > 1e-9:
+            f.append(f"{s}: fill {got.get(s)}, want {px:.6g} ({px / entry[s][1] - 1:+.1%})")
+    rec = {x["symbol"]: x for x in ltp.fills}
+    r = rec.get("RAM.BK", {})
+    if r.get("basis") != "close" or r.get("ltp_adj") != 24.35 or r.get("ltp") != got.get("RAM.BK"):
+        f.append(f"RAM.BK fill record {r}, want basis close, ltp_adj 24.35 and ltp the booked price")
+    if any("basis" in rec.get(s, {}) or "ltp_adj" in rec.get(s, {}) for s in ("600875.SS", "SAME", "STEP", "LATE")):
+        f.append("a fill that keeps its adjClose carries a basis")
+    block = ltp.results_block("ltp", [], 4, 0.02)
+    if block.get("close_basis_fills") != 1:
+        f.append(f"close_basis_fills {block.get('close_basis_fills')}, want 1")
+    DataChecks("on").annotate_ltp(con, ltp, block)
+    fc = {x["symbol"]: x["factor_check"] for x in block["fills"]}
+    if fc["RAM.BK"]["reasons"] != ["band"] or abs(fc["RAM.BK"]["drift"] - 4.5743) > 1e-3:
+        f.append(f"RAM.BK factor_check {fc['RAM.BK']}, want the band flag on its adjClose drift 4.574")
+    if [m["symbol"] for m in block["large_moves"]] != ["LATE"] or fc["SAME"]["flagged"]:
+        f.append(f"large moves {[m['symbol'] for m in block['large_moves']]}, want LATE alone (RAM.BK books -3.4%); "
+                 f"SAME {fc['SAME']}, want no flag")
+    return f
+
+
 # ---------------------------------------------------------------- both topics end to end
 
 def load_topic(topic):
@@ -2102,6 +2215,7 @@ def main():
     expect("T RAM shape", ram_failures())
     expect("T LTP traded_only (HALT keeps its fill)", ltp_traded_failures())
     expect("L on LTP fills", ltp_large_move_failures())
+    expect("LTP fill on a flipping adjClose basis: RAM.BK repaired, 600875.SS kept", ltp_basis_failures())
     # N
     expect("N twins", twin_failures())
     # M

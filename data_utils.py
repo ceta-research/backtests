@@ -807,6 +807,10 @@ class LtpExits:
     span before the filter, and a symbol with none keeps them all (as T keeps a window with no
     traded row). Each fill records ltp_close and ltp_volume. With local=True the topic's prices_cache
     must then carry close and volume. False sends the SQL and builds the temp table this class always did.
+    traded_only=True also repairs a fill that lands on the other side of a feed whose adjClose basis
+    flips row by row while its close runs smoothly (RAM.BK 2018-01: adjClose alternates between about
+    close / 5.35 and close x 0.855): DATA_CHECKS_V1["fill_basis"] decides it, the fill books entry price x
+    fill close / entry close, and keeps its adjClose as ltp_adj with basis "close" (close_basis_fills).
     """
 
     # Remote cleaning context each side of the window; the filter's widest neighbour span is 20 days.
@@ -815,6 +819,7 @@ class LtpExits:
     def __init__(self, client, con, local=False, verbose=False, traded_only=False):
         self.client, self.con, self.local, self.verbose = client, con, local, verbose
         self.traded_only, self.zero_volume_moved, self._bar_extra = traded_only, 0, {}
+        self.close_basis, self._flips = 0, {}
         # One row per symbol (9,900 rows / 9,900 symbols, checked 2026-10-09).
         # Ordered so a symbol with two rows always keeps its latest delisting (the dict keeps the last row).
         rows = self._query("SELECT symbol, delistedDate FROM delisted_companies WHERE delistedDate IS NOT NULL"
@@ -887,6 +892,11 @@ class LtpExits:
                                "exit_date": exit_date.isoformat()})
             if self.traded_only:
                 self.fills[-1]["ltp_close"], self.fills[-1]["ltp_volume"] = self._bar_extra[s]
+                alt = self._close_basis(s, bars[s][1], entry_prices.get(s), px, self._bar_extra[s][0])
+                if alt is not None:   # the fill sits on the other adjClose basis: book the close's move
+                    self.fills[-1].update(ltp=alt, ltp_adj=px, basis="close")
+                    out[s] = alt
+                    self.close_basis += 1
         self.filled += len(out)
         if self.verbose and want:
             print(f"      LTP: {len(out)}/{len(want)} missing exits filled")
@@ -909,6 +919,8 @@ class LtpExits:
         local = {s: b for s, b in bounds.items() if self.local and b[3] >= b[1] + timedelta(days=self.CONTEXT_DAYS)}
         remote = {s: b for s, b in bounds.items() if s not in local}
         pick = self._pick_traded if self.traded_only else self._pick
+        if self.traded_only and local:
+            self._flips.update(self._basis_flips(self.con, local))
         out = {s: (e, px, "local") for s, (e, px) in pick(self.con, local).items()} if local else {}
         if remote:
             start = lambda lo: lo + timedelta(days=1 - self.CONTEXT_DAYS)
@@ -942,6 +954,7 @@ class LtpExits:
                         "DELETE FROM prices_cache WHERE (volume IS NULL OR volume <= 0) AND symbol IN ("
                         "SELECT p.symbol FROM prices_cache p JOIN ltp_win w ON p.symbol = w.symbol"
                         " WHERE p.volume > 0 AND p.trade_epoch >= w.lo AND p.trade_epoch < w.hi)").fetchone()[0]
+                    self._flips.update(self._basis_flips(tmp, remote))   # before the filter drops either basis
                 else:
                     tmp.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
                     tmp.executemany("INSERT INTO prices_cache VALUES (?, ?, ?)",
@@ -950,6 +963,49 @@ class LtpExits:
                 out.update({s: (e, px, "remote") for s, (e, px) in pick(tmp, remote).items()})
                 tmp.close()
         return out
+
+    def _basis_flips(self, con, bounds):
+        """{symbol: reversals}: one row per date of con's prices_cache from the fetched context start to the
+        LTP window end; a flip is a day whose ln(adjClose / close) moves more than ln(factor.band upper)
+        while ln(close) moves less; a reversal is a flip opposite in sign to the flip before it."""
+        if not bounds:
+            return {}
+        day_end = lambda d: utc_epoch(d + timedelta(days=1))
+        lb = math.log(DATA_CHECKS_V1["factor"]["band"][1])
+        start = lambda lo: utc_epoch(lo + timedelta(days=1 - self.CONTEXT_DAYS))   # the fetched context start
+        vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), start(lo), day_end(hi))
+                        for s, (lo, hi, _, _) in bounds.items())
+        return dict(con.execute(f"""
+            WITH m(symbol, lo, hi) AS (VALUES {vals}),
+            d AS (SELECT p.symbol, p.trade_epoch, p.adjClose, p.close FROM prices_cache p JOIN m ON p.symbol = m.symbol
+                  WHERE p.trade_epoch >= m.lo AND p.trade_epoch < m.hi AND p.adjClose > 0 AND p.close > 0
+                  QUALIFY ROW_NUMBER() OVER (PARTITION BY p.symbol, p.trade_epoch
+                                             ORDER BY p.adjClose DESC, p.close DESC) = 1),
+            s AS (SELECT symbol, trade_epoch,
+                         LN(adjClose / close) - LAG(LN(adjClose / close)) OVER w AS dr,
+                         LN(close) - LAG(LN(close)) OVER w AS dc
+                  FROM d WINDOW w AS (PARTITION BY symbol ORDER BY trade_epoch)),
+            f AS (SELECT symbol, SIGN(dr) AS sg,
+                         LAG(SIGN(dr)) OVER (PARTITION BY symbol ORDER BY trade_epoch) AS prev
+                  FROM s WHERE ABS(dr) > {lb} AND ABS(dc) <= {lb})
+            SELECT symbol, COUNT(*) FILTER (WHERE sg <> prev) FROM f GROUP BY symbol""").fetchall())
+
+    def _close_basis(self, s, entry_epoch, entry_price, px, close):
+        """The close-based exit price for a fill that fill_basis repairs, else None."""
+        if self._flips.get(s, 0) < DATA_CHECKS_V1["fill_basis"]["min_reversals"]:
+            return None
+        if not (entry_price and entry_price > 0 and px and px > 0 and close and close > 0):
+            return None
+        if "close" not in {c[0] for c in self.con.execute("DESCRIBE prices_cache").fetchall()}:
+            return None
+        row = self.con.execute("SELECT close FROM prices_cache WHERE symbol = ? AND trade_epoch = ? AND adjClose = ?"
+                               " ORDER BY close DESC NULLS LAST LIMIT 1", [s, entry_epoch, entry_price]).fetchone()
+        if not (row and row[0] and row[0] > 0):
+            return None
+        lo, hi = DATA_CHECKS_V1["factor"]["band"]
+        if lo <= (px / close) / (entry_price / row[0]) <= hi:
+            return None
+        return entry_price * close / row[0]
 
     def _pick_traded(self, con, bounds):
         """_pick for traded_only: the same bar, its close and volume kept in self._bar_extra."""
@@ -1014,7 +1070,8 @@ class LtpExits:
                 "filled_ignoring_delisting_row": sum(1 for f in self.fills
                                                      if f["delisting_bound"] == "ignored_predates_entry"),
                 "filled_delisting_not_binding": sum(1 for f in self.fills if f["delisting_bound"] == "not_binding"),
-                **({"traded_only": True, "zero_volume_rows_moved": self.zero_volume_moved} if self.traded_only else {}),
+                **({"traded_only": True, "zero_volume_rows_moved": self.zero_volume_moved,
+                    "close_basis_fills": self.close_basis} if self.traded_only else {}),
                 "fills": self.fills}
 
 
@@ -1388,6 +1445,12 @@ DATA_CHECKS_V1 = {
                       "every line of its group has bars in the lookback, else a failing cap lowers; a failing "
                       "row whose divisor is 1 keeps FMP's cap as unchecked, counted in cap_rows_flagged")},
     "factor": {"band": [1 / 1.05, 1.15], "split_min": 2.0, "mode": "flag only: no price or return is changed"},
+    "fill_basis": {"min_reversals": 2,
+                   "rule": ("an LTP fill books its close over the entry close (basis 'close') when the line's "
+                            "adjClose / close flips by more than factor.band's upper bound on consecutive rows "
+                            "while the close moves less than that bound, the flips reverse direction "
+                            "min_reversals times or more from the fetched context to the window end, and the "
+                            "fill's drift against the entry bar leaves factor.band")},
     "large_move_log": math.log(2),
 }
 
@@ -2167,8 +2230,9 @@ class DataChecks:
 
     def annotate_ltp(self, con, ltp, block):
         """F and L on each LTP fill (traded_only), written into the ltp block: the drift from the entry
-        bar to the fill, the splits between, and the fill's return against large_move_log (listed in
-        the block's large_moves). Changes no fill and adds nothing to the window-bar block."""
+        bar to the fill's adjClose, the splits between, and the booked fill's return against
+        large_move_log (listed in the block's large_moves). Changes no fill and adds nothing to the
+        window-bar block."""
         if not (self.on and getattr(ltp, "traded_only", False)):
             return
         lo, hi = self.cfg["factor"]["band"]
@@ -2178,9 +2242,9 @@ class DataChecks:
             e = con.execute("SELECT adjClose, close FROM prices_cache WHERE symbol = ? AND trade_epoch = ?"
                             " ORDER BY adjClose DESC NULLS LAST, close DESC NULLS LAST LIMIT 1",
                             [f["symbol"], e0]).fetchone()
-            drift = None
+            drift = None   # on the fill's own adjClose: a close-basis fill keeps the flag that repaired it
             if e and e[0] and e[1] and e[1] > 0 and f.get("ltp_close") and f["ltp_close"] > 0:
-                drift = (f["ltp"] / f["ltp_close"]) / (e[0] / e[1])
+                drift = (f.get("ltp_adj", f["ltp"]) / f["ltp_close"]) / (e[0] / e[1])
             sp = self._splits(con, {f["symbol"]: (e0, utc_epoch(date.fromisoformat(f["last_bar"])))}).get(f["symbol"], [])
             reasons, ep, px = [], f.get("entry_price"), f["ltp"]
             if ep and ep > 0 and px and px > 0 and abs(math.log(px / ep)) >= self.cfg["large_move_log"]:
