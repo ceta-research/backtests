@@ -1355,9 +1355,10 @@ too high) and stays in the 2004 book; caps inflated with no later split (7386.T,
 times its sales; 8038.T from FY2017); forward-split inflation (SALEE.BK FY2014); k near 1 where
 FMP scaled EPS and shares together (DBGI FY2021 trades 3.9e-4 of its cap and stands; CET.TO);
 caps in the reporting currency (BWMX, NAAS). Side effects to read on the rerun: Keihan 9045.T
-FY2005 and FY2006 (no bars and 8 traded bars, on FMP caps of 182bn and 287bn yen that the Japan
-review read as real) lower under the floor; 4541.T FY2007 and FY2010 stand at FMP's cap, while their true caps (89bn, 97bn) sit 3% to
-11% under the floor; 0756.HK FY2010 comes back at 2.18bn on a price factor of 10.
+FY2005 and FY2006 (no bars and 8 traded bars, on FMP caps of 182bn and 287bn yen; FY2007 reads k
+1.0 on 293bn) lower under the floor; 4541.T FY2007 and FY2010 stand at FMP's cap, while their
+true caps (89bn, 97bn) sit 3% to 11% under the floor; 0756.HK FY2010 comes back at 2.18bn on a
+price factor of 10.
 
 **Real moves the cap cut.** DAVE (deleveraging US 2025 Q2, +217.4%), 2609.TW (Taiwan 2021 Q2,
 +332.6%), SANWARIA.NS (India 2012 Q1, +201.9%), and in cyclical-timing US UAL (+462%), SE
