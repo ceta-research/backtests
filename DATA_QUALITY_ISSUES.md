@@ -1257,7 +1257,8 @@ every row from 2003 to 2007 while its prices matched ADVANC.BK bar for bar, KBAN
 traded row from 2004 to 2006 and TRUE-R.BK none from 2010 to 2012. Some ordinary lines do the
 same (TRUE.BK in 2006: 259 rows, 3 with volume, prices moving daily). A rule that dropped every
 zero-volume row would make these lines unbuyable for whole years, so a line keeps its
-zero-volume rows in a window where it never traded. BBL.BK has no rows at all in the 2012 Q4,
+zero-volume rows in a window where it never traded and its close moves (item 6 covers the flat
+case). BBL.BK has no rows at all in the 2012 Q4,
 2013 Q1 and 2013 Q2 windows, so BBL-R.BK is the only line to hold then.
 
 **4. Adjustment-factor regimes.** adjClose / close should change only on a dividend or split
@@ -1297,6 +1298,66 @@ price the warehouse later scaled up for reverse splits.
   21,684 against a raw 0.287).
 Check M runs at every market-cap floor. Without it, removing the cap would have booked SOS and
 ZEST at their full returns.
+
+**6. Found by the first review of the checks (same-day runs of all 32 legs, 2026-10-30).** Six
+errors the checks introduced, and two gaps that removing the cap exposed, changed the rules:
+- Turnover read on an inflated cap. 7211.T FY2003: FMP's 4.06T yen is 1.488bn unrestated shares
+  times a close carrying the 2013 1:10 (k 10.03). Turnover was 7.77e-5 of that cap, so the row
+  was ineligible, though it is 7.80e-4 of the 405bn cap after k. k is now applied first when it
+  is within 1.5 times the price factor. HAO FY2024 (k 10 against a price factor of 25) keeps the
+  earlier order and stays out.
+- A thin share class on a real cap. BBD-A.TO, ERIC-A.ST and 02826K.KS carry their company's cap
+  and trade thinly beside a liquid sibling (BBD-B, ERIC-B, 028260.KS, which listed in December
+  2014 and has 9 traded bars at FY2014's end). The classes of a company carry the same FY cap in
+  key_metrics, to the cent: ELUX-A and B, ERIC-A and B, 005930 and 005935, 028260 and 02826K in
+  all 93 class-years read, and BBD-A and B. Among 1,896 pairs of same-market lines with an
+  identical FY cap at the same period end, the pairs read were share classes, renamed or reused
+  tickers, and preference lines, trust preferreds and warrants beside their common. Turnover is
+  now summed over the lines that share a cap.
+- A deflatable cap excluded. 0653.HK FY2011 to FY2013 trade 2.9e-5 to 6.9e-5 of caps that are
+  16.5 times their as-traded size (raw 1.31, 1.07, 1.86 times 3.455bn, 3.441bn, 3.537bn shares:
+  4.53bn, 3.68bn, 6.58bn, over the HK$2bn floor); 1124.HK FY2008 is 30.9bn on a price factor of
+  9.0 (3.43bn). A failing cap is now lowered by the price factor (and the later forward splits)
+  and kept when turnover clears on the lower cap. A row that fails again stays ineligible:
+  8038.T trades 3.9e-9 of a 1.8e16 yen cap, which a factor of 10 cannot repair. 1192.HK FY2016
+  comes back at 2.98bn too (FMP's Titan share counts are inconsistent; read it on the rerun).
+- Forward and reverse splits netting out. Bonjour's shares are restated 12 times for the 2010
+  6:1 and 2:1, and its prices carry the 2024 1:20, so FY2006 to FY2009 show a close 1.375 times
+  the raw one (3.30 against 2.40 on 2008-12-31) and passed under the 3.0 gate, while the later
+  consolidations multiply to 600. The cyclical-timing Hong Kong book held it in 2008 and 2009
+  at as-traded caps of 0.39bn and 0.63bn; the 2009 holding (+239%) is worth 0.68 points of
+  excess. The gate now also reads the consolidations alone, and the cap lowers by 1.375 times 12
+  (FY2009 lowers to 2.32bn and stays, its as-traded 2.31bn).
+- No turnover at all. CETX FY2016 (cap $59.4bn, about $40m real), TOPS and PIXY have under 10
+  traded bars, because their volumes round to 0 on prices scaled by millions. With a price
+  factor of 3 or more the cap now lowers by it where turnover is unknown.
+- A delisting record read as a split. 4541.T's splits_calendar holds 1:70,384,700 on 2023-03-29
+  (the cash-out), with FMP's shares fixed at 5.09bn and prices scaled down to about 34 yen, so k
+  reads 72 to 181 and the gate read a factor of 70 million. A record over 1:10,000 either way is
+  now left out, so no factor opens the gate and FMP's cap stands (FY2011 161bn against a true
+  104bn, FY2015 167bn).
+- A flat line with no volume. A line with no traded row in a window kept every row, and the book
+  bought stale quotes and suspension rows: BC88.L (Chemring, dead, close flat at 95 then 70 with
+  adjClose steps of +17%, +4%, +106%, booked +105.9%), 76ID.L (Rotork, dead), 1114.HK (suspended
+  2021-03-31 to 2022-10-04 at 7.30, resumed at 2.70), BR.BK 2015, GBGLOBAL.NS 2022 (930 flat). A
+  window like that now loses its rows. 600694.SS's 2006 exit window holds flat halt rows on an
+  adjClose step (17.06 against 13.65 at the last trade): the exit goes to the last-traded fill.
+  TRUE.BK 2006-04 (7 closes) and the pre-2009 Thai NVDR feeds keep theirs.
+- A moved bar on another scale. T moved ELUX-A.ST's 2006 entry off a zero-volume row onto
+  52.43 on 950 shares, while ELUX-B traded 95.62 on 1.48m. A's traded rows sat near half of B's
+  from 2006-06-08 to the end of 2006 (monthly medians 0.53 to 0.55 from July, against 1.03 to
+  1.15 before and after), and the two met again by 2007 (156.37 against 153.72). Booked +207.5% against +64.7%
+  for B. In a window where T moved a line's rows, a row more than 25% off its sibling's scale
+  now moves too. A's A/B ratio in 2008 and 2009 ran up to 1.38 on thin trading; the test reads
+  the pair's own median over the year either side, so a premium like that stays.
+Still open after this round: Bonjour FY2003 passes turnover (4.6e-4 on a cap about 16.5 times
+too high) and stays in the 2004 book; caps inflated with no later split (7386.T, 2.5 million
+times its sales; 8038.T from FY2017); forward-split inflation (SALEE.BK FY2014); k near 1 where
+FMP scaled EPS and shares together (DBGI FY2021 trades 3.9e-4 of its cap and stands; CET.TO);
+caps in the reporting currency (BWMX, NAAS). Side effects to read on the rerun: Keihan 9045.T
+FY2005 and FY2006 (no bars and 8 traded bars, on FMP caps of 182bn and 287bn yen that the Japan
+review read as real) lower under the floor; 4541.T FY2007 and FY2010 stand at FMP's cap, while their true caps (89bn, 97bn) sit 3% to
+11% under the floor; 0756.HK FY2010 comes back at 2.18bn on a price factor of 10.
 
 **Real moves the cap cut.** DAVE (deleveraging US 2025 Q2, +217.4%), 2609.TW (Taiwan 2021 Q2,
 +332.6%), SANWARIA.NS (India 2012 Q1, +201.9%), and in cyclical-timing US UAL (+462%), SE
