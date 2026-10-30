@@ -801,14 +801,15 @@ def synthetic_source():
     return src
 
 
-def run_topic(topic, src, exit_method, data_checks, tmp):
+def run_topic(topic, src, run_mode, data_checks, tmp):
+    """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both)."""
     mod = load_topic(topic)
-    out = os.path.join(tmp, f"{topic}.{exit_method}.{data_checks}.json")
+    out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}.json")
     client = FakeClient(src)
     freq = "quarterly" if topic == "deleveraging" else "annual"
     with contextlib.redirect_stdout(io.StringIO()):
         mod.run_single(client, ["SET"], "SET", freq, True, 0.02, False, out, offset_days=1,
-                       exit_method=exit_method, data_checks=data_checks)
+                       exit_method=run_mode, data_checks=data_checks)
     with open(out) as fh:
         return json.load(fh), client.sqls
 
