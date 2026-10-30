@@ -1192,13 +1192,15 @@ def synthetic_source():
     src.execute("CREATE TABLE delisted_companies(symbol VARCHAR, delistedDate DATE)")
     src.execute("INSERT INTO delisted_companies VALUES ('DLST.BK', ?)", [DELISTED])
     names = FILLERS + SPECIAL
+    # one FY cap per company: an NVDR shares its ordinary line's, every other line has its own
+    cap_of = {s: 5e10 + 1e7 * names.index(s.replace("-R.BK", ".BK")) for s in names}
     for s in names:
         src.execute("INSERT INTO profile VALUES (?, 'SET', 'TH', ?, 'Industrials', 5e10, TRUE, 'THB')", [s, ISIN[s]])
         for y in range(1998, 2025):
             fy = date(y, 12, 31)
             k = y - 1998
             src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, ?, ?)", [s, fy.isoformat(), ep(fy), 20.0 * 0.85 ** k])
-            src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, 5e10)", [s, fy.isoformat(), ep(fy)])
+            src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, ?)", [s, fy.isoformat(), ep(fy), cap_of[s]])
             ni, eps, sh = (1.47e6, 124.0, 593233.0) if s == "INFL.BK" else (2e9, 2.0, 1e9)
             src.execute("INSERT INTO income_statement VALUES (?, 'FY', ?, ?, ?, ?, ?, ?, ?)",
                         [s, fy.isoformat(), ep(fy), 1000.0 * 1.05 ** k, ni, eps, sh, (fy + timedelta(days=60)).isoformat()])
