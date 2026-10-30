@@ -1806,16 +1806,18 @@ class DataChecks:
     A topic's run_backtest builds an "uncapped" instance when it is called without one.
     Window bars only: nothing here reads an LTP fill, so a drop run and a both run write the same
     block (annotate_ltp writes F and L for the fills into the ltp block, which strip_ltp removes).
+    full_holdings=True (opt-in, either mode): holdings_full() gives each invested period row every
+    booked name with its bars, prices and return (the holdings string may list only the first names).
     """
 
     MODES = ("on", "uncapped")
     PRICE_KEYS = ("entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost")
     LOST = {"entry": "entries_lost", "exit": "exits_lost"}
 
-    def __init__(self, mode="on", cfg=DATA_CHECKS_V1):
+    def __init__(self, mode="on", cfg=DATA_CHECKS_V1, full_holdings=False):
         if mode not in self.MODES:
             raise ValueError(f"data checks mode {mode!r} not in {self.MODES}")
-        self.mode, self.cfg, self.on = mode, cfg, mode == "on"
+        self.mode, self.cfg, self.on, self.full_holdings = mode, cfg, mode == "on", bool(full_holdings)
         self.clean = {"rows_moved": {"closed_day": 0, "zero_volume": 0, "nonpositive_price": 0},
                       "symbol_windows_without_volume": 0, "flat_windows_moved": 0, "closed_day_test_skipped": 0,
                       "closed_dates": [], "sibling_gap_rows": 0, "sibling_gaps": []}
@@ -2021,6 +2023,35 @@ class DataChecks:
         block["factor_flagged"] = n
         block["large_move_fills"] = len(moves)
         block["large_moves"] = sorted(moves, key=lambda m: (m["rebalance_date"], m["symbol"]))
+
+    def holdings_full(self, con, clean, entry_prices, exit_prices, filled, entry_date, exit_date, offset_days,
+                      ltp=None):
+        """{} unless full_holdings, else {"holdings_full": [...]}: one item per booked name of `clean`
+        (filter_returns' (symbol, return, mcap), in its order) with the entry bar and price, the exit
+        bar and price ("window": the exit window's bar; "last_traded": an LTP fill, with its last bar)
+        and the booked return before costs. `exit_prices` is the map the book read, `filled` the
+        names whose exit came from an LTP fill (ltp holds the fills)."""
+        if not self.full_holdings:
+            return {}
+        syms = [s for s, _, _ in clean]
+        ebar = self._bars(con, syms, entry_date, offset_days)
+        xbar = self._bars(con, [s for s in syms if s not in filled], exit_date, offset_days)
+        fills = {f["symbol"]: f for f in (ltp.fills if ltp is not None else [])
+                 if f["entry_date"] == entry_date.isoformat()}
+        out = []
+        for s, ret, _ in clean:
+            e, ep, xp = ebar.get(s), entry_prices.get(s), exit_prices.get(s)
+            if s in filled:
+                bar, src = fills[s]["last_bar"], "last_traded"
+            else:
+                bar, src = xbar[s]["date"], "window"
+                if xbar[s]["adjClose"] != xp:
+                    raise AssertionError(f"holdings_full: exit bar of {s} on {entry_date} reads {xbar[s]['adjClose']}, book {xp}")
+            if e is None or e["adjClose"] != ep:
+                raise AssertionError(f"holdings_full: entry bar of {s} on {entry_date} reads {e}, book {ep}")
+            out.append({"symbol": s, "entry_bar": e["date"], "entry_price": ep, "exit_bar": bar, "exit_price": xp,
+                        "exit": src, "return": round(ret, 6)})
+        return {"holdings_full": out}
 
     def row(self, d, screened=True, priced=True, signal=False):
         """A period record's data-check counts: an int where the step ran, None where it did not."""

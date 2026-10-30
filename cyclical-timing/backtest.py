@@ -498,6 +498,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "n_signal_stocks": n_qualifying,
             **dc.row(entry_date, screened=True, priced=True, signal=True),
             "holdings": ",".join(sym for sym, _, _ in clean[:10]),
+            **dc.holdings_full(con, clean, entry_prices, exit_ltp if exit_method == "ltp" else exit_prices,
+                               ltp_fill if exit_method == "ltp" else {}, entry_date, exit_date, offset_days, ltp),
         })
         if exit_method == "both":
             c_ltp, _ = filter_returns(book(exit_ltp), min_entry_price=MIN_ENTRY_PRICE,
@@ -592,12 +594,14 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, verbose, output_path=None, offset_days=1, exit_method="drop",
-               data_checks="on"):
+               data_checks="on", full_holdings=False):
     """Run backtest for a single exchange set. Returns output dict or None.
 
-    data_checks: "on" (data checks dc-1), or "uncapped" (no check and no cap: attribution only)."""
+    data_checks: "on" (data checks dc-1), or "uncapped" (no check and no cap: attribution only).
+    full_holdings: every invested period row also lists each booked name (holdings_full; the
+    holdings string keeps its first 10)."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
-    dc = DataChecks(data_checks, DATA_CHECKS)
+    dc = DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)
     mktcap_threshold = get_mktcap_threshold(exchanges)
     mktcap_label = (f"{mktcap_threshold/1e9:.0f}B"
                     if mktcap_threshold >= 1e9 else f"{mktcap_threshold/1e6:.0f}M")
@@ -717,6 +721,9 @@ def main():
     parser.add_argument("--data-checks", choices=DataChecks.MODES, default="on",
                         help="Data checks dc-1 (default on). 'uncapped' turns every check off and sets no "
                              "return cap: the same-day attribution arm only, never published")
+    parser.add_argument("--full-holdings", action="store_true",
+                        help="Also list every booked name per invested period (holdings_full: entry and exit "
+                             "bars and prices, return before costs), for review")
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -781,7 +788,7 @@ def main():
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, args.verbose, output_path,
                                     offset_days=offset_days, exit_method=args.exit_method,
-                                    data_checks=args.data_checks)
+                                    data_checks=args.data_checks, full_holdings=args.full_holdings)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -842,7 +849,7 @@ def main():
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, args.verbose, args.output, offset_days=offset_days,
-               exit_method=args.exit_method, data_checks=args.data_checks)
+               exit_method=args.exit_method, data_checks=args.data_checks, full_holdings=args.full_holdings)
 
 
 if __name__ == "__main__":
