@@ -806,12 +806,13 @@ T1_FLAT = (("1114.HK", 7.30, 1.01), ("BC88.L", 95.0, 15.22), ("GBGLOBAL.NS", 930
 
 
 def t1_failures():
-    """A line with no traded row in the window keeps its rows only when its close takes three or more
-    values there: 1114.HK at a suspended 7.30, BC88.L, GBGLOBAL.NS, 76ID.L and BR.BK at one flat close
-    lose every row and are not bought; so does BC88.L's real 2009-10 window, a stale quote that steps
-    once (95 on 10-01 and 10-02, then 70 for six days, volume 0 throughout, 2 closes). TRUE.BK 2006-04
-    (7 closes) and ADVANC-R.BK 2005-01 (4) keep theirs: in the measured no-volume feeds every window
-    has 4 closes or more. Before, all eight windows kept their rows and the stale lines were bought."""
+    """A line with no traded row in the window keeps its rows only when its close changes on two days or
+    more there, day over day in date order: 1114.HK at a suspended 7.30, BC88.L, GBGLOBAL.NS, 76ID.L and
+    BR.BK at one flat close lose every row and are not bought; so does BC88.L's real 2009-10 window, a
+    stale quote that steps once (95 on 10-01 and 10-02, then 70 for six days, volume 0 throughout: one
+    change). TRUE.BK 2006-04 (7 closes) and ADVANC-R.BK 2005-01 (4 changes) keep theirs. The two-price
+    NVDR feeds are in t1_feed_failures. Without the flat-line rule, all eight windows keep their rows and
+    the stale lines are bought."""
     d, d2 = date(2022, 7, 1), date(2009, 10, 1)
     days, days2 = list(weekdays(d, d + timedelta(days=11))), list(weekdays(d2, d2 + timedelta(days=11)))
     rows = fillers(30, days + days2)
@@ -842,6 +843,66 @@ def t1_failures():
     reasons = {r[0] for r in con.execute("SELECT DISTINCT reason FROM prices_dropped").fetchall()}
     if reasons != {"flat_no_volume"}:
         f.append(f"prices_dropped reasons {reasons}")
+    return f
+
+
+# real stock_eod rows, volume 0 throughout: (date, close, adjClose)
+T1_FEEDS = {
+    # ticks between 48.0 and 48.5: changes on 5 days (held in deleveraging Thailand, a stand-in for BH.BK)
+    "BH-R.BK": (date(2007, 7, 1), [("2007-07-02", 48.0, 32.53), ("2007-07-03", 48.0, 32.53),
+                                   ("2007-07-04", 48.5, 32.87), ("2007-07-05", 48.0, 32.53),
+                                   ("2007-07-06", 48.5, 32.87), ("2007-07-09", 48.5, 32.87),
+                                   ("2007-07-10", 48.5, 32.87), ("2007-07-11", 48.0, 32.53),
+                                   ("2007-07-12", 48.5, 32.87)]),
+    # 37.75 / 37.98 while RATCH.BK trades 38.68 / 38.91 on 0.6m to 2.3m shares: 4 changes
+    "RATCH-R.BK": (date(2005, 7, 1), [("2005-07-04", 37.75, 13.94), ("2005-07-05", 37.98, 14.02),
+                                      ("2005-07-06", 37.75, 13.94), ("2005-07-07", 37.98, 14.02),
+                                      ("2005-07-08", 37.98, 14.02), ("2005-07-11", 37.98, 14.02),
+                                      ("2005-07-12", 37.75, 13.94)]),
+    # 3.40 / 3.42: changes on two days, the least a no-volume line needs
+    "MCS-R.BK": (date(2007, 4, 1), [("2007-04-02", 3.4, 0.94246), ("2007-04-03", 3.42, 0.948),
+                                    ("2007-04-04", 3.42, 0.948), ("2007-04-05", 3.42, 0.948),
+                                    ("2007-04-09", 3.4, 0.94246), ("2007-04-10", 3.4, 0.94246),
+                                    ("2007-04-11", 3.4, 0.94246), ("2007-04-12", 3.4, 0.94246)]),
+    # 1.55 for six rows, then 1.61: one change, out (as under the 3-close rule)
+    "BCH-R.BK": (date(2006, 4, 1), [("2006-04-03", 1.55, 0.74744), ("2006-04-04", 1.55, 0.788),
+                                    ("2006-04-05", 1.55, 0.78414), ("2006-04-07", 1.55, 0.788),
+                                    ("2006-04-10", 1.55, 0.78414), ("2006-04-11", 1.55, 0.78414),
+                                    ("2006-04-12", 1.61, 0.81504)]),
+}
+
+
+def t1_feed_failures():
+    """Pre-2009 Thai NVDR feeds print real prices with no volume, some ticking between two prices. The
+    3-close rule moved them; the rule now counts the days the close changes. BH-R.BK 2007-07 (5
+    changes), RATCH-R.BK 2005-07 (4) and MCS-R.BK 2007-04 (2) keep their rows and their entries;
+    BCH-R.BK 2006-04 (1.55, then 1.61 once) stays out. DUP.BK is flat at 95 with a duplicate row at 70
+    on one date: one close per date (the row get_prices reads, adjClose first), so it has no change and
+    stays out, where counting rows in date order would see two."""
+    rows, dates = [], []
+    for s, (d, real) in T1_FEEDS.items():
+        dates.append(d)
+        rows += fillers(30, list(weekdays(d, d + timedelta(days=11))), prefix=f"F{d.year}{d.month:02d}")
+        rows += [(s, date.fromisoformat(day), a, c, 0.0) for day, c, a in real]
+    d0 = date(2009, 1, 1)
+    dates.append(d0)
+    days0 = list(weekdays(d0, d0 + timedelta(days=11)))
+    rows += fillers(30, days0, prefix="G")
+    rows += [("DUP.BK", day, 18.61, 95.0, 0.0) for day in days0]
+    rows.append(("DUP.BK", days0[1], 13.71, 70.0, 0.0))
+    con = cache(rows)
+    st = clean_price_cache(con, set(), dates)
+    f = []
+    for s, want in (("BH-R.BK", 32.53), ("RATCH-R.BK", 13.94), ("MCS-R.BK", 0.94246), ("BCH-R.BK", None)):
+        got = get_prices(con, [s], T1_FEEDS[s][0], offset_days=1).get(s)
+        if got != want:
+            f.append(f"{s}: entry {got}, want {want}" + (" (a feed whose close changes on 2 days or more keeps"
+                                                         " its rows)" if want else " (one change: out)"))
+    if get_prices(con, ["DUP.BK"], d0, offset_days=1).get("DUP.BK") is not None:
+        f.append("DUP.BK: a flat line with a duplicate row on one date is buyable (rows counted, not dates)")
+    if (st["symbol_windows_without_volume"], st.get("flat_windows_moved")) != (5, 2):
+        f.append(f"counts: {st['symbol_windows_without_volume']} windows without volume, "
+                 f"{st.get('flat_windows_moved')} flat windows moved, want 5 and 2")
     return f
 
 
@@ -1797,6 +1858,7 @@ def main():
     expect("M siblings share two FY caps: 1789.HK / 1935.HK", m_class_fy_failures())
     expect("M lowers, not excludes, unless strict: ERIC-A.ST FY1999", m_strict_failures())
     expect("T1 flat lines with no volume", t1_failures())
+    expect("T1 two-price NVDR feeds: BH-R.BK, RATCH-R.BK, MCS-R.BK", t1_feed_failures())
     expect("T1 halted exit reads the last traded bar", t1_exit_failures())
     expect("T2 sibling gap: ELUX-A.ST 2006", t2_failures())
     expect("T2 real ELUX rows: 2007 keeps its rows", t2_real_failures())

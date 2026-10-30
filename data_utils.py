@@ -1350,10 +1350,10 @@ DATA_CHECKS_V1 = {
     "closed_day_skip": ("a date is not tested when its window has fewer than 3 other dates or their median "
                         "traded count is under 20; closed_day_test_skipped counts windows with such a date"),
     "zero_volume": ("moved when the same line has a traded row in the same window, or when the line has none "
-                    "and its close takes fewer than no_volume_min_closes values there (a flat line, or a stale "
-                    "quote that steps once, with no volume is not buyable); a line with no traded row whose close "
-                    "takes that many values or more keeps every row"),
-    "no_volume_min_closes": 3,
+                    "and its close changes on fewer than no_volume_min_changes days there, day over day in date "
+                    "order (a flat line, or a stale quote that steps once, with no volume is not buyable); a line "
+                    "with no traded row whose close changes on that many days or more keeps every row"),
+    "no_volume_min_changes": 2,
     "nonpositive_price": "rows with adjClose NULL or <= 0 moved",
     "sibling": {"min_shared_fy": 2, "gap": 1.25, "ref_days": 400, "ref_min_days": 5, "ref_min_windows": 2,
                 "stable_share": 0.8,
@@ -1404,9 +1404,10 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
                            closed_day_min_ref.
       2 zero_volume        a (symbol, W) with a row of volume > 0 loses its rows with volume <= 0 or
                            NULL. A (symbol, W) with no traded row is counted; it keeps every row when
-                           its close takes no_volume_min_closes (3) or more values there (a feed that
-                           prints prices with no volume: TRUE.BK, ADVANC-R.BK show 4 or more), and
-                           loses them all otherwise (reason flat_no_volume: a suspended quote, or a
+                           its close changes on no_volume_min_changes (2) days or more there, day over
+                           day in date order (one close per date; a feed that prints prices with no
+                           volume, even one ticking between two prices like BH-R.BK's 48.0 and 48.5),
+                           and loses them all otherwise (reason flat_no_volume: a suspended quote, or a
                            stale one that steps once like BC88.L's 95 then 70, is not buyable).
       3 nonpositive_price  rows with adjClose NULL or <= 0.
       4 sibling_gap        only with `siblings`, a table of (symbol, filing_epoch, market_cap) such
@@ -1470,16 +1471,28 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
         con.executemany("INSERT INTO _dc_closed VALUES (?, ?)", [(ws, day) for ws, day, _, _ in closed])
     moved = {"closed_day": move("(r.ws, r.day) IN (SELECT ws, day FROM _dc_closed)", "closed_day")}
     tag()
+    # n_change: days the close differs from the previous date's, one close per date (get_prices' row order)
     con.execute("""CREATE OR REPLACE TEMP TABLE _dc_sw AS
-        SELECT symbol, ws, COALESCE(BOOL_OR(volume > 0), FALSE) AS traded,
-               COUNT(DISTINCT COALESCE(close, adjClose)) AS n_close
-        FROM _dc_rows GROUP BY symbol, ws""")
-    nc = int(cfg["no_volume_min_closes"])
+        WITH one AS (
+            SELECT symbol, ws, day, COALESCE(close, adjClose) AS px FROM _dc_rows
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol, ws, day
+                                       ORDER BY adjClose DESC NULLS LAST, close DESC NULLS LAST,
+                                                volume DESC NULLS LAST) = 1),
+        ch AS (
+            SELECT symbol, ws, CASE WHEN px <> LAG(px) OVER (PARTITION BY symbol, ws ORDER BY day)
+                                    THEN 1 ELSE 0 END AS c
+            FROM one WHERE px IS NOT NULL)
+        SELECT t.symbol, t.ws, t.traded, COALESCE(n.n_change, 0) AS n_change
+        FROM (SELECT symbol, ws, COALESCE(BOOL_OR(volume > 0), FALSE) AS traded FROM _dc_rows
+              GROUP BY symbol, ws) t
+        LEFT JOIN (SELECT symbol, ws, SUM(c) AS n_change FROM ch GROUP BY symbol, ws) n
+          ON n.symbol = t.symbol AND n.ws = t.ws""")
+    nc = int(cfg["no_volume_min_changes"])
     no_volume, flat = con.execute("SELECT COUNT(*) FILTER (WHERE NOT traded),"
-                                  f" COUNT(*) FILTER (WHERE NOT traded AND n_close < {nc}) FROM _dc_sw").fetchone()
+                                  f" COUNT(*) FILTER (WHERE NOT traded AND n_change < {nc}) FROM _dc_sw").fetchone()
     moved["zero_volume"] = move("(r.volume IS NULL OR r.volume <= 0) AND (r.symbol, r.ws) IN"
                                 " (SELECT symbol, ws FROM _dc_sw WHERE traded)", "zero_volume")
-    moved["zero_volume"] += move(f"(r.symbol, r.ws) IN (SELECT symbol, ws FROM _dc_sw WHERE NOT traded AND n_close < {nc})",
+    moved["zero_volume"] += move(f"(r.symbol, r.ws) IN (SELECT symbol, ws FROM _dc_sw WHERE NOT traded AND n_change < {nc})",
                                  "flat_no_volume")
     tag()
     moved["nonpositive_price"] = move("r.adjClose IS NULL OR r.adjClose <= 0", "nonpositive_price")
