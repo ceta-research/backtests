@@ -1417,6 +1417,50 @@ far, and one was too loose:
   windows (one change or none). 76ID.L 2000-01, 2000-04, 2000-07 and 2000-10 keep theirs; none is
   held.
 
+**8. Found by the review of the full-holdings rerun (all 32 legs, 2026-10-30).** Item 6's lowering
+for unknown turnover cut real caps, and three kinds of data fact came to light.
+- A divisor from split records alone. Where a fiscal year ends before a line's first stock_eod
+  row, turnover is unknown and the price factor is the product of the later records, so any later
+  consolidation lowered the cap: WEST3.SA FY2020 (R$1.3bn, listed 2021), GSAT FY2005, IPI FY2007,
+  LTM FY2023 (before its 2024 ADS relisting), SAGA.L FY2013 and FY2014, CPI.L, CNE.L, NOG.L,
+  STLN.SW, SOFF.OL, SAS.ST, 0702.HK FY2001, PD.TO FY2005 and NYK 9101.T FY2001. The later forward
+  splits multiplied a price factor near 1 as well: GOL FY2003 (a 2:1, a 1:10, a 2:1 and a 5:2 net
+  to 1, divisor 10) and 0568.HK FY2006 (price factor 1.0, a 5:1, a 1:10 and a 2:1, divisor 10).
+  FMP's caps were real in each case, and the freed top-30 slots went to the names ranked 31 and
+  below. A divisor now needs a measured price factor or a step in FMP's fiscal-year share count
+  at the record; without either the row keeps FMP's cap as unchecked (METHODOLOGY, check M).
+  Ericsson FY1999 and 02826K.KS FY2007 to FY2013 now keep FMP's caps too (item 7 had lowered them),
+  and so do BBD-A.TO and BBD-B.TO FY1997 to FY1999 where a leg holds no bars for them (item 6).
+- Spurious and duplicated split records. INPEX 1605.T carries a 7:5000 record dated its listing
+  day, 2006-04-03; DCC.L a 2:137 on 2003-11-03 that neither its prices nor its share count show.
+  Some records appear twice: AMCR's 1:5 of 2026-01-15 on the same day, 071970.KS's 1:8, 1:20 and
+  1:8 at 38 to 129 days apart (so its FY2008 cap was divided by 1.6 million), MGLU3.SA's 21:20 of
+  2025-12-30, SNSY3.SA's 40:1 at 22 days and TEKA3.SA's 1:100 at 203 days (SNSY5.SA and TEKA4.SA
+  hold one). A record repeating an earlier ratio within 150 days now counts once; TEKA3.SA's pair
+  still counts twice.
+- FMP's fiscal-year share counts. Most are restated for later records (GSAT's reads 125.9m and
+  126.8m on either side of its 2025 1:15), some step at them as traded (1529.HK: 1.14bn to 0.127bn
+  at its 2024 1:10; HAO: 12.2m to 0.117m across a 1:25), and some are erratic: Bonjour 0653.HK reads 3.70bn, 2.38bn,
+  1.15bn across a 1:20, CPI.L falls 15 times in 2005 with no record, NOG.L rises 11 times at a 1:10,
+  REDD.L holds 239m from 1997 to 2020. A test on them reads a step or a restatement only within a
+  tolerance and lets the rest say nothing.
+- Halt rows that print a price no one traded at. 1396.HK's halt rows read 23.9 against a last trade
+  of 21.75 before it resumed at 14.38; 600105.SS printed 3.79 while it traded at 2.91 on both sides.
+  The books bought them at those prints. T removes them where the window has no traded row.
+- Pre-listing placeholder lines that carry fundamentals. 1186.HK (China Railway Construction) sits
+  flat at 19.60 through 2006 and 2007, before its 2008-03-13 listing, with fiscal-year rows a screen
+  can rank;
+  3682.TW sits flat at 17.29 before its listing, BR.BK at 35.00 before its 2015 IPO, and 105560.KS
+  carries Kookmin Bank's prices back-filled onto the KB Financial line before its 2008 listing.
+- An adjClose basis that flips row by row. RAM.BK's adjClose alternates between about close / 5.35
+  and close times 0.855 on consecutive rows from December 2017 to March 2018 while its close runs
+  29.5 to 28.5, on traded and untraded rows alike. 600875.SS from December 2005 to March 2006
+  interleaves two price series in both close and adjClose (closes near 5.0 at 0.637 and near 6.4
+  at 0.797). A fill that lands on the other basis than its entry books the gap between the two:
+  RAM.BK 2018-01 booked +341.9% for a -3.4% move, and 600875.SS 2006-01 books +93.7% where its
+  same-basis rows show about +22%. A fill on RAM.BK's shape now books its close's move; 600875.SS's
+  close is on two bases too, so it keeps its fill (METHODOLOGY, Known limits).
+
 **Real moves the cap cut.** DAVE (deleveraging US 2025 Q2, +217.4%), 2609.TW (Taiwan 2021 Q2,
 +332.6%), SANWARIA.NS (India 2012 Q1, +201.9%), and in cyclical-timing US UAL (+462%), SE
 (+235%), NIO (+437%), CROX (+225%), AS (+207%) and BWMX (+440.0%; its market cap is in MXN, see
