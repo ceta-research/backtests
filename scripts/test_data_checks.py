@@ -17,7 +17,9 @@ lowers, not excludes, when only the consolidations open the gate or a sibling ha
 and ERIC-B.ST FY1999, 02826K.KS FY2008, 0760.HK FY2006); BC88.L's stale quote that steps once; and
 T's sibling step on ELUX's real rows (2007 keeps its rows), on lines that must not move (LG Chem's
 pref, Samsung Heavy's pref, BP-B.L, 1935.HK), three classes, the liquid line, the leading run of off
-rows and the trigger. Then both opted-in topics run end to end on a
+rows and the trigger. A third review added: Thai NVDR feeds that tick between two prices keep their
+rows (BH-R.BK, RATCH-R.BK, MCS-R.BK), and a failing row whose divisor is 1 is 'unchecked', not a
+silent 'stands' (HAO FY2025). Then both opted-in topics run end to end on a
 synthetic SET leg through a fake client, in drop, ltp, both and uncapped modes, and the results
 pass the LTP gate's stage-a comparison and the results scanners, with and without --full-holdings.
 
@@ -414,7 +416,7 @@ def cap_rule_failures():
             f.append(f"{s}: {r and (r['rule'], div)}, want {rule} {kd}")
     if got["SPLIT"]["pf_source"] != "splits" or got["SOS"]["pf_source"] != "raw":
         f.append("pf_source")
-    if stats != {"cap_rows_checked": len(CAP_CASES), "cap_rows_flagged": 7}:
+    if stats != {"cap_rows_checked": len(CAP_CASES), "cap_rows_flagged": 7, "cap_unchecked": []}:
         f.append(f"stats {stats}")
     return f
 
@@ -798,6 +800,42 @@ def m_strict_failures():
     r = by[("02826K.KS", 2014)]
     if r["rule"] != "stands" or r["lines"] != 2:
         f.append(f"02826K.KS FY2014: {r['rule']} over {r['lines']} lines, want stands on 028260.KS's 9 bars")
+    return f
+
+
+def m_unchecked_failures():
+    """A failing row whose divisor is 1 is not silent. HAO FY2025 (the server's inputs): pf_raw 1.0, the
+    later consolidations 2560 open the gate, no forward split, k 0.9995 (no K), u 9.13e-5 under the
+    1e-4 test, not strict. Lowering by 1 changes nothing, so the row is 'unchecked' at FMP's 388m (no
+    divisor), counted in cap_rows_flagged and listed in the block's cap_unchecked; before, it was
+    written 'stands' and counted nowhere. GRPN-like CLEAR (gate closed) stands and is not flagged."""
+    con = duckdb.connect()
+    con.execute(CAP_INPUTS_DDL)
+    fe = ep(date(2025, 6, 30))
+    cap_insert(con, [{"symbol": "HAO", "filing_epoch": fe, "market_cap": 388400896.0, "net_income": 3876680.0,
+                      "eps": 33.2, "shares": 116707.0, "n_bars": 20, "n_traded": 20, "turnover": 35460.94,
+                      "pf_raw": 1.0, "pf_splits": 2560.0, "pf_cons": 2560.0, "pf_fwd": 1.0},
+                     {"symbol": "CLEAR", "filing_epoch": fe, "market_cap": 2e9, "n_bars": 20, "n_traded": 20,
+                      "turnover": 0.01 * 2e9, "pf_raw": 1.0, "pf_splits": 1.0, "pf_cons": 1.0, "pf_fwd": 1.0}])
+    stats = apply_cap_rule(con)
+    got = cap_rows(con)
+    f = []
+    r = got["HAO"]
+    if r["rule"] != "unchecked" or r["cap_div"] is not None or cap_used_of(r) != 388400896.0:
+        f.append(f"HAO FY2025: {r['rule']} cap_div {r['cap_div']} cap_used {cap_used_of(r)}, "
+                 "want unchecked at FMP's 388m")
+    if got["CLEAR"]["rule"] != "stands":
+        f.append(f"CLEAR: {got['CLEAR']['rule']}, want stands")
+    if (stats["cap_rows_checked"], stats["cap_rows_flagged"]) != (2, 1):
+        f.append(f"stats {stats}, want 2 checked and 1 flagged (HAO)")
+    listed = [(u["symbol"], u["fy"], u["cap"]) for u in stats.get("cap_unchecked", [])]
+    if listed != [("HAO", "2025-06-30", 388400896.0)]:
+        f.append(f"cap_unchecked {listed}, want HAO FY2025 at 388400896")
+    dc = DataChecks("on")
+    dc.record_cap(stats)
+    blk = dc.block()
+    if blk["counts"]["cap_rows_flagged"] != 1 or [u["symbol"] for u in blk.get("cap_unchecked", [])] != ["HAO"]:
+        f.append(f"block: cap_rows_flagged {blk['counts']['cap_rows_flagged']}, cap_unchecked {blk.get('cap_unchecked')}")
     return f
 
 
@@ -1761,7 +1799,7 @@ def topic_failures(topic, src, tmp):
     if topic == "deleveraging" and not (fl["fills"] and fl["zero_volume_rows_moved"] >= 1):
         f.append(f"{topic}: DLST.BK's LTP fill skips its stale zero-volume print ({fl['fills']})")
     ub = unc["data_checks"]
-    if ub["mode"] != "uncapped" or ub["events"] or ub["large_moves"] or ub["closed_dates"] or \
+    if ub["mode"] != "uncapped" or ub["events"] or ub["large_moves"] or ub["closed_dates"] or ub["cap_unchecked"] or \
             any(v for k, v in ub["counts"].items() if k != "rows_moved") or any(ub["counts"]["rows_moved"].values()):
         f.append(f"{topic}: the uncapped arm records nothing, got {ub['counts']}")
     if "traded_only" in unc["ltp"]:
@@ -1857,6 +1895,7 @@ def main():
     expect("M3 consolidation gate, unknown turnover", m3_failures())
     expect("M siblings share two FY caps: 1789.HK / 1935.HK", m_class_fy_failures())
     expect("M lowers, not excludes, unless strict: ERIC-A.ST FY1999", m_strict_failures())
+    expect("M a divisor of 1 is unchecked, not stands: HAO FY2025", m_unchecked_failures())
     expect("T1 flat lines with no volume", t1_failures())
     expect("T1 two-price NVDR feeds: BH-R.BK, RATCH-R.BK, MCS-R.BK", t1_feed_failures())
     expect("T1 halted exit reads the last traded bar", t1_exit_failures())

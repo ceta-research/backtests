@@ -1380,7 +1380,8 @@ DATA_CHECKS_V1 = {
                       "lowered by pf times the later forward splits (and k) when turnover clears on the "
                       "lowered cap, else ineligible; a k that disagrees with pf keeps turnover-then-k; unknown "
                       "turnover lowers; a row is only made ineligible when pf itself opened the gate and every "
-                      "line of its group has bars in the lookback, else a failing cap lowers")},
+                      "line of its group has bars in the lookback, else a failing cap lowers; a failing row "
+                      "whose divisor is 1 keeps FMP's cap as unchecked, counted in cap_rows_flagged")},
     "factor": {"band": [1 / 1.05, 1.15], "split_min": 2.0, "mode": "flag only: no price or return is changed"},
     "large_move_log": math.log(2),
 }
@@ -1770,10 +1771,13 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     turnover_max or the row is not strict, else the row is 'ineligible' (cap_used NULL). An unknown
     u lowers it the same way. So a gate opened by the consolidations alone (pf under pf_min), or a
     group whose liquid line has no bars yet (ERIC-B.ST before 2000), lowers the cap and never
-    excludes the row. It never raises a cap. pf and the split products come from later splits but
-    only gate and size the lowering: the decision reads k (same filing) and u (trading before the
-    period end).
-    Returns {cap_rows_checked, cap_rows_flagged}.
+    excludes the row. Where that divisor is 1 (pf x pf_fwd at most 1 and no K: HAO FY2025, pf 1.0,
+    consolidations 2560), nothing can lower the cap: the row is 'unchecked', keeps FMP's cap and is
+    counted in cap_rows_flagged. It never raises a cap. pf and the split products come from later
+    splits but only gate and size the lowering: the decision reads k (same filing) and u (trading
+    before the period end).
+    Returns {cap_rows_checked, cap_rows_flagged, cap_unchecked}: every row, those whose rule is not
+    'stands', and the 'unchecked' rows ({symbol, fy, cap, pf, pf_source, pf_cons, pf_fwd, u, lines, k}).
     """
     c = cfg["cap"]
     pf_min, u_max, k_min = float(c["pf_min"]), float(c["turnover_max"]), float(c["k_min"])
@@ -1830,7 +1834,7 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
                         ELSE 'ineligible' END AS r
             FROM y)
         SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, u, g_traded, lines, k,
-               CASE WHEN r = 'lower' AND dk > 1.0 THEN 'cap_over_pf' WHEN r = 'lower' THEN 'stands' ELSE r END,
+               CASE WHEN r = 'lower' AND dk > 1.0 THEN 'cap_over_pf' WHEN r = 'lower' THEN 'unchecked' ELSE r END,
                CASE WHEN r = 'cap_over_k' THEN kk WHEN r = 'lower' AND dk > 1.0 THEN dk END
         FROM z""")
     dup = con.execute("SELECT COUNT(*) FROM (SELECT symbol, filing_epoch FROM cap_check"
@@ -1838,7 +1842,13 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     if dup:
         raise AssertionError(f"cap_check has {dup} duplicate (symbol, filing_epoch) keys: the floors would fan out")
     n, flagged = con.execute("SELECT COUNT(*), COUNT(*) FILTER (WHERE rule <> 'stands') FROM cap_check").fetchone()
-    return {"cap_rows_checked": int(n), "cap_rows_flagged": int(flagged)}
+    # an unchecked row keeps FMP's cap, so it never fails a floor and leaves no cap event: listed here
+    unchecked = [{"symbol": s, "fy": utc_date(fe).isoformat(), "cap": cap, "pf": _sig(pf), "pf_source": src,
+                  "pf_cons": _sig(pfc), "pf_fwd": _sig(pff), "u": _sig(u), "lines": lines, "k": _sig(k)}
+                 for s, fe, cap, pf, src, pfc, pff, u, lines, k in con.execute(
+                     "SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, u, lines, k"
+                     " FROM cap_check WHERE rule = 'unchecked' ORDER BY symbol, filing_epoch").fetchall()]
+    return {"cap_rows_checked": int(n), "cap_rows_flagged": int(flagged), "cap_unchecked": unchecked}
 
 
 def load_cap_check(client, con, sym_filter_sql, mktcap_min, cfg=DATA_CHECKS_V1, verbose=False,
@@ -1908,7 +1918,7 @@ class DataChecks:
         self.clean = {"rows_moved": {"closed_day": 0, "zero_volume": 0, "nonpositive_price": 0},
                       "symbol_windows_without_volume": 0, "flat_windows_moved": 0, "closed_day_test_skipped": 0,
                       "closed_dates": [], "sibling_gap_rows": 0, "sibling_gaps": []}
-        self.cap = {"cap_rows_checked": 0, "cap_rows_flagged": 0}
+        self.cap = {"cap_rows_checked": 0, "cap_rows_flagged": 0, "cap_unchecked": []}
         self.twins_linked = self.factor_checked = 0
         self.events, self.large_moves, self.periods = [], [], {}
 
@@ -2173,7 +2183,8 @@ class DataChecks:
                 "rules": {k: v for k, v in self.cfg.items() if k != "version"}, "counts": counts,
                 "closed_dates": list(self.clean["closed_dates"]), "events": ev,
                 "large_moves": sorted(self.large_moves, key=lambda m: (m["rebalance_date"], m["symbol"])),
-                "sibling_gaps": list(self.clean.get("sibling_gaps", []))}
+                "sibling_gaps": list(self.clean.get("sibling_gaps", [])),
+                "cap_unchecked": list(self.cap.get("cap_unchecked", []))}
 
     def summary(self):
         c = self.block()["counts"]
