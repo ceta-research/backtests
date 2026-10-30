@@ -48,7 +48,9 @@ from data_utils import (query_parquet, get_prices, generate_rebalance_dates, fil
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations, utc_epoch,
-                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
+                        DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
+                        load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -65,21 +67,26 @@ DEFAULT_FREQUENCY = "annual"
 DEFAULT_REBALANCE_MONTHS = [7]   # July (FY data available by then via 45-day lag)
 BACKTEST_START = 2001          # Need 2 years of FY data, first valid signal at July 2001
 BACKTEST_END = 2025
-MAX_SINGLE_RETURN = 2.0        # Cap individual stock return at 200% (data artifact guard)
 MIN_ENTRY_PRICE = 1.0          # Skip penny stocks (price data artifacts)
+# No return cap: data checks dc-1 (traded bars, NVDR twins, market-cap check at both floors) clean
+# the inputs, and every kept move over +100% or under -50% is listed in the results.
+DATA_CHECKS = DATA_CHECKS_V1
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap_min=None, dc=None):
     """Fetch income statement, key metrics, and prices into DuckDB.
 
     Populates tables:
         revenue_cache(symbol, revenue, filing_epoch, period)
         metrics_cache(symbol, returnOnEquity, returnOnAssets, marketCap, filing_epoch)
         profile_cache(symbol, sector, exchange, market_cap)
-        prices_cache(symbol, trade_epoch, adjClose)
+        prices_cache(symbol, trade_epoch, adjClose, close, volume)
+        cap_check (empty unless dc is on), and with dc on: splits, prices_dropped
 
+    dc: a data_utils.DataChecks; when on, the fetch runs checks T, N and M (mktcap_min is the floor).
     Returns DuckDB connection or None.
     """
+    checks = dc is not None and dc.on
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='4GB'")
 
@@ -112,6 +119,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     print(f"  Cyclical universe: {n_profiles} symbols")
     # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
     load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
+    if checks:   # check N: SET NVDR lines share their ordinary line's security key
+        dc.record_twins_linked(mark_nvdr_twins(con))
 
     # 2. Income statement FY (revenue for timing signal)
     print("  Fetching income statement (FY revenue)...")
@@ -146,6 +155,14 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                               timeout=300, memory_mb=2048, threads=2)
     print(f"    -> {n_metrics} metrics rows")
 
+    # Check M (both floors read cap_used) and the splits check F flags; cap_check stays empty when off.
+    if checks:
+        print("  Fetching market-cap check inputs and splits...")
+        dc.record_cap(load_cap_check(client, con, sym_filter_sql, mktcap_min, dc.cfg, verbose=verbose))
+        load_splits(client, con, sym_filter_sql, verbose=verbose)
+    else:
+        empty_cap_check(con)
+
     # 4. Prices (only at rebalance dates, + SPY + local benchmarks)
     print("  Fetching prices...")
     date_conditions = []
@@ -163,7 +180,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     bench_list = ", ".join(bench_symbols)
 
     price_sql = f"""
-        SELECT symbol, dateEpoch AS trade_epoch, adjClose, volume
+        SELECT symbol, dateEpoch AS trade_epoch, adjClose, close, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND (
@@ -175,23 +192,20 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                              verbose=verbose, limit=5000000, timeout=600,
                              memory_mb=4096, threads=2)
     con.execute("CREATE INDEX idx_prices_sym_epoch ON prices_cache(symbol, trade_epoch)")
+    if checks:   # check T: closed days, zero-volume rows of traded lines, non-positive prices
+        dc.record_clean(clean_price_cache(con, bench_symbols, rebalance_dates, dc.cfg))
     remove_price_oscillations(con, verbose=verbose)
     print(f"    -> {n_prices} price rows")
 
     return con
 
 
-def compute_expansion_signal(con, target_date, mktcap_min):
-    """Check if cyclical expansion signal is active at target_date.
-
-    Returns (is_expanding: bool, expansion_ratio: float, n_qualifying: int)
-    where expansion_ratio = fraction of stocks with positive YoY revenue growth.
-    """
-    # 45-day lag for FY filings (July rebalance = act on filings through ~May 17)
-    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
-    prior_cutoff_epoch = utc_epoch(target_date - timedelta(days=45 + 365))
-
-    rows = con.execute("""
+def _signal_sql(cap_test, events=False):
+    """The expansion signal's SELECT. Its market-cap floor reads cap_used (check M); cap_test is
+    "km.cap_used > ?", or CAP_FAIL_TEST for M's events (which also need km_epoch and raw_cap)."""
+    cols = ("rc.symbol, km.filing_epoch AS km_epoch, km.marketCap AS raw_cap" if events else
+            "rc.symbol,\n            (rc.rev_current - rp.rev_prior) / rp.rev_prior AS rev_growth_yoy")
+    return f"""
         WITH rev_current AS (
             SELECT symbol, revenue AS rev_current, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, revenue DESC NULLS LAST) AS rn
@@ -205,23 +219,42 @@ def compute_expansion_signal(con, target_date, mktcap_min):
             WHERE filing_epoch <= ?
         ),
         km AS (
-            SELECT symbol, marketCap,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
-            FROM metrics_cache
-            WHERE filing_epoch <= ?
+            SELECT m.symbol, m.marketCap, m.filing_epoch,
+                {cap_used_sql()} AS cap_used,
+                ROW_NUMBER() OVER (PARTITION BY m.symbol ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST) AS rn
+            FROM metrics_cache m
+            LEFT JOIN cap_check cc ON cc.symbol = m.symbol AND cc.filing_epoch = m.filing_epoch
+            WHERE m.filing_epoch <= ?
         )
         SELECT
-            rc.symbol,
-            (rc.rev_current - rp.rev_prior) / rp.rev_prior AS rev_growth_yoy
+            {cols}
         FROM rev_current rc
         JOIN rev_prior rp ON rc.symbol = rp.symbol AND rp.rn = 1
         JOIN km ON rc.symbol = km.symbol AND km.rn = 1
         JOIN profile_cache pc ON rc.symbol = pc.symbol
         WHERE rc.rn = 1
           AND rc.filing_epoch != rp.de_prior
-          AND km.marketCap > ?
+          AND {cap_test}
           AND (rc.rev_current - rp.rev_prior) / rp.rev_prior BETWEEN -0.99 AND 10.0
-    """, [cutoff_epoch, prior_cutoff_epoch, cutoff_epoch, mktcap_min]).fetchall()
+    """
+
+
+def compute_expansion_signal(con, target_date, mktcap_min, dc=None):
+    """Check if cyclical expansion signal is active at target_date.
+
+    Returns (is_expanding: bool, expansion_ratio: float, n_qualifying: int)
+    where expansion_ratio = fraction of stocks with positive YoY revenue growth.
+    dc (data_utils.DataChecks) records the names check M took out of the signal (signal_cap).
+    """
+    # 45-day lag for FY filings (July rebalance = act on filings through ~May 17)
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    prior_cutoff_epoch = utc_epoch(target_date - timedelta(days=45 + 365))
+
+    params = [cutoff_epoch, prior_cutoff_epoch, cutoff_epoch, mktcap_min]
+    rows = con.execute(_signal_sql("km.cap_used > ?"), params).fetchall()
+    if dc is not None:
+        dc.caps(con, _signal_sql(CAP_FAIL_TEST, events=True), params + [mktcap_min], target_date, mktcap_min,
+                check="signal_cap")
 
     if not rows:
         return False, 0.0, 0
@@ -233,18 +266,13 @@ def compute_expansion_signal(con, target_date, mktcap_min):
     return is_expanding, expansion_ratio, len(rows)
 
 
-def screen_stocks(con, target_date, mktcap_min, offset_days=1):
-    """Screen top cyclical stocks by ROE among those with positive revenue growth.
-
-    Returns list of (symbol, market_cap, roe) sorted by ROE DESC.
-    Only called when expansion signal is active.
-    Selection: positive YoY revenue growth + ROE >= ROE_MIN, ranked by ROE.
-    Quality-within-cyclicals avoids commodity peak-cycle concentration.
-    """
-    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
-    prior_cutoff_epoch = utc_epoch(target_date - timedelta(days=45 + 365))
-
-    candidates = """
+def _candidates_sql(cap_test, events=False):
+    """The screen's candidate SELECT. Its market-cap floor reads cap_used (check M), the screen
+    reports cap_used as the market cap, and the km tie-break stays on the raw cap. cap_test is the
+    floor clause ("km.cap_used > ?", or CAP_FAIL_TEST for M's events, which also need km_epoch and
+    raw_cap)."""
+    extra = ", km.filing_epoch AS km_epoch, km.marketCap AS raw_cap" if events else ""
+    return f"""
         WITH rev_current AS (
             SELECT symbol, revenue AS rev_current, filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, revenue DESC NULLS LAST) AS rn
@@ -258,39 +286,68 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1):
             WHERE filing_epoch <= ?
         ),
         km AS (
-            SELECT symbol, returnOnEquity, marketCap,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
-            FROM metrics_cache
-            WHERE filing_epoch <= ?
+            SELECT m.symbol, m.returnOnEquity, m.marketCap, m.filing_epoch,
+                {cap_used_sql()} AS cap_used,
+                ROW_NUMBER() OVER (PARTITION BY m.symbol ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST, m.returnOnEquity DESC NULLS LAST) AS rn
+            FROM metrics_cache m
+            LEFT JOIN cap_check cc ON cc.symbol = m.symbol AND cc.filing_epoch = m.filing_epoch
+            WHERE m.filing_epoch <= ?
         )
-        SELECT rc.symbol, km.marketCap, km.returnOnEquity
+        SELECT rc.symbol, km.cap_used AS marketCap, km.returnOnEquity{extra}
         FROM rev_current rc
         JOIN rev_prior rp ON rc.symbol = rp.symbol AND rp.rn = 1
         JOIN km ON rc.symbol = km.symbol AND km.rn = 1
         JOIN profile_cache pc ON rc.symbol = pc.symbol
         WHERE rc.rn = 1
           AND rc.filing_epoch != rp.de_prior
-          AND km.marketCap > ?
+          AND {cap_test}
           AND (rc.rev_current - rp.rev_prior) / rp.rev_prior > 0
           AND km.returnOnEquity >= ?
     """
+
+
+def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None):
+    """Screen top cyclical stocks by ROE among those with positive revenue growth.
+
+    Returns list of (symbol, market_cap, roe) sorted by ROE DESC.
+    Only called when expansion signal is active.
+    Selection: positive YoY revenue growth + ROE >= ROE_MIN, ranked by ROE.
+    Quality-within-cyclicals avoids commodity peak-cycle concentration.
+    dc (data_utils.DataChecks): when on, NVDR twins share a security (check N); it also records
+    the screen's twin and market-cap events.
+    """
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    prior_cutoff_epoch = utc_epoch(target_date - timedelta(days=45 + 365))
+
+    candidates = _candidates_sql("km.cap_used > ?")
+    params = [cutoff_epoch, prior_cutoff_epoch, cutoff_epoch, mktcap_min, ROE_MIN]
     # One row per security BEFORE the top-N cut, so a collapsed twin (or a symbol the
     # profile_cache join fans out) frees its slot.
     rows = con.execute(f"""
         SELECT symbol, marketCap, returnOnEquity
-        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE,
+                              twin_key=dc is not None and dc.on)})
         ORDER BY returnOnEquity DESC, symbol
         LIMIT ?
-    """, [cutoff_epoch, prior_cutoff_epoch, cutoff_epoch,
-          mktcap_min, ROE_MIN, MAX_STOCKS]).fetchall()
+    """, params + [MAX_STOCKS]).fetchall()
 
-    return [(r[0], r[1], r[2]) for r in rows]
+    picked = [(r[0], r[1], r[2]) for r in rows]
+    if dc is not None:
+        dc.twins(con, candidates, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _, _ in picked])
+        dc.caps(con, _candidates_sql(CAP_FAIL_TEST, events=True),
+                [cutoff_epoch, prior_cutoff_epoch, cutoff_epoch, mktcap_min, mktcap_min, ROE_MIN],
+                target_date, mktcap_min)
+    return picked
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
-    """Run Cyclical Timing backtest. Returns list of period result dicts."""
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop", dc=None):
+    """Run Cyclical Timing backtest. Returns list of period result dicts.
+
+    dc: the leg's data_utils.DataChecks. Without one, no check runs (the "uncapped" mode); either
+    way there is no return cap."""
     results = []
+    dc = dc if dc is not None else DataChecks("uncapped", DATA_CHECKS)
 
     for i in range(len(rebalance_dates) - 1):
         entry_date = rebalance_dates[i]
@@ -298,7 +355,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         # Check expansion signal
         is_expanding, exp_ratio, n_qualifying = compute_expansion_signal(
-            con, entry_date, mktcap_min
+            con, entry_date, mktcap_min, dc=dc
         )
 
         # Benchmark return (local index for non-US, SPY for US)
@@ -322,6 +379,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "signal_active": False,
                 "expansion_ratio": round(exp_ratio, 3),
                 "n_signal_stocks": n_qualifying,
+                **dc.row(entry_date, screened=False, priced=False, signal=True),
                 "holdings": f"CASH (exp_ratio={exp_ratio:.1%})",
             })
             if verbose:
@@ -329,7 +387,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             continue
 
         # Expansion active: screen top stocks by revenue growth
-        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days, dc=dc)
 
         if len(portfolio) < MIN_STOCKS:
             results.append({
@@ -344,6 +402,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "signal_active": True,
                 "expansion_ratio": round(exp_ratio, 3),
                 "n_signal_stocks": n_qualifying,
+                **dc.row(entry_date, screened=True, priced=False, signal=True),
                 "holdings": f"CASH (only {len(portfolio)} qualified with revenue growth > 0)",
             })
             if verbose:
@@ -367,9 +426,10 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         # symbol_data keeps the DROP exits so the entry-only cash guard below reads it unchanged.
         symbol_data = book(exit_prices)
+        # no return cap (data checks dc-1)
         clean, skipped = filter_returns(book(exit_ltp) if exit_method == "ltp" else symbol_data,
                                         min_entry_price=MIN_ENTRY_PRICE,
-                                        max_single_return=MAX_SINGLE_RETURN,
+                                        max_single_return=None,
                                         verbose=verbose)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
@@ -378,8 +438,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         # as a diversified portfolio return.
         #
         # Checked on `buyable`, NOT on len(clean). filter_returns also drops a
-        # name for a missing EXIT price and for a realised return over
-        # MAX_SINGLE_RETURN, neither of which is knowable on the rebalance date.
+        # name for a missing EXIT price, which is not knowable on the rebalance
+        # date (this topic sets no return cap; a cap would be a second such drop).
         # Deciding cash from those is look-ahead and it flatters: a period the
         # strategy really held and really lost gets rewritten as a flat 0.0%. If
         # the book cleared the floor at entry the strategy ENTERED, so the
@@ -389,6 +449,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         # not changed here.
         buyable = entry_buyable(symbol_data, min_entry_price=MIN_ENTRY_PRICE)
         if buyable < MIN_STOCKS:
+            # window bars only: T's bar events, no book to flag
+            dc.prices(con, entry_date, exit_date, symbol_data, offset_days, MIN_ENTRY_PRICE, held=False)
             results.append({
                 "rebalance_date": entry_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
@@ -401,6 +463,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "signal_active": True,
                 "expansion_ratio": round(exp_ratio, 3),
                 "n_signal_stocks": n_qualifying,
+                **dc.row(entry_date, screened=True, priced=True, signal=True),
                 "holdings": f"CASH ({buyable} buyable at entry of {len(portfolio)} screened)",
             })
             if verbose:
@@ -418,6 +481,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             returns.append(net_ret)
 
         port_return = sum(returns) / len(returns) if returns else 0.0
+        # window bars only (never the LTP fills): T's bar events, L and F's flags
+        dc.prices(con, entry_date, exit_date, symbol_data, offset_days, MIN_ENTRY_PRICE, held=True)
 
         results.append({
             "rebalance_date": entry_date.isoformat(),
@@ -431,11 +496,12 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "signal_active": True,
             "expansion_ratio": round(exp_ratio, 3),
             "n_signal_stocks": n_qualifying,
+            **dc.row(entry_date, screened=True, priced=True, signal=True),
             "holdings": ",".join(sym for sym, _, _ in clean[:10]),
         })
         if exit_method == "both":
             c_ltp, _ = filter_returns(book(exit_ltp), min_entry_price=MIN_ENTRY_PRICE,
-                                      max_single_return=MAX_SINGLE_RETURN)
+                                      max_single_return=None)
             r_ltp = [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in c_ltp]
             results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
                                 "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
@@ -525,9 +591,13 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, verbose, output_path=None, offset_days=1, exit_method="drop"):
-    """Run backtest for a single exchange set. Returns output dict or None."""
+               risk_free_rate, verbose, output_path=None, offset_days=1, exit_method="drop",
+               data_checks="on"):
+    """Run backtest for a single exchange set. Returns output dict or None.
+
+    data_checks: "on" (data checks dc-1), or "uncapped" (no check and no cap: attribution only)."""
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
+    dc = DataChecks(data_checks, DATA_CHECKS)
     mktcap_threshold = get_mktcap_threshold(exchanges)
     mktcap_label = (f"{mktcap_threshold/1e9:.0f}B"
                     if mktcap_threshold >= 1e9 else f"{mktcap_threshold/1e6:.0f}M")
@@ -549,7 +619,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = generate_rebalance_dates(BACKTEST_START, BACKTEST_END,
                                                frequency, months=DEFAULT_REBALANCE_MONTHS)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
+                             mktcap_min=mktcap_threshold, dc=dc)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -560,13 +631,14 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"\nPhase 2: Running {frequency} backtest ({BACKTEST_START}-{BACKTEST_END})...")
     t1 = time.time()
     # Price cache is [d, d+11] per rebalance date only, so LTP reads remote stock_eod.
-    ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
+    ltp = LtpExits(cr, con, verbose=verbose, traded_only=dc.on) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=verbose,
                            offset_days=offset_days, benchmark_symbol=benchmark_symbol,
-                           ltp=ltp, exit_method=exit_method)
+                           ltp=ltp, exit_method=exit_method, dc=dc)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
+    print(f"  {dc.summary()}")
 
     # Phase 3: Compute metrics
     valid = [r for r in results
@@ -583,6 +655,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Cyclical Timing", benchmark_name))
     ltp_block = ltp.results_block(exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
+    if ltp_block:
+        dc.annotate_ltp(con, ltp, ltp_block)   # F's flags on the fills, inside the ltp block
 
     # B006: count over `executed` (every rebalance the strategy actually ran),
     # not `valid` (only those the benchmark can also price). Keeps the honest
@@ -621,6 +695,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
     output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
+    output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 
@@ -639,6 +714,9 @@ def main():
     parser = argparse.ArgumentParser(description="Cyclical Sector Timing backtest")
     add_common_args(parser)
     add_exit_method_arg(parser)
+    parser.add_argument("--data-checks", choices=DataChecks.MODES, default="on",
+                        help="Data checks dc-1 (default on). 'uncapped' turns every check off and sets no "
+                             "return cap: the same-day attribution arm only, never published")
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -702,7 +780,8 @@ def main():
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, args.verbose, output_path,
-                                    offset_days=offset_days, exit_method=args.exit_method)
+                                    offset_days=offset_days, exit_method=args.exit_method,
+                                    data_checks=args.data_checks)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -763,7 +842,7 @@ def main():
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, args.verbose, args.output, offset_days=offset_days,
-               exit_method=args.exit_method)
+               exit_method=args.exit_method, data_checks=args.data_checks)
 
 
 if __name__ == "__main__":
