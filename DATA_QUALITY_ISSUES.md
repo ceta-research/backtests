@@ -1215,7 +1215,8 @@ still hold every listed line; read them with the measurements earlier in this se
 ## Data checks in place of the return cap (deleveraging and cyclical-timing, 2026-10)
 
 **Status:** code in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks); their
-committed results predate it until both topics are rerun. Every other topic keeps the 200% cap.
+committed results predate it until both topics are rerun. The other topics keep their existing cap
+(200%, 300% in three; qarp, low-pe and sector-correlation have none) until their own rerun.
 
 The 200% single-return cap drops a holding only when its return is high. Reading every holding
 it dropped from these two topics' published books, and the holdings beside them, found real
@@ -1273,7 +1274,8 @@ that the close mirrors.
   dividend. A real step, which a flag must not be mistaken for an error.
 - JNB's split factor oscillation in 2004-2005 (noted under JNB above) is the same class.
 Check F records these steps on every held name (drift outside 1/1.05 to 1.15, or a split of
-ratio 2 or more in the calendar during the holding) and changes nothing. A repair that divides
+ratio 2 or more in the calendar during the holding), and every holding on the large-move list,
+and changes nothing. A repair that divides
 out the steps the close does not mirror is possible and is not in this version.
 
 **5. Market caps inflated by later reverse splits.** `key_metrics.marketCap` can be built on a
