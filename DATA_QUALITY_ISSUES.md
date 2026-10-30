@@ -1257,8 +1257,8 @@ every row from 2003 to 2007 while its prices matched ADVANC.BK bar for bar, KBAN
 traded row from 2004 to 2006 and TRUE-R.BK none from 2010 to 2012. Some ordinary lines do the
 same (TRUE.BK in 2006: 259 rows, 3 with volume, prices moving daily). A rule that dropped every
 zero-volume row would make these lines unbuyable for whole years, so a line keeps its
-zero-volume rows in a window where it never traded and its close moves (item 6 covers the flat
-case). BBL.BK has no rows at all in the 2012 Q4,
+zero-volume rows in a window where it never traded and its close takes three values or more (items
+6 and 7 cover the rest). BBL.BK has no rows at all in the 2012 Q4,
 2013 Q1 and 2013 Q2 windows, so BBL-R.BK is the only line to hold then.
 
 **4. Adjustment-factor regimes.** adjClose / close should change only on a dividend or split
@@ -1299,8 +1299,11 @@ price the warehouse later scaled up for reverse splits.
 Check M runs at every market-cap floor. Without it, removing the cap would have booked SOS and
 ZEST at their full returns.
 
-**6. Found by the first review of the checks (same-day runs of all 32 legs, 2026-10-30).** Six
-errors the checks introduced, and two gaps that removing the cap exposed, changed the rules:
+**6. Found by the first review of the checks (same-day runs of all 32 legs, 2026-10-30).** Eight
+cases changed the rules: five errors the checks introduced (7211.T, the thin share classes, the
+deflatable caps, 4541.T, ELUX-A.ST), one gap that removing the cap exposed (Bonjour's netted
+splits), and two that every arm already had (the flat lines with no volume, and CETX, TOPS and
+PIXY with no turnover). Item 7 corrects three of the fixes.
 - Turnover read on an inflated cap. 7211.T FY2003: FMP's 4.06T yen is 1.488bn unrestated shares
   times a close carrying the 2013 1:10 (k 10.03). Turnover was 7.77e-5 of that cap, so the row
   was ineligible, though it is 7.80e-4 of the 405bn cap after k. k is now applied first when it
@@ -1313,7 +1316,7 @@ errors the checks introduced, and two gaps that removing the cap exposed, change
   all 93 class-years read, and BBD-A and B. Among 1,896 pairs of same-market lines with an
   identical FY cap at the same period end, the pairs read were share classes, renamed or reused
   tickers, and preference lines, trust preferreds and warrants beside their common. Turnover is
-  now summed over the lines that share a cap.
+  now summed over the lines that share a cap (since item 7, in two FYs or more).
 - A deflatable cap excluded. 0653.HK FY2011 to FY2013 trade 2.9e-5 to 6.9e-5 of caps that are
   16.5 times their as-traded size (raw 1.31, 1.07, 1.86 times 3.455bn, 3.441bn, 3.537bn shares:
   4.53bn, 3.68bn, 6.58bn, over the HK$2bn floor); 1124.HK FY2008 is 30.9bn on a price factor of
@@ -1340,16 +1343,18 @@ errors the checks introduced, and two gaps that removing the cap exposed, change
   bought stale quotes and suspension rows: BC88.L (Chemring, dead, close flat at 95 then 70 with
   adjClose steps of +17%, +4%, +106%, booked +105.9%), 76ID.L (Rotork, dead), 1114.HK (suspended
   2021-03-31 to 2022-10-04 at 7.30, resumed at 2.70), BR.BK 2015, GBGLOBAL.NS 2022 (930 flat). A
-  window like that now loses its rows. 600694.SS's 2006 exit window holds flat halt rows on an
+  flat window now loses its rows. 600694.SS's 2006 exit window holds flat halt rows on an
   adjClose step (17.06 against 13.65 at the last trade): the exit goes to the last-traded fill.
-  TRUE.BK 2006-04 (7 closes) and the pre-2009 Thai NVDR feeds keep theirs.
+  TRUE.BK 2006-04 (7 closes) and the pre-2009 Thai NVDR feeds keep theirs. A window whose stale
+  quote steps once kept its rows under this round's rule (BC88.L 2009-10, held then); item 7.
 - A moved bar on another scale. T moved ELUX-A.ST's 2006 entry off a zero-volume row onto
   52.43 on 950 shares, while ELUX-B traded 95.62 on 1.48m. A's traded rows sat near half of B's
   from 2006-06-08 to the end of 2006 (monthly medians 0.53 to 0.55 from July, against 1.03 to
   1.15 before and after), and the two met again by 2007 (156.37 against 153.72). Booked +207.5% against +64.7%
-  for B. In a window where T moved a line's rows, a row more than 25% off its sibling's scale
-  now moves too. A's A/B ratio in 2008 and 2009 ran up to 1.38 on thin trading; the test reads
-  the pair's own median over the year either side, so a premium like that stays.
+  for B. A replacement bar more than 25% off its sibling's scale now moves too (narrowed in
+  item 7). A's A/B ratio in 2008 and 2009 ran up to 1.38 on thin trading; the reference is the
+  pair's median ratio in the cache's other windows within 400 days (one window each side on an
+  annual leg), so a premium like that stays.
 Still open after this round: Bonjour FY2003 passes turnover (4.6e-4 on a cap about 16.5 times
 too high) and stays in the 2004 book; caps inflated with no later split (7386.T, 2.5 million
 times its sales; 8038.T from FY2017); forward-split inflation (SALEE.BK FY2014); k near 1 where
@@ -1358,7 +1363,48 @@ caps in the reporting currency (BWMX, NAAS). Side effects to read on the rerun: 
 FY2005 and FY2006 (no bars and 8 traded bars, on FMP caps of 182bn and 287bn yen; FY2007 reads k
 1.0 on 293bn) lower under the floor; 4541.T FY2007 and FY2010 stand at FMP's cap, while their
 true caps (89bn, 97bn) sit 3% to 11% under the floor; 0756.HK FY2010 comes back at 2.18bn on a
-price factor of 10.
+price factor of 10; BBD-A.TO and BBD-B.TO FY1997 to FY1999 (C$6.5bn to 10bn, no bars, later splits
+6.25 to 12.5 and a 1:25) lower by 25 to C$0.26bn to 0.40bn, under the floor, though Bombardier's
+cap then was real (no booked effect: deleveraging Canada 2000-01 is a cash period).
+
+**7. Found by the second review of the checks (2026-10-30).** Three of item 6's fixes reached too
+far, and one was too loose:
+- The sibling test moved real prices. It ran in any window where T moved any row (a holiday row
+  was enough) and tested both lines, so it moved the liquid common's rows too: LG Chem 051910.KS,
+  deleveraging Korea 2004-04 (515k shares a day against the pref's 27k), lost its entry on a
+  holiday-only window, because the common over pref ratio drifted from 2.24 to 1.44 in 18 months
+  and still passed the 80% stability test. It moved Samsung Heavy's pref 010145.KS, held in
+  deleveraging Korea: its 2011-10 and 2012-01 entry bars, and in 2023 (a meme pref at 36 times the
+  common that fell to 4 to 11 times on 58k to 124k shares a day) its 2023-01 entry and its whole
+  2023-07 window. It moved BP-B.L
+  when BP.L fell (2016-01: a fixed-rate pref at 160.5 against 161), and 1935.HK, whose only link
+  to 1789.HK is one coincidental FY2016 cap of 2,362,800,000. The reference also took a
+  neighbouring window's wrong-scale prints: on ELUX-A's real rows the 2006 anomaly was 2007's
+  reference, and all 7 correctly scaled 2007-07 rows moved. The test now asks only whether T's
+  substitution landed on another scale: the line's moved bar must have opened its window and sat
+  on the reference, the line must be the thinner one, the reference is the median of the other
+  windows' medians (2 windows, 5 days, 80% of the days in the band), and a replacement moves only
+  when it is off both the reference and the moved bar's own ratio. On the reviewed share-class
+  rows (Korea, UK, Brazil and Sweden, plus ELUX's 2005 to 2009 rows), with the legs' closed
+  dates, it moves ELUX-A's four 2006 rows and nothing else, and the unrelated pairs move nothing.
+- Coincidental equal caps. About a dozen same-market pairs of unrelated companies share one FY
+  cap over the floor (450080.KS and 454910.KS, CLS and WST, APLE and CZR, BCT.BK and EPG.BK,
+  several in Hong Kong). Lines now count as share classes only with an identical cap in two FYs
+  or more, for check M's turnover and for the sibling test. Real class pairs share 19 to 27.
+  1859.HK and 6111.HK share two and still join.
+- Missing turnover read as thin turnover. ERIC-B.ST has no rows before 2000-01-03, so Ericsson's
+  FY1999 (SEK 786bn) read the thin A class alone and both lines became ineligible; the only gate
+  open was the 2008 1:5 consolidation (price factor 1.25). A row is now made ineligible only when
+  the price factor itself is 3 or more and every line of its group has bars; otherwise a failing
+  cap lowers. ERIC-A.ST FY1999 lowers to 157bn and ERIC-B.ST to 218bn; 02826K.KS FY2008, FY2009
+  and FY2011 to FY2013 (028260.KS listed in December 2014) lower to 5.26T won, over the floor.
+  0653.HK FY2024 and 0760.HK FY2006 lower too, still under the floor.
+- A stale quote that steps once. BC88.L's 2009-10 window reads 95 on 10-01 and 10-02, then 70
+  for six days, all at volume 0: two closes, so it stayed buyable at 18.61 and was held. A line
+  with no traded row now needs three closes or more in the window to keep its rows; the measured
+  no-volume feeds show 4 or more (ADVANC-R.BK 2003 to 2008, TRUE.BK 2006). That also removes
+  BR.BK 2004-10 and 2005-04, GBGLOBAL.NS 2020-01 and most of 76ID.L's windows. 76ID.L 2000-01,
+  2000-04 and 2000-07 (160.25, 165.03, 165.09) keep theirs; none is held.
 
 **Real moves the cap cut.** DAVE (deleveraging US 2025 Q2, +217.4%), 2609.TW (Taiwan 2021 Q2,
 +332.6%), SANWARIA.NS (India 2012 Q1, +201.9%), and in cyclical-timing US UAL (+462%), SE
