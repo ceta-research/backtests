@@ -12,7 +12,12 @@ excluded), BBD-A.TO, ERIC-A.ST and 02826K.KS (turnover over the share classes), 
 FY2009 (the consolidations' gate), CETX, TOPS and PIXY (no turnover), with ZEST, HAO and 8038.T
 staying out; T on flat no-volume lines (1114.HK, BC88.L, GBGLOBAL.NS, 76ID.L, BR.BK against
 TRUE.BK and ADVANC-R.BK), 600694.SS's halted exit and ELUX-A.ST's 2006 entry off ELUX-B's scale.
-Then both opted-in topics run end to end on a
+A second review added: share classes need two shared FY caps (1789.HK and 1935.HK share one); M
+lowers, not excludes, when only the consolidations open the gate or a sibling has no bars (ERIC-A.ST
+and ERIC-B.ST FY1999, 02826K.KS FY2008, 0760.HK FY2006); BC88.L's stale quote that steps once; and
+T's sibling step on ELUX's real rows (2007 keeps its rows), on lines that must not move (LG Chem's
+pref, Samsung Heavy's pref, BP-B.L, 1935.HK), three classes, the liquid line, the leading run of off
+rows and the trigger. Then both opted-in topics run end to end on a
 synthetic SET leg through a fake client, in drop, ltp, both and uncapped modes, and the results
 pass the LTP gate's stage-a comparison and the results scanners, with and without --full-holdings.
 
@@ -899,11 +904,13 @@ def elux_con(extra=()):
 
 
 def t2_failures():
-    """ELUX-A.ST 2006 (cyclical-timing Sweden): T moved the entry off the zero-volume 07-03 row onto 07-07,
-    52.43 on 950 shares, while ELUX-B traded 95.62 on 1.48m: A over B 0.548 against a median 1.04 in
-    the 2005 and 2007 windows. Every traded A row of the window sits that far off, so they move
-    (sibling_gap) and the entry is lost, where before it booked from 30.05 (+207.5% to 2007). B is
-    untouched, and the 2007 window, where A traded on B's scale, too."""
+    """ELUX-A.ST 2006 (cyclical-timing Sweden): T moved the entry off the zero-volume 07-03 row (84.18,
+    0.915 of B, on scale) onto 07-07, 52.43 on 950 shares, while ELUX-B traded 95.62 on 1.48m: A over
+    B 0.548 against a reference 1.03 (the median of the 2005 and 2007 window medians). Every traded A
+    row of the window sits that far off, so they move (sibling_gap) and the entry is lost, where
+    before it booked from 30.05 (+207.5% to 2007). B is untouched, and the 2007 window, where A traded
+    on B's scale, too. Controls: a print 24% above B's scale stays; a pair whose daily ratio swings
+    60% (V.ST, W.ST) is not tested."""
     con, (w05, w06, w07) = elux_con()
     clean_price_cache(con, set(), [w05, w06, w07])
     f = []
@@ -914,7 +921,7 @@ def t2_failures():
         st = clean_price_cache(con, set(), [w05, w06, w07], siblings="cap_inputs")
     except TypeError as e:
         return f + [f"clean_price_cache has no sibling test ({e})"]
-    ref = statistics.median([1.04] * 8 + [156.37 / 153.72] * 9)   # the 2005 and 2007 windows' traded days
+    ref = math.sqrt(1.04 * 156.37 / 153.72)   # the median of the 2005 and 2007 window medians
     a = get_prices(con, ["ELUX-A.ST", "ELUX-B.ST"], w06, offset_days=1)
     if "ELUX-A.ST" in a:
         f.append(f"ELUX-A.ST 2006 entry {a['ELUX-A.ST']}, want none (every traded row off B's scale)")
@@ -935,16 +942,234 @@ def t2_failures():
     st = clean_price_cache(con, set(), list(wins), siblings="cap_inputs")
     if get_prices(con, ["ELUX-A.ST"], w06, offset_days=1).get("ELUX-A.ST") != 50.0:
         f.append(f"a print 24% above B's scale is kept: {st.get('sibling_gaps')}")
-    wild = [("W.ST", day, 1.0, 1.0 + 0.6 * (k % 2), 1e5) for w in wins
+    # V.ST (thin) beside W.ST, whose close swings 1.0 / 1.6 day to day: the window medians agree, the days
+    # do not, so the pair is not tested. V's 2006 window opens on a zero-volume row on W's scale.
+    wild = [("W.ST", day, 1.0, 1.0 + 0.6 * (k % 2), 2e5) for w in wins
             for k, day in enumerate(weekdays(w, w + timedelta(days=11)))]
     wild += [("V.ST", day, 1.0, 1.0, 1e5) for w in wins for day in weekdays(w, w + timedelta(days=11))]
-    wild += [("V.ST", w06, 1.0, 1.0, 0.0)]
     con, _ = elux_con(wild)
-    cap_insert(con, [{"symbol": s, "filing_epoch": 1, "market_cap": 1e9} for s in ("V.ST", "W.ST")])
+    cap_insert(con, [{"symbol": s, "filing_epoch": fe, "market_cap": 1e9} for s in ("V.ST", "W.ST") for fe in (1, 2)])
+    con.execute("UPDATE prices_cache SET volume = 0 WHERE symbol = 'V.ST' AND trade_epoch = ?", [ep(date(2006, 7, 3))])
     con.execute("UPDATE prices_cache SET close = 3.0 WHERE symbol = 'V.ST' AND trade_epoch = ?", [ep(date(2006, 7, 4))])
     st = clean_price_cache(con, set(), list(wins), siblings="cap_inputs")
     if any(g["symbol"] == "V.ST" for g in st["sibling_gaps"]):
         f.append(f"a pair that trades apart is not tested: {st['sibling_gaps']}")
+    return f
+
+
+# ELUX-A.ST and ELUX-B.ST in cyclical-timing's July windows, as stock_eod prints them.
+# yy-mm-dd: (A close, A adjClose, A volume, B close, B adjClose, B volume)
+ELUX_JULY = {
+    "05-07-01": (79.59, 42.5, 852, 76.17, 38.75, 3.29216e+06), "05-07-04": (79.59, 42.5, 427, 75.72, 38.52, 2.02548e+06),
+    "05-07-05": (78.18, 41.75, 747, 75.72, 38.52, 3.13486e+06), "05-07-06": (120.66, 64.43, 0, 75.94, 38.63, 1.49074e+06),
+    "05-07-07": (78.18, 41.75, 1708, 74.8, 38.05, 5.19908e+06), "05-07-08": (79.59, 42.5, 427, 75.94, 38.63, 1.63104e+06),
+    "05-07-11": (81.23, 43.38, 854, 77.09, 39.22, 2.64461e+06), "05-07-12": (81.23, 43.38, 1097, 77.55, 39.45, 2.46516e+06),
+    "06-07-03": (84.18, 48.25, 0, 96.53, 52.97, 1.65008e+06), "06-07-04": (84.18, 48.25, 0, 96.53, 52.97, 1.51486e+06),
+    "06-07-05": (84.18, 48.25, 0, 93.79, 51.47, 2.43748e+06), "06-07-06": (84.18, 48.25, 0, 96.53, 52.97, 2.47574e+06),
+    "06-07-07": (52.43, 30.05, 950, 95.62, 52.47, 1.48376e+06), "06-07-10": (52.43, 30.05, 213, 96.99, 53.22, 1.92146e+06),
+    "06-07-11": (52.43, 30.05, 213, 94.25, 51.72, 1.58166e+06), "06-07-12": (52.43, 30.05, 213, 91.96, 50.46, 5.40956e+06),
+    "07-07-02": (163.86, 96.82, 0, 149.6, 84.09, 2.16132e+06), "07-07-03": (156.37, 92.4, 152, 153.72, 86.4, 2.77659e+06),
+    "07-07-04": (156.84, 92.68, 1244, 150.98, 84.86, 1.7064e+06), "07-07-05": (159.18, 94.06, 106, 149.6, 84.09, 2.09242e+06),
+    "07-07-06": (165.26, 97.65, 961, 151.43, 85.12, 1.2018e+06), "07-07-09": (165.26, 97.65, 213, 153.26, 86.15, 2.90351e+06),
+    "07-07-10": (165.26, 97.65, 106, 149.15, 83.84, 2.28266e+06), "07-07-11": (127.53, 75.36, 0, 146.4, 82.29, 4.37829e+06),
+    "07-07-12": (164.79, 97.37, 427, 147.32, 82.81, 3.26446e+06), "08-07-01": (62.14, 38.38, 0, 66.34, 39.07, 4.75955e+06),
+    "08-07-02": (62.14, 38.38, 0, 67.25, 39.61, 3.31558e+06), "08-07-03": (62.14, 38.38, 0, 65.88, 38.8, 3.66181e+06),
+    "08-07-04": (80.52, 49.73, 352, 64.74, 38.13, 1.31169e+06), "08-07-07": (62.14, 38.38, 0, 64.74, 38.13, 2.08662e+06),
+    "08-07-08": (62.14, 38.38, 0, 64.97, 38.26, 2.18244e+06), "08-07-09": (62.14, 38.38, 0, 65.42, 38.53, 2.68216e+06),
+    "08-07-10": (62.14, 38.38, 0, 63.82, 37.59, 2.81879e+06), "08-07-11": (62.14, 38.38, 0, 61.53, 36.24, 2.01289e+06),
+}
+
+
+def pair_con(rows, wins, pairs, closed=()):
+    """A cache of `rows` plus 30 filler lines trading every weekday of each window but the `closed`
+    days, and cap_inputs where each pair of lines shares an identical cap in two FYs."""
+    rows = list(rows)
+    for w in wins:
+        rows += fillers(30, list(weekdays(w, w + timedelta(days=11))), traded=lambda i, d: d not in closed)
+    con = cache(rows)
+    con.execute(CAP_INPUTS_DDL)
+    for i, group in enumerate(pairs):
+        cap_insert(con, [{"symbol": s, "filing_epoch": fe, "market_cap": 1e10 * (i + 1) + fe}
+                         for s in group for fe in (1, 2)])
+    return con
+
+
+def elux_real_con(years=(2005, 2006, 2007, 2008), keep_one_traded=()):
+    """ELUX_JULY's rows for the given July windows; in a window listed in keep_one_traded, A keeps only
+    its first traded row's volume."""
+    wins = [date(y, 7, 1) for y in years]
+    rows, seen = [], set()
+    for k, (ac, aa, av, bc, ba, bv) in sorted(ELUX_JULY.items()):
+        d = date.fromisoformat("20" + k)
+        if d.year not in years:
+            continue
+        if d.year in keep_one_traded and av > 0:
+            av = av if d.year not in seen else 0
+            seen.add(d.year)
+        rows += [("ELUX-A.ST", d, aa, ac, float(av)), ("ELUX-B.ST", d, ba, bc, float(bv))]
+    return pair_con(rows, wins, [("ELUX-A.ST", "ELUX-B.ST")]), wins
+
+
+def t2_real_failures():
+    """ELUX-A/B's real July rows. 2006: the 52.43 prints (0.55 of B) leave and the entry is lost, as in
+    t2_failures. 2007: A's 07-02 and 07-11 rows have no volume (163.86 and 127.53), step 2 moves them, so
+    T moved the window's first bar; the reference against B is the 2006 window (0.55, the anomaly) and
+    one 2008 day (1.24), two windows that disagree, so the pair is not tested and A's 7 traded rows on
+    B's scale stay (entry 92.4 on 07-03). Before, the reference pooled those 5 days (median 0.556, 4 of 5
+    in the band), all 7 rows moved and the 2007 entry was lost. 2008: one reference window (2007) is
+    not enough, so A's 07-04 print stays. A reference needs 2 windows and 5 days: with 2005 beside 2006
+    alone, or 2005 and 2007 holding one traded A day each, 2006 is not tested."""
+    con, (w05, w06, w07, w08) = elux_real_con()
+    st = clean_price_cache(con, set(), [w05, w06, w07, w08], siblings="cap_inputs")
+    f = []
+    a = {w: get_prices(con, ["ELUX-A.ST"], w, offset_days=1).get("ELUX-A.ST") for w in (w05, w06, w07, w08)}
+    if a != {w05: 42.5, w06: None, w07: 92.4, w08: 49.73}:
+        f.append(f"ELUX-A.ST entries {a}, want 42.5, none (2006), 92.4 (2007, on B's scale), 49.73")
+    kept = con.execute("SELECT COUNT(*) FROM prices_cache WHERE symbol = 'ELUX-A.ST' AND volume > 0 AND trade_epoch"
+                       " BETWEEN ? AND ?", [ep(w07), ep(w07 + timedelta(days=11))]).fetchone()[0]
+    if kept != 7:
+        f.append(f"ELUX-A.ST 2007 keeps {kept} traded rows, want 7")
+    if sorted(g["date"] for g in st.get("sibling_gaps", [])) != ["2006-07-07", "2006-07-10", "2006-07-11", "2006-07-12"]:
+        f.append(f"sibling gaps {st.get('sibling_gaps')}, want A's four 2006 prints")
+    for years, one, why in (((2005, 2006), (), "one reference window"),
+                            ((2005, 2006, 2007), (2005, 2007), "two reference days")):
+        con, wins = elux_real_con(years, one)
+        clean_price_cache(con, set(), wins, siblings="cap_inputs")
+        got = get_prices(con, ["ELUX-A.ST"], w06, offset_days=1).get("ELUX-A.ST")
+        if got != 30.05:
+            f.append(f"ELUX-A.ST 2006 with {why}: entry {got}, want 30.05 (not tested)")
+    return f
+
+
+def t2_pref_failures():
+    """Lines that trade apart from their sibling for real must not move.
+    (1) LG Chem, deleveraging Korea 2004-04: common 051910.KS (55,000 on 5e5 shares) and pref 051915.KS
+    (2.5e4), common over pref 2.24, 2.30, 2.13, 1.70, 1.66, 1.67, 1.44 by window, and a holiday on
+    2004-04-05: nothing moves, entries 40,700 and 19,108. Before, 14 rows of both lines moved and both
+    entries were lost. (2) Samsung Heavy's pref 010145.KS against 010140.KS (stock_eod rows of 2023-01
+    and 2023-07; the other windows at their real median ratios, 32 to 42): in 2023-01 the zero-volume
+    01-02 row (24.3 times the common) moves, in 2023-07 the zero-volume rows at 98,600 (14.5 times). The
+    bar T moved was already off the reference (about 36), so the pair is not tested: entries 109,500
+    and 53,500 on 74,434 shares. Before, the 2023-01 entry moved to 184,500 and the 2023-07 one was
+    lost. (3) BP-B.L, a fixed-rate preference, against BP.L, 2016-01 rows: the zero-volume rows at 161
+    (0.463 of BP.L, inside the band of the 0.373 reference) move; 01-07's 160.5 (0.475) sits within the
+    band of that moved bar, so T's move opened no gap (BP.L fell): entry 160.5. Before, it was lost.
+    (4) Lines that share one FY cap are not siblings (1789.HK and 1935.HK, crafted prices): 1935.HK's
+    2025-04 entry stays at its print 27% under the pair's usual ratio. Before, it moved."""
+    f = []
+    # (1)
+    wins = [date(y, m, 1) for y, m in ((2003, 10), (2004, 1), (2004, 4), (2004, 7), (2004, 10), (2005, 1), (2005, 4))]
+    ratio = dict(zip(wins, (2.24, 2.30, 2.13, 1.70, 1.66, 1.67, 1.44)))
+    rows = []
+    for w in wins:
+        for k, d in enumerate(weekdays(w, w + timedelta(days=11))):
+            hol = d == date(2004, 4, 5)
+            thin = hol or (w == wins[0] and k > 0) or (w == wins[1] and k > 4)
+            rows += [("051910.KS", d, 55000 * 0.74, 55000.0, 0.0 if hol else 5e5),
+                     ("051915.KS", d, 55000 / ratio[w] * 0.74, 55000 / ratio[w], 0.0 if thin else 2.5e4)]
+    con = pair_con(rows, wins, [("051910.KS", "051915.KS")], closed=(date(2004, 4, 5),))
+    st = clean_price_cache(con, set(), wins, siblings="cap_inputs")
+    e = get_prices(con, ["051910.KS", "051915.KS"], date(2004, 4, 1), offset_days=1)
+    if st.get("sibling_gap_rows") or abs(e.get("051910.KS", 0) - 40700) > 1e-6 or \
+            abs(e.get("051915.KS", 0) - 55000 / 2.13 * 0.74) > 1e-6:
+        f.append(f"LG Chem: {st.get('sibling_gap_rows')} rows moved, 2004-04 entries {e}, want none and 40,700 / 19,108")
+    # (2)
+    real = {date(2023, 1, 2): (123500, 0, 5080), date(2023, 1, 3): (109500, 7377, 4965),
+            date(2023, 1, 4): (142000, 3750, 5050), date(2023, 1, 5): (184500, 7507, 4935),
+            date(2023, 1, 6): (206500, 20863, 5000), date(2023, 1, 9): (190000, 8888, 5110),
+            date(2023, 1, 10): (170500, 5944, 5060), date(2023, 1, 11): (211500, 15057, 5120),
+            date(2023, 1, 12): (196500, 9613, 5090), date(2023, 7, 3): (98600, 0, 6810),
+            date(2023, 7, 4): (98600, 0, 6940), date(2023, 7, 5): (98600, 0, 7060),
+            date(2023, 7, 6): (53500, 74434, 7050), date(2023, 7, 7): (77400, 124284, 7100),
+            date(2023, 7, 10): (42500, 58020, 7200), date(2023, 7, 11): (36350, 61315, 7540),
+            date(2023, 7, 12): (32000, 61841, 8170)}
+    med = {date(2022, 1, 1): 35.80, date(2022, 4, 1): 40.81, date(2022, 7, 1): 41.59, date(2022, 10, 1): 36.16,
+           date(2023, 4, 1): 31.99}
+    wins = sorted(list(med) + [date(2023, 1, 1), date(2023, 7, 1)])
+    rows = [r for d, (p, v, c) in real.items() for r in (("010145.KS", d, float(p), float(p), float(v)),
+                                                          ("010140.KS", d, float(c), float(c), 5e6))]
+    for w, m in med.items():
+        rows += [r for d in weekdays(w, w + timedelta(days=11))
+                 for r in (("010145.KS", d, 5700 * m, 5700 * m, 500.0), ("010140.KS", d, 5700.0, 5700.0, 3e6))]
+    con = pair_con(rows, wins, [("010140.KS", "010145.KS")])
+    st = clean_price_cache(con, set(), wins, siblings="cap_inputs")
+    e = {w: get_prices(con, ["010145.KS"], w, offset_days=1).get("010145.KS") for w in (date(2023, 1, 1), date(2023, 7, 1))}
+    if st.get("sibling_gap_rows") or e != {date(2023, 1, 1): 109500.0, date(2023, 7, 1): 53500.0}:
+        f.append(f"010145.KS: {st.get('sibling_gaps')}, entries {e}, want none moved and 109,500 / 53,500")
+    # (3)
+    real = {date(2016, 1, 4): (161.0, 0, 347.55), date(2016, 1, 5): (161.0, 0, 348.15),
+            date(2016, 1, 6): (161.0, 0, 343.45), date(2016, 1, 7): (160.5, 4200, 337.7),
+            date(2016, 1, 8): (160.5, 520, 328.7), date(2016, 1, 11): (160.5, 24, 328.05),
+            date(2016, 1, 12): (160.5, 0, 323.1)}
+    med = {date(2015, 1, 1): 0.4089, date(2015, 4, 1): 0.3586, date(2015, 7, 1): 0.3874, date(2015, 10, 1): 0.4238,
+           date(2016, 4, 1): 0.4479, date(2016, 7, 1): 0.3285, date(2016, 10, 1): 0.3419, date(2017, 1, 1): 0.3205}
+    wins = sorted(list(med) + [date(2016, 1, 1)])
+    rows = [r for d, (p, v, c) in real.items() for r in (("BP-B.L", d, p, p, float(v)), ("BP.L", d, c, c, 3e7))]
+    for w, m in med.items():
+        rows += [r for d in weekdays(w, w + timedelta(days=11))
+                 for r in (("BP-B.L", d, 400 * m, 400 * m, 1000.0), ("BP.L", d, 400.0, 400.0, 4e7))]
+    con = pair_con(rows, wins, [("BP.L", "BP-B.L")])
+    st = clean_price_cache(con, set(), wins, siblings="cap_inputs")
+    e = get_prices(con, ["BP-B.L"], date(2016, 1, 1), offset_days=1).get("BP-B.L")
+    if st.get("sibling_gap_rows") or e != 160.5:
+        f.append(f"BP-B.L 2016-01: {st.get('sibling_gaps')}, entry {e}, want none moved and 160.5")
+    # (4) unrelated companies with one coincidental FY cap (1789.HK and 1935.HK, FY2016 2,362,800,000) are
+    # not siblings: 1935.HK's 2025-04 window opens on a zero-volume row and it then trades 27% lower
+    wins = [date(y, m, 1) for y, m in ((2024, 1), (2024, 4), (2024, 7), (2024, 10), (2025, 1), (2025, 4), (2025, 7))]
+    rows = []
+    for w in wins:
+        for k, d in enumerate(weekdays(w, w + timedelta(days=11))):
+            low = w == date(2025, 4, 1)
+            rows += [("1789.HK", d, 7.0, 7.0, 1e7),
+                     ("1935.HK", d, 0.58 if low and k else 0.80, 0.58 if low and k else 0.80, 0.0 if low and not k else 1e5)]
+    con = pair_con(rows, wins, [])
+    cap_insert(con, [{"symbol": s, "filing_epoch": ep(date(y, 12, 31)), "market_cap": cap}
+                     for s, y, cap in (("1789.HK", 2016, 2362800000.0), ("1935.HK", 2016, 2362800000.0),
+                                       ("1789.HK", 2017, 5.1e9), ("1935.HK", 2017, 2.0e9))])
+    st = clean_price_cache(con, set(), wins, siblings="cap_inputs")
+    e = get_prices(con, ["1935.HK"], date(2025, 4, 1), offset_days=1).get("1935.HK")
+    if st.get("sibling_gap_rows") or e != 0.58:
+        f.append(f"1935.HK 2025-04: {st.get('sibling_gaps')}, entry {e}, want none moved and 0.58 (one shared FY)")
+    return f
+
+
+def t2_three_failures():
+    """Annual windows 2005 to 2007, every pair at par outside 2006; 2006-07-05 is a market holiday.
+    (1) Three classes: A (thin) beside B and C (liquid). A's 2006 window opens on a zero-volume row at
+    par, which T moves; on 07-04 B prints 160 while A and C print 100. A's 07-04 row is off B's scale
+    and on C's, so it stays: every sibling that can test a row must flag it. (2) The liquid line is
+    never moved: L (1e6 shares) beside T (500); L's window opens on a zero-volume row and T prints at
+    0.55 of L from 07-04. L keeps its rows (entry 07-04's). Before, L's rows off T's prints moved and
+    L's entry was lost. (3) Only the leading run of off rows moves: D's window opens on a zero-volume
+    row; D prints 55 on 07-04 (off E's scale), 100 on 07-06, 55 again on 07-07. 07-04 moves, 07-06 is
+    the entry and stops the test, 07-07 stays. (4) A window where T moved only a later row is not
+    tested: G opens on a real 130 print on 07-03 (H at 100), and only the 07-05 holiday row moves, so
+    G's entry stays 07-03's."""
+    wins, hol = [date(2005, 7, 1), date(2006, 7, 1), date(2007, 7, 1)], date(2006, 7, 5)
+    rows = []
+    for w in wins:
+        for k, d in enumerate(weekdays(w, w + timedelta(days=11))):
+            first, odd, mid = (w == wins[1] and k == 0), (w == wins[1] and k == 1), w == wins[1]
+            rows += [("A.ST", d, 100.0 + k, 100.0, 0.0 if first else 500.0),
+                     ("B.ST", d, 100.0, 160.0 if odd else 100.0, 1e6), ("C.ST", d, 100.0, 100.0, 2e6),
+                     ("L.ST", d, 100.0 + k, 100.0, 0.0 if first else 1e6),
+                     ("T.ST", d, 100.0, 55.0 if mid and k > 0 else 100.0, 500.0),
+                     ("D.ST", d, 100.0 + k, 55.0 if mid and d in (date(2006, 7, 4), date(2006, 7, 7)) else 100.0,
+                      0.0 if first else 500.0), ("E.ST", d, 100.0, 100.0, 1e6),
+                     ("G.ST", d, 100.0 + k, 130.0 if first else 100.0, 500.0), ("H.ST", d, 100.0, 100.0, 1e6)]
+    con = pair_con(rows, wins, [("A.ST", "B.ST", "C.ST"), ("L.ST", "T.ST"), ("D.ST", "E.ST"), ("G.ST", "H.ST")],
+                   closed=(hol,))
+    st = clean_price_cache(con, set(), wins, siblings="cap_inputs")
+    e = get_prices(con, ["A.ST", "L.ST", "D.ST", "G.ST"], wins[1], offset_days=1)
+    f = []
+    if st.get("closed_dates", [{}])[0].get("date") != hol.isoformat():
+        f.append(f"closed dates {st.get('closed_dates')}, want the 2006-07-05 holiday")
+    for s, want, why in (("A.ST", 101.0, "07-04: off B's scale, on C's"), ("L.ST", 101.0, "the liquid line keeps its rows"),
+                         ("D.ST", 103.0, "07-04 moves, 07-06 stops the test"), ("G.ST", 100.0, "T moved no first bar")):
+        if e.get(s) != want:
+            f.append(f"{s} 2006 entry {e.get(s)}, want {want} ({why})")
+    if [(g["symbol"], g["date"]) for g in st.get("sibling_gaps", [])] != [("D.ST", "2006-07-04")]:
+        f.append(f"sibling gaps {st.get('sibling_gaps')}, want D.ST's 07-04 alone")
     return f
 
 
@@ -1574,6 +1799,9 @@ def main():
     expect("T1 flat lines with no volume", t1_failures())
     expect("T1 halted exit reads the last traded bar", t1_exit_failures())
     expect("T2 sibling gap: ELUX-A.ST 2006", t2_failures())
+    expect("T2 real ELUX rows: 2007 keeps its rows", t2_real_failures())
+    expect("T2 must not move: LG Chem, Samsung Heavy pref, BP-B.L, 1935.HK", t2_pref_failures())
+    expect("T2 three classes, liquid line, leading run, trigger", t2_three_failures())
     # F and L
     expect("F flags, L list", f_failures())
     expect_fail("F detection stubbed", f_failures(NoFlags, f_mutant_cfg()))

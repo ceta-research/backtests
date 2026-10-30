@@ -1331,7 +1331,8 @@ def validate_price_data(con, max_price_ratio=1000, verbose=True):
 #
 #   T traded bars   clean_price_cache(): closed-day rows, zero-volume rows of lines that traded in
 #                   the same window, flat lines with no volume and non-positive prices leave the cache
-#                   before remove_price_oscillations; then rows off their sibling share class's scale.
+#                   before remove_price_oscillations; then a thin class's replacement bar off its liquid
+#                   sibling's scale.
 #                   LtpExits(traded_only=True) applies rule 2 to fills.
 #   N NVDR twins    mark_nvdr_twins() and isin_dedup_sql(twin_key=True).
 #   M market cap    load_cap_check() and cap_used_sql() at every market-cap floor.
@@ -1354,12 +1355,18 @@ DATA_CHECKS_V1 = {
                     "takes that many values or more keeps every row"),
     "no_volume_min_closes": 3,
     "nonpositive_price": "rows with adjClose NULL or <= 0 moved",
-    "sibling": {"min_shared_fy": 2, "gap": 1.25, "ref_days": 400, "ref_min_days": 5, "stable_share": 0.8,
-                "rule": ("siblings are lines that carry the same FY key_metrics cap; in a window where T moved rows "
-                         "of a line, a remaining row whose close over a sibling's traded close that day sits more "
-                         "than gap from the pair's median ratio (traded days of both within ref_days, outside the "
-                         "window) moves; tested only when the pair has ref_min_days such days and stable_share of "
-                         "them sit within gap of the median")},
+    "sibling": {"min_shared_fy": 2, "gap": 1.25, "ref_days": 400, "ref_min_days": 5, "ref_min_windows": 2,
+                "stable_share": 0.8,
+                "rule": ("siblings are lines that carry an identical FY key_metrics cap in min_shared_fy FYs or "
+                         "more; a line is tested in a window only when T moved a row before its first remaining "
+                         "row there (the anchor: the earliest moved row), and only against a thicker sibling "
+                         "(median close x volume over the reference days); ref = the median of the per-window "
+                         "median close ratios over the cache's other windows within ref_days (one window each "
+                         "side on an annual leg), with ref_min_windows windows, ref_min_days traded days of both, "
+                         "stable_share of those days within gap of ref, and the anchor's ratio within gap of ref; "
+                         "from the first remaining row, a row more than gap from both ref and the anchor's ratio, "
+                         "for every sibling that can test it, moves; the first row on scale or untestable stops "
+                         "it")},
     "benchmarks_exempt": True,
     "twins": ("SET X-R.BK takes X.BK's ISIN as its security key when X.BK is in the leg, the ISINs share "
               "characters 1 to 6 and character 10 of the NVDR's is R; within a key: buyable at entry, then "
@@ -1403,10 +1410,11 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
                            stale one that steps once like BC88.L's 95 then 70, is not buyable).
       3 nonpositive_price  rows with adjClose NULL or <= 0.
       4 sibling_gap        only with `siblings`, a table of (symbol, filing_epoch, market_cap) such
-                           as cap_inputs: lines that share a FY cap are share classes of one company.
-                           In a (symbol, W) where steps 1 to 3 moved a row, a remaining row moves when
-                           its close over a sibling's traded close that day sits more than gap from
-                           the pair's median ratio (see DATA_CHECKS_V1["sibling"]).
+                           as cap_inputs: lines that share an identical FY cap in two FYs or more are
+                           share classes of one company. Where steps 1 to 3 moved the bar a line's
+                           window opened on, the replacement bar (and the ones after it, while they
+                           stay off) moves when it sits off a thicker sibling's scale and off the
+                           moved bar's own ratio to it (see _sibling_gaps, DATA_CHECKS_V1["sibling"]).
     Moved rows land in prices_dropped(symbol, trade_epoch, adjClose, close, volume, reason,
     window_start). The cache needs symbol, trade_epoch (UTC midnight), adjClose, close and volume.
     bench_symbols may carry SQL quotes ("'SPY'"). Benchmark rows are never touched.
@@ -1492,41 +1500,78 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
 
 
 def _sibling_gaps(con, siblings, c):
-    """Check T step 4 on the tagged rows (_dc_rows): the rows of dirty windows off a sibling's scale.
+    """Check T step 4 on the tagged rows (_dc_rows): a thin line's moved first bar is not replaced by
+    a bar off its liquid sibling's scale.
 
-    A dirty (symbol, window) is one prices_dropped already holds a row of. Returns one dict per row
-    to move: symbol, date, epoch, close, sibling, sibling_close, ratio and ref (the pair's median
-    close ratio), sorted. Creates _dc_gap(symbol, trade_epoch) for the caller."""
+    Siblings: lines that share an identical FY cap in `siblings` in min_shared_fy FYs or more. A
+    (symbol, window) is tested only when T moved a row before the line's first remaining row there
+    (the bar get_prices reads changed); the earliest moved row is the anchor. The reference against
+    a sibling: per other cached window within ref_days (the cache holds only the windows, so on an
+    annual leg that is one window each side), the median log close ratio over the days both traded;
+    ref = the median of those window medians. The pair tests the line only when: the line is the
+    thinner one (lower median close x volume over the reference days); the reference holds
+    ref_min_windows windows and ref_min_days days; stable_share of its days sit within gap of ref;
+    and the anchor's ratio to the sibling's close that day sits within gap of ref
+    (the bar T moved was on scale). From the first remaining row on, a row is off when every sibling
+    that can test it puts it more than gap from ref and more than gap from the anchor's ratio (T's
+    move opened the gap); the leading run of off rows moves, and the first row on scale or untestable
+    stops it. The liquid line is never moved. Returns one dict per row to move: symbol, date, epoch,
+    close, sibling, sibling_close, ratio and ref, sorted. Creates _dc_gap(symbol, trade_epoch)."""
     con.execute("CREATE OR REPLACE TEMP TABLE _dc_gap(symbol VARCHAR, trade_epoch BIGINT)")
     gap, ref_s = math.log(float(c["gap"])), int(c["ref_days"]) * 86400
     rows = con.execute(f"""
         WITH sib AS (
-            SELECT DISTINCT x.symbol AS a, y.symbol AS b FROM {siblings} x JOIN {siblings} y
-              ON x.filing_epoch = y.filing_epoch AND x.market_cap = y.market_cap AND x.symbol <> y.symbol),
-        tr AS (SELECT symbol, ws, day, trade_epoch, MAX(close) AS close FROM _dc_rows
+            SELECT x.symbol AS a, y.symbol AS b FROM {siblings} x JOIN {siblings} y
+              ON x.filing_epoch = y.filing_epoch AND x.market_cap = y.market_cap AND x.symbol <> y.symbol
+            GROUP BY x.symbol, y.symbol HAVING COUNT(DISTINCT x.filing_epoch) >= {int(c["min_shared_fy"])}),
+        tr AS (SELECT symbol, ws, day, MAX(close) AS close, MAX(close * volume) AS tv FROM _dc_rows
                WHERE volume > 0 AND close > 0 AND symbol IN (SELECT a FROM sib)
-               GROUP BY symbol, ws, day, trade_epoch),
-        pd AS (SELECT s.a, s.b, ta.ws, ta.day, LN(ta.close / tb.close) AS lr
+               GROUP BY symbol, ws, day),
+        first_left AS (SELECT symbol, ws, MIN(trade_epoch) AS e FROM _dc_rows
+                       WHERE symbol IN (SELECT a FROM sib) GROUP BY symbol, ws),
+        trig AS (SELECT f.symbol, f.ws, MIN(d.trade_epoch) AS e0 FROM first_left f
+                 JOIN prices_dropped d ON d.symbol = f.symbol AND d.window_start = f.ws
+                 GROUP BY f.symbol, f.ws, f.e HAVING MIN(d.trade_epoch) < f.e),
+        anc AS (SELECT t.symbol, t.ws, t.e0 // 86400 AS day, MAX(d.close) AS close FROM trig t
+                JOIN prices_dropped d ON d.symbol = t.symbol AND d.trade_epoch = t.e0 WHERE d.close > 0
+                GROUP BY t.symbol, t.ws, t.e0),
+        allpx AS (SELECT symbol, trade_epoch // 86400 AS day, MAX(close) AS close
+                  FROM (SELECT symbol, trade_epoch, close FROM _dc_rows
+                        UNION ALL SELECT symbol, trade_epoch, close FROM prices_dropped) u
+                  WHERE close > 0 AND symbol IN (SELECT a FROM sib) GROUP BY symbol, trade_epoch // 86400),
+        pd AS (SELECT s.a, s.b, ta.ws, ta.day, LN(ta.close / tb.close) AS lr, ta.tv AS tva, tb.tv AS tvb
                FROM sib s JOIN tr ta ON ta.symbol = s.a JOIN tr tb ON tb.symbol = s.b AND tb.day = ta.day),
-        dirty AS (SELECT DISTINCT symbol, window_start AS ws FROM prices_dropped
-                  WHERE symbol IN (SELECT a FROM sib)),
-        ref AS (SELECT d.symbol AS a, p.b, d.ws, MEDIAN(p.lr) AS med, COUNT(*) AS n
-                FROM dirty d JOIN pd p ON p.a = d.symbol AND p.ws <> d.ws AND ABS(p.ws - d.ws) <= {ref_s}
-                GROUP BY d.symbol, p.b, d.ws),
-        stable AS (SELECT r.a, r.b, r.ws, r.med, r.n, AVG(CASE WHEN ABS(p.lr - r.med) <= {gap} THEN 1.0 ELSE 0.0 END) AS share
-                   FROM ref r JOIN pd p ON p.a = r.a AND p.b = r.b AND p.ws <> r.ws AND ABS(p.ws - r.ws) <= {ref_s}
-                   GROUP BY r.a, r.b, r.ws, r.med, r.n),
+        pw AS (SELECT a, b, ws, MEDIAN(lr) AS m, COUNT(*) AS n FROM pd GROUP BY a, b, ws),
+        ref AS (SELECT t.symbol AS a, w.b, t.ws, MEDIAN(w.m) AS med, COUNT(*) AS nw, SUM(w.n) AS nd
+                FROM trig t JOIN pw w ON w.a = t.symbol AND w.ws <> t.ws AND ABS(w.ws - t.ws) <= {ref_s}
+                GROUP BY t.symbol, w.b, t.ws),
+        liq AS (SELECT r.a, r.b, r.ws, MEDIAN(p.tva) AS la, MEDIAN(p.tvb) AS lb,
+                       AVG(CASE WHEN ABS(p.lr - r.med) <= {gap} THEN 1.0 ELSE 0.0 END) AS day_share
+                FROM ref r JOIN pd p ON p.a = r.a AND p.b = r.b AND p.ws <> r.ws AND ABS(p.ws - r.ws) <= {ref_s}
+                GROUP BY r.a, r.b, r.ws),
+        stable AS (SELECT r.a, r.b, r.ws, r.med, LN(n.close / bx.close) AS lra FROM ref r
+                   JOIN liq l ON l.a = r.a AND l.b = r.b AND l.ws = r.ws
+                   JOIN anc n ON n.symbol = r.a AND n.ws = r.ws
+                   JOIN allpx bx ON bx.symbol = r.b AND bx.day = n.day
+                   WHERE r.nw >= {int(c["ref_min_windows"])} AND r.nd >= {int(c["ref_min_days"])} AND l.la < l.lb
+                     AND l.day_share >= {float(c["stable_share"])}
+                     AND ABS(LN(n.close / bx.close) - r.med) <= {gap}),
         cand AS (SELECT r.symbol, r.ws, r.trade_epoch, r.day, MAX(r.close) AS close FROM _dc_rows r
-                 JOIN dirty d ON d.symbol = r.symbol AND d.ws = r.ws WHERE r.close > 0
+                 JOIN trig t ON t.symbol = r.symbol AND t.ws = r.ws WHERE r.close > 0
                  GROUP BY r.symbol, r.ws, r.trade_epoch, r.day),
-        test AS (SELECT c.symbol, c.trade_epoch, c.close, st.b, tb.close AS b_close, EXP(st.med) AS ref,
-                        ABS(LN(c.close / tb.close) - st.med) > {gap} AS off
+        test AS (SELECT c.symbol, c.trade_epoch, st.b, tb.close AS b_close, EXP(st.med) AS ref,
+                        ABS(LN(c.close / tb.close) - st.med) > {gap} AND ABS(LN(c.close / tb.close) - st.lra) > {gap} AS off
                  FROM cand c JOIN stable st ON st.a = c.symbol AND st.ws = c.ws
-                 JOIN tr tb ON tb.symbol = st.b AND tb.day = c.day
-                 WHERE st.n >= {int(c["ref_min_days"])} AND st.share >= {float(c["stable_share"])})
-        SELECT symbol, trade_epoch, close, arg_min(b, b) AS b, arg_min(b_close, b) AS b_close, arg_min(ref, b) AS ref
-        FROM test GROUP BY symbol, trade_epoch, close HAVING BOOL_AND(off)
-        ORDER BY symbol, trade_epoch""").fetchall()
+                 JOIN tr tb ON tb.symbol = st.b AND tb.day = c.day),
+        verdict AS (SELECT c.symbol, c.ws, c.trade_epoch, c.close, COALESCE(BOOL_AND(t.off), FALSE) AS off,
+                           arg_min(t.b, t.b) AS b, arg_min(t.b_close, t.b) AS b_close, arg_min(t.ref, t.b) AS ref
+                    FROM cand c LEFT JOIN test t ON t.symbol = c.symbol AND t.trade_epoch = c.trade_epoch
+                    GROUP BY c.symbol, c.ws, c.trade_epoch, c.close),
+        stop AS (SELECT symbol, ws, MIN(trade_epoch) AS e FROM verdict WHERE NOT off GROUP BY symbol, ws)
+        SELECT v.symbol, v.trade_epoch, v.close, v.b, v.b_close, v.ref FROM verdict v
+        LEFT JOIN stop s ON s.symbol = v.symbol AND s.ws = v.ws
+        WHERE v.off AND (s.e IS NULL OR v.trade_epoch < s.e)
+        ORDER BY v.symbol, v.trade_epoch""").fetchall()
     return [{"symbol": s, "date": utc_date(e).isoformat(), "epoch": int(e), "close": cl, "sibling": b,
              "sibling_close": bc, "ratio": _sig(cl / bc), "ref": _sig(ref)} for s, e, cl, b, bc, ref in rows]
 
