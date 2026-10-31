@@ -13,8 +13,8 @@ FY2009 (the consolidations' gate), CETX, TOPS and PIXY (no turnover), with ZEST,
 staying out; T on flat no-volume lines (1114.HK, BC88.L, GBGLOBAL.NS, 76ID.L, BR.BK against
 TRUE.BK and ADVANC-R.BK), 600694.SS's halted exit and ELUX-A.ST's 2006 entry off ELUX-B's scale.
 Share classes need two shared FY caps (1789.HK and 1935.HK share one); M
-lowers, not excludes, when only the consolidations open the gate or a sibling has no bars (ERIC-A.ST
-and ERIC-B.ST FY1999, 02826K.KS FY2008, 0760.HK FY2006); BC88.L's stale quote that steps once; and
+does not exclude when only the consolidations open the gate or a sibling has no bars, and ERIC-A.ST
+and ERIC-B.ST FY1999, 02826K.KS FY2008 and 0760.HK FY2006 keep FMP's cap as 'unchecked'; BC88.L's stale quote that steps once; and
 T's sibling step on ELUX's real rows (2007 keeps its rows), on lines that must not move (LG Chem's
 pref, Samsung Heavy's pref, BP-B.L, 1935.HK), three classes, the liquid line, the leading run of off
 rows and the trigger. Thai NVDR feeds that tick between two prices keep their rows (BH-R.BK,

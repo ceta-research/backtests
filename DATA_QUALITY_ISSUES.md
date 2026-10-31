@@ -754,8 +754,8 @@ alone, and it is small:
 
 - Exit rule alone, on identical selection: 0.14 points of CAGR or less on 93 of the 96 legs
   (per-topic ranges under "Exit-side survivorship" below).
-- Entry-side cash guard: 338 of the 2,023 cash periods in the new files are periods where 10
-  or more names passed the screen and fewer than 10 could be bought (deleveraging 152,
+- Entry-side cash guard: 348 of the 2,041 cash periods in the new files are periods where 10
+  or more names passed the screen and fewer than 10 could be bought (deleveraging 162,
   price-to-sales 105, revenue-accel 32, fcf-yield 30, dividend-sustainability 13,
   fcf-compounders 6). The published code stayed invested through periods like those.
 - Listing rules: on XETRA, SIX and LSE legs only. deleveraging XETRA goes from 0 to 26 cash
@@ -1018,7 +1018,7 @@ Not fixed yet:
   revenue-accel's screen before the rerun, 118 of 331 screened SES slots (36%) and 58 of
   694 HKSE slots were under 1.0 at entry. Together with the entry-side cash guard that
   sends Singapore to cash: revenue-accel SES is in cash in 19 of 25 years (13 of them guard
-  years) and deleveraging SES in 74 of 103 quarters (43 guard quarters). How many of those
+  years) and deleveraging SES in 80 of 103 quarters (49 guard quarters). How many of those
   prices are real and how many come from back-adjustment wasn't measured.
 - price-to-sales's published US figure keeps its mutual-fund share classes. One run without
   funds and ETFs, made on 2026-10-14 and not gated, gives 13.72% a year against 14.41%, still
@@ -1214,8 +1214,8 @@ still hold every listed line; read them with the measurements earlier in this se
 
 ## Data checks in place of the return cap (deleveraging and cyclical-timing, 2026-10)
 
-**Status:** code in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks); their
-committed results predate it until both topics are rerun. The other topics keep their existing cap
+**Status:** in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks), and both
+topics' committed results were rerun with it in October 2026. The other topics keep their existing cap
 (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their own rerun.
 
 The 200% single-return cap drops a holding only when its return is high. Reading every holding
@@ -1277,7 +1277,8 @@ that the close mirrors.
 Check F records these steps on every held name (drift outside 1/1.05 to 1.15, or a split of
 ratio 2 or more in the calendar during the holding), and every holding on the large-move list,
 and changes nothing. A repair that divides
-out the steps the close does not mirror is possible and is not in this version.
+out the steps the close does not mirror is possible and is not in this version, apart from the
+close-basis LTP fill (item 8).
 
 **5. Market caps inflated by later reverse splits.** `key_metrics.marketCap` can be built on a
 price the warehouse later scaled up for reverse splits.
@@ -1298,6 +1299,9 @@ price the warehouse later scaled up for reverse splits.
   21,684 against a raw 0.287).
 Check M runs at every market-cap floor. Without it, removing the cap would have booked SOS and
 ZEST at their full returns.
+
+Items 6 to 8 record the fixes in the order they were made, and a later item can override an
+earlier one. Where they differ, item 8 and METHODOLOGY.md (Data Checks) describe the code.
 
 **6. Found in the same-day runs of all 32 legs (2026-10-30).** Eight
 cases changed the rules: five errors the checks introduced (7211.T, the thin share classes, the
@@ -1443,7 +1447,7 @@ for unknown turnover cut real caps, and three kinds of data fact came to light.
   real events and 7 show one.
   So TEKA3.SA's pair, 0727.HK's 20:1 of 2007 (137 days apart) and LRL.AX's 1:130 of 2017-12 and
   2018-05 (138 days) count twice, and DISH's real 2:1 of 1999-10-26, 98 days after its July one,
-  counts once. Against a 150-day window, no row of the 32 legs moves across its floor.
+  counts once. A 150-day window would move no row of the 32 legs across its floor either.
 - FMP's fiscal-year share counts. Most are restated for later records (GSAT's reads 125.9m and
   126.8m on either side of its 2025 1:15), some step at them as traded (1529.HK: 1.14bn to 0.127bn
   at its 2024 1:10; HAO: 12.2m to 0.117m across a 1:25), and some are erratic: Bonjour 0653.HK reads 3.70bn, 2.38bn,
