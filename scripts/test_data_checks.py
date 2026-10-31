@@ -6,29 +6,32 @@ T (traded bars), N (NVDR twins), M (market-cap check), F (factor flags, detectio
 JNB 2012-01-02 holiday, NSE/SAU/SET day counts, ^FTSE, RAM.BK, the SET twins, SOS, ZEST, HAO,
 GRPN, CIM, 3003.SR, TSG.JO, 2603.TW, SALEE.BK), plus an exit lost to a closed day, a name halted
 after entry (keeps its LTP fill), large moves on LTP fills, and duplicate stock_eod rows under
-check M. The review of the first same-day runs added: M on 7211.T (k first), 4541.T (a delisting
+check M. Cases from the same-day runs of the legs: M on 7211.T (k first), 4541.T (a delisting
 record left out of the split products), 0653.HK FY2011 to FY2013 and 1124.HK (lowered, not
 excluded), BBD-A.TO, ERIC-A.ST and 02826K.KS (turnover over the share classes), Bonjour FY2007 to
 FY2009 (the consolidations' gate), CETX, TOPS and PIXY (no turnover), with ZEST, HAO and 8038.T
 staying out; T on flat no-volume lines (1114.HK, BC88.L, GBGLOBAL.NS, 76ID.L, BR.BK against
 TRUE.BK and ADVANC-R.BK), 600694.SS's halted exit and ELUX-A.ST's 2006 entry off ELUX-B's scale.
-A second review added: share classes need two shared FY caps (1789.HK and 1935.HK share one); M
+Share classes need two shared FY caps (1789.HK and 1935.HK share one); M
 lowers, not excludes, when only the consolidations open the gate or a sibling has no bars (ERIC-A.ST
 and ERIC-B.ST FY1999, 02826K.KS FY2008, 0760.HK FY2006); BC88.L's stale quote that steps once; and
 T's sibling step on ELUX's real rows (2007 keeps its rows), on lines that must not move (LG Chem's
 pref, Samsung Heavy's pref, BP-B.L, 1935.HK), three classes, the liquid line, the leading run of off
-rows and the trigger. A third review added: Thai NVDR feeds that tick between two prices keep their
-rows (BH-R.BK, RATCH-R.BK, MCS-R.BK), and a failing row whose divisor is 1 is 'unchecked', not a
-silent 'stands' (HAO FY2025). A fourth review added: a date with no close is skipped, not read as a
-change, and changes are counted within one window (NUL.L, XW.L, GAP.BK); M's divisor edges (1.25
-lowers, unknown turnover with a divisor of 1 is 'unchecked', a k-only divisor lowers); and an
-'unchecked' row on the synthetic leg (A07.BK FY2010) keeps FMP's cap at the floors. A fifth review
-added: a divisor needs evidence beyond the split records (a measured price factor, or FMP's FY share
-count stepping at the record), so WEST3, GOL, 0568.HK, INPEX and DCC shapes keep FMP's cap while
-CETX and HAO shapes stay lowered and TOPS FY2004 reads its FY2006 price factor; a split record
-repeated within 150 days counts once (AMCR, 071970.KS); and an LTP fill on the other side of a
-flipping adjClose basis books the close's move (RAM.BK 2018-01), while 600875.SS 2006-01, a single
-step and a same-basis fill keep theirs. Then both
+rows and the trigger. Thai NVDR feeds that tick between two prices keep their rows (BH-R.BK,
+RATCH-R.BK, MCS-R.BK), and a failing row whose divisor is 1 is 'unchecked', not a silent 'stands'
+(HAO FY2025). A date with no close is skipped, not read as a change, and changes are counted within
+one window (NUL.L, XW.L, GAP.BK); M's divisor edges (1.25 lowers, unknown turnover with a divisor of
+1 is 'unchecked', a k-only divisor lowers, a divisor within 1e-9 of 1 is 'unchecked' as 0760.HK
+FY2006's); and an 'unchecked' row on the synthetic leg (A07.BK FY2010) keeps FMP's cap at the
+floors. A divisor needs evidence beyond the split records (a measured price factor, or FMP's FY
+share count stepping at the record), so WEST3, GOL, 0568.HK, INPEX and DCC shapes keep FMP's cap
+while CETX and HAO shapes stay lowered and TOPS FY2004 reads its FY2006 price factor; a split record
+repeating the ratio of a record kept within 120 days counts once (AMCR, 071970.KS's 1:8s, DISH, a
+chain read against the kept records), while 071970.KS's 1:20s, 129 days apart, count twice; the
+server SQL runs on UINTEGER epochs with a split record at epoch 0; and an LTP fill on the other side
+of a flipping adjClose basis books the close's move (RAM.BK 2018-01), while 600875.SS 2006-01, a
+single step, a step and back (one reversal), a 10% alternation under the flip threshold and a
+same-basis fill keep theirs. Then both
 opted-in topics run end to end on a synthetic SET leg through a fake client, in drop, ltp, both and
 uncapped modes, and the results pass the LTP gate's stage-a comparison and the results scanners,
 with and without --full-holdings.
@@ -431,18 +434,19 @@ def cap_rule_failures():
     return f
 
 
-def cap_source():
-    """FMP tables shaped like the server's, for SOS's FY2019 inputs as measured on the warehouse."""
+def cap_source(epoch="BIGINT"):
+    """FMP tables shaped like the server's, for SOS's FY2019 inputs as measured on the warehouse. The
+    server types every dateEpoch UINTEGER; epoch="UINTEGER" builds them that way."""
     src = duckdb.connect()
-    src.execute("CREATE TABLE key_metrics(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch BIGINT,"
+    src.execute(f"CREATE TABLE key_metrics(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch {epoch},"
                 " returnOnEquity DOUBLE, returnOnAssets DOUBLE, marketCap DOUBLE)")
-    src.execute("CREATE TABLE income_statement(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch BIGINT,"
+    src.execute(f"CREATE TABLE income_statement(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch {epoch},"
                 " revenue DOUBLE, netIncome DOUBLE, eps DOUBLE, weightedAverageShsOut DOUBLE, filingDate VARCHAR)")
-    src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date VARCHAR, dateEpoch BIGINT, adjClose DOUBLE, close DOUBLE,"
+    src.execute(f"CREATE TABLE stock_eod(symbol VARCHAR, date VARCHAR, dateEpoch {epoch}, adjClose DOUBLE, close DOUBLE,"
                 " volume DOUBLE)")
-    src.execute("CREATE TABLE stock_prices_non_split_adjusted_daily(symbol VARCHAR, date VARCHAR, dateEpoch BIGINT,"
+    src.execute(f"CREATE TABLE stock_prices_non_split_adjusted_daily(symbol VARCHAR, date VARCHAR, dateEpoch {epoch},"
                 " adjClose DOUBLE, volume DOUBLE)")
-    src.execute("CREATE TABLE splits_calendar(symbol VARCHAR, date VARCHAR, dateEpoch BIGINT, numerator DOUBLE,"
+    src.execute(f"CREATE TABLE splits_calendar(symbol VARCHAR, date VARCHAR, dateEpoch {epoch}, numerator DOUBLE,"
                 " denominator DOUBLE)")
     return src
 
@@ -496,6 +500,44 @@ def cap_sql_failures():
     for s in ("CLEAN", "DUPT", "DUPZ"):
         if got.get(s) != want:
             f.append(f"{s} (n_bars, n_traded, turnover) {got.get(s)}, want {want}")
+    return f
+
+
+def m_uint_epoch_failures():
+    """cap_check_sql on tables typed as the server types them: every dateEpoch UINTEGER, where a
+    subtraction below 0 overflows. splits_calendar holds 26 records at dateEpoch 0 (NYSE and NASDAQ,
+    1970 to 1973: JNJ, PG, GE, MMM among them), and both US legs failed on them. EPOCH0 (JNJ's shape):
+    a 3:1 dated 1970-05-18 at epoch 0, then 2:1s in 2001 and 2006; FY2004 reads the 2006 record alone
+    (pf_splits 0.5, pf_fwd 2). EARLY: an FY row 5 days after epoch 0, so its lookback starts before 0;
+    the 2001 and 2006 records give pf_fwd 4. The epochs come back BIGINT."""
+    src = cap_source("UINTEGER")
+    fy = date(2004, 12, 31)
+    src.execute("INSERT INTO key_metrics VALUES ('EPOCH0', 'FY', '2004-12-31', ?, 0.2, 0.1, 2e11)", [ep(fy)])
+    src.execute("INSERT INTO income_statement VALUES ('EPOCH0', 'FY', '2004-12-31', ?, 1, 8e9, 2.8, 2.97e9,"
+                " '2005-02-20')", [ep(fy)])
+    src.execute("INSERT INTO key_metrics VALUES ('EARLY', 'FY', '1970-01-06', ?, 0.2, 0.1, 2e9)", [5 * 86400])
+    for s in ("EPOCH0", "EARLY"):
+        src.execute("INSERT INTO splits_calendar VALUES (?, '1970-05-18', 0, 3, 1)", [s])
+        for d in (date(2001, 6, 13), date(2006, 5, 1)):
+            src.execute("INSERT INTO splits_calendar VALUES (?, ?, ?, 2, 1)", [s, d.isoformat(), ep(d)])
+    try:
+        cur = src.execute(cap_check_sql("symbol IN ('EPOCH0', 'EARLY')", 1e9, [("1969-11-01", "2004-12-31")]))
+    except duckdb.Error as e:
+        return [f"cap_check_sql on UINTEGER epochs: {type(e).__name__}: {str(e)[:160]}"]
+    names = [c[0] for c in cur.description]
+    got = {r[0]: dict(zip(names, r)) for r in cur.fetchall()}
+    f = []
+    close = lambda a, b: a is not None and abs(a / b - 1) < 1e-9
+    e0, early = got.get("EPOCH0"), got.get("EARLY")
+    if e0 is None or not (close(e0["pf_splits"], 0.5) and close(e0["pf_fwd"], 2.0)
+                          and e0["next_split"] == ep(date(2006, 5, 1))):
+        f.append(f"EPOCH0 FY2004 {e0}, want pf_splits 0.5, pf_fwd 2 and the 2006 record next")
+    if early is None or not close(early["pf_fwd"], 4.0) or early["filing_epoch"] != 5 * 86400:
+        f.append(f"EARLY {early}, want pf_fwd 4 at its FY 5 days after epoch 0")
+    types = {r[0]: r[1] for r in src.execute(
+        "DESCRIBE " + cap_check_sql("symbol IN ('EPOCH0')", 1e9, [("2004-11-01", "2004-12-31")])).fetchall()}
+    if (types.get("filing_epoch"), types.get("next_split")) != ("BIGINT", "BIGINT"):
+        f.append(f"filing_epoch {types.get('filing_epoch')}, next_split {types.get('next_split')}: want BIGINT")
     return f
 
 
@@ -568,7 +610,7 @@ def cap_screen_failures(with_check=True):
     return f
 
 
-# ---------------------------------------------------------------- cases from the same-day reviews
+# ---------------------------------------------------------------- cases from the same-day runs
 
 def cap_case(rows, by_fy=False):
     """apply_cap_rule on dict rows (period end defaults to 1000, n_bars to 20); {symbol: cap_check row},
@@ -779,13 +821,14 @@ def m_strict_failures():
     ERIC-A.ST FY1999 (SEK 786bn): pf_raw 1.25, so only the 2008 1:5 consolidation (pf_cons 5) opens
     the gate, and ERIC-B.ST has no stock_eod rows before 2000-01-03, so u 1.58e-5 is the thin A class
     alone. The FY share count shows no step at the 2000 4:1 or the 2008 1:5 (sh_restated 0.8), so D =
-    1.25 x 0.8 is under 1: unchecked at 786bn for both lines, over the SEK 5bn floor (round 3 lowered
-    them by 1.25 x 4 to 157bn and B to 218bn, with pf_fwd multiplying a price factor near 1). 02826K.KS
-    FY2008: pf 3.17 from the split records only (no raw close) and its common 028260.KS listed in
-    December 2014, so no bars; no record steps the share count, so it is unchecked at 16.67T. 0760.HK
-    FY2006 (pf_raw 2, u 1.5e-8, records restated in the share count to 0.5): unchecked at 6.91bn.
-    Before any of this, all four were ineligible; none is now. HAO and the 8038.T shape (pf >= 3,
-    bars) stay ineligible in m2_failures."""
+    1.25 x 0.8 is under 1: unchecked at 786bn for both lines, over the SEK 5bn floor (the previous rule
+    lowered them by 1.25 x 4 to 157bn and B to 218bn, with pf_fwd multiplying a price factor near 1).
+    02826K.KS FY2008: pf 3.17 from the split records only (no raw close) and its common 028260.KS
+    listed in December 2014, so no bars; no record steps the share count, so it is unchecked at 16.67T.
+    0760.HK FY2006 (pf_raw 2, u 1.5e-8, records restated in the share count to 0.5000000000000002, as
+    the server returns them): D is 1.0000000000000004, a rounding hair over 1, so unchecked at 6.91bn
+    with no divisor, not lowered by D. Before any of this, all four were ineligible; none is now. HAO
+    and the 8038.T shape (pf >= 3, bars) stay ineligible in m2_failures."""
     rows = []
     for s, pfs in (("ERIC-A.ST", 1.25), ("ERIC-B.ST", 0.9027777777777777)):
         rows.append({"symbol": s, "filing_epoch": 1998, "market_cap": 800437396000.0, "net_income": 13049054360.0,
@@ -811,7 +854,8 @@ def m_strict_failures():
                      "pf_fwd": 1.0, "sh_restated": shr, "sh_step": 1.0})
     rows.append({"symbol": "0760.HK", "filing_epoch": 2006, "market_cap": 6912949072.77, "net_income": -16268814.698129,
                  "eps": -0.0106, "shares": 1533910040.0, "n_bars": 20, "n_traded": 17, "turnover": 104.0, "pf_raw": 2.0,
-                 "pf_splits": 2.0, "pf_cons": 20.0, "pf_fwd": 10.0, "sh_restated": 0.5, "sh_step": 1.0})
+                 "pf_splits": 1.9999999999999993, "pf_cons": 19.999999999999996, "pf_fwd": 10.000000000000002,
+                 "sh_restated": 0.5000000000000002, "sh_step": 1.0})
     by = cap_case(rows, by_fy=True)
     f = []
     for key, want, floor in ((("ERIC-A.ST", 1999), 785954286206.1, 5e9), (("ERIC-B.ST", 1999), 785954286206.1, 5e9),
@@ -822,6 +866,8 @@ def m_strict_failures():
             f.append(f"{key[0]} FY{key[1]}: {r['rule']} cap_used {used}, want unchecked at FMP's {want / 1e9:.4g}bn")
         elif used <= floor:
             f.append(f"{key[0]} FY{key[1]}: cap_used {used} under the floor {floor}")
+    if by[("0760.HK", 2006)]["cap_div"] is not None:
+        f.append(f"0760.HK FY2006: cap_div {by[('0760.HK', 2006)]['cap_div']!r}, want none for a D within 1e-9 of 1")
     r = by[("02826K.KS", 2014)]
     if r["rule"] != "stands" or r["lines"] != 2:
         f.append(f"02826K.KS FY2014: {r['rule']} over {r['lines']} lines, want stands on 028260.KS's 9 bars")
@@ -877,7 +923,8 @@ def m_divisor_failures():
     lowered by 1.25 ('cap_over_pf'), since only a divisor of 1 leaves the cap as it is. NO_U: price
     factor 1 and 5 traded bars, so u is unknown and the divisor is 1: 'unchecked' and listed, not a
     silent 'stands'. K_ONLY: price factor 1 with k 10 (disagreeing): the divisor is max(k, D) = 10, so
-    the row lowers by 10 and is not 'unchecked', though D alone is 1."""
+    the row lowers by 10 and is not 'unchecked', though D alone is 1. SMALL_D: price factor 1.001, a
+    real divisor just over 1, still lowers (only a rounding hair within 1e-9 of 1 is 'unchecked')."""
     con = duckdb.connect()
     con.execute(CAP_INPUTS_DDL)
     cap = 2e9
@@ -885,18 +932,20 @@ def m_divisor_failures():
             "pf_splits": 5.0, "pf_cons": 5.0, "pf_fwd": 1.0}
     cap_insert(con, [{**base, "symbol": "LOW_D", "pf_raw": 1.25},
                      {**base, "symbol": "NO_U", "pf_raw": 1.0, "n_traded": 5},
-                     {**base, "symbol": "K_ONLY", "pf_raw": 1.0, "eps": 10.0, "net_income": 1e8, "shares": 1e8}])
+                     {**base, "symbol": "K_ONLY", "pf_raw": 1.0, "eps": 10.0, "net_income": 1e8, "shares": 1e8},
+                     {**base, "symbol": "SMALL_D", "pf_raw": 1.001}])
     stats = apply_cap_rule(con)
     got = cap_rows(con)
     f = []
-    for s, rule, div in (("LOW_D", "cap_over_pf", 1.25), ("NO_U", "unchecked", None), ("K_ONLY", "cap_over_pf", 10.0)):
+    for s, rule, div in (("LOW_D", "cap_over_pf", 1.25), ("NO_U", "unchecked", None), ("K_ONLY", "cap_over_pf", 10.0),
+                         ("SMALL_D", "cap_over_pf", 1.001)):
         r = got[s]
         if r["rule"] != rule or (div is None) != (r["cap_div"] is None) or (div and abs(r["cap_div"] - div) > 1e-9):
             f.append(f"{s}: {r['rule']} cap_div {r['cap_div']}, want {rule} {div}")
     listed = [(u["symbol"], u["u"]) for u in stats["cap_unchecked"]]
-    if listed != [("NO_U", None)] or (stats["cap_rows_checked"], stats["cap_rows_flagged"]) != (3, 3):
+    if listed != [("NO_U", None)] or (stats["cap_rows_checked"], stats["cap_rows_flagged"]) != (4, 4):
         f.append(f"stats {stats['cap_rows_checked']} checked, {stats['cap_rows_flagged']} flagged, cap_unchecked "
-                 f"{listed}, want 3, 3 and NO_U alone (u unknown)")
+                 f"{listed}, want 4, 4 and NO_U alone (u unknown)")
     return f
 
 
@@ -974,10 +1023,17 @@ def m6_evidence_failures():
 
 
 def m6_sql_failures():
-    """cap_check_sql on a local copy: split records and FMP's FY share counts. DUP (AMCR's shape): the
-    same 1:5 twice on one day counts once, pf_cons 5. K71 (071970.KS's shape): 1:8 twice 38 days apart,
-    1:20 twice 129 days apart, then a third 1:8 400 days later and a 1:4 30 days after the first 1:8:
-    pf_cons 8 x 20 x 8 x 4 = 5120, where every record counted gave 819,200. SHR: FY share counts 1e8 to
+    """cap_check_sql on a local copy: split records and FMP's FY share counts. A record repeating the
+    ratio of a record kept within 120 days counts once. DUP (AMCR's shape): the same 1:5 twice on one
+    day counts once, pf_cons 5. K71 (071970.KS's shape): 1:8 twice 38 days apart (once), 1:20 twice 129
+    days apart (twice, as 071970.KS's prices show two 1:20 consolidations), then a third 1:8 400 days
+    later and a 1:4 30 days after the first 1:8: pf_cons 8 x 20 x 20 x 8 x 4 = 102,400, where every
+    record counted gave 819,200. DISH (its three 2:1s of 1999-07-20, 1999-10-26 and 2000-03-23): the
+    second, 98 days after the first, reads as a repeat, so pf_fwd is 4 where the three give 8 (the
+    150-day window gave 2). CHAIN: a 1:10 at days 0,
+    60 and 130: each record is read against the records kept, so the third, 130 days after the first
+    and 70 after the second that was dropped, counts: pf_cons 100. W120 and W121: a 1:4 twice, 120
+    days apart (once, 4) and 121 days apart (twice, 16). SHR: FY share counts 1e8 to
     FY2012, then 3.63e6, 4e6, 2.56e6, 2.6e6: a 1:10 in 2012 the count was restated for (no step), a
     1:10 in 2013 at which it falls 27.5x (HAO's shape: the log of the change 1.44 times the record's,
     inside share_step), an 11:10 bonus too small to read, a 1:20 that moves it to 0.64x (neither) and
@@ -994,23 +1050,34 @@ def m6_sql_failures():
     rec += [("SHR", date(2012, 6, 1), 1, 10), ("SHR", date(2013, 6, 3), 1, 10), ("SHR", date(2014, 6, 2), 11, 10),
             ("SHR", date(2015, 6, 1), 1, 20), ("SHR", date(2017, 3, 1), 1, 4)]
     fy = date(2020, 12, 31)
-    for s in ("DUP", "K71"):
+    for s in ("DUP", "K71", "CHAIN", "W120", "W121"):
         src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.1, 0.05, 1.64e10)", [s, fy.isoformat(), ep(fy)])
+    src.execute("INSERT INTO key_metrics VALUES ('DISH', 'FY', '1998-12-31', ?, 0.1, 0.05, 1.64e10)",
+                [ep(date(1998, 12, 31))])
     rec += [("DUP", date(2026, 1, 15), 1, 5), ("DUP", date(2026, 1, 15), 1, 5)]
     x, y = date(2021, 3, 30), date(2022, 1, 17)
     rec += [("K71", x, 1, 8), ("K71", x + timedelta(days=38), 1, 8), ("K71", x + timedelta(days=30), 1, 4),
             ("K71", y, 1, 20), ("K71", y + timedelta(days=129), 1, 20), ("K71", y + timedelta(days=400), 1, 8)]
+    rec += [("DISH", d, 2, 1) for d in (date(1999, 7, 20), date(1999, 10, 26), date(2000, 3, 23))]
+    c0 = date(2021, 2, 1)
+    rec += [("CHAIN", c0 + timedelta(days=k), 1, 10) for k in (0, 60, 130)]
+    rec += [(s, c0 + timedelta(days=k), 1, 4) for s, g in (("W120", 120), ("W121", 121)) for k in (0, g)]
     for s, d, n, dn in rec:
         src.execute("INSERT INTO splits_calendar VALUES (?, ?, ?, ?, ?)", [s, d.isoformat(), ep(d), n, dn])
-    cur = src.execute(cap_check_sql("symbol IN ('SHR', 'DUP', 'K71')", 1e9, [("2009-11-01", "2020-12-31")]))
+    cur = src.execute(cap_check_sql("symbol IN ('SHR', 'DUP', 'K71', 'DISH', 'CHAIN', 'W120', 'W121')", 1e9,
+                                    [("2009-11-01", "2020-12-31")]))
     names = [c[0] for c in cur.description]
     rows = {(r[0], du.utc_date(r[1]).year): dict(zip(names, r)) for r in cur.fetchall()}
     f = []
     close = lambda a, b: a is not None and abs(a / b - 1) < 1e-9
     if not close(rows[("DUP", 2020)]["pf_cons"], 5.0):
         f.append(f"DUP pf_cons {rows[('DUP', 2020)]['pf_cons']}, want 5 (one record)")
-    if not close(rows[("K71", 2020)]["pf_cons"], 5120.0):
-        f.append(f"K71 pf_cons {rows[('K71', 2020)]['pf_cons']}, want 5120 (duplicates within 150 days once)")
+    for s, col, want in (("K71", "pf_cons", 102400.0), ("CHAIN", "pf_cons", 100.0), ("W120", "pf_cons", 4.0),
+                         ("W121", "pf_cons", 16.0)):
+        if not close(rows[(s, 2020)][col], want):
+            f.append(f"{s} {col} {rows[(s, 2020)][col]}, want {want:g} (a repeat within 120 days of a kept record once)")
+    if not close(rows[("DISH", 1998)]["pf_fwd"], 4.0):
+        f.append(f"DISH pf_fwd {rows[('DISH', 1998)]['pf_fwd']}, want 4 (the 1999-10-26 2:1 once)")
     want_cols = {"next_split", "sh_restated", "sh_step"}
     if want_cols - set(names):
         return f + [f"cap_check_sql has no {sorted(want_cols - set(names))}"]
@@ -1808,8 +1875,12 @@ def ltp_basis_failures():
     still flags its drift. Not repaired: 600875.SS 2006-01 (its real rows: the close alternates with the
     adjClose, two interleaved price series, so the close is no steadier; +93.7% kept), STEP (adjClose /
     close steps once by 1.25 and stays: no reversal), SAME (RAM's rows, entry on the fill's basis:
-    drift in the band) and LATE (one step before the exit date, the flipping only after it: rows past
-    the window end never count)."""
+    drift in the band), LATE (one step before the exit date, the flipping only after it: rows past
+    the window end never count), MID (adjClose / close alternates 0.55 and 0.50 row by row, a move
+    of 10% where a flip needs more than 15%, with a steady close; entry on 0.55, last bar on 0.50, so
+    the drift of 0.909 is out of the band, and the fill keeps its adjClose) and BACK (adjClose / close
+    steps from 0.8 to 0.5 before the entry bar and back to 0.8 after it: two flips, one reversal,
+    under the two needed, so the fill keeps its adjClose and F flags its drift of 1.6)."""
     rows = real_rows("RAM.BK", RAM_ROWS) + real_rows("600875.SS", REFORM_ROWS)
     rows += [("SAME", d, a, c, v) for _, d, a, c, v in real_rows("RAM.BK", RAM_ROWS)]
     step = {d: ((10 + 0.01 * k) * (0.797 if d >= date(2010, 2, 15) else 0.637), 10 + 0.01 * k)
@@ -1818,23 +1889,33 @@ def ltp_basis_failures():
     late = {d: ((20 + 0.01 * k) * (0.2 if d < date(2012, 3, 1) else 0.8 if d < date(2012, 4, 2) or k % 2 else 0.2),
                 20 + 0.01 * k) for k, d in enumerate(weekdays(date(2011, 12, 1), date(2012, 5, 15)))}
     rows += [("LATE", d, a, c, 1e5) for d, (a, c) in late.items()]
+    mid = {d: ((30 + 0.01 * k) * (0.55 if k % 2 == 0 else 0.50), 30 + 0.01 * k)
+           for k, d in enumerate(weekdays(date(2016, 12, 1), date(2017, 3, 16)))}
+    mid_entry = next(d for d in mid if d >= date(2017, 1, 3) and abs(mid[d][0] / mid[d][1] - 0.55) < 1e-9)
+    mid_last = max(d for d in mid if abs(mid[d][0] / mid[d][1] - 0.50) < 1e-9)
+    rows += [("MID", d, a, c, 1e5) for d, (a, c) in mid.items() if d <= mid_last]
+    back = {d: ((20 + 0.01 * k) * (0.5 if date(2016, 1, 1) <= d < date(2016, 2, 15) else 0.8), 20 + 0.01 * k)
+            for k, d in enumerate(weekdays(date(2015, 12, 1), date(2016, 3, 31)))}
+    rows += [("BACK", d, a, c, 1e5) for d, (a, c) in back.items()]
     con = duckdb.connect()
     con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE, volume DOUBLE)")
     con.execute("CREATE TABLE splits(symbol VARCHAR, split_epoch BIGINT, numerator DOUBLE, denominator DOUBLE)")
     entry = {"RAM.BK": (date(2018, 1, 3), 5.51, 29.5), "600875.SS": (date(2006, 1, 3), 3.18, 4.99),
              "SAME": (date(2018, 1, 4), 25.21, 29.5), "STEP": (date(2010, 1, 4), *step[date(2010, 1, 4)]),
-             "LATE": (date(2012, 1, 3), *late[date(2012, 1, 3)])}
+             "LATE": (date(2012, 1, 3), *late[date(2012, 1, 3)]), "MID": (mid_entry, *mid[mid_entry]),
+             "BACK": (date(2016, 1, 4), *back[date(2016, 1, 4)])}
     for s, (d, a, c) in entry.items():
         con.execute("INSERT INTO prices_cache VALUES (?, ?, ?, ?, 1000)", [s, ep(d), a, c])
     ltp = du.LtpExits(LtpClient(ltp_src(rows)), con, traded_only=True)
     got = {}
     for s, d, x in (("RAM.BK", date(2018, 1, 1), date(2018, 4, 1)), ("600875.SS", date(2006, 1, 1), date(2006, 4, 1)),
                     ("SAME", date(2018, 1, 3), date(2018, 4, 1)), ("STEP", date(2010, 1, 1), date(2010, 4, 1)),
-                    ("LATE", date(2012, 1, 2), date(2012, 4, 1))):
+                    ("LATE", date(2012, 1, 2), date(2012, 4, 1)), ("MID", date(2017, 1, 2), date(2017, 4, 1)),
+                    ("BACK", date(2016, 1, 1), date(2016, 4, 1))):
         got.update(ltp.fill([s], {s: entry[s][1]}, {}, d, x, offset_days=1, min_entry_price=1.0))
     f = []
     want = {"RAM.BK": 5.51 * 28.5 / 29.5, "600875.SS": 6.16, "SAME": 24.35, "STEP": step[date(2010, 3, 31)][0],
-            "LATE": late[date(2012, 3, 30)][0]}
+            "LATE": late[date(2012, 3, 30)][0], "MID": mid[mid_last][0], "BACK": back[date(2016, 3, 31)][0]}
     for s, px in want.items():
         if got.get(s) is None or abs(got[s] / px - 1) > 1e-9:
             f.append(f"{s}: fill {got.get(s)}, want {px:.6g} ({px / entry[s][1] - 1:+.1%})")
@@ -1842,7 +1923,8 @@ def ltp_basis_failures():
     r = rec.get("RAM.BK", {})
     if r.get("basis") != "close" or r.get("ltp_adj") != 24.35 or r.get("ltp") != got.get("RAM.BK"):
         f.append(f"RAM.BK fill record {r}, want basis close, ltp_adj 24.35 and ltp the booked price")
-    if any("basis" in rec.get(s, {}) or "ltp_adj" in rec.get(s, {}) for s in ("600875.SS", "SAME", "STEP", "LATE")):
+    if any("basis" in rec.get(s, {}) or "ltp_adj" in rec.get(s, {})
+           for s in ("600875.SS", "SAME", "STEP", "LATE", "MID", "BACK")):
         f.append("a fill that keeps its adjClose carries a basis")
     block = ltp.results_block("ltp", [], 4, 0.02)
     if block.get("close_basis_fills") != 1:
@@ -1851,6 +1933,8 @@ def ltp_basis_failures():
     fc = {x["symbol"]: x["factor_check"] for x in block["fills"]}
     if fc["RAM.BK"]["reasons"] != ["band"] or abs(fc["RAM.BK"]["drift"] - 4.5743) > 1e-3:
         f.append(f"RAM.BK factor_check {fc['RAM.BK']}, want the band flag on its adjClose drift 4.574")
+    if fc["BACK"]["reasons"] != ["band"] or abs(fc["BACK"]["drift"] - 1.6) > 1e-9:
+        f.append(f"BACK factor_check {fc['BACK']}, want the band flag on its drift 1.6")
     if [m["symbol"] for m in block["large_moves"]] != ["LATE"] or fc["SAME"]["flagged"]:
         f.append(f"large moves {[m['symbol'] for m in block['large_moves']]}, want LATE alone (RAM.BK books -3.4%); "
                  f"SAME {fc['SAME']}, want no flag")
@@ -2221,9 +2305,10 @@ def main():
     # M
     expect("M rule", cap_rule_failures())
     expect("M server SQL", cap_sql_failures())
+    expect("M server SQL on UINTEGER epochs, a split record at epoch 0", m_uint_epoch_failures())
     expect("M at every floor", cap_screen_failures())
     expect_fail("M with cap_check empty (SOS, ZEST pass)", cap_screen_failures(with_check=False))
-    # cases from the same-day reviews
+    # cases from the same-day runs
     expect("M1 k first: 7211.T FY2003", m1_failures())
     expect("M k guard: 4541.T delisting record", k_guard_failures())
     expect("M2 sibling turnover, lowered not excluded", m2_failures())
@@ -2231,9 +2316,10 @@ def main():
     expect("M siblings share two FY caps: 1789.HK / 1935.HK", m_class_fy_failures())
     expect("M lowers, not excludes, unless strict: ERIC-A.ST FY1999", m_strict_failures())
     expect("M a divisor of 1 is unchecked, not stands: HAO FY2025", m_unchecked_failures())
-    expect("M divisor edges: 1.25 lowers, unknown turnover unchecked, k alone lowers", m_divisor_failures())
+    expect("M divisor edges: 1.25 and 1.001 lower, unknown turnover unchecked, k alone lowers", m_divisor_failures())
     expect("M divisor needs evidence: WEST3, GOL, 0568.HK, INPEX, DCC back; CETX, HAO stay", m6_evidence_failures())
-    expect("M split records once, FY share steps: AMCR, 071970.KS, restated and stepping counts", m6_sql_failures())
+    expect("M split records once, FY share steps: AMCR, 071970.KS, DISH, a chain, restated and stepping counts",
+           m6_sql_failures())
     expect("T1 flat lines with no volume", t1_failures())
     expect("T1 two-price NVDR feeds: BH-R.BK, RATCH-R.BK, MCS-R.BK", t1_feed_failures())
     expect("T1 halted exit reads the last traded bar", t1_exit_failures())

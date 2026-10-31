@@ -1430,7 +1430,7 @@ DATA_CHECKS_V1 = {
               "the ordinary line, then isActivelyTrading, home currency, symbol"),
     "cap": {"pf_min": 3.0, "turnover_max": 1e-4, "bars": 20, "lookback_days": 45, "min_traded_bars": 10,
             "k_min": 3.0, "eps_min": 0.05, "net_income_min": 1e6, "k_tol": 1.5, "split_max": 1e4,
-            "split_min": 2.0, "split_dup_days": 150, "share_tol": 1.5, "share_step": [0.5, 2.0], "lower_only": True,
+            "split_min": 2.0, "split_dup_days": 120, "share_tol": 1.5, "share_step": [0.5, 2.0], "lower_only": True,
             "order": ("gate on pf or the later consolidations; turnover over every line with the same FY cap "
                       "(lines that share an identical FY cap in sibling.min_shared_fy FYs or more); k within "
                       "k_tol of pf lowers first and turnover is tested on the lowered cap; a failing cap is "
@@ -1440,10 +1440,11 @@ DATA_CHECKS_V1 = {
                       "close against stock_eod at the period end, or the same line's nearest FY with no split "
                       "record between) of pf_min or more gives P times the later forward splits, a P under "
                       "pf_min gives P times the records FMP's FY share count was restated for, no P gives the "
-                      "records at which that count steps; a record repeating an earlier ratio within "
-                      "split_dup_days counts once; a row is only made ineligible when pf opened the gate and "
-                      "every line of its group has bars in the lookback, else a failing cap lowers; a failing "
-                      "row whose divisor is 1 keeps FMP's cap as unchecked, counted in cap_rows_flagged")},
+                      "records at which that count steps; a record repeating the ratio of a record kept within "
+                      "split_dup_days before it counts once; a row is only made ineligible when pf opened the "
+                      "gate and every line of its group has bars in the lookback, else a failing cap lowers; a "
+                      "failing row whose divisor is within 1e-9 of 1 keeps FMP's cap as unchecked, counted in "
+                      "cap_rows_flagged")},
     "factor": {"band": [1 / 1.05, 1.15], "split_min": 2.0, "mode": "flag only: no price or return is changed"},
     "fill_basis": {"min_reversals": 2,
                    "rule": ("an LTP fill books its close over the entry close (basis 'close') when the line's "
@@ -1753,17 +1754,20 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
     splits_calendar events after the period end: the product of denominator / numerator (pf_splits),
     of the consolidations alone (pf_cons) and of the forward splits of split_min or more (pf_fwd).
     An event whose ratio passes split_max either way (4541.T's 1:70,384,700 is a delisting cash-out,
-    and FMP's prices do not carry it) is left out of all three. A record repeating an earlier record's
-    ratio within split_dup_days is a duplicate and counts once (AMCR's two 2026-01-15 1:5 rows).
-    next_split is the first later record's date. FMP's FY share counts (weightedAverageShsOut) tell how
-    the row's shares sit against each later record: the count of the last FY before it against the first
-    FY on or after it (records between the same two FYs taken together, ratio q = numerator /
-    denominator). Within share_tol of 1 the count was restated for the record (no step); when the log
-    of its change is share_step times the log of q (the same direction, at least half as large and at
-    most twice) it steps there (the count is as traded); records under share_tol squared either way,
-    or with no FY on one side, tell nothing. sh_restated is the product of q over the restated records,
-    sh_step that of 1 / q over the stepping ones.
-    date_ranges [(first, last)] bound the bar scans to the days before each period end.
+    and FMP's prices do not carry it) is left out of all three. A record repeating the ratio of a record
+    kept within split_dup_days before it is a duplicate and counts once (AMCR's two 2026-01-15 1:5
+    rows); records are read in date order against the ones kept, so a chain of repeats cannot drop a
+    record further than that from every kept one. next_split is the first later record's date. FMP's
+    FY share counts (weightedAverageShsOut) tell how the row's shares sit against each later record:
+    the count of the last FY before it against the first FY on or after it (records between the same
+    two FYs taken together, ratio q = numerator / denominator). Within share_tol of 1 the count was
+    restated for the record (no step); when the log of its change is share_step times the log of q
+    (the same direction, at least half as large and at most twice) it steps there (the count is as
+    traded); records under share_tol squared either way, or with no FY on one side, tell nothing.
+    sh_restated is the product of q over the restated records, sh_step that of 1 / q over the stepping
+    ones.
+    date_ranges [(first, last)] bound the bar scans to the days before each period end. The server's
+    dateEpoch columns are UINTEGER and some split records sit at 0, so epochs are cast to BIGINT first.
     """
     c = cfg["cap"]
     look = int(c["lookback_days"]) * 86400
@@ -1772,8 +1776,8 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
     st_lo, st_hi = (float(v) for v in c["share_step"])
     days = lambda col: " OR ".join(f"({col} >= '{a}' AND {col} <= '{b}')" for a, b in date_ranges) or "FALSE"
     return f"""
-        WITH km AS (
-            SELECT symbol, dateEpoch AS fe, marketCap FROM key_metrics
+        WITH RECURSIVE km AS (
+            SELECT symbol, CAST(dateEpoch AS BIGINT) AS fe, marketCap FROM key_metrics
             WHERE period = 'FY' AND returnOnEquity IS NOT NULL AND marketCap > {float(mktcap_min)}
               AND {sym_filter_sql}
             QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol, dateEpoch ORDER BY marketCap DESC) = 1),
@@ -1808,14 +1812,21 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
                    MEDIAN(CASE WHEN volume > 0 AND close > 0 THEN close * volume END) AS turnover
             FROM lb GROUP BY symbol, fe),
         spr AS (
-            SELECT DISTINCT symbol, dateEpoch AS se, numerator AS num, denominator AS den FROM splits_calendar
+            SELECT DISTINCT symbol, CAST(dateEpoch AS BIGINT) AS se, numerator AS num, denominator AS den
+            FROM splits_calendar
             WHERE symbol IN (SELECT symbol FROM km) AND numerator > 0 AND denominator > 0
               AND ABS(LN(denominator / numerator)) <= {smax}),
-        sp AS (
-            SELECT a.symbol, a.se, LN(a.num / a.den) AS lq FROM spr a
-            WHERE NOT EXISTS (
-                SELECT 1 FROM spr b WHERE b.symbol = a.symbol AND b.num * a.den = a.num * b.den
-                  AND b.se >= a.se - {dup} AND (b.se < a.se OR (b.se = a.se AND b.num < a.num)))),
+        spo AS (
+            SELECT symbol, se, num, den, DENSE_RANK() OVER (ORDER BY symbol, num / den) AS gid,
+                   ROW_NUMBER() OVER (PARTITION BY symbol, num / den ORDER BY se, num) AS rn
+            FROM spr),
+        spk AS (
+            SELECT gid, rn, symbol, se, num, den, se AS kept_se, TRUE AS keep FROM spo WHERE rn = 1
+            UNION ALL
+            SELECT o.gid, o.rn, o.symbol, o.se, o.num, o.den,
+                   CASE WHEN o.se > k.kept_se + {dup} THEN o.se ELSE k.kept_se END, o.se > k.kept_se + {dup}
+            FROM spk k JOIN spo o ON o.gid = k.gid AND o.rn = k.rn + 1),
+        sp AS (SELECT symbol, se, LN(num / den) AS lq FROM spk WHERE keep),
         spl AS (
             SELECT km.symbol, km.fe, EXP(SUM(-s.lq)) AS pf_splits, EXP(SUM(GREATEST(-s.lq, 0))) AS pf_cons,
                    EXP(SUM(CASE WHEN s.lq >= {smin} THEN s.lq ELSE 0 END)) AS pf_fwd, MIN(s.se) AS next_split
@@ -1891,11 +1902,12 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
     u lowers it the same way. So a gate opened by the consolidations alone (pf under pf_min), or a
     group whose liquid line has no bars yet (ERIC-B.ST before 2000), lowers the cap and never
     excludes the row. Where that divisor is 1 (no evidence and no K: HAO FY2025, pf 1.0,
-    consolidations 2560; a line with no bars whose share count never steps), nothing can lower the
-    cap: the row is 'unchecked', keeps FMP's cap and is counted in cap_rows_flagged. It never raises a
-    cap. pf, the split products and the later FY share counts come from after the period end but only
-    gate and size the lowering (they say how FMP restated the row): the decision reads k (same filing)
-    and u (trading before the period end).
+    consolidations 2560; a line with no bars whose share count never steps), or within 1e-9 of it
+    (0760.HK FY2006: 2 x 0.5000000000000002), nothing can lower the cap: the row is 'unchecked', keeps
+    FMP's cap and is counted in cap_rows_flagged. It never raises a cap. pf, the split products and
+    the later FY share counts come from after the period end but only gate and size the lowering (they
+    say how FMP restated the row): the decision reads k (same filing) and u (trading before the period
+    end).
     Returns {cap_rows_checked, cap_rows_flagged, cap_unchecked}: every row, those whose rule is not
     'stands', and the 'unchecked' rows ({symbol, fy, cap, pf, pf_source, pf_cons, pf_fwd, sh_restated,
     sh_step, u, lines, k}).
@@ -1972,8 +1984,8 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
                         ELSE 'ineligible' END AS r
             FROM y)
         SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, u, g_traded, lines, k,
-               CASE WHEN r = 'lower' AND dk > 1.0 THEN 'cap_over_pf' WHEN r = 'lower' THEN 'unchecked' ELSE r END,
-               CASE WHEN r = 'cap_over_k' THEN kk WHEN r = 'lower' AND dk > 1.0 THEN dk END, sh_restated, sh_step
+               CASE WHEN r = 'lower' AND dk > 1 + 1e-9 THEN 'cap_over_pf' WHEN r = 'lower' THEN 'unchecked' ELSE r END,
+               CASE WHEN r = 'cap_over_k' THEN kk WHEN r = 'lower' AND dk > 1 + 1e-9 THEN dk END, sh_restated, sh_step
         FROM z""")
     dup = con.execute("SELECT COUNT(*) FROM (SELECT symbol, filing_epoch FROM cap_check"
                       " GROUP BY symbol, filing_epoch HAVING COUNT(*) > 1)").fetchone()[0]
