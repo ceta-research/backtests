@@ -1299,7 +1299,7 @@ price the warehouse later scaled up for reverse splits.
 Check M runs at every market-cap floor. Without it, removing the cap would have booked SOS and
 ZEST at their full returns.
 
-**6. Found by the first review of the checks (same-day runs of all 32 legs, 2026-10-30).** Eight
+**6. Found in the same-day runs of all 32 legs (2026-10-30).** Eight
 cases changed the rules: five errors the checks introduced (7211.T, the thin share classes, the
 deflatable caps, 4541.T, ELUX-A.ST), one gap that removing the cap exposed (Bonjour's netted
 splits), and two that every arm already had (the flat lines with no volume, and CETX, TOPS and
@@ -1346,7 +1346,7 @@ PIXY with no turnover). Item 7 corrects three of the fixes.
   flat window now loses its rows. 600694.SS's 2006 exit window holds flat halt rows on an
   adjClose step (17.06 against 13.65 at the last trade): the exit goes to the last-traded fill.
   TRUE.BK 2006-04 (7 closes) and the pre-2009 Thai NVDR feeds keep theirs. A window whose stale
-  quote steps once kept its rows under this round's rule (BC88.L 2009-10, held then); item 7.
+  quote steps once kept its rows under this item's rule (BC88.L 2009-10, held then); item 7.
 - A moved bar on another scale. T moved ELUX-A.ST's 2006 entry off a zero-volume row onto
   52.43 on 950 shares, while ELUX-B traded 95.62 on 1.48m. A's traded rows sat near half of B's
   from 2006-06-08 to the end of 2006 (monthly medians 0.53 to 0.55 from July, against 1.03 to
@@ -1355,7 +1355,7 @@ PIXY with no turnover). Item 7 corrects three of the fixes.
   item 7). A's A/B ratio in 2008 and 2009 ran up to 1.38 on thin trading; the reference is the
   pair's median ratio in the cache's other windows within 400 days (one window each side on an
   annual leg), so a premium like that stays.
-Still open after this round: Bonjour FY2003 passes turnover (4.6e-4 on a cap about 16.5 times
+Still open after these fixes: Bonjour FY2003 passes turnover (4.6e-4 on a cap about 16.5 times
 too high) and stays in the 2004 book; caps inflated with no later split (7386.T, 2.5 million
 times its sales; 8038.T from FY2017); forward-split inflation (SALEE.BK FY2014); k near 1 where
 FMP scaled EPS and shares together (DBGI FY2021 trades 3.9e-4 of its cap and stands; CET.TO);
@@ -1367,7 +1367,7 @@ price factor of 10; BBD-A.TO and BBD-B.TO FY1997 to FY1999 (C$6.5bn to 10bn, no 
 6.25 to 12.5 and a 1:25) lower by 25 to C$0.26bn to 0.40bn, under the floor, though Bombardier's
 cap then was real (no booked effect: deleveraging Canada 2000-01 is a cash period).
 
-**7. Found by the second review of the checks (2026-10-30).** Three of item 6's fixes reached too
+**7. Corrections to item 6 (2026-10-30).** Three of item 6's fixes reached too
 far, and one was too loose:
 - The sibling test moved real prices. It ran in any window where T moved any row (a holiday row
   was enough) and tested both lines, so it moved the liquid common's rows too: LG Chem 051910.KS,
@@ -1384,7 +1384,7 @@ far, and one was too loose:
   substitution landed on another scale: the line's moved bar must have opened its window and sat
   on the reference, the line must be the thinner one, the reference is the median of the other
   windows' medians (2 windows, 5 days, 80% of the days in the band), and a replacement moves only
-  when it is off both the reference and the moved bar's own ratio. On the reviewed share-class
+  when it is off both the reference and the moved bar's own ratio. On the share-class
   rows (Korea, UK, Brazil and Sweden, plus ELUX's 2005 to 2009 rows), with the legs' closed
   dates, it moves ELUX-A's four 2006 rows and nothing else, and the unrelated pairs move nothing.
 - Coincidental equal caps. About a dozen same-market pairs of unrelated companies share one FY
@@ -1417,7 +1417,7 @@ far, and one was too loose:
   windows (one change or none). 76ID.L 2000-01, 2000-04, 2000-07 and 2000-10 keep theirs; none is
   held.
 
-**8. Found by the review of the full-holdings rerun (all 32 legs, 2026-10-30).** Item 6's lowering
+**8. Found in the full-holdings rerun (all 32 legs, 2026-10-30).** Item 6's lowering
 for unknown turnover cut real caps, and three kinds of data fact came to light.
 - A divisor from split records alone. Where a fiscal year ends before a line's first stock_eod
   row, turnover is unknown and the price factor is the product of the later records, so any later
@@ -1433,17 +1433,27 @@ for unknown turnover cut real caps, and three kinds of data fact came to light.
   and so do BBD-A.TO and BBD-B.TO FY1997 to FY1999 where a leg holds no bars for them (item 6).
 - Spurious and duplicated split records. INPEX 1605.T carries a 7:5000 record dated its listing
   day, 2006-04-03; DCC.L a 2:137 on 2003-11-03 that neither its prices nor its share count show.
-  Some records appear twice: AMCR's 1:5 of 2026-01-15 on the same day, 071970.KS's 1:8, 1:20 and
-  1:8 at 38 to 129 days apart (so its FY2008 cap was divided by 1.6 million), MGLU3.SA's 21:20 of
+  Some records appear twice: AMCR's 1:5 of 2026-01-15 on the same day, 071970.KS's two 1:8s at 38
+  days apart each (with its two 1:20s of 2017, which its prices show as two real consolidations
+  129 days apart, every record counted divided its FY2008 cap by 1.6 million), MGLU3.SA's 21:20 of
   2025-12-30, SNSY3.SA's 40:1 at 22 days and TEKA3.SA's 1:100 at 203 days (SNSY5.SA and TEKA4.SA
-  hold one). A record repeating an earlier ratio within 150 days now counts once; TEKA3.SA's pair
-  still counts twice.
+  hold one). A record repeating the ratio of a record kept within 120 days before it now counts
+  once. Real repeats and duplicates sit on both sides of any such window: at 121 to 150 days apart,
+  25 of the 36 same-ratio pairs of 2:1 or more either way with raw prices on both dates show two
+  real events and 7 show one.
+  So TEKA3.SA's pair, 0727.HK's 20:1 of 2007 (137 days apart) and LRL.AX's 1:130 of 2017-12 and
+  2018-05 (138 days) count twice, and DISH's real 2:1 of 1999-10-26, 98 days after its July one,
+  counts once. Against a 150-day window, no row of the 32 legs moves across its floor.
 - FMP's fiscal-year share counts. Most are restated for later records (GSAT's reads 125.9m and
   126.8m on either side of its 2025 1:15), some step at them as traded (1529.HK: 1.14bn to 0.127bn
   at its 2024 1:10; HAO: 12.2m to 0.117m across a 1:25), and some are erratic: Bonjour 0653.HK reads 3.70bn, 2.38bn,
   1.15bn across a 1:20, CPI.L falls 15 times in 2005 with no record, NOG.L rises 11 times at a 1:10,
-  REDD.L holds 239m from 1997 to 2020. A test on them reads a step or a restatement only within a
-  tolerance and lets the rest say nothing.
+  REDD.L holds 239m from 1997 to 2020. FMP also restates the counts year by year, sometimes one
+  fiscal year early or for one year only: DEXP3.SA's FY2015 count is 61 times the counts on both
+  sides of it (its 2016 1:61), 1192.HK's FY2016 count 158 times the year before and 37.5 times the
+  year after; 0660.HK's count rises 10 times across a 4:1, and UONE's 1.75 times across a 3:1. A
+  test on them reads a step or a restatement only within a tolerance and lets the rest say nothing,
+  so a count restated a year off can still read as a step.
 - Halt rows that print a price no one traded at. 1396.HK's halt rows read 23.9 against a last trade
   of 21.75 before it resumed at 14.38; 600105.SS printed 3.79 while it traded at 2.91 on both sides.
   The books bought them at those prints. T removes them where the window has no traded row.
