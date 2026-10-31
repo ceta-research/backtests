@@ -23,10 +23,16 @@ Gates:
  13 FUNNEL     every period record carries an entry-knowable, decodable funnel
  14 EXITDEFAULT the exit-method default lives only in data_utils; runners and
                every call into an exit_method signature pass the resolved method
+ 15 DATACHECKS  only DATA_CHECKS_TOPICS use the data checks (twin_key=, traded_only=,
+               a None cap by keyword or position, a non-number MAX_SINGLE_RETURN, the new
+               data_utils names), each of them has
+               dropped MAX_SINGLE_RETURN only with check M at every market-cap floor, and
+               their committed results hold no data_checks block but mode "on"
 
 Usage:  python scripts/verify_floor_guard.py
 """
 import ast
+import json
 import pathlib
 import py_compile
 import re
@@ -639,6 +645,99 @@ def forward_hits(tree):
                                       "otherwise the child's own default decides"))
                 break
             p = parent.get(p)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Data checks dc-1 (gate 15). They replace filter_returns' 200% return cap one topic at a time,
+# each at its own rerun: a topic opts in by joining DATA_CHECKS_TOPICS with its number of
+# market-cap floors. The cap may go only where check M reads every floor (cap_used): without M an
+# inflated market cap lets a name into the book whose return only the cap used to drop (SOS, ZEST).
+DATA_CHECKS_TOPICS = {"deleveraging": 1, "cyclical-timing": 2}
+DC_NAMES = ("DATA_CHECKS_V1", "DataChecks", "clean_price_cache", "mark_nvdr_twins", "load_cap_check",
+            "load_splits", "empty_cap_check", "cap_used_sql", "CAP_FAIL_TEST", "nvdr_twins_sql",
+            "apply_cap_rule", "cap_check_sql")
+DC_KWARGS = ("twin_key", "traded_only")
+RAW_FLOOR = re.compile(r"\bmarketCap\s*>\s*\?")
+USED_FLOOR = re.compile(r"\bcap_used\s*>\s*\?")
+
+
+def _callee(call):
+    f = call.func
+    return f.id if isinstance(f, ast.Name) else getattr(f, "attr", None)
+
+
+def dc_uses(tree):
+    """(lineno, what) for every use of the data-checks surface in a module."""
+    out = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Name) and n.id in DC_NAMES:
+            out.append((n.lineno, n.id))
+        elif isinstance(n, ast.Attribute) and n.attr in DC_NAMES:
+            out.append((n.lineno, n.attr))
+        elif isinstance(n, ast.alias) and n.name in DC_NAMES:
+            out.append((n.lineno, f"import {n.name}"))
+        elif isinstance(n, ast.keyword) and n.arg in DC_KWARGS:
+            out.append((n.lineno, f"{n.arg}="))
+        elif (isinstance(n, ast.keyword) and n.arg == "max_single_return"
+              and isinstance(n.value, ast.Constant) and n.value.value is None):
+            out.append((n.lineno, "max_single_return=None"))
+        elif (isinstance(n, (ast.Assign, ast.AnnAssign)) and n.value is not None
+              and any(isinstance(x, ast.Name) and x.id == "MAX_SINGLE_RETURN"
+                      for x in (n.targets if isinstance(n, ast.Assign) else [n.target]))
+              and not (isinstance(n.value, ast.Constant) and type(n.value.value) in (int, float))):
+            out.append((n.lineno, "MAX_SINGLE_RETURN set to a non-number"))
+        elif (isinstance(n, ast.Call) and _callee(n) == "filter_returns" and len(n.args) >= 3
+              and isinstance(n.args[2], ast.Constant) and n.args[2].value is None):
+            out.append((n.lineno, "filter_returns positional None"))
+    return out
+
+
+def dc_results_problem(res):
+    """Why a results file of an opted-in topic can't be committed, or None. A file with no data_checks
+    block predates the opt-in; the uncapped attribution arm is never published."""
+    if not isinstance(res, dict) or "data_checks" not in res:
+        return None
+    b = res["data_checks"]
+    mode = b.get("mode") if isinstance(b, dict) else None
+    return None if mode == "on" else f"data_checks mode {mode!r}: only mode 'on' is published"
+
+
+def _sql_strings(tree):
+    """String constants that are not docstrings (SQL text, including f-string parts)."""
+    docs = {id(n.value) for n in ast.walk(tree) if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)}
+    return [n.value for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docs]
+
+
+def dc_wiring(tree, n_floors):
+    """(lineno, why) for an opted-in topic whose wiring is incomplete (see the gate 15 header)."""
+    out = [(n.lineno, "MAX_SINGLE_RETURN is still defined or read") for n in ast.walk(tree)
+           if isinstance(n, ast.Name) and n.id == "MAX_SINGLE_RETURN"]
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
+    for c in calls:
+        if _callee(c) != "filter_returns":
+            continue
+        v = next((k.value for k in c.keywords if k.arg == "max_single_return"), None)
+        if len(c.args) >= 3 or not (isinstance(v, ast.Constant) and v.value is None):
+            out.append((c.lineno, "filter_returns without max_single_return=None"))
+    if not any(_callee(c) == "filter_returns" for c in calls):
+        out.append((0, "no filter_returns call: the gate cannot see the book"))
+    sql = _sql_strings(tree)
+    raw = sum(len(RAW_FLOOR.findall(s)) for s in sql)
+    used = sum(len(USED_FLOOR.findall(s)) for s in sql)
+    if raw:
+        out.append((0, f"{raw} market-cap floor(s) still read the raw marketCap"))
+    if used != n_floors:
+        out.append((0, f"{used} floor(s) read cap_used, expected {n_floors}"))
+    for fn in ("load_cap_check", "clean_price_cache", "mark_nvdr_twins"):
+        if not any(_callee(c) == fn for c in calls):
+            out.append((0, f"never calls {fn}"))
+    runs = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run_single"]
+    for fn in ("fetch_data_via_api", "run_backtest"):
+        inner = [c for r in runs for c in ast.walk(r) if isinstance(c, ast.Call) and _callee(c) == fn]
+        if not inner or not all(any(k.arg == "dc" for k in c.keywords) for c in inner):
+            out.append((0, f"run_single does not pass dc= to {fn}: the checks would default off"))
     return out
 
 
@@ -1611,6 +1710,108 @@ def main():
               f"run_backtest calls and {calls14} exit_method calls; the walk has probably "
               "stopped matching")
         fails.append(("gate 14 coverage", (len(runners), direct14, calls14)))
+
+    # ---- gate 15: data checks are opt-in per topic, and the cap goes only with M at every floor
+    #
+    # Every *.py at the root and under a topic directory (scripts/ holds the tests, data_utils the
+    # definitions): outside DATA_CHECKS_TOPICS no use of the surface at all; inside it, each topic's
+    # backtest.py must be fully wired (dc_wiring), and its committed results/*.json may carry only a
+    # mode-on data_checks block (dc_results_problem). A new topic joins the dict in its own rerun.
+    stray15, wiring15, used15 = [], [], {}
+    for f in sorted(ROOT.glob("*.py")) + sorted(ROOT.glob("*/*.py")):
+        rel = str(f.relative_to(ROOT))
+        if rel.startswith("scripts/") or rel == "data_utils.py":
+            continue
+        src = f.read_text()
+        if not any(k in src for k in DC_NAMES + DC_KWARGS + ("max_single_return", "MAX_SINGLE_RETURN", "filter_returns")):
+            continue
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        hits = dc_uses(tree)
+        t = f.parent.name
+        if t in DATA_CHECKS_TOPICS:
+            used15[t] = used15.get(t, 0) + len(hits)
+        else:
+            stray15 += [(rel, ln, what) for ln, what in hits]
+    for t, n_floors in DATA_CHECKS_TOPICS.items():
+        p = ROOT / t / "backtest.py"
+        if not p.exists():
+            wiring15.append((t, 0, "in DATA_CHECKS_TOPICS but has no backtest.py"))
+            continue
+        wiring15 += [(t, ln, why) for ln, why in dc_wiring(ast.parse(p.read_text()), n_floors)]
+        if not used15.get(t):
+            wiring15.append((t, 0, "uses none of the data-checks surface"))
+    results15, n_res15 = [], 0
+    for t in DATA_CHECKS_TOPICS:
+        for p in sorted((ROOT / t / "results").rglob("*.json")):
+            try:
+                res = json.loads(p.read_text())
+            except ValueError:
+                continue
+            n_res15 += isinstance(res, dict) and "data_checks" in res
+            why = dc_results_problem(res)
+            if why:
+                results15.append((str(p.relative_to(ROOT)), why))
+    print(f"15 DATACHECKS {len(stray15)} uses outside {sorted(DATA_CHECKS_TOPICS)}; "
+          f"{len(DATA_CHECKS_TOPICS) - len({t for t, _, _ in wiring15})}/{len(DATA_CHECKS_TOPICS)} opted-in "
+          f"topics fully wired ({sum(used15.values())} uses); {n_res15} committed results carry a data_checks "
+          f"block, {len(results15)} not mode on")
+    for b in stray15:
+        print("    NOT OPTED IN:", b)
+    for b in wiring15:
+        print("    WIRING:", b)
+    for b in results15:
+        print("    RESULTS:", b)
+    fails += [("data checks outside the list", b) for b in stray15]
+    fails += [("data checks wiring", b) for b in wiring15]
+    fails += [("data checks results", b) for b in results15]
+    # SELF-TESTS. Positive controls must be flagged, negative controls must pass.
+    ok15 = ("from data_utils import filter_returns, DataChecks, load_cap_check, clean_price_cache, mark_nvdr_twins\n"
+            "def fetch_data_via_api(c, e, d, dc=None):\n"
+            "    load_cap_check(c, con, s, 1, dc.cfg)\n    clean_price_cache(con, b, d)\n    mark_nvdr_twins(con)\n"
+            "def screen(con):\n    return con.execute(f'SELECT 1 FROM km WHERE {x} AND km.cap_used > ?')\n"
+            "def run_backtest(con, dc=None):\n"
+            "    clean, _ = filter_returns(d, min_entry_price=1.0, max_single_return=None)\n"
+            "def run_single(cr, data_checks='on'):\n    dc = DataChecks(data_checks)\n"
+            "    con = fetch_data_via_api(cr, e, d, dc=dc)\n    run_backtest(con, dc=dc)\n")
+    p15 = {
+        "MAX_SINGLE_RETURN kept": ("MAX_SINGLE_RETURN = 2.0\n" + ok15),
+        "the cap still passed": ok15.replace("max_single_return=None", "max_single_return=2.0"),
+        "the cap left to the default": ok15.replace(", max_single_return=None", ""),
+        "a raw marketCap floor": ok15.replace("km.cap_used > ?", "km.cap_used > ? AND km.marketCap > ?"),
+        "a floor short": ok15.replace("km.cap_used > ?", "km.x > ?"),
+        "M never loaded": ok15.replace("    load_cap_check(c, con, s, 1, dc.cfg)\n", ""),
+        "run_single drops dc": ok15.replace("run_backtest(con, dc=dc)", "run_backtest(con)"),
+    }
+    for label, src in p15.items():
+        if not dc_wiring(ast.parse(src), 1):
+            print(f"    SELF-TEST FAIL: gate 15 no longer flags {label}")
+            fails.append(("gate 15 probe", label))
+    if dc_wiring(ast.parse(ok15), 1):
+        print(f"    SELF-TEST FAIL: gate 15 flags the CORRECT wiring: {dc_wiring(ast.parse(ok15), 1)}")
+        fails.append(("gate 15 false positive", "wired probe"))
+    for label, src in (("twin_key=", "isin_dedup_sql(c, d, 1, 1.0, twin_key=True)\n"),
+                       ("traded_only=", "LtpExits(cr, con, traded_only=True)\n"),
+                       ("max_single_return=None", "filter_returns(d, max_single_return=None)\n"),
+                       ("MAX_SINGLE_RETURN = None", "MAX_SINGLE_RETURN = None\n"),
+                       ("MAX_SINGLE_RETURN = float('inf')", "MAX_SINGLE_RETURN: float = float('inf')\n"),
+                       ("positional None", "filter_returns(d, 0.5, None, verbose=v)\n"),
+                       ("a new name", "from data_utils import DataChecks\n")):
+        if not dc_uses(ast.parse(src)):
+            print(f"    SELF-TEST FAIL: gate 15 no longer sees {label} outside the list")
+            fails.append(("gate 15 use probe", label))
+    if dc_uses(ast.parse("MAX_SINGLE_RETURN = 3.0\nfilter_returns(d, max_single_return=MAX_SINGLE_RETURN)\n"
+                         "filter_returns(d, 0.5, MAX_SINGLE_RETURN)\n"
+                         "isin_dedup_sql(c, d, 1, 1.0)\nLtpExits(cr, con, verbose=v)\n")):
+        print("    SELF-TEST FAIL: gate 15 flags a capped topic's ordinary calls")
+        fails.append(("gate 15 use false positive", "capped topic"))
+    for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
+                     ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": {}}, True)):
+        if bool(dc_results_problem(res)) != bad:
+            print(f"    SELF-TEST FAIL: gate 15's results check reads {res} wrong")
+            fails.append(("gate 15 results probe", str(res)))
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")

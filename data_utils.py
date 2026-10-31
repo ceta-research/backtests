@@ -16,6 +16,8 @@ Usage:
     dates = generate_rebalance_dates(2000, 2025, "semi-annual")
 """
 
+import json
+import math
 import os
 import tempfile
 from datetime import date, timedelta
@@ -241,7 +243,7 @@ def load_isin_map(client, con, exchanges, sym_filter_sql, verbose=False):
 
 
 def isin_dedup_sql(candidates_sql, target_date, offset_days, min_entry_price,
-                   window_days=10, isin_table="isin_map", prices_table="prices_cache"):
+                   window_days=10, isin_table="isin_map", prices_table="prices_cache", twin_key=False):
     """Wrap a screen's candidate SELECT so one security keeps one row.
 
     A security is its normalised ISIN, else its symbol: a symbol fanned out by a join keeps
@@ -253,7 +255,15 @@ def isin_dedup_sql(candidates_sql, target_date, offset_days, min_entry_price,
     the alphabetically first symbol. `candidates_sql` exposes `symbol` and has no ORDER
     BY/LIMIT: rank and LIMIT go outside, so a collapsed twin frees its slot for the next
     name. `isin_table` is load_isin_map()'s (symbol, isin, isActivelyTrading, home_ccy).
+
+    twin_key=True (data check N, after mark_nvdr_twins): a security is COALESCE(sec_key, ISIN,
+    symbol), so a SET NVDR line shares its ordinary line's key, and the ordinary line ranks
+    before the NVDR right after the buyable term. False returns the SQL this function always did.
     """
+    if twin_key:
+        return (f"\n        SELECT * EXCLUDE (_isin_rn, _tw_key, _tw_nvdr) FROM ("
+                f"{_twin_ranked_sql(candidates_sql, target_date, offset_days, min_entry_price, window_days, isin_table, prices_table)}"
+                f"\n        ) _d WHERE _isin_rn = 1")
     shifted = target_date + timedelta(days=offset_days)
     lo, hi = utc_epoch(shifted), utc_epoch(shifted + timedelta(days=window_days))
     return f"""
@@ -650,7 +660,8 @@ def filter_returns(symbol_returns, min_entry_price=1.0, max_single_return=2.0, v
         symbol_returns: list of (symbol, entry_price, exit_price, market_cap) tuples
         min_entry_price: float - minimum entry price to include, in the
             exchange's own price units (default 1.0)
-        max_single_return: float - maximum return to include (default 2.0 = 200%)
+        max_single_return: float - maximum return to include (default 2.0 = 200%);
+            None keeps every return (no upper test; the data-checks topics pass it)
         verbose: bool - print skipped stocks
 
     Returns:
@@ -667,7 +678,7 @@ def filter_returns(symbol_returns, min_entry_price=1.0, max_single_return=2.0, v
             skipped.append(f"{sym}(price=${ep:.2f})")
             continue
         raw_ret = (xp - ep) / ep
-        if raw_ret > max_single_return:
+        if max_single_return is not None and raw_ret > max_single_return:
             skipped.append(f"{sym}(ret={raw_ret*100:.0f}%)")
             continue
         clean.append((sym, raw_ret, mcap))
@@ -791,13 +802,24 @@ class LtpExits:
     dropped. Fills feed filter_returns unchanged, so max_single_return etc. still apply.
     Every fill passes remove_price_oscillations, like the topic's own exit prices.
     local=True reads the topic's own prices_cache, which must use the trade_epoch schema.
+    traded_only=True (data check T, rule 2): the remote query also reads close and volume; a symbol
+    with a traded row in its LTP window (entry bar, hi] loses its zero-volume rows over the fetched
+    span before the filter, and a symbol with none keeps them all (as T keeps a window with no
+    traded row). Each fill records ltp_close and ltp_volume. With local=True the topic's prices_cache
+    must then carry close and volume. False sends the SQL and builds the temp table this class always did.
+    traded_only=True also repairs a fill that lands on the other side of a feed whose adjClose basis
+    flips row by row while its close runs smoothly (RAM.BK 2018-01: adjClose alternates between about
+    close / 5.35 and close x 0.855): DATA_CHECKS_V1["fill_basis"] decides it, the fill books entry price x
+    fill close / entry close, and keeps its adjClose as ltp_adj with basis "close" (close_basis_fills).
     """
 
     # Remote cleaning context each side of the window; the filter's widest neighbour span is 20 days.
     CONTEXT_DAYS = 30
 
-    def __init__(self, client, con, local=False, verbose=False):
+    def __init__(self, client, con, local=False, verbose=False, traded_only=False):
         self.client, self.con, self.local, self.verbose = client, con, local, verbose
+        self.traded_only, self.zero_volume_moved, self._bar_extra = traded_only, 0, {}
+        self.close_basis, self._flips = 0, {}
         # One row per symbol (9,900 rows / 9,900 symbols, checked 2026-10-09).
         # Ordered so a symbol with two rows always keeps its latest delisting (the dict keeps the last row).
         rows = self._query("SELECT symbol, delistedDate FROM delisted_companies WHERE delistedDate IS NOT NULL"
@@ -868,6 +890,13 @@ class LtpExits:
                                "delisted_date": self.delisted[s].isoformat() if s in self.delisted else None,
                                "delisting_bound": kind, "source": src,
                                "exit_date": exit_date.isoformat()})
+            if self.traded_only:
+                self.fills[-1]["ltp_close"], self.fills[-1]["ltp_volume"] = self._bar_extra[s]
+                alt = self._close_basis(s, bars[s][1], entry_prices.get(s), px, self._bar_extra[s][0])
+                if alt is not None:   # the fill sits on the other adjClose basis: book the close's move
+                    self.fills[-1].update(ltp=alt, ltp_adj=px, basis="close")
+                    out[s] = alt
+                    self.close_basis += 1
         self.filled += len(out)
         if self.verbose and want:
             print(f"      LTP: {len(out)}/{len(want)} missing exits filled")
@@ -889,7 +918,10 @@ class LtpExits:
         # Local only when no delisting bound capped the context: the cache's filter saw bars past it.
         local = {s: b for s, b in bounds.items() if self.local and b[3] >= b[1] + timedelta(days=self.CONTEXT_DAYS)}
         remote = {s: b for s, b in bounds.items() if s not in local}
-        out = {s: (e, px, "local") for s, (e, px) in self._pick(self.con, local).items()} if local else {}
+        pick = self._pick_traded if self.traded_only else self._pick
+        if self.traded_only and local:
+            self._flips.update(self._basis_flips(self.con, local))
+        out = {s: (e, px, "local") for s, (e, px) in pick(self.con, local).items()} if local else {}
         if remote:
             start = lambda lo: lo + timedelta(days=1 - self.CONTEXT_DAYS)
             vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), utc_epoch(start(lo)),
@@ -897,22 +929,98 @@ class LtpExits:
                             for s, (lo, _, _, ctx) in remote.items())
             first = min(start(lo) for lo, _, _, _ in remote.values()).isoformat()
             after = (max(ctx for _, _, _, ctx in remote.values()) + timedelta(days=1)).isoformat()
+            cols = "e.symbol, e.dateEpoch, e.adjClose" + (", e.close, e.volume" if self.traded_only else "")
             rows = self._query(f"""
                 WITH m(symbol, a, b) AS (VALUES {vals})
-                SELECT e.symbol, e.dateEpoch, e.adjClose FROM stock_eod e JOIN m ON e.symbol = m.symbol
+                SELECT {cols} FROM stock_eod e JOIN m ON e.symbol = m.symbol
                 WHERE e.date >= '{first}' AND e.date < '{after}'
                   AND e.dateEpoch >= m.a AND e.dateEpoch < m.b AND e.adjClose > 0
             """, limit=1000000, timeout=600, memory_mb=16384, threads=6) or []
             if rows:
                 import duckdb
                 tmp = duckdb.connect()   # never the topic's con: its prices_cache stays as it was
-                tmp.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
-                tmp.executemany("INSERT INTO prices_cache VALUES (?, ?, ?)",
-                                [(r["symbol"], int(r["dateEpoch"]), r["adjClose"]) for r in rows])
+                if self.traded_only:
+                    tmp.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE,"
+                                " close DOUBLE, volume DOUBLE)")
+                    tmp.executemany("INSERT INTO prices_cache VALUES (?, ?, ?, ?, ?)",
+                                    [(r["symbol"], int(r["dateEpoch"]), r["adjClose"], r.get("close"),
+                                      r.get("volume")) for r in rows])
+                    # T rule 2: a line that traded inside its LTP window loses its zero-volume rows
+                    day_end = lambda d: utc_epoch(d + timedelta(days=1))
+                    tmp.execute("CREATE TABLE ltp_win(symbol VARCHAR, lo BIGINT, hi BIGINT)")
+                    tmp.executemany("INSERT INTO ltp_win VALUES (?, ?, ?)",
+                                    [(s, day_end(lo), day_end(hi)) for s, (lo, hi, _, _) in remote.items()])
+                    self.zero_volume_moved += tmp.execute(
+                        "DELETE FROM prices_cache WHERE (volume IS NULL OR volume <= 0) AND symbol IN ("
+                        "SELECT p.symbol FROM prices_cache p JOIN ltp_win w ON p.symbol = w.symbol"
+                        " WHERE p.volume > 0 AND p.trade_epoch >= w.lo AND p.trade_epoch < w.hi)").fetchone()[0]
+                    self._flips.update(self._basis_flips(tmp, remote))   # before the filter drops either basis
+                else:
+                    tmp.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
+                    tmp.executemany("INSERT INTO prices_cache VALUES (?, ?, ?)",
+                                    [(r["symbol"], int(r["dateEpoch"]), r["adjClose"]) for r in rows])
                 remove_price_oscillations(tmp, verbose=False)
-                out.update({s: (e, px, "remote") for s, (e, px) in self._pick(tmp, remote).items()})
+                out.update({s: (e, px, "remote") for s, (e, px) in pick(tmp, remote).items()})
                 tmp.close()
         return out
+
+    def _basis_flips(self, con, bounds):
+        """{symbol: reversals}: one row per date of con's prices_cache from the fetched context start to the
+        LTP window end; a flip is a day whose ln(adjClose / close) moves more than ln(factor.band upper)
+        while ln(close) moves less; a reversal is a flip opposite in sign to the flip before it."""
+        if not bounds:
+            return {}
+        day_end = lambda d: utc_epoch(d + timedelta(days=1))
+        lb = math.log(DATA_CHECKS_V1["factor"]["band"][1])
+        start = lambda lo: utc_epoch(lo + timedelta(days=1 - self.CONTEXT_DAYS))   # the fetched context start
+        vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), start(lo), day_end(hi))
+                        for s, (lo, hi, _, _) in bounds.items())
+        return dict(con.execute(f"""
+            WITH m(symbol, lo, hi) AS (VALUES {vals}),
+            d AS (SELECT p.symbol, p.trade_epoch, p.adjClose, p.close FROM prices_cache p JOIN m ON p.symbol = m.symbol
+                  WHERE p.trade_epoch >= m.lo AND p.trade_epoch < m.hi AND p.adjClose > 0 AND p.close > 0
+                  QUALIFY ROW_NUMBER() OVER (PARTITION BY p.symbol, p.trade_epoch
+                                             ORDER BY p.adjClose DESC, p.close DESC) = 1),
+            s AS (SELECT symbol, trade_epoch,
+                         LN(adjClose / close) - LAG(LN(adjClose / close)) OVER w AS dr,
+                         LN(close) - LAG(LN(close)) OVER w AS dc
+                  FROM d WINDOW w AS (PARTITION BY symbol ORDER BY trade_epoch)),
+            f AS (SELECT symbol, SIGN(dr) AS sg,
+                         LAG(SIGN(dr)) OVER (PARTITION BY symbol ORDER BY trade_epoch) AS prev
+                  FROM s WHERE ABS(dr) > {lb} AND ABS(dc) <= {lb})
+            SELECT symbol, COUNT(*) FILTER (WHERE sg <> prev) FROM f GROUP BY symbol""").fetchall())
+
+    def _close_basis(self, s, entry_epoch, entry_price, px, close):
+        """The close-based exit price for a fill that fill_basis repairs, else None."""
+        if self._flips.get(s, 0) < DATA_CHECKS_V1["fill_basis"]["min_reversals"]:
+            return None
+        if not (entry_price and entry_price > 0 and px and px > 0 and close and close > 0):
+            return None
+        if "close" not in {c[0] for c in self.con.execute("DESCRIBE prices_cache").fetchall()}:
+            return None
+        row = self.con.execute("SELECT close FROM prices_cache WHERE symbol = ? AND trade_epoch = ? AND adjClose = ?"
+                               " ORDER BY close DESC NULLS LAST LIMIT 1", [s, entry_epoch, entry_price]).fetchone()
+        if not (row and row[0] and row[0] > 0):
+            return None
+        lo, hi = DATA_CHECKS_V1["factor"]["band"]
+        if lo <= (px / close) / (entry_price / row[0]) <= hi:
+            return None
+        return entry_price * close / row[0]
+
+    def _pick_traded(self, con, bounds):
+        """_pick for traded_only: the same bar, its close and volume kept in self._bar_extra."""
+        day_end = lambda d: utc_epoch(d + timedelta(days=1))
+        vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), day_end(lo), day_end(hi))
+                        for s, (lo, hi, _, _) in bounds.items())
+        rows = con.execute(f"""
+            WITH m(symbol, lo, hi) AS (VALUES {vals})
+            SELECT p.symbol, p.trade_epoch, p.adjClose, p.close, p.volume FROM prices_cache p JOIN m ON p.symbol = m.symbol
+            WHERE p.trade_epoch >= m.lo AND p.trade_epoch < m.hi AND p.adjClose > 0
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY p.symbol ORDER BY p.trade_epoch DESC, p.adjClose DESC,
+                                       p.close DESC NULLS LAST, p.volume DESC NULLS LAST) = 1
+        """).fetchall()
+        self._bar_extra.update({r[0]: (r[3], r[4]) for r in rows})
+        return {r[0]: (int(r[1]), r[2]) for r in rows}
 
     @staticmethod
     def _pick(con, bounds):
@@ -962,6 +1070,8 @@ class LtpExits:
                 "filled_ignoring_delisting_row": sum(1 for f in self.fills
                                                      if f["delisting_bound"] == "ignored_predates_entry"),
                 "filled_delisting_not_binding": sum(1 for f in self.fills if f["delisting_bound"] == "not_binding"),
+                **({"traded_only": True, "zero_volume_rows_moved": self.zero_volume_moved,
+                    "close_basis_fills": self.close_basis} if self.traded_only else {}),
                 "fills": self.fills}
 
 
@@ -1269,3 +1379,972 @@ def validate_price_data(con, max_price_ratio=1000, verbose=True):
             print(f"    ... and {len(flagged) - 10} more")
 
     return flagged
+
+
+# ---------------------------------------------------------------------------
+# DATA CHECKS dc-1: data checks in place of the 200% single-return cap, for the topics that opt
+# in (deleveraging and cyclical-timing; gate 15 in scripts/verify_floor_guard.py holds the list).
+# Every other topic calls none of this and keeps filter_returns' max_single_return=2.0.
+#
+#   T traded bars   clean_price_cache(): closed-day rows, zero-volume rows of lines that traded in
+#                   the same window, flat lines with no volume and non-positive prices leave the cache
+#                   before remove_price_oscillations; then a thin class's replacement bar off its liquid
+#                   sibling's scale.
+#                   LtpExits(traded_only=True) applies rule 2 to fills.
+#   N NVDR twins    mark_nvdr_twins() and isin_dedup_sql(twin_key=True).
+#   M market cap    load_cap_check() and cap_used_sql() at every market-cap floor.
+#   F factor flags  DataChecks records stage-1 drift and split events; it changes no price.
+#   L large moves   DataChecks lists every kept window-bar holding with |ln(1+r)| >= ln 2.
+# All thresholds live in DATA_CHECKS_V1, which every results file carries.
+# ---------------------------------------------------------------------------
+
+DATA_CHECKS_V1 = {
+    "version": "dc-1",
+    "fetch_window_days": 11,
+    "closed_day_ratio": 0.5,
+    "closed_day_min_ref": 20,
+    "closed_day_min_other_dates": 3,
+    "closed_day_skip": ("a date is not tested when its window has fewer than 3 other dates or their median "
+                        "traded count is under 20; closed_day_test_skipped counts windows with such a date"),
+    "zero_volume": ("moved when the same line has a traded row in the same window, or when the line has none "
+                    "and its close changes on fewer than no_volume_min_changes days there, day over day in date "
+                    "order (a flat line, or a stale quote that steps once, with no volume is not buyable); a line "
+                    "with no traded row whose close changes on that many days or more keeps every row"),
+    "no_volume_min_changes": 2,
+    "nonpositive_price": "rows with adjClose NULL or <= 0 moved",
+    "sibling": {"min_shared_fy": 2, "gap": 1.25, "ref_days": 400, "ref_min_days": 5, "ref_min_windows": 2,
+                "stable_share": 0.8,
+                "rule": ("siblings are lines that carry an identical FY key_metrics cap in min_shared_fy FYs or "
+                         "more; a line is tested in a window only when T moved a row before its first remaining "
+                         "row there (the anchor: the earliest moved row), and only against a thicker sibling "
+                         "(median close x volume over the reference days); ref = the median of the per-window "
+                         "median close ratios over the cache's other windows within ref_days (one window each "
+                         "side on an annual leg), with ref_min_windows windows, ref_min_days traded days of both, "
+                         "stable_share of those days within gap of ref, and the anchor's ratio within gap of ref; "
+                         "from the first remaining row, a row more than gap from both ref and the anchor's ratio, "
+                         "for every sibling that can test it, moves; the first row on scale or untestable stops "
+                         "it")},
+    "benchmarks_exempt": True,
+    "twins": ("SET X-R.BK takes X.BK's ISIN as its security key when X.BK is in the leg, the ISINs share "
+              "characters 1 to 6 and character 10 of the NVDR's is R; within a key: buyable at entry, then "
+              "the ordinary line, then isActivelyTrading, home currency, symbol"),
+    "cap": {"pf_min": 3.0, "turnover_max": 1e-4, "bars": 20, "lookback_days": 45, "min_traded_bars": 10,
+            "k_min": 3.0, "eps_min": 0.05, "net_income_min": 1e6, "k_tol": 1.5, "split_max": 1e4,
+            "split_min": 2.0, "split_dup_days": 120, "share_tol": 1.5, "share_step": [0.5, 2.0], "lower_only": True,
+            "order": ("gate on pf or the later consolidations; turnover over every line with the same FY cap "
+                      "(lines that share an identical FY cap in sibling.min_shared_fy FYs or more); k within "
+                      "k_tol of pf lowers first and turnover is tested on the lowered cap; a failing cap is "
+                      "lowered by the divisor (and k) when turnover clears on the lowered cap, else "
+                      "ineligible; a k that disagrees with pf keeps turnover-then-k; unknown turnover lowers; "
+                      "the divisor needs evidence beyond the split records: a measured price factor P (raw "
+                      "close against stock_eod at the period end, or the same line's nearest FY with no split "
+                      "record between) of pf_min or more gives P times the later forward splits, a P under "
+                      "pf_min gives P times the records FMP's FY share count was restated for, no P gives the "
+                      "records at which that count steps; a record repeating the ratio of a record kept within "
+                      "split_dup_days before it counts once; a row is only made ineligible when pf opened the "
+                      "gate and every line of its group has bars in the lookback, else a failing cap lowers; a "
+                      "failing row whose divisor is within 1e-9 of 1 keeps FMP's cap as unchecked, counted in "
+                      "cap_rows_flagged")},
+    "factor": {"band": [1 / 1.05, 1.15], "split_min": 2.0, "mode": "flag only: no price or return is changed"},
+    "fill_basis": {"min_reversals": 2,
+                   "rule": ("an LTP fill books its close over the entry close (basis 'close') when the line's "
+                            "adjClose / close flips by more than factor.band's upper bound on consecutive rows "
+                            "while the close moves less than that bound, the flips reverse direction "
+                            "min_reversals times or more from the fetched context to the window end, and the "
+                            "fill's drift against the entry bar leaves factor.band")},
+    "large_move_log": math.log(2),
+}
+
+
+def _sig(x, digits=6):
+    """x to `digits` significant digits, None passing through (keeps results files readable)."""
+    return None if x is None else float(f"{x:.{digits}g}")
+
+
+def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, table="prices_cache",
+                      siblings=None):
+    """Check T on a topic's windowed price cache. Call it before remove_price_oscillations.
+
+    Per fetch window W = [d, d + fetch_window_days] of each rebalance date d (overlapping windows
+    merged), over non-benchmark rows, in this order:
+      1 closed_day         traded(D) = rows on date D with volume > 0, ref(D) = the median of traded
+                           over W's other dates. D is closed when traded(D) < closed_day_ratio x
+                           ref(D), and every non-benchmark row on D moves. D is not tested when W
+                           has fewer than closed_day_min_other_dates other dates or ref(D) is under
+                           closed_day_min_ref.
+      2 zero_volume        a (symbol, W) with a row of volume > 0 loses its rows with volume <= 0 or
+                           NULL. A (symbol, W) with no traded row is counted; it keeps every row when
+                           its close changes on no_volume_min_changes (2) days or more there, day over
+                           day in date order (one close per date, a date with no close skipped; a feed
+                           that prints prices with no volume, even one ticking between two prices like
+                           BH-R.BK's 48.0 and 48.5), and loses them all otherwise (reason
+                           flat_no_volume: a suspended quote, or a stale one that steps once like
+                           BC88.L's 95 then 70, is not buyable).
+      3 nonpositive_price  rows with adjClose NULL or <= 0.
+      4 sibling_gap        only with `siblings`, a table of (symbol, filing_epoch, market_cap) such
+                           as cap_inputs: lines that share an identical FY cap in two FYs or more are
+                           share classes of one company. Where steps 1 to 3 moved the bar a line's
+                           window opened on, the replacement bar (and the ones after it, while they
+                           stay off) moves when it sits off a thicker sibling's scale and off the
+                           moved bar's own ratio to it (see _sibling_gaps, DATA_CHECKS_V1["sibling"]).
+    Moved rows land in prices_dropped(symbol, trade_epoch, adjClose, close, volume, reason,
+    window_start). The cache needs symbol, trade_epoch (UTC midnight), adjClose, close and volume.
+    bench_symbols may carry SQL quotes ("'SPY'"). Benchmark rows are never touched.
+    Returns {rows_moved, symbol_windows_without_volume, flat_windows_moved, closed_day_test_skipped,
+    closed_dates, sibling_gap_rows, sibling_gaps}. rows_moved.zero_volume counts the rows of both
+    rule-2 cases; sibling_gap rows are counted apart (sibling_gap_rows) and listed in sibling_gaps.
+    """
+    bench = sorted({str(s).strip().strip("'") for s in bench_symbols})
+    keep = ("p.symbol NOT IN (" + ", ".join("'" + s.replace("'", "''") + "'" for s in bench) + ")"
+            if bench else "TRUE")
+    span = timedelta(days=int(cfg["fetch_window_days"]))
+    wins = []
+    for d in sorted(set(rebalance_dates)):
+        lo, hi = utc_epoch(d), utc_epoch(d + span)
+        if wins and lo <= wins[-1][1]:
+            wins[-1][1] = max(wins[-1][1], hi)
+        else:
+            wins.append([lo, hi])
+    con.execute("CREATE OR REPLACE TABLE prices_dropped(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE,"
+                " close DOUBLE, volume DOUBLE, reason VARCHAR, window_start BIGINT)")
+    con.execute("CREATE OR REPLACE TEMP TABLE _dc_win(ws BIGINT, we BIGINT)")
+    if wins:
+        con.executemany("INSERT INTO _dc_win VALUES (?, ?)", wins)
+
+    def tag():   # current non-benchmark rows with their window and day
+        con.execute(f"""CREATE OR REPLACE TEMP TABLE _dc_rows AS
+            SELECT p.rowid AS rid, p.symbol, p.trade_epoch, p.adjClose, p.close, p.volume, w.ws,
+                   p.trade_epoch // 86400 AS day
+            FROM {table} p JOIN _dc_win w ON p.trade_epoch BETWEEN w.ws AND w.we
+            WHERE {keep}""")
+
+    def move(where, reason):   # rows of _dc_rows matching `where` go to prices_dropped
+        con.execute(f"INSERT INTO prices_dropped SELECT symbol, trade_epoch, adjClose, close, volume, '{reason}', ws"
+                    f" FROM _dc_rows r WHERE {where}")
+        n = con.execute(f"DELETE FROM {table} WHERE rowid IN (SELECT rid FROM _dc_rows r WHERE {where})").fetchone()[0]
+        return int(n)
+
+    tag()
+    rows = con.execute("""
+        WITH d AS (SELECT ws, day, SUM(CASE WHEN volume > 0 THEN 1 ELSE 0 END) AS traded
+                   FROM _dc_rows GROUP BY ws, day)
+        SELECT a.ws, a.day, a.traded, COUNT(b.day) AS n_other, MEDIAN(b.traded) AS ref
+        FROM d a LEFT JOIN d b ON b.ws = a.ws AND b.day <> a.day
+        GROUP BY a.ws, a.day, a.traded ORDER BY a.ws, a.day""").fetchall()
+    closed, skipped = [], set()
+    for ws, day, traded, n_other, ref in rows:
+        if n_other < cfg["closed_day_min_other_dates"] or ref is None or ref < cfg["closed_day_min_ref"]:
+            skipped.add(ws)
+        elif traded < cfg["closed_day_ratio"] * ref:
+            closed.append((ws, day, int(traded), float(ref)))
+    con.execute("CREATE OR REPLACE TEMP TABLE _dc_closed(ws BIGINT, day BIGINT)")
+    if closed:
+        con.executemany("INSERT INTO _dc_closed VALUES (?, ?)", [(ws, day) for ws, day, _, _ in closed])
+    moved = {"closed_day": move("(r.ws, r.day) IN (SELECT ws, day FROM _dc_closed)", "closed_day")}
+    tag()
+    # n_change: days the close differs from the previous date's, one close per date (get_prices' row order),
+    # a date whose row has no close skipped
+    con.execute("""CREATE OR REPLACE TEMP TABLE _dc_sw AS
+        WITH one AS (
+            SELECT symbol, ws, day, close AS px FROM _dc_rows
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol, ws, day
+                                       ORDER BY adjClose DESC NULLS LAST, close DESC NULLS LAST,
+                                                volume DESC NULLS LAST) = 1),
+        ch AS (
+            SELECT symbol, ws, CASE WHEN px <> LAG(px) OVER (PARTITION BY symbol, ws ORDER BY day)
+                                    THEN 1 ELSE 0 END AS c
+            FROM one WHERE px IS NOT NULL)
+        SELECT t.symbol, t.ws, t.traded, COALESCE(n.n_change, 0) AS n_change
+        FROM (SELECT symbol, ws, COALESCE(BOOL_OR(volume > 0), FALSE) AS traded FROM _dc_rows
+              GROUP BY symbol, ws) t
+        LEFT JOIN (SELECT symbol, ws, SUM(c) AS n_change FROM ch GROUP BY symbol, ws) n
+          ON n.symbol = t.symbol AND n.ws = t.ws""")
+    nc = int(cfg["no_volume_min_changes"])
+    no_volume, flat = con.execute("SELECT COUNT(*) FILTER (WHERE NOT traded),"
+                                  f" COUNT(*) FILTER (WHERE NOT traded AND n_change < {nc}) FROM _dc_sw").fetchone()
+    moved["zero_volume"] = move("(r.volume IS NULL OR r.volume <= 0) AND (r.symbol, r.ws) IN"
+                                " (SELECT symbol, ws FROM _dc_sw WHERE traded)", "zero_volume")
+    moved["zero_volume"] += move(f"(r.symbol, r.ws) IN (SELECT symbol, ws FROM _dc_sw WHERE NOT traded AND n_change < {nc})",
+                                 "flat_no_volume")
+    tag()
+    moved["nonpositive_price"] = move("r.adjClose IS NULL OR r.adjClose <= 0", "nonpositive_price")
+    gaps = []
+    if siblings is not None:
+        tag()
+        gaps = _sibling_gaps(con, siblings, cfg["sibling"])
+        if gaps:
+            con.executemany("INSERT INTO _dc_gap VALUES (?, ?)", [(g["symbol"], g["epoch"]) for g in gaps])
+            move("(r.symbol, r.trade_epoch) IN (SELECT symbol, trade_epoch FROM _dc_gap)", "sibling_gap")
+    for t in ("_dc_win", "_dc_rows", "_dc_closed", "_dc_sw", "_dc_gap"):
+        con.execute(f"DROP TABLE IF EXISTS {t}")
+    return {"rows_moved": moved, "symbol_windows_without_volume": int(no_volume), "flat_windows_moved": int(flat),
+            "closed_day_test_skipped": len(skipped),
+            "closed_dates": [{"date": utc_date(day * 86400).isoformat(), "traded": traded, "ref": round(ref, 1)}
+                             for _, day, traded, ref in sorted(closed, key=lambda c: c[1])],
+            "sibling_gap_rows": len(gaps), "sibling_gaps": [{k: v for k, v in g.items() if k != "epoch"} for g in gaps]}
+
+
+def _sibling_gaps(con, siblings, c):
+    """Check T step 4 on the tagged rows (_dc_rows): a thin line's moved first bar is not replaced by
+    a bar off its liquid sibling's scale.
+
+    Siblings: lines that share an identical FY cap in `siblings` in min_shared_fy FYs or more. A
+    (symbol, window) is tested only when T moved a row before the line's first remaining row there
+    (the bar get_prices reads changed); the earliest moved row is the anchor. The reference against
+    a sibling: per other cached window within ref_days (the cache holds only the windows, so on an
+    annual leg that is one window each side), the median log close ratio over the days both traded;
+    ref = the median of those window medians. The pair tests the line only when: the line is the
+    thinner one (lower median close x volume over the reference days); the reference holds
+    ref_min_windows windows and ref_min_days days; stable_share of its days sit within gap of ref;
+    and the anchor's ratio to the sibling's close that day sits within gap of ref
+    (the bar T moved was on scale). From the first remaining row on, a row is off when every sibling
+    that can test it puts it more than gap from ref and more than gap from the anchor's ratio (T's
+    move opened the gap); the leading run of off rows moves, and the first row on scale or untestable
+    stops it. The liquid line is never moved. Returns one dict per row to move: symbol, date, epoch,
+    close, sibling, sibling_close, ratio and ref, sorted. Creates _dc_gap(symbol, trade_epoch)."""
+    con.execute("CREATE OR REPLACE TEMP TABLE _dc_gap(symbol VARCHAR, trade_epoch BIGINT)")
+    gap, ref_s = math.log(float(c["gap"])), int(c["ref_days"]) * 86400
+    rows = con.execute(f"""
+        WITH sib AS (
+            SELECT x.symbol AS a, y.symbol AS b FROM {siblings} x JOIN {siblings} y
+              ON x.filing_epoch = y.filing_epoch AND x.market_cap = y.market_cap AND x.symbol <> y.symbol
+            GROUP BY x.symbol, y.symbol HAVING COUNT(DISTINCT x.filing_epoch) >= {int(c["min_shared_fy"])}),
+        tr AS (SELECT symbol, ws, day, MAX(close) AS close, MAX(close * volume) AS tv FROM _dc_rows
+               WHERE volume > 0 AND close > 0 AND symbol IN (SELECT a FROM sib)
+               GROUP BY symbol, ws, day),
+        first_left AS (SELECT symbol, ws, MIN(trade_epoch) AS e FROM _dc_rows
+                       WHERE symbol IN (SELECT a FROM sib) GROUP BY symbol, ws),
+        trig AS (SELECT f.symbol, f.ws, MIN(d.trade_epoch) AS e0 FROM first_left f
+                 JOIN prices_dropped d ON d.symbol = f.symbol AND d.window_start = f.ws
+                 GROUP BY f.symbol, f.ws, f.e HAVING MIN(d.trade_epoch) < f.e),
+        anc AS (SELECT t.symbol, t.ws, t.e0 // 86400 AS day, MAX(d.close) AS close FROM trig t
+                JOIN prices_dropped d ON d.symbol = t.symbol AND d.trade_epoch = t.e0 WHERE d.close > 0
+                GROUP BY t.symbol, t.ws, t.e0),
+        allpx AS (SELECT symbol, trade_epoch // 86400 AS day, MAX(close) AS close
+                  FROM (SELECT symbol, trade_epoch, close FROM _dc_rows
+                        UNION ALL SELECT symbol, trade_epoch, close FROM prices_dropped) u
+                  WHERE close > 0 AND symbol IN (SELECT a FROM sib) GROUP BY symbol, trade_epoch // 86400),
+        pd AS (SELECT s.a, s.b, ta.ws, ta.day, LN(ta.close / tb.close) AS lr, ta.tv AS tva, tb.tv AS tvb
+               FROM sib s JOIN tr ta ON ta.symbol = s.a JOIN tr tb ON tb.symbol = s.b AND tb.day = ta.day),
+        pw AS (SELECT a, b, ws, MEDIAN(lr) AS m, COUNT(*) AS n FROM pd GROUP BY a, b, ws),
+        ref AS (SELECT t.symbol AS a, w.b, t.ws, MEDIAN(w.m) AS med, COUNT(*) AS nw, SUM(w.n) AS nd
+                FROM trig t JOIN pw w ON w.a = t.symbol AND w.ws <> t.ws AND ABS(w.ws - t.ws) <= {ref_s}
+                GROUP BY t.symbol, w.b, t.ws),
+        liq AS (SELECT r.a, r.b, r.ws, MEDIAN(p.tva) AS la, MEDIAN(p.tvb) AS lb,
+                       AVG(CASE WHEN ABS(p.lr - r.med) <= {gap} THEN 1.0 ELSE 0.0 END) AS day_share
+                FROM ref r JOIN pd p ON p.a = r.a AND p.b = r.b AND p.ws <> r.ws AND ABS(p.ws - r.ws) <= {ref_s}
+                GROUP BY r.a, r.b, r.ws),
+        stable AS (SELECT r.a, r.b, r.ws, r.med, LN(n.close / bx.close) AS lra FROM ref r
+                   JOIN liq l ON l.a = r.a AND l.b = r.b AND l.ws = r.ws
+                   JOIN anc n ON n.symbol = r.a AND n.ws = r.ws
+                   JOIN allpx bx ON bx.symbol = r.b AND bx.day = n.day
+                   WHERE r.nw >= {int(c["ref_min_windows"])} AND r.nd >= {int(c["ref_min_days"])} AND l.la < l.lb
+                     AND l.day_share >= {float(c["stable_share"])}
+                     AND ABS(LN(n.close / bx.close) - r.med) <= {gap}),
+        cand AS (SELECT r.symbol, r.ws, r.trade_epoch, r.day, MAX(r.close) AS close FROM _dc_rows r
+                 JOIN trig t ON t.symbol = r.symbol AND t.ws = r.ws WHERE r.close > 0
+                 GROUP BY r.symbol, r.ws, r.trade_epoch, r.day),
+        test AS (SELECT c.symbol, c.trade_epoch, st.b, tb.close AS b_close, EXP(st.med) AS ref,
+                        ABS(LN(c.close / tb.close) - st.med) > {gap} AND ABS(LN(c.close / tb.close) - st.lra) > {gap} AS off
+                 FROM cand c JOIN stable st ON st.a = c.symbol AND st.ws = c.ws
+                 JOIN tr tb ON tb.symbol = st.b AND tb.day = c.day),
+        verdict AS (SELECT c.symbol, c.ws, c.trade_epoch, c.close, COALESCE(BOOL_AND(t.off), FALSE) AS off,
+                           arg_min(t.b, t.b) AS b, arg_min(t.b_close, t.b) AS b_close, arg_min(t.ref, t.b) AS ref
+                    FROM cand c LEFT JOIN test t ON t.symbol = c.symbol AND t.trade_epoch = c.trade_epoch
+                    GROUP BY c.symbol, c.ws, c.trade_epoch, c.close),
+        stop AS (SELECT symbol, ws, MIN(trade_epoch) AS e FROM verdict WHERE NOT off GROUP BY symbol, ws)
+        SELECT v.symbol, v.trade_epoch, v.close, v.b, v.b_close, v.ref FROM verdict v
+        LEFT JOIN stop s ON s.symbol = v.symbol AND s.ws = v.ws
+        WHERE v.off AND (s.e IS NULL OR v.trade_epoch < s.e)
+        ORDER BY v.symbol, v.trade_epoch""").fetchall()
+    return [{"symbol": s, "date": utc_date(e).isoformat(), "epoch": int(e), "close": cl, "sibling": b,
+             "sibling_close": bc, "ratio": _sig(cl / bc), "ref": _sig(ref)} for s, e, cl, b, bc, ref in rows]
+
+
+def mark_nvdr_twins(con, table="isin_map"):
+    """Check N: key each SET NVDR line (X-R.BK) to its ordinary line's security.
+
+    Adds sec_key VARCHAR and nvdr BOOLEAN to load_isin_map()'s table. X-R.BK gets sec_key = X.BK's
+    normalised ISIN and nvdr = TRUE when X.BK is in the map, both ISINs share characters 1 to 6 and
+    character 10 of the NVDR's ISIN is R. Every other row keeps NULLs, so isin_dedup_sql(twin_key=True)
+    keys it on its own ISIN. Returns the number of NVDR symbols linked.
+    """
+    con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS sec_key VARCHAR")
+    con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS nvdr BOOLEAN")
+    con.execute(f"""
+        UPDATE {table} AS t SET sec_key = o.isin, nvdr = TRUE
+        FROM (SELECT symbol, MIN(NULLIF(UPPER(TRIM(isin)), '')) AS isin FROM {table} GROUP BY symbol) o
+        WHERE t.symbol LIKE '%-R.BK'
+          AND o.symbol = LEFT(t.symbol, LENGTH(t.symbol) - 5) || '.BK'
+          AND o.isin IS NOT NULL
+          AND SUBSTR(UPPER(TRIM(t.isin)), 1, 6) = SUBSTR(o.isin, 1, 6)
+          AND SUBSTR(UPPER(TRIM(t.isin)), 10, 1) = 'R'""")
+    return con.execute(f"SELECT COUNT(DISTINCT symbol) FROM {table} WHERE nvdr").fetchone()[0]
+
+
+def _twin_ranked_sql(candidates_sql, target_date, offset_days, min_entry_price, window_days=10,
+                     isin_table="isin_map", prices_table="prices_cache"):
+    """isin_dedup_sql's ranking under the twin key, every row kept, with _tw_key, _tw_nvdr, _isin_rn."""
+    shifted = target_date + timedelta(days=offset_days)
+    lo, hi = utc_epoch(shifted), utc_epoch(shifted + timedelta(days=window_days))
+    return f"""
+            SELECT _c.*, COALESCE(_i.sec_key, _i.isin, _c.symbol) AS _tw_key,
+                   COALESCE(_i.nvdr, FALSE) AS _tw_nvdr,
+                   ROW_NUMBER() OVER (
+                PARTITION BY COALESCE(_i.sec_key, _i.isin, _c.symbol)
+                ORDER BY CASE WHEN _px.adjClose > 0 AND _px.adjClose >= {float(min_entry_price)}
+                              THEN 0 ELSE 1 END,
+                         CASE WHEN _i.nvdr THEN 1 ELSE 0 END,
+                         CASE WHEN _i.live THEN 0 ELSE 1 END, CASE WHEN _i.home THEN 0 ELSE 1 END,
+                         _c.symbol) AS _isin_rn
+            FROM ({candidates_sql}) _c
+            LEFT JOIN (SELECT symbol, MIN(NULLIF(UPPER(TRIM(isin)), '')) AS isin,
+                              BOOL_OR(isActivelyTrading) AS live, BOOL_OR(home_ccy) AS home,
+                              MIN(sec_key) AS sec_key, BOOL_OR(nvdr) AS nvdr
+                       FROM {isin_table} GROUP BY symbol) _i ON _i.symbol = _c.symbol
+            LEFT JOIN (SELECT symbol, adjClose FROM {prices_table}
+                       WHERE trade_epoch >= {lo} AND trade_epoch <= {hi}
+                       QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol
+                           ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST) = 1) _px
+                ON _px.symbol = _c.symbol"""
+
+
+def nvdr_twins_sql(candidates_sql, target_date, offset_days, min_entry_price, window_days=10,
+                   isin_table="isin_map", prices_table="prices_cache"):
+    """(kept, merged, kept_nvdr) for every pair isin_dedup_sql(twin_key=True) collapses across an NVDR
+    link. Binds the same `?` parameters as candidates_sql, once."""
+    r = _twin_ranked_sql(candidates_sql, target_date, offset_days, min_entry_price, window_days,
+                         isin_table, prices_table)
+    return f"""
+        WITH _r AS ({r})
+        SELECT DISTINCT k.symbol AS kept, m.symbol AS merged, k._tw_nvdr AS kept_nvdr
+        FROM _r k JOIN _r m ON m._tw_key = k._tw_key AND m._isin_rn > 1 AND m.symbol <> k.symbol
+        WHERE k._isin_rn = 1 AND (k._tw_nvdr OR m._tw_nvdr)"""
+
+
+CAP_CHECK_DDL = ("CREATE OR REPLACE TABLE cap_check(symbol VARCHAR, filing_epoch BIGINT, market_cap DOUBLE,"
+                 " pf DOUBLE, pf_source VARCHAR, pf_cons DOUBLE, pf_fwd DOUBLE, u DOUBLE, n_traded BIGINT,"
+                 " lines BIGINT, k DOUBLE, rule VARCHAR, cap_div DOUBLE, sh_restated DOUBLE, sh_step DOUBLE)")
+CAP_INPUTS_DDL = ("CREATE OR REPLACE TABLE cap_inputs(symbol VARCHAR, filing_epoch BIGINT, market_cap DOUBLE,"
+                  " net_income DOUBLE, eps DOUBLE, shares DOUBLE, n_bars BIGINT, n_traded BIGINT,"
+                  " turnover DOUBLE, pf_raw DOUBLE, pf_splits DOUBLE, pf_cons DOUBLE, pf_fwd DOUBLE,"
+                  " next_split BIGINT, sh_restated DOUBLE, sh_step DOUBLE)")
+# A floor's failing side, for check M's events: over the floor on the raw cap, not on cap_used.
+CAP_FAIL_TEST = "km.marketCap > ? AND (km.cap_used IS NULL OR km.cap_used <= ?)"
+
+
+def cap_used_sql(m="m", cc="cc"):
+    """The cap a floor reads under check M: NULL for an ineligible FY row, else marketCap / cap_div."""
+    return (f"CASE WHEN {cc}.rule = 'ineligible' THEN NULL WHEN {cc}.cap_div IS NOT NULL"
+            f" THEN {m}.marketCap / {cc}.cap_div ELSE {m}.marketCap END")
+
+
+def empty_cap_check(con):
+    """A typed, empty cap_check: the floors LEFT JOIN it, so cap_used is marketCap everywhere."""
+    con.execute(CAP_CHECK_DDL)
+
+
+def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
+    """Check M's server query: the inputs for every FY key_metrics row over the leg's floor.
+
+    Per (symbol, FY period end): marketCap, the same FY's net income, EPS and weighted shares, the
+    last `bars` stock_eod dates up to the period end, one row per date with the traded row kept
+    first (count, traded count, median close x volume of
+    the traded ones), stock_eod close over the raw close on the latest day both exist, and over the
+    splits_calendar events after the period end: the product of denominator / numerator (pf_splits),
+    of the consolidations alone (pf_cons) and of the forward splits of split_min or more (pf_fwd).
+    An event whose ratio passes split_max either way (4541.T's 1:70,384,700 is a delisting cash-out,
+    and FMP's prices do not carry it) is left out of all three. A record repeating the ratio of a record
+    kept within split_dup_days before it is a duplicate and counts once (AMCR's two 2026-01-15 1:5
+    rows); records are read in date order against the ones kept, so a chain of repeats cannot drop a
+    record further than that from every kept one. next_split is the first later record's date. FMP's
+    FY share counts (weightedAverageShsOut) tell how the row's shares sit against each later record:
+    the count of the last FY before it against the first FY on or after it (records between the same
+    two FYs taken together, ratio q = numerator / denominator). Within share_tol of 1 the count was
+    restated for the record (no step); when the log of its change is share_step times the log of q
+    (the same direction, at least half as large and at most twice) it steps there (the count is as
+    traded); records under share_tol squared either way, or with no FY on one side, tell nothing.
+    sh_restated is the product of q over the restated records, sh_step that of 1 / q over the stepping
+    ones.
+    date_ranges [(first, last)] bound the bar scans to the days before each period end. The server's
+    dateEpoch columns are UINTEGER and some split records sit at 0, so epochs are cast to BIGINT first.
+    """
+    c = cfg["cap"]
+    look = int(c["lookback_days"]) * 86400
+    smax, smin = math.log(float(c["split_max"])), math.log(float(c["split_min"]))
+    dup, lt = int(c["split_dup_days"]) * 86400, math.log(float(c["share_tol"]))
+    st_lo, st_hi = (float(v) for v in c["share_step"])
+    days = lambda col: " OR ".join(f"({col} >= '{a}' AND {col} <= '{b}')" for a, b in date_ranges) or "FALSE"
+    return f"""
+        WITH RECURSIVE km AS (
+            SELECT symbol, CAST(dateEpoch AS BIGINT) AS fe, marketCap FROM key_metrics
+            WHERE period = 'FY' AND returnOnEquity IS NOT NULL AND marketCap > {float(mktcap_min)}
+              AND {sym_filter_sql}
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol, dateEpoch ORDER BY marketCap DESC) = 1),
+        inc AS (
+            SELECT symbol, dateEpoch AS fe, netIncome, eps, weightedAverageShsOut FROM income_statement
+            WHERE period = 'FY' AND symbol IN (SELECT symbol FROM km)
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol, dateEpoch
+                                       ORDER BY filingDate DESC NULLS LAST, netIncome DESC NULLS LAST) = 1),
+        kb AS (
+            SELECT symbol, fe, fe // {look} AS blk FROM km
+            UNION ALL SELECT symbol, fe, fe // {look} - 1 FROM km),
+        bars AS (
+            SELECT symbol, fe, e, close, volume, ROW_NUMBER() OVER (PARTITION BY symbol, fe ORDER BY e DESC) AS rn
+            FROM (
+                SELECT kb.symbol, kb.fe, e.dateEpoch AS e, e.close, e.volume
+                FROM stock_eod e JOIN kb ON e.symbol = kb.symbol AND e.dateEpoch // {look} = kb.blk
+                WHERE ({days("e.date")}) AND e.dateEpoch <= kb.fe AND e.dateEpoch > kb.fe - {look}
+                QUALIFY ROW_NUMBER() OVER (PARTITION BY kb.symbol, kb.fe, e.dateEpoch
+                                           ORDER BY e.volume DESC NULLS LAST, e.close DESC NULLS LAST) = 1) one_per_day),
+        lb AS (SELECT * FROM bars WHERE rn <= {int(c["bars"])}),
+        raw AS (
+            SELECT symbol, dateEpoch AS e, MAX(adjClose) AS raw_close FROM stock_prices_non_split_adjusted_daily
+            WHERE ({days("date")}) AND adjClose > 0 AND symbol IN (SELECT symbol FROM km)
+            GROUP BY symbol, dateEpoch),
+        pfr AS (
+            SELECT lb.symbol, lb.fe, arg_max(lb.close / raw.raw_close, lb.e) AS pf_raw
+            FROM lb JOIN raw ON raw.symbol = lb.symbol AND raw.e = lb.e
+            WHERE lb.close > 0 GROUP BY lb.symbol, lb.fe),
+        agg AS (
+            SELECT symbol, fe, COUNT(*) AS n_bars,
+                   SUM(CASE WHEN volume > 0 AND close > 0 THEN 1 ELSE 0 END) AS n_traded,
+                   MEDIAN(CASE WHEN volume > 0 AND close > 0 THEN close * volume END) AS turnover
+            FROM lb GROUP BY symbol, fe),
+        spr AS (
+            SELECT DISTINCT symbol, CAST(dateEpoch AS BIGINT) AS se, numerator AS num, denominator AS den
+            FROM splits_calendar
+            WHERE symbol IN (SELECT symbol FROM km) AND numerator > 0 AND denominator > 0
+              AND ABS(LN(denominator / numerator)) <= {smax}),
+        spo AS (
+            SELECT symbol, se, num, den, DENSE_RANK() OVER (ORDER BY symbol, num / den) AS gid,
+                   ROW_NUMBER() OVER (PARTITION BY symbol, num / den ORDER BY se, num) AS rn
+            FROM spr),
+        spk AS (
+            SELECT gid, rn, symbol, se, num, den, se AS kept_se, TRUE AS keep FROM spo WHERE rn = 1
+            UNION ALL
+            SELECT o.gid, o.rn, o.symbol, o.se, o.num, o.den,
+                   CASE WHEN o.se > k.kept_se + {dup} THEN o.se ELSE k.kept_se END, o.se > k.kept_se + {dup}
+            FROM spk k JOIN spo o ON o.gid = k.gid AND o.rn = k.rn + 1),
+        sp AS (SELECT symbol, se, LN(num / den) AS lq FROM spk WHERE keep),
+        spl AS (
+            SELECT km.symbol, km.fe, EXP(SUM(-s.lq)) AS pf_splits, EXP(SUM(GREATEST(-s.lq, 0))) AS pf_cons,
+                   EXP(SUM(CASE WHEN s.lq >= {smin} THEN s.lq ELSE 0 END)) AS pf_fwd, MIN(s.se) AS next_split
+            FROM km JOIN sp s ON s.symbol = km.symbol AND s.se > km.fe
+            GROUP BY km.symbol, km.fe),
+        sh AS (SELECT symbol, fe AS sfe, weightedAverageShsOut AS s FROM inc WHERE weightedAverageShsOut > 0),
+        sb AS (
+            SELECT p.symbol, p.se, p.lq, MAX(CASE WHEN h.sfe < p.se THEN h.sfe END) AS bfe,
+                   MIN(CASE WHEN h.sfe >= p.se THEN h.sfe END) AS afe
+            FROM sp p JOIN sh h ON h.symbol = p.symbol GROUP BY p.symbol, p.se, p.lq),
+        iv AS (
+            SELECT b.symbol, MIN(b.se) AS first_se, SUM(b.lq) AS lq, LN(ha.s / hb.s) AS lr
+            FROM sb b JOIN sh hb ON hb.symbol = b.symbol AND hb.sfe = b.bfe
+            JOIN sh ha ON ha.symbol = b.symbol AND ha.sfe = b.afe
+            GROUP BY b.symbol, b.bfe, b.afe, ha.s, hb.s),
+        shv AS (
+            SELECT km.symbol, km.fe,
+                   EXP(SUM(CASE WHEN ABS(v.lq) > {2 * lt} AND ABS(v.lr) <= {lt} THEN v.lq ELSE 0 END)) AS sh_restated,
+                   EXP(SUM(CASE WHEN ABS(v.lq) > {2 * lt} AND v.lr / v.lq BETWEEN {st_lo} AND {st_hi}
+                                THEN -v.lq ELSE 0 END)) AS sh_step
+            FROM km JOIN iv v ON v.symbol = km.symbol AND v.first_se > km.fe
+            GROUP BY km.symbol, km.fe)
+        SELECT km.symbol, km.fe AS filing_epoch, km.marketCap AS market_cap, inc.netIncome AS net_income,
+               inc.eps, inc.weightedAverageShsOut AS shares, agg.n_bars, agg.n_traded, agg.turnover,
+               pfr.pf_raw, spl.pf_splits, spl.pf_cons, spl.pf_fwd, spl.next_split, shv.sh_restated, shv.sh_step
+        FROM km
+        LEFT JOIN inc ON inc.symbol = km.symbol AND inc.fe = km.fe
+        LEFT JOIN agg ON agg.symbol = km.symbol AND agg.fe = km.fe
+        LEFT JOIN pfr ON pfr.symbol = km.symbol AND pfr.fe = km.fe
+        LEFT JOIN spl ON spl.symbol = km.symbol AND spl.fe = km.fe
+        LEFT JOIN shv ON shv.symbol = km.symbol AND shv.fe = km.fe
+        ORDER BY km.symbol, km.fe"""
+
+
+def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
+    """Check M's rule, from cap_inputs into cap_check (one row per symbol and FY period end).
+
+    Inputs: pf_raw = close / raw close at the period end; pf_splits, pf_cons and pf_fwd = the later
+    split records', consolidations' and forward splits' products; sh_restated, sh_step and next_split
+    from FMP's FY share counts and the records (cap_check_sql);
+    k = shares x EPS / net income, when |EPS| >= eps_min, |net income| >= net_income_min and the
+    signs agree; u = the turnover of every line that carries the same FY cap as this row and shares
+    an identical FY cap with it in at least sibling.min_shared_fy FYs (share classes of one company,
+    so a traded sibling clears a thin class; one shared FY can be a coincidence between unrelated
+    companies): the sum of each line's median close x volume of its traded bars, over marketCap,
+    unknown when the lines hold under min_traded_bars traded bars between them. A line with no bars
+    in the lookback (not listed yet, or gone) adds nothing to u, and the row is then not strict.
+
+    D, the divisor, needs evidence beyond the split records that FMP's cap sits on as-traded shares
+    times a restated price. P, the measured price factor, is pf_raw, or for a row with bars but no raw
+    close the pf_raw of the same line's nearest FY row that has one with no split record between the
+    two period ends (pf_source 'raw_fy'; TOPS FY2004 from FY2006). Then
+      P >= pf_min       price evidence: D = P x pf_fwd (the share count carries the forward splits).
+      P under pf_min    D = P x sh_restated: only records FMP's FY share count was seen restated for
+                        move it, so pf_fwd never multiplies a price factor near 1 (0568.HK FY2006:
+                        5:1, 1:10 and 2:1 restated, D 1; Bonjour FY2008: the 2010 forward splits
+                        restated, D = 1.375 x 12).
+      no P              share evidence: D = sh_step, the records at which the FY share count steps
+                        (a line with no bars, or no raw close: the split products alone never lower).
+    D = max(1, D). pf (gate, k agreement, the events) is P, else pf_splits.
+
+    The row is checked when pf >= pf_min or pf_cons >= pf_min (forward and reverse splits can net
+    out in pf). It is strict when pf >= pf_min and every line of its group has bars. Then, with
+    K = k when k > k_min:
+      K within k_tol of pf  the cap lowers to cap / K first, and u is read on that cap: it clears ->
+                            'cap_over_k'; it fails -> as below, with divisor max(K, D).
+      K disagreeing with pf turnover then k, as before: u clears -> 'cap_over_k' (cap / K); u fails ->
+                            'ineligible' when strict (EPS, shares and prices sit on different bases,
+                            HAO), else lowered as below, by max(K, D).
+      no K                  u clears -> 'stands'.
+    A failing u lowers the cap to cap / divisor ('cap_over_pf') when u on the lowered cap clears
+    turnover_max or the row is not strict, else the row is 'ineligible' (cap_used NULL). An unknown
+    u lowers it the same way. So a gate opened by the consolidations alone (pf under pf_min), or a
+    group whose liquid line has no bars yet (ERIC-B.ST before 2000), lowers the cap and never
+    excludes the row. Where that divisor is 1 (no evidence and no K: HAO FY2025, pf 1.0,
+    consolidations 2560; a line with no bars whose share count never steps), or within 1e-9 of it
+    (0760.HK FY2006: 2 x 0.5000000000000002), nothing can lower the cap: the row is 'unchecked', keeps
+    FMP's cap and is counted in cap_rows_flagged. It never raises a cap. pf, the split products and
+    the later FY share counts come from after the period end but only gate and size the lowering (they
+    say how FMP restated the row): the decision reads k (same filing) and u (trading before the period
+    end).
+    Returns {cap_rows_checked, cap_rows_flagged, cap_unchecked}: every row, those whose rule is not
+    'stands', and the 'unchecked' rows ({symbol, fy, cap, pf, pf_source, pf_cons, pf_fwd, sh_restated,
+    sh_step, u, lines, k}).
+    """
+    c = cfg["cap"]
+    pf_min, u_max, k_min = float(c["pf_min"]), float(c["turnover_max"]), float(c["k_min"])
+    min_fy = int(cfg["sibling"]["min_shared_fy"])
+    con.execute(CAP_CHECK_DDL)
+    con.execute(f"""
+        INSERT INTO cap_check
+        WITH x0 AS (
+            SELECT symbol, CAST(filing_epoch AS BIGINT) AS filing_epoch, CAST(market_cap AS DOUBLE) AS market_cap,
+                   CAST(pf_raw AS DOUBLE) AS pf_raw, CAST(pf_splits AS DOUBLE) AS pf_splits,
+                   CAST(pf_cons AS DOUBLE) AS pf_cons, CAST(pf_fwd AS DOUBLE) AS pf_fwd,
+                   CAST(next_split AS BIGINT) AS next_split, CAST(sh_restated AS DOUBLE) AS sh_restated,
+                   CAST(sh_step AS DOUBLE) AS sh_step,
+                   CAST(n_bars AS BIGINT) AS n_bars, CAST(n_traded AS BIGINT) AS n_traded,
+                   CAST(turnover AS DOUBLE) AS turnover,
+                   CASE WHEN ABS(eps) >= {float(c["eps_min"])} AND ABS(net_income) >= {float(c["net_income_min"])}
+                             AND SIGN(eps) = SIGN(net_income) AND shares > 0
+                        THEN CAST(shares AS DOUBLE) * eps / net_income END AS k
+            FROM {inputs}),
+        bw AS (
+            SELECT a.symbol, a.filing_epoch,
+                   arg_min(b.pf_raw, ABS(b.filing_epoch - a.filing_epoch) * 2
+                                     + CASE WHEN b.filing_epoch > a.filing_epoch THEN 0 ELSE 1 END) AS pf_line
+            FROM x0 a JOIN x0 b ON b.symbol = a.symbol AND b.pf_raw IS NOT NULL
+             AND ((b.filing_epoch > a.filing_epoch AND COALESCE(a.next_split > b.filing_epoch, TRUE))
+               OR (b.filing_epoch < a.filing_epoch AND COALESCE(b.next_split > a.filing_epoch, TRUE)))
+            WHERE a.pf_raw IS NULL AND COALESCE(a.n_bars, 0) > 0
+            GROUP BY a.symbol, a.filing_epoch),
+        x AS (
+            SELECT x0.*, COALESCE(x0.pf_raw, bw.pf_line) AS pp, COALESCE(x0.pf_raw, bw.pf_line, x0.pf_splits) AS pf,
+                   CASE WHEN x0.pf_raw IS NOT NULL THEN 'raw' WHEN bw.pf_line IS NOT NULL THEN 'raw_fy'
+                        WHEN x0.pf_splits IS NOT NULL THEN 'splits' END AS pf_source
+            FROM x0 LEFT JOIN bw ON bw.symbol = x0.symbol AND bw.filing_epoch = x0.filing_epoch),
+        cls AS (
+            SELECT a.symbol AS a, b.symbol AS b FROM x a JOIN x b
+              ON a.filing_epoch = b.filing_epoch AND a.market_cap = b.market_cap AND a.symbol <> b.symbol
+            GROUP BY a.symbol, b.symbol HAVING COUNT(DISTINCT a.filing_epoch) >= {min_fy}),
+        mem AS (
+            SELECT symbol AS a, filing_epoch, n_bars, n_traded, turnover FROM x
+            UNION ALL
+            SELECT s.a, m.filing_epoch, m.n_bars, m.n_traded, m.turnover
+            FROM cls s JOIN x o ON o.symbol = s.a
+            JOIN x m ON m.symbol = s.b AND m.filing_epoch = o.filing_epoch AND m.market_cap = o.market_cap),
+        g AS (
+            SELECT a AS symbol, filing_epoch, COUNT(*) AS lines, SUM(COALESCE(n_traded, 0)) AS g_traded,
+                   SUM(CASE WHEN n_traded > 0 THEN turnover END) AS g_turnover,
+                   BOOL_OR(COALESCE(n_bars, 0) = 0) AS missing
+            FROM mem GROUP BY a, filing_epoch),
+        y AS (
+            SELECT x.*, g.lines, g.g_traded,
+                   CASE WHEN g.g_traded >= {int(c["min_traded_bars"])} AND x.market_cap > 0
+                        THEN g.g_turnover / x.market_cap END AS u,
+                   COALESCE(x.pf >= {pf_min} OR x.pf_cons >= {pf_min}, FALSE) AS gate,
+                   COALESCE(x.pf >= {pf_min}, FALSE) AND NOT g.missing AS strict,
+                   GREATEST(1.0, CASE WHEN x.pp >= {pf_min} THEN x.pp * COALESCE(x.pf_fwd, 1.0)
+                                      WHEN x.pp IS NOT NULL THEN x.pp * COALESCE(x.sh_restated, 1.0)
+                                      ELSE COALESCE(x.sh_step, 1.0) END) AS d,
+                   CASE WHEN x.k > {k_min} THEN x.k END AS kk,
+                   COALESCE(x.k > {k_min} AND x.pf > 0 AND ABS(LN(x.k / x.pf)) <= LN({float(c["k_tol"])}), FALSE) AS agree
+            FROM x JOIN g ON g.symbol = x.symbol AND g.filing_epoch = x.filing_epoch),
+        z AS (
+            SELECT *, GREATEST(d, COALESCE(kk, 1.0)) AS dk,
+                   CASE WHEN NOT gate THEN 'stands'
+                        WHEN agree AND u * kk >= {u_max} THEN 'cap_over_k'
+                        WHEN kk IS NOT NULL AND NOT agree AND u >= {u_max} THEN 'cap_over_k'
+                        WHEN kk IS NULL AND u >= {u_max} THEN 'stands'
+                        WHEN kk IS NOT NULL AND NOT agree AND u < {u_max} AND strict THEN 'ineligible'
+                        WHEN u IS NULL THEN 'lower'
+                        WHEN u * GREATEST(d, COALESCE(kk, 1.0)) >= {u_max} THEN 'lower'
+                        WHEN NOT strict THEN 'lower'
+                        ELSE 'ineligible' END AS r
+            FROM y)
+        SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, u, g_traded, lines, k,
+               CASE WHEN r = 'lower' AND dk > 1 + 1e-9 THEN 'cap_over_pf' WHEN r = 'lower' THEN 'unchecked' ELSE r END,
+               CASE WHEN r = 'cap_over_k' THEN kk WHEN r = 'lower' AND dk > 1 + 1e-9 THEN dk END, sh_restated, sh_step
+        FROM z""")
+    dup = con.execute("SELECT COUNT(*) FROM (SELECT symbol, filing_epoch FROM cap_check"
+                      " GROUP BY symbol, filing_epoch HAVING COUNT(*) > 1)").fetchone()[0]
+    if dup:
+        raise AssertionError(f"cap_check has {dup} duplicate (symbol, filing_epoch) keys: the floors would fan out")
+    n, flagged = con.execute("SELECT COUNT(*), COUNT(*) FILTER (WHERE rule <> 'stands') FROM cap_check").fetchone()
+    # an unchecked row keeps FMP's cap, so it never fails a floor and leaves no cap event: listed here
+    unchecked = [{"symbol": s, "fy": utc_date(fe).isoformat(), "cap": cap, "pf": _sig(pf), "pf_source": src,
+                  "pf_cons": _sig(pfc), "pf_fwd": _sig(pff), "sh_restated": _sig(shr), "sh_step": _sig(shs),
+                  "u": _sig(u), "lines": lines, "k": _sig(k)}
+                 for s, fe, cap, pf, src, pfc, pff, shr, shs, u, lines, k in con.execute(
+                     "SELECT symbol, filing_epoch, market_cap, pf, pf_source, pf_cons, pf_fwd, sh_restated, sh_step,"
+                     " u, lines, k FROM cap_check WHERE rule = 'unchecked' ORDER BY symbol, filing_epoch").fetchall()]
+    return {"cap_rows_checked": int(n), "cap_rows_flagged": int(flagged), "cap_unchecked": unchecked}
+
+
+def load_cap_check(client, con, sym_filter_sql, mktcap_min, cfg=DATA_CHECKS_V1, verbose=False,
+                   metrics_table="metrics_cache"):
+    """Check M for a leg: one server query (cap_check_sql), then apply_cap_rule() into cap_check.
+
+    metrics_table (symbol, marketCap, filing_epoch: the topic's FY key_metrics) bounds the bar scans
+    to the lookback before each FY period end over the floor. Returns apply_cap_rule()'s counts.
+    """
+    look = timedelta(days=int(cfg["cap"]["lookback_days"]))
+    ranges = []
+    for (fe,) in con.execute(f"SELECT DISTINCT filing_epoch FROM {metrics_table} WHERE marketCap > ?"
+                             " ORDER BY 1", [float(mktcap_min)]).fetchall():
+        hi = utc_date(fe)
+        if ranges and hi - look <= ranges[-1][1] + timedelta(days=1):
+            ranges[-1][1] = max(ranges[-1][1], hi)
+        else:
+            ranges.append([hi - look, hi])
+    con.execute(CAP_INPUTS_DDL)
+    if ranges:
+        con.execute("DROP TABLE cap_inputs")
+        sql = cap_check_sql(sym_filter_sql, mktcap_min, [(a.isoformat(), b.isoformat()) for a, b in ranges], cfg)
+        if not query_parquet(client, sql, con, "cap_inputs", verbose=verbose, limit=5000000, timeout=600,
+                             memory_mb=16384, threads=6):
+            con.execute("DROP TABLE cap_inputs")   # query_parquet's empty placeholder has no columns
+            con.execute(CAP_INPUTS_DDL)
+    return apply_cap_rule(con, cfg)
+
+
+def load_splits(client, con, sym_filter_sql, verbose=False):
+    """splits(symbol, split_epoch, numerator, denominator): the leg's splits_calendar, for check F."""
+    n = query_parquet(client, "SELECT symbol, dateEpoch AS split_epoch, numerator, denominator"
+                              f" FROM splits_calendar WHERE {sym_filter_sql}", con, "_splits_raw", verbose=verbose)
+    con.execute("CREATE OR REPLACE TABLE splits(symbol VARCHAR, split_epoch BIGINT, numerator DOUBLE,"
+                " denominator DOUBLE)")
+    if n:
+        con.execute("INSERT INTO splits SELECT symbol, split_epoch, numerator, denominator FROM _splits_raw")
+    con.execute("DROP TABLE _splits_raw")
+    return n
+
+
+def _event_key(e):
+    return (e["rebalance_date"], e["symbol"], e["check"], e.get("side") or "",
+            json.dumps(e, sort_keys=True, default=str))
+
+
+class DataChecks:
+    """One leg's data checks dc-1: collects what T, N, M, F and L did, for the results file.
+
+    mode "on" runs every check. mode "uncapped" runs none: it exists for the same-day attribution
+    arm, issues no query and leaves every count at 0. Both modes book with max_single_return=None.
+    A topic's run_backtest builds an "uncapped" instance when it is called without one.
+    Window bars only: nothing here reads an LTP fill, so a drop run and a both run write the same
+    block (annotate_ltp writes F and L for the fills into the ltp block, which strip_ltp removes).
+    full_holdings=True (opt-in, either mode): holdings_full() gives each invested period row every
+    booked name with its bars, prices and return (the holdings string may list only the first names).
+    """
+
+    MODES = ("on", "uncapped")
+    PRICE_KEYS = ("entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost")
+    LOST = {"entry": "entries_lost", "exit": "exits_lost"}
+
+    def __init__(self, mode="on", cfg=DATA_CHECKS_V1, full_holdings=False):
+        if mode not in self.MODES:
+            raise ValueError(f"data checks mode {mode!r} not in {self.MODES}")
+        self.mode, self.cfg, self.on, self.full_holdings = mode, cfg, mode == "on", bool(full_holdings)
+        self.clean = {"rows_moved": {"closed_day": 0, "zero_volume": 0, "nonpositive_price": 0},
+                      "symbol_windows_without_volume": 0, "flat_windows_moved": 0, "closed_day_test_skipped": 0,
+                      "closed_dates": [], "sibling_gap_rows": 0, "sibling_gaps": []}
+        self.cap = {"cap_rows_checked": 0, "cap_rows_flagged": 0, "cap_unchecked": []}
+        self.twins_linked = self.factor_checked = 0
+        self.events, self.large_moves, self.periods = [], [], {}
+
+    # ---- leg-wide steps, recorded by the topic's fetch
+    def record_clean(self, stats):
+        self.clean = stats
+
+    def record_cap(self, stats):
+        self.cap = stats
+
+    def record_twins_linked(self, n):
+        self.twins_linked = int(n)
+
+    def _period(self, d):
+        return self.periods.setdefault(d.isoformat(), {})
+
+    def _event(self, d, symbol, check, side=None, **fields):
+        self.events.append({"rebalance_date": d.isoformat(), "symbol": symbol, "check": check, "side": side,
+                            **fields})
+
+    # ---- per screen
+    def twins(self, con, candidates_sql, params, target_date, offset_days, min_entry_price, kept):
+        """Check N's events: each kept (screened) line that absorbed a twin across an NVDR link."""
+        n = 0
+        if self.on:
+            keep = set(kept)
+            rows = con.execute(nvdr_twins_sql(candidates_sql, target_date, offset_days, min_entry_price),
+                               list(params)).fetchall()
+            for k, m, k_nvdr in sorted(rows):
+                if k in keep:
+                    n += 1
+                    self._event(target_date, k, "twin", merged=m, reason="stand_in" if k_nvdr else "ordinary_first")
+        self._period(target_date)["twins_collapsed"] = n
+        return n
+
+    def caps(self, con, sql, params, target_date, floor, check="cap"):
+        """Check M's events: candidates over `floor` on the raw cap that fail it on cap_used.
+
+        `sql` is the screen's candidate SELECT with CAP_FAIL_TEST as its floor and km_epoch, raw_cap
+        among its columns."""
+        n = 0
+        if self.on:
+            rows = con.execute(f"""
+                SELECT DISTINCT c.symbol, c.km_epoch, c.raw_cap, cc.pf, cc.pf_source, cc.pf_cons, cc.pf_fwd,
+                       cc.sh_restated, cc.sh_step, cc.u, cc.lines, cc.k, cc.rule, cc.cap_div
+                FROM ({sql}) c LEFT JOIN cap_check cc ON cc.symbol = c.symbol AND cc.filing_epoch = c.km_epoch
+                ORDER BY c.symbol, c.km_epoch""", list(params)).fetchall()
+            for sym, fe, cap, pf, src, pfc, pff, shr, shs, u, lines, k, rule, div in rows:
+                n += 1
+                used = None if rule == "ineligible" else (cap / div if div else cap)
+                self._event(target_date, sym, check, fy=utc_date(fe).isoformat(), cap=cap, k=_sig(k), pf=_sig(pf),
+                            pf_source=src, pf_cons=_sig(pfc), pf_fwd=_sig(pff), sh_restated=_sig(shr),
+                            sh_step=_sig(shs), u=_sig(u), lines=lines, rule=rule, cap_div=_sig(div),
+                            cap_used=_sig(used, 10), floor=floor)
+        self._period(target_date)[f"{check}_excluded"] = n
+        return n
+
+    # ---- per priced period
+    @staticmethod
+    def _window(target_date, offset_days, window_days=10):
+        shifted = target_date + timedelta(days=offset_days)
+        return utc_epoch(shifted), utc_epoch(shifted + timedelta(days=window_days))
+
+    @classmethod
+    def _bars(cls, con, symbols, target_date, offset_days):
+        """get_prices' bar per symbol (same window and order), with its date, close and volume."""
+        if not symbols:
+            return {}
+        lo, hi = cls._window(target_date, offset_days)
+        syms = ",".join("'{}'".format(s.replace("'", "''")) for s in symbols)
+        rows = con.execute(f"""
+            SELECT symbol, trade_epoch, adjClose, close, volume FROM prices_cache
+            WHERE symbol IN ({syms}) AND trade_epoch >= {lo} AND trade_epoch <= {hi}
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST,
+                                       close DESC NULLS LAST, volume DESC NULLS LAST) = 1""").fetchall()
+        return {r[0]: {"date": utc_date(r[1]).isoformat(), "epoch": int(r[1]), "adjClose": r[2], "close": r[3],
+                       "volume": r[4]} for r in rows}
+
+    @classmethod
+    def _first_moved(cls, con, symbols, target_date, offset_days):
+        """{symbol: row} where the window's first row over the cache and prices_dropped is one T moved."""
+        if not symbols:
+            return {}
+        lo, hi = cls._window(target_date, offset_days)
+        syms = ",".join("'{}'".format(s.replace("'", "''")) for s in symbols)
+        w = f"symbol IN ({syms}) AND trade_epoch >= {lo} AND trade_epoch <= {hi}"
+        rows = con.execute(f"""
+            SELECT symbol, trade_epoch, adjClose, close, volume, reason FROM (
+                SELECT symbol, trade_epoch, adjClose, close, volume, NULL AS reason FROM prices_cache WHERE {w}
+                UNION ALL
+                SELECT symbol, trade_epoch, adjClose, close, volume, reason FROM prices_dropped WHERE {w})
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch ASC, adjClose DESC NULLS LAST,
+                                       CASE WHEN reason IS NULL THEN 0 ELSE 1 END, reason) = 1""").fetchall()
+        return {r[0]: {"date": utc_date(r[1]).isoformat(), "adjClose": r[2], "close": r[3], "volume": r[4],
+                       "reason": r[5]} for r in rows if r[5] is not None}
+
+    def _splits(self, con, spans):
+        """{symbol: [split events with |ln(denominator / numerator)| >= ln split_min in (lo, hi]]}."""
+        if not spans:
+            return {}
+        vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), lo, hi) for s, (lo, hi) in spans.items())
+        rows = con.execute(f"""
+            WITH m(symbol, lo, hi) AS (VALUES {vals})
+            SELECT s.symbol, s.split_epoch, s.numerator, s.denominator FROM splits s JOIN m ON m.symbol = s.symbol
+            WHERE s.split_epoch > m.lo AND s.split_epoch <= m.hi AND s.numerator > 0 AND s.denominator > 0
+              AND ABS(LN(s.denominator / s.numerator)) >= LN({float(self.cfg['factor']['split_min'])})
+            ORDER BY s.symbol, s.split_epoch, s.numerator, s.denominator""").fetchall()
+        out = {}
+        for s, e, num, den in rows:
+            out.setdefault(s, []).append({"date": utc_date(e).isoformat(), "numerator": num, "denominator": den})
+        return out
+
+    def prices(self, con, entry_date, exit_date, symbol_data, offset_days, min_entry_price, held=True):
+        """Checks on one priced period's window bars: T's bar events, then for a held book L and F.
+
+        symbol_data is the topic's (symbol, entry, exit, mcap) list from get_prices. The bars are read
+        again with their dates and closes, and must carry the same adjClose (an assert). F only
+        records: a holding is flagged when its stage-1 drift (adjClose / close at the exit bar over the
+        same at the entry bar) leaves the band, a split of ratio split_min or more falls in (entry bar,
+        exit bar], or it is on L."""
+        p = self._period(entry_date)
+        p.update(entry_bars_moved=0, exit_bars_moved=0, entries_lost=0, exits_lost=0, factor_flags=0)
+        if not self.on:
+            return
+        syms = [s for s, *_ in symbol_data]
+        bars = {"entry": self._bars(con, syms, entry_date, offset_days),
+                "exit": self._bars(con, syms, exit_date, offset_days)}
+        for s, ep, xp, _ in symbol_data:
+            for side, px in (("entry", ep), ("exit", xp)):
+                got = bars[side].get(s, {}).get("adjClose")
+                if got != px:
+                    raise AssertionError(f"data checks: {side} bar of {s} on {entry_date} reads {got}, get_prices {px}")
+        out = lambda b: None if b is None else {k: b[k] for k in ("date", "adjClose", "close", "volume")}
+        for side, d in (("entry", entry_date), ("exit", exit_date)):
+            for s, row in sorted(self._first_moved(con, syms, d, offset_days).items()):
+                used = bars[side].get(s)
+                if used is None:   # T moved every row of the window
+                    p[self.LOST[side]] += 1
+                    self._event(entry_date, s, f"{side}_lost", side=side, first_bar=row)
+                else:
+                    p[f"{side}_bars_moved"] += 1
+                    self._event(entry_date, s, f"{side}_bar", side=side, first_bar=row, used_bar=out(used))
+        if not held:
+            return
+        held_syms = [(s, ep, xp) for s, ep, xp, _ in symbol_data
+                     if entry_usable(ep, min_entry_price) and xp is not None and xp > 0]
+        spans = {s: (bars["entry"][s]["epoch"], bars["exit"][s]["epoch"]) for s, _, _ in held_syms}
+        splits = self._splits(con, spans)
+        lo, hi = self.cfg["factor"]["band"]
+        for s, ep, xp in held_syms:
+            e, x = bars["entry"][s], bars["exit"][s]
+            self.factor_checked += 1
+            reasons = []
+            if abs(math.log(xp / ep)) >= self.cfg["large_move_log"]:
+                reasons.append("large_move")
+                self.large_moves.append({"rebalance_date": entry_date.isoformat(), "symbol": s,
+                                         "return": _sig(xp / ep - 1), "entry_bar": out(e), "exit_bar": out(x)})
+            closes = bool(e["close"] and x["close"] and e["close"] > 0 and x["close"] > 0)
+            drift = (x["adjClose"] / x["close"]) / (e["adjClose"] / e["close"]) if closes else None
+            if drift is not None and not lo <= drift <= hi:
+                reasons.append("band")
+            if s in splits:
+                reasons.append("split")
+            if reasons:
+                p["factor_flags"] += 1
+                self._event(entry_date, s, "factor_flag", entry_bar_date=e["date"], exit_bar_date=x["date"],
+                            drift=_sig(drift), r_adj=_sig(xp / ep - 1),
+                            r_close=_sig(x["close"] / e["close"] - 1) if closes else None,
+                            splits=splits.get(s, []), reasons=sorted(reasons))
+
+    def annotate_ltp(self, con, ltp, block):
+        """F and L on each LTP fill (traded_only), written into the ltp block: the drift from the entry
+        bar to the fill's adjClose, the splits between, and the booked fill's return against
+        large_move_log (listed in the block's large_moves). Changes no fill and adds nothing to the
+        window-bar block."""
+        if not (self.on and getattr(ltp, "traded_only", False)):
+            return
+        lo, hi = self.cfg["factor"]["band"]
+        n, moves = 0, []
+        for f in ltp.fills:
+            e0 = utc_epoch(date.fromisoformat(f["entry_bar"]))
+            e = con.execute("SELECT adjClose, close FROM prices_cache WHERE symbol = ? AND trade_epoch = ?"
+                            " ORDER BY adjClose DESC NULLS LAST, close DESC NULLS LAST LIMIT 1",
+                            [f["symbol"], e0]).fetchone()
+            drift = None   # on the fill's own adjClose: a close-basis fill keeps the flag that repaired it
+            if e and e[0] and e[1] and e[1] > 0 and f.get("ltp_close") and f["ltp_close"] > 0:
+                drift = (f.get("ltp_adj", f["ltp"]) / f["ltp_close"]) / (e[0] / e[1])
+            sp = self._splits(con, {f["symbol"]: (e0, utc_epoch(date.fromisoformat(f["last_bar"])))}).get(f["symbol"], [])
+            reasons, ep, px = [], f.get("entry_price"), f["ltp"]
+            if ep and ep > 0 and px and px > 0 and abs(math.log(px / ep)) >= self.cfg["large_move_log"]:
+                reasons.append("large_move")
+                moves.append({"rebalance_date": f["entry_date"], "symbol": f["symbol"], "return": _sig(px / ep - 1),
+                              "entry_bar": f["entry_bar"], "entry_price": ep, "last_bar": f["last_bar"], "ltp": px})
+            if drift is not None and not lo <= drift <= hi:
+                reasons.append("band")
+            if sp:
+                reasons.append("split")
+            f["factor_check"] = {"drift": _sig(drift), "splits": sp, "reasons": sorted(reasons),
+                                 "flagged": bool(reasons)}
+            n += bool(reasons)
+        block["factor_flagged"] = n
+        block["large_move_fills"] = len(moves)
+        block["large_moves"] = sorted(moves, key=lambda m: (m["rebalance_date"], m["symbol"]))
+
+    def holdings_full(self, con, clean, entry_prices, exit_prices, filled, entry_date, exit_date, offset_days,
+                      ltp=None):
+        """{} unless full_holdings, else {"holdings_full": [...]}: one item per booked name of `clean`
+        (filter_returns' (symbol, return, mcap), in its order) with the entry bar and price, the exit
+        bar and price ("window": the exit window's bar; "last_traded": an LTP fill, with its last bar)
+        and the booked return before costs. `exit_prices` is the map the book read, `filled` the
+        names whose exit came from an LTP fill (ltp holds the fills)."""
+        if not self.full_holdings:
+            return {}
+        syms = [s for s, _, _ in clean]
+        ebar = self._bars(con, syms, entry_date, offset_days)
+        xbar = self._bars(con, [s for s in syms if s not in filled], exit_date, offset_days)
+        fills = {f["symbol"]: f for f in (ltp.fills if ltp is not None else [])
+                 if f["entry_date"] == entry_date.isoformat()}
+        out = []
+        for s, ret, _ in clean:
+            e, ep, xp = ebar.get(s), entry_prices.get(s), exit_prices.get(s)
+            if s in filled:
+                bar, src = fills[s]["last_bar"], "last_traded"
+            else:
+                bar, src = xbar[s]["date"], "window"
+                if xbar[s]["adjClose"] != xp:
+                    raise AssertionError(f"holdings_full: exit bar of {s} on {entry_date} reads {xbar[s]['adjClose']}, book {xp}")
+            if e is None or e["adjClose"] != ep:
+                raise AssertionError(f"holdings_full: entry bar of {s} on {entry_date} reads {e}, book {ep}")
+            out.append({"symbol": s, "entry_bar": e["date"], "entry_price": ep, "exit_bar": bar, "exit_price": xp,
+                        "exit": src, "return": round(ret, 6)})
+        return {"holdings_full": out}
+
+    def row(self, d, screened=True, priced=True, signal=False):
+        """A period record's data-check counts: an int where the step ran, None where it did not."""
+        p = self.periods.get(d.isoformat(), {})
+        out = {k: (p.get(k, 0) if priced else None) for k in self.PRICE_KEYS}
+        out.update({k: (p.get(k, 0) if screened else None) for k in ("twins_collapsed", "cap_excluded")})
+        out["factor_flags"] = p.get("factor_flags", 0) if priced else None
+        if signal:
+            out["signal_cap_excluded"] = p.get("signal_cap_excluded", 0)
+        return out
+
+    def block(self):
+        """The results file's data_checks block (sorted, no run-time field, no key naming LTP)."""
+        ev = sorted(self.events, key=_event_key)
+        n = lambda check: sum(1 for e in ev if e["check"] == check)
+        counts = {
+            "rows_moved": dict(self.clean["rows_moved"]),
+            "symbol_windows_without_volume": self.clean["symbol_windows_without_volume"],
+            "flat_windows_moved": self.clean.get("flat_windows_moved", 0),
+            "sibling_gap_rows": self.clean.get("sibling_gap_rows", 0),
+            "closed_day_test_skipped": self.clean["closed_day_test_skipped"],
+            "entry_bars_moved": n("entry_bar"), "exit_bars_moved": n("exit_bar"), "entries_lost": n("entry_lost"),
+            "exits_lost": n("exit_lost"),
+            "twins_linked": self.twins_linked, "twins_collapsed": n("twin"),
+            "nvdr_stand_ins": sum(1 for e in ev if e["check"] == "twin" and e["reason"] == "stand_in"),
+            "cap_rows_checked": self.cap["cap_rows_checked"], "cap_rows_flagged": self.cap["cap_rows_flagged"],
+            "cap_excluded": n("cap"), "signal_cap_excluded": n("signal_cap"),
+            "factor_checked": self.factor_checked, "factor_flags": n("factor_flag"),
+            "large_moves": len(self.large_moves),
+        }
+        return {"version": self.cfg["version"], "mode": self.mode, "max_single_return": None,
+                "rules": {k: v for k, v in self.cfg.items() if k != "version"}, "counts": counts,
+                "closed_dates": list(self.clean["closed_dates"]), "events": ev,
+                "large_moves": sorted(self.large_moves, key=lambda m: (m["rebalance_date"], m["symbol"])),
+                "sibling_gaps": list(self.clean.get("sibling_gaps", [])),
+                "cap_unchecked": list(self.cap.get("cap_unchecked", []))}
+
+    def summary(self):
+        c = self.block()["counts"]
+        return (f"Data checks ({self.mode}): rows moved {c['rows_moved']} (flat windows {c['flat_windows_moved']}, "
+                f"sibling-gap rows {c['sibling_gap_rows']}), entry/exit bars moved "
+                f"{c['entry_bars_moved']}/{c['exit_bars_moved']}, entries/exits lost {c['entries_lost']}/"
+                f"{c['exits_lost']}, twins "
+                f"{c['twins_collapsed']} ({c['nvdr_stand_ins']} stand-ins), cap rows flagged {c['cap_rows_flagged']}, "
+                f"cap excluded {c['cap_excluded']} + signal {c['signal_cap_excluded']}, factor flags "
+                f"{c['factor_flags']}, large moves {c['large_moves']}")
