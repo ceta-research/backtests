@@ -72,10 +72,15 @@ for _ in range(30):
         break
     time.sleep(2)
 
-# Download results
+# Download results: ask for a link, wait while the file is prepared, then fetch it
 artifact_id = task.get("artifactId")
-resp = session.get(f"{BASE_URL}/data-explorer/artifacts/{artifact_id}/download/result.json")
-results = resp.json()
+link_url = f"{BASE_URL}/data-explorer/artifacts/{artifact_id}/download/result.json?response_type=url"
+for _ in range(30):
+    link = session.get(link_url).json()
+    if link.get("available"):
+        break
+    time.sleep(link.get("retryAfter", 2))
+results = requests.get(link["url"]).json()
 
 print(f"QARP Screen: {len(results)} stocks qualify")
 print(f"{'Symbol':<10} {'Company':<30} {'Exchange':<10} {'F-Score':>8} {'ROE%':>8} {'P/E':>8} {'MCap($B)':>10}")
