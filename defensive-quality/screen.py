@@ -3,7 +3,9 @@
 Defensive Sector Quality - Current Stock Screen
 
 Screens for quality stocks in defensive sectors (Consumer Defensive, Utilities, Healthcare).
-Uses TTM data for current screening.
+Uses TTM data for current screening. Ordinary shares only and the 25% yield ceiling, as in the
+backtest (data_utils universe rules); the backtest's cross-currency yield check needs a same-FY
+dividends-paid figure and cap, which the TTM rows don't give, so it isn't applied here.
 
 Usage:
     python3 defensive-quality/screen.py
@@ -20,6 +22,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold
+from data_utils import non_ordinary_sql, YIELD_CEILING
 
 # Signal parameters (match backtest.py)
 DEFENSIVE_SECTORS = ("Consumer Defensive", "Utilities", "Healthcare")
@@ -60,8 +63,10 @@ def run_screen(client, exchanges, mktcap_min, verbose=False):
           AND f.operatingProfitMarginTTM > {OPM_MIN}
           AND (f.debtToEquityRatioTTM IS NULL OR f.debtToEquityRatioTTM < {DE_MAX})
           AND f.dividendYieldTTM > {DIV_YIELD_MIN}
+          AND f.dividendYieldTTM <= {YIELD_CEILING}
           AND k.marketCap > {mktcap_min}
           AND p.isActivelyTrading = true
+          AND ({non_ordinary_sql("p")}) IS NULL
           {exchange_filter}
         ORDER BY f.dividendYieldTTM DESC
         LIMIT {MAX_STOCKS}

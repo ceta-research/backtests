@@ -2389,6 +2389,9 @@ NON_ORDINARY_KNOWN = (
     ("ELP", "preferred ADR", "COPEL class B preferred ADR, ELPC is the common ADR"),
     ("EBR-B", "preferred ADR", "Eletrobras class B preferred ADR, EBR is the common ADR"),
     ("ROG.SW", "certificate", "Roche non-voting Genussschein at its own price on Roche's financials, RO.SW is the share"),
+    ("ROP.SW", "certificate", "Roche's second line from 2026-04-22 (ROG.SW's bars end 2026-04-13), at its own price, RO.SW is the share"),
+    ("LISP.SW", "certificate", "Lindt participation certificate (Partizipationsschein), LISN.SW is the share"),
+    ("RE-B.L", "preferred", "R.E.A. Holdings cumulative preference shares, closes at a median of 100p (their par), RE.L is the common"),
 )
 NAME_TERMS = (r"%|\bnotes?\b|debenture|\bbonds?\b|\bbd\b|subordinated|\bjr\b|junior|collateral|preferred|"
               r"\bpfd\b|\bpref\b|\bunits?\b|\bser\b|\bseries\b")
