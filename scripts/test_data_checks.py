@@ -1998,6 +1998,16 @@ class FakeClient:
                 return fh.read()
 
 
+class EmptyBytesClient(FakeClient):
+    """FakeClient, but a parquet query with no rows returns no bytes, as the API does."""
+
+    def query(self, sql, format="json", **kw):
+        if format == "parquet" and not self.src.execute(f"SELECT COUNT(*) FROM ({sql})").fetchone()[0]:
+            self.sqls.append(sql)
+            return b""
+        return super().query(sql, format=format, **kw)
+
+
 FILLERS = [f"A{i:02d}.BK" for i in range(20)]
 SPECIAL = ["TWN.BK", "TWN-R.BK", "STD.BK", "STD-R.BK", "BAD.BK", "ZV.BK", "INFL.BK", "BIG.BK", "DLST.BK"]
 ISIN = {**{s: f"TH1{i:03d}000000" for i, s in enumerate(FILLERS)},
@@ -2381,13 +2391,14 @@ def defensive_rules_failures(src, tmp):
     picked = [s for s, _, _ in mod.screen_stocks(con, date(2015, 7, 1), floor, offset_days=1, dc=dc, ur=ur)]
     if picked != ["OK.BK", "BAD.BK", "BIG.BK", "DLST.BK", "STD-R.BK"]:
         f.append(f"top 5 {picked}")
-    # no cash-flow rows at all: paid_cache is typed and empty, and each cross-currency line is unverifiable
+    # no cash-flow rows at all, answered as the API answers zero rows (no bytes: query_parquet's placeholder
+    # has no columns): paid_cache is typed and empty, and each cross-currency line is unverifiable
     # (CUR.BK's ratios row says USD, so with no cash-flow row it is not cross-currency)
     bare, ur = defensive_source(), du.UniverseRules()
     bare.execute("DELETE FROM cash_flow_statement")
     try:
         with contextlib.redirect_stdout(io.StringIO()):
-            con = mod.fetch_data_via_api(FakeClient(bare), ["SET"], [date(2015, 7, 1), date(2016, 7, 1)],
+            con = mod.fetch_data_via_api(EmptyBytesClient(bare), ["SET"], [date(2015, 7, 1), date(2016, 7, 1)],
                                          mktcap_min=floor, ur=ur)
         mod.screen_stocks(con, date(2015, 7, 1), floor, offset_days=1, ur=ur)
     except Exception as e:   # the empty-result placeholder has no columns
