@@ -2356,8 +2356,8 @@ class DataChecks:
 # Opt-in per topic like the data checks; defensive-quality uses them.
 
 US_EXCHANGES = ("NYSE", "NASDAQ", "AMEX")
-# Plain-named lines no pattern separates, each checked against its closes and its issuer's common
-# (tasks/tracker-616 plan, "Residue verified"): (symbol, kind, evidence).
+# Plain-named lines no pattern separates, each checked against its closes and its issuer's common:
+# (symbol, kind, evidence).
 NON_ORDINARY_KNOWN = (
     ("AESC", "units", "AES corporate units 2021-2024, $100 stated amount, AES is the common"),
     ("AQNU", "units", "Algonquin equity units 2021-2024, $50, AQN is the common"),

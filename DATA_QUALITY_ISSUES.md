@@ -1499,7 +1499,7 @@ its November 2026 rerun. Every other topic still holds these lines.
 
 defensive-quality ranks by the vendor's dividend yield, so anything carrying a company's yield
 without being its ordinary share, and any yield on the wrong scale, takes a slot near the top.
-Measured on its committed books before the rerun (4,712 held line-years, the Shanghai-only file left
+Measured on its committed books before the rerun (4,546 held line-years, the Shanghai-only file left
 out):
 
 - **Notes, bonds and units in the US book:** 12.4% of US line-years, 10 to 12 of the 24 to 28 lines
@@ -1515,10 +1515,10 @@ out):
   years, so each of Switzerland's six 10-name books held nine companies.
 - **Thai NVDRs:** 40.7% of Thai line-years, 133 of the 143 beside their ordinary line. They stay in
   the universe; check N holds each pair once.
-- **FEMSA's ADR (FMX):** in the US book in 24 of 25 years, on recorded yields of 13% to 64%. In 21
-  of those years the yield is 5.09 times FEMSA's own dividends paid over its market cap: the
-  dividends are reported in pesos and the yield was taken against the dollar line. 23 held
-  line-years carried a yield above 25%.
+- **FEMSA's ADR (FMX):** in the US book in 24 of 25 years, on recorded yields of 10% to 64%. In 21
+  of those years the yield is about five times (4.7 to 5.6) FEMSA's own dividends paid over its
+  market cap: the dividends are reported in pesos and the yield was taken against the dollar line.
+- **Yields above 25%:** 23 held line-years, 13 of them FMX's.
 
 Read against the same FY's dividends paid, the vendor yield agrees within 25% in 4,204 of 4,546
 held line-years, so the yield rule checks only lines whose trading and reporting currencies differ:

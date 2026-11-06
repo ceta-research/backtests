@@ -7,7 +7,7 @@ letters against Samsung Epis's 0126Z0, German preference lines with an ISIN-stem
 PNE3.DE (PNE's only line), Canadian preferreds against trust units, US hyphen suffixes against
 share classes (BF-B, MKC-V, CIG-C), NASDAQ fifth letters against CENTA and GOOGL, name terms
 against "China NT Pharma", depositary-share ADRs, "United" and "Service", and a Thai NVDR, which
-stays for check N (DECISIONS #064). yield_rule_sql() on FMX-like cross-currency lines, a
+stays for check N. yield_rule_sql() on FMX-like cross-currency lines, a
 same-currency disagreement, the 25% ceiling, the sub-unit currencies, the bounds and the
 missing-data policy. cik_shared() groups kept US lines by CIK. Each check also runs on a mutant
 and has to fail.

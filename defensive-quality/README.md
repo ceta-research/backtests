@@ -65,7 +65,7 @@ Returns are in local currency, after costs. Excess is computed from unrounded CA
 
 - **US:** 10.25% a year against 7.85% for SPY, with a Sharpe of 0.666 against 0.352, a max drawdown of -19.58% against -38.01%, and no cash years. The screen passes 30 names every year; 26 to 30 of them have a usable entry price.
 - **Canada:** the lead is 1.14pp with 10 cash years; in five of them 10 to 13 names passed and only 9 had a usable entry price, and five invested years sit at the floor of 10.
-- **No return cap:** the 22 held returns above +200% are kept and listed in the results (`data_checks.large_moves`, and `ltp.large_moves` for two last-traded-price exits): India 4, China (SHZ + SHH) 7, China Shanghai only 6, Hong Kong 5, Malaysia 2. Among them Aurobindo Pharma from July 2013 (+310%), Top Glove from July 2019 (+269%) and YTL Power from July 2023 (+294%). Three carry an adjustment-factor flag (000423.SZ and 600380.SS from July 2006, during China's share-structure reform, and 1830.HK from July 2020); on the close alone they rose 239%, 166% and 175%.
+- **No return cap:** 24 held returns above +200% are kept and listed in the results, 22 on the window bars (`data_checks.large_moves`) and 2 last-traded-price exits (`ltp.large_moves`): India 4, China (SHZ + SHH) 7, China Shanghai only 6, Hong Kong 5, Malaysia 2. Among them Aurobindo Pharma from July 2013 (+310%), Top Glove from July 2019 (+269%) and YTL Power from July 2023 (+294%). Three carry an adjustment-factor flag (000423.SZ and 600380.SS from July 2006, during China's share-structure reform, and 1830.HK from July 2020); on the close alone they rose 239%, 166% and 175%.
 - **Dividends in benchmarks:** the portfolio's returns include dividends (`adjClose`). Only SPY among these benchmarks includes them too. See METHODOLOGY.md (Benchmark Limitations).
 - **Books at the floor:** India 2004, Thailand 2012, the UK 2016 and Canada 2004, 2010, 2011, 2013 and 2015 were invested with 10 buyable names, the floor. No invested year averages fewer than 10 lines.
 - **Sharpe:** compare it with the index's Sharpe in the same market, not across markets, because the risk-free rate differs (6.5% in India, 0.1% in Japan).
@@ -103,7 +103,7 @@ A cash year earns 0% and is counted in every 25-year figure above, against whate
 | Thailand (SET) | 11 of 25 | +11.81 | -2.48 | 4.79% | 0.16% | +4.62 |
 | Indonesia (JKT) | 11 of 25 | +0.94 | -5.05 | 5.06% | 13.61% | -8.55 |
 
-The sign changes in Thailand, from 2.48pp behind the SET Index over 25 years to 4.62pp ahead over its 14 invested years: the index rose 11.81% a year in the years the portfolio sat in cash. Canada's lead widens from 1.14pp to 5.54pp the same way, with the TSX up 5.26% a year in its cash years. Indonesia's index is the S&P 500 in USD in both readings. All of these indices are price indices, so the invested-years margins are overstated by the dividend yield as well.
+The sign changes in Thailand, from 2.48pp behind the SET Index over 25 years to 4.62pp ahead over its 14 invested years: the index rose 11.81% a year in the years the portfolio sat in cash. Canada's lead widens from 1.14pp to 5.54pp the same way, with the TSX up 5.26% a year in its cash years. Indonesia's index is the S&P 500 in USD in both readings. All of these indices but Indonesia's SPY are price indices, so their invested-years margins are overstated by the dividend yield as well.
 
 ### Too thin to test
 
@@ -136,14 +136,14 @@ What the rules took out, by market (lines leave the universe; yield drops are co
 
 | Market | Not ordinary shares (lines) | Yield drops (line-years) | Held in the books before the rerun |
 |--------|-----------------------------|--------------------------|------------------------------------|
-| US | 329: 219 NASDAQ fifth letters, 53 hyphen suffixes, 29 hand-listed, 27 by name, 1 fund | 95: 58 cross-currency, 19 above 25%, 18 unverifiable | notes, bonds, units and preferred ADRs in 67 of 542 line-years (12.4%, 10 to 12 of 24 to 28 lines a year in 2020-2024); by the yield rule FEMSA (FMX) in 24 years, Embotelladora Andina (AKO-A, AKO-B) 14, Sabesp (SBS) 4, BTI 3 and 7 others once or twice |
+| US | 329: 219 NASDAQ fifth letters, 53 hyphen suffixes, 29 hand-listed, 27 by name, 1 fund | 95: 58 cross-currency, 19 above 25%, 18 unverifiable | notes, bonds, units and preferred ADRs in 67 of 542 line-years (12.4%, 10 to 12 of 24 to 28 lines a year in 2020-2024); by the yield rule FEMSA (FMX) in 24 years, Embotelladora Andina (AKO-A, AKO-B) 13, Sabesp (SBS) 4, BTI 3 and 8 others once or twice |
 | Korea | 27 preferred | none | 43 of 165 line-years (26.1%) |
 | Canada | 12 preferred series, 1 fund | 3 | 17 of 226 line-years (7.5%) |
 | Germany | 5 preference lines | 1 | 27 of 181 line-years (14.9%) |
-| Switzerland | 3 hand-listed (ROG.SW, ROP.SW, LISP.SW) | 4 unverifiable | ROG.SW in all 10 invested years; Energiedienst (EDHN.SW) twice by the yield rule |
+| Switzerland | 3 hand-listed (ROG.SW, ROP.SW, LISP.SW) | 4 unverifiable | ROG.SW in all 10 invested years; Energiedienst (EDHN.SW) once by the yield rule |
 | UK | 1 fund (TRIG.L), 1 preference line, 1 by name | 20: 11 cross-currency, 5 unverifiable, 4 above 25% | TRIG.L in 6 of 270 line-years; 3 lines once each by the yield rule |
 | Hong Kong | none | 38: 27 cross-currency, 6 unverifiable, 5 above 25% | H-shares by the yield rule: China Longyuan Power (0916.HK) in 11 years, CGN Power (1816.HK) 4, and 9 others once or twice |
-| China (SHZ + SHH) | none | 22 cross-currency | the B-share lines 200869.SZ in 10 years and 200539.SZ in 3 |
+| China (SHZ + SHH) | none | 22 cross-currency | the B-share lines 200869.SZ in 10 years and 200539.SZ once |
 | India | 2 funds | none | an infrastructure trust unit once |
 | Japan | 1 preferred, by name | 1 above 25% | none |
 
@@ -153,7 +153,7 @@ Thailand had 2 yield drops above 25%, South Africa 3 unverifiable, and Taiwan, S
 
 These results replace the October 2026 files. The screen's filters didn't change; three things around them did:
 
-- **Data checks in place of the 200% cap.** A holding's return above 200% used to be dropped as a data error. It's now kept, and the data checks remove the errors (METHODOLOGY.md, Data Checks). The 22 kept returns above +200% are the gains the cap dropped before: India 4, China (SHZ + SHH) 7, China Shanghai only 6, Hong Kong 5, Malaysia 2. Korea's two from July 2014 don't arise, because 2014 is now a cash year.
+- **Data checks in place of the 200% cap.** A holding's return above 200% used to be dropped as a data error. It's now kept, and the data checks remove the errors (METHODOLOGY.md, Data Checks). 24 held returns above +200%, which the cap would have dropped, are now kept: India 4, China (SHZ + SHH) 7, China Shanghai only 6, Hong Kong 5, Malaysia 2. The October books' cap had dropped 22 holdings (Hong Kong 6, China 7, India 4, Malaysia 2, Korea 2, Japan 1); Korea's two, from July 2014, don't arise now, because 2014 is a cash year.
 - **Ordinary shares only.** Preferred lines, notes, bonds, units, warrants, rights, funds and second lines at their own price leave the universe (What the books hold).
 - **The yield rule.** A yield above 25%, or a cross-currency yield that disagrees with the company's own dividends paid, no longer ranks.
 
@@ -164,7 +164,7 @@ What moved, and the verdict changes:
 - **Korea** went from 1.88pp behind the KOSPI to too thin to test: with its preferred lines out, 22 cash years instead of 11.
 - **Switzerland** went from +2.18pp ahead of the SMI to a tie at -0.17pp, still too thin: with Roche held once, 21 cash years instead of 15.
 - **Canada**'s lead narrowed from +3.35pp to +1.14pp: its preferred series are out, and it has 10 cash years instead of 7.
-- **Hong Kong** rose from +5.24pp to +6.55pp, **China (SHZ + SHH)** from +2.85pp to +3.73pp, **China Shanghai only** from +3.52pp to +5.01pp, **India** from +5.45pp to +6.31pp and **Malaysia** from -7.32pp to -6.14pp, mostly on the gains the cap used to drop. Hong Kong also lost H-shares and China its B-share lines to the yield rule.
+- **Hong Kong** rose from +5.24pp to +6.55pp, **China (SHZ + SHH)** from +2.85pp to +3.73pp, **China Shanghai only** from +3.52pp to +5.01pp, **India** from +5.45pp to +6.31pp and **Malaysia** from -7.32pp to -6.14pp, mostly on the returns above +200% the cap would have dropped. Hong Kong also lost H-shares and China its B-share lines to the yield rule.
 - **Thailand** went from -2.26pp to -2.48pp: check N holds each ordinary and NVDR pair once, and 2008 and 2010 are now cash years too.
 - Japan, the UK, Taiwan, Indonesia, Sweden and South Africa moved by 0.15pp or less. Benchmark CAGRs are unchanged.
 
@@ -255,7 +255,7 @@ Use `--exchange` as shown. The exchange list sets the universe name written into
 - **The ordinary-shares rule is a list of patterns plus a hand list.** A plain-named note, unit or second line the probe didn't find gets in; for US lines the results' `cik_shared` report shows candidates.
 - The US market is every line on NYSE, NASDAQ and AMEX, so it holds foreign companies' depositary receipts of ordinary shares as well as US companies.
 - One line per security isn't one line per company. Second share classes (ACO-X and ACO-Y, Essity A and B) have their own ISINs, so both can be held and each counts as a holding. Avg stocks counts lines, not companies.
-- **Unpriced names.** A screened name with no usable entry price takes its top-30 slot and isn't replaced; each period's `entry_unpriced` lists them. Some are delisted names with no price rows; some, like Tyson Foods (TSN) and Essential Utilities (WTRG), are lines whose price history starts on 2026-04-01 in the data (DATA_QUALITY_ISSUES.md, Price history that starts in April 2026).
+- **Unpriced names.** A screened name with no usable entry price takes its top-30 slot and isn't replaced; each period's `entry_unpriced` lists them. Some are delisted names with no price rows; some are lines whose price history starts on 2026-04-01 in the data, such as Essential Utilities (WTRG) in 2003 (DATA_QUALITY_ISSUES.md, Price history that starts in April 2026); and BD15.L, a second Tate & Lyle line with no ISIN and no bars, sits unpriced in 12 UK screens.
 - The entry floor of 1.00 is in local units: one Hong Kong dollar, one penny on the LSE, one baht.
 - `screen.py` (the current-day screen) keeps ordinary shares only and the 25% yield ceiling, but not the listing rules, the dedup or the cross-currency check (its TTM rows give no same-year dividends paid and cap). The backtest doesn't use it.
 
