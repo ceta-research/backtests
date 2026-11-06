@@ -86,6 +86,8 @@ RERUN_TOPICS = {"cyclical-timing", "asset-growth", "fcf-conversion", "cash-conve
                 "price-momentum", "price-to-book", "relative-strength", "value-momentum"}
 # Files outside */backtest.py and scripts/ that this change is allowed to touch.
 SCOPE_ALLOW = {
+    # tracker#616: the live screen takes defensive-quality's universe rules (ordinary shares, 25% yield ceiling).
+    "defensive-quality/screen.py",
     # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
     # same-day duplicate rows compare against; the note records that and the prod
     # check to run before publishing.
