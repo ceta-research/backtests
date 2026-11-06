@@ -2082,21 +2082,26 @@ def synthetic_source():
     return src
 
 
-# defensive-quality's universe-rule lines: profile currency, vendor yield, paid yield (None: no cash-flow rows), name
+# defensive-quality's universe-rule lines: profile currency, vendor yield, paid yield (None: no cash-flow rows),
+# name, then options: fr_ccy (the ratios row's reportedCurrency, else THB), cf_days (cash-flow rows that many days
+# before the FY end, not on it), alias (a second profile row under this name)
 DEF_RULES = {
-    "NOTE.BK": ("THB", 0.07, 0.07, "Filler Utilities PCL 5.75% Notes due 2079"),   # name_term: off the sector map
-    "ADR.BK": ("USD", 0.08, 0.016, "Overseas Utilities PCL"),                      # 5 times its paid yield
-    "HIGH.BK": ("THB", 0.30, 0.30, "High Yield Utilities PCL"),                    # over the ceiling
-    "UNV.BK": ("USD", 0.07, None, "Unverified Utilities PCL"),                     # cross-currency, nothing paid
-    "OK.BK": ("USD", 0.065, 0.06, "Agreeing Utilities PCL"),                       # agrees: kept
+    "NOTE.BK": ("THB", 0.07, 0.07, "Filler Utilities PCL 5.75% Notes due 2079", {}),   # name_term: off the map
+    "ADR.BK": ("USD", 0.08, 0.016, "Overseas Utilities PCL", {}),                      # 5 times its paid yield
+    "HIGH.BK": ("THB", 0.30, 0.30, "High Yield Utilities PCL", {}),                    # over the ceiling
+    "UNV.BK": ("USD", 0.07, None, "Unverified Utilities PCL", {}),                     # cross-currency, nothing paid
+    "OK.BK": ("USD", 0.065, 0.06, "Agreeing Utilities PCL", {}),                       # agrees: kept
+    "CUR.BK": ("USD", 0.075, 0.015, "Dollar Ratios PCL", {"fr_ccy": "USD"}),           # cash flow's THB wins (FMX FY2024)
+    "LAG.BK": ("USD", 0.072, 0.065, "Mid-Year Payer PCL", {"cf_days": 184}),           # agrees, but not that FY
+    "DUP.BK": ("THB", 0.068, 0.068, "Twin Name PCL", {"alias": "Twin Name PCL Units"}),  # one of two rows: name_term
 }
 
 
 def defensive_source():
     """synthetic_source() as a defensive leg: every line in Utilities with D/E 1.0, OPM 20%, a vendor yield
     (fillers 5% down to 4.05%, the special lines 6%) and dividends paid that agree with it, reported in THB.
-    Plus DEF_RULES' lines, ranked above the rest so each would be held: NOTE.BK, ADR.BK, HIGH.BK and UNV.BK
-    must leave every book, OK.BK (netDividendsPaid only, commonDividendsPaid 0) must stay."""
+    Plus DEF_RULES' lines, ranked above the rest so each would be held: all but OK.BK (netDividendsPaid only,
+    commonDividendsPaid 0) must leave every book."""
     src = synthetic_source()
     for col, typ in (("companyName", "VARCHAR"), ("cik", "VARCHAR"), ("isFund", "BOOLEAN"), ("isEtf", "BOOLEAN")):
         src.execute(f"ALTER TABLE profile ADD COLUMN {col} {typ}")
@@ -2111,17 +2116,21 @@ def defensive_source():
     src.execute("INSERT INTO cash_flow_statement SELECT r.symbol, 'FY', r.date, r.dateEpoch, -r.dividendYield * k.marketCap,"
                 " -r.dividendYield * k.marketCap, 'THB' FROM financial_ratios r"
                 " JOIN key_metrics k ON k.symbol = r.symbol AND k.dateEpoch = r.dateEpoch")
-    for i, (s, (ccy, vy, py, name)) in enumerate(DEF_RULES.items()):
+    for i, (s, (ccy, vy, py, name, opt)) in enumerate(DEF_RULES.items()):
         cap = 6e10 + 1e7 * i
-        src.execute("INSERT INTO profile VALUES (?, 'SET', 'TH', ?, 'Utilities', 6e10, TRUE, ?, ?, NULL, FALSE, FALSE)",
-                    [s, f"TH4{i:03d}000000", ccy, name])
+        for n in (name, opt.get("alias")):
+            if n:
+                src.execute("INSERT INTO profile VALUES (?, 'SET', 'TH', ?, 'Utilities', 6e10, TRUE, ?, ?, NULL, FALSE,"
+                            " FALSE)", [s, f"TH4{i:03d}000000", ccy, n])
         for y in range(1998, 2025):
             fy = date(y, 12, 31)
-            src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, ?, 1.0, 0.2, ?, 'THB')", [s, fy.isoformat(), ep(fy), vy])
+            src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, ?, 1.0, 0.2, ?, ?)",
+                        [s, fy.isoformat(), ep(fy), vy, opt.get("fr_ccy", "THB")])
             src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, ?)", [s, fy.isoformat(), ep(fy), cap])
             if py is not None:
+                cf = fy - timedelta(days=opt.get("cf_days", 0))
                 src.execute("INSERT INTO cash_flow_statement VALUES (?, 'FY', ?, ?, ?, ?, 'THB')",
-                            [s, fy.isoformat(), ep(fy), 0.0 if s == "OK.BK" else -py * cap, -py * cap])
+                            [s, cf.isoformat(), ep(cf), 0.0 if s == "OK.BK" else -py * cap, -py * cap])
         for d in du.generate_rebalance_dates(2000, 2025, "quarterly"):
             for day in weekdays(d, d + timedelta(days=11)):
                 p = price(s, day)
@@ -2306,10 +2315,13 @@ def topic_failures(topic, src, tmp):
 
 
 def defensive_rules_failures(src, tmp):
-    """defensive-quality's universe rules end to end on defensive_source(): NOTE.BK leaves the sector map,
-    ADR.BK, HIGH.BK and UNV.BK leave every screen under their reasons, OK.BK stays in every book, the block
-    sits after data_checks and is equal across exit methods and the uncapped arm, each priced period lists
-    its screened names with no entry price (DLST.BK from its delisting on), and a dropped line frees its slot."""
+    """defensive-quality's universe rules end to end on defensive_source(): NOTE.BK and DUP.BK (one of its two
+    profile rows) leave the sector map, the yield rule's lines leave every screen under their reasons (CUR.BK
+    by its cash-flow currency, LAG.BK for want of a same-FY cash-flow row), OK.BK stays in every book, the
+    block sits after data_checks and is equal across exit methods (the uncapped arm's floor reads the raw
+    cap, so only its ordinary_shares part must match), each priced period lists its screened names with no
+    entry price (DLST.BK from its delisting on), a dropped line frees its slot, and a leg with no cash-flow
+    rows still runs."""
     f = []
     runs = {m: run_topic("defensive-quality", src, m, "on", tmp) for m in ("drop", "ltp", "both")}
     (drop, sqls), unc = runs["drop"], run_topic("defensive-quality", src, "ltp", "uncapped", tmp)[0]
@@ -2317,13 +2329,15 @@ def defensive_rules_failures(src, tmp):
     if "universe_rules" not in drop or keys.index("universe_rules") != keys.index("data_checks") + 1:
         return ["universe_rules sits right after data_checks"]
     ub = drop["universe_rules"]
-    if any(r[0]["universe_rules"] != ub for r in runs.values()) or unc["universe_rules"] != ub:
-        f.append("universe_rules differs across exit methods or in the uncapped arm")
+    if any(r[0]["universe_rules"] != ub for r in runs.values()) or \
+            unc["universe_rules"]["ordinary_shares"] != ub["ordinary_shares"]:
+        f.append("universe_rules differs across exit methods, or ordinary_shares in the uncapped arm")
     if (ub["version"], ub["ordinary_shares"]["rules"], ub["dividend_yield"]["rules"]) != \
             ("ur-1", du.ORDINARY_RULES, du.YIELD_RULES):
         f.append("universe_rules header")
-    rem = [(r["symbol"], r["reason"]) for r in ub["ordinary_shares"]["removed"]]
-    if rem != [("NOTE.BK", "name_term")] or ub["ordinary_shares"]["by_reason"] != {"name_term": 1}:
+    rem = [(r["symbol"], r["reason"], r["name"]) for r in ub["ordinary_shares"]["removed"]]
+    if rem != [("DUP.BK", "name_term", "Twin Name PCL Units"), ("NOTE.BK", "name_term", DEF_RULES["NOTE.BK"][3])] or \
+            ub["ordinary_shares"]["by_reason"] != {"name_term": 2}:
         f.append(f"removed {rem}")
     if not any(du.non_ordinary_sql("p") in s for s in sqls):
         f.append("no query sent carries non_ordinary_sql")
@@ -2331,10 +2345,12 @@ def defensive_rules_failures(src, tmp):
     by = {}
     for d in drops:
         by.setdefault(d["symbol"], set()).add(d["reason"])
-    if by != {"ADR.BK": {"cross_currency"}, "HIGH.BK": {"above_ceiling"}, "UNV.BK": {"unverifiable"}}:
+    want = {"ADR.BK": {"cross_currency"}, "HIGH.BK": {"above_ceiling"}, "UNV.BK": {"unverifiable"},
+            "CUR.BK": {"cross_currency"}, "LAG.BK": {"unverifiable"}}
+    if by != want:
         f.append(f"yield drops {by}")
     dates = {r["rebalance_date"] for r in drop["period_data"]}
-    for s in ("ADR.BK", "HIGH.BK", "UNV.BK"):
+    for s in want:
         if {d["rebalance_date"] for d in drops if d["symbol"] == s} != dates:
             f.append(f"{s} is not dropped at every screen")
     adr = next(d for d in drops if d["symbol"] == "ADR.BK")
@@ -2345,7 +2361,7 @@ def defensive_rules_failures(src, tmp):
         if not r["stocks_held"]:
             continue
         held = set(r["holdings"].split(","))
-        if held & {"NOTE.BK", "ADR.BK", "HIGH.BK", "UNV.BK"} or "OK.BK" not in held:
+        if held & (set(DEF_RULES) - {"OK.BK"}) or "OK.BK" not in held:
             f.append(f"{r['rebalance_date']} holds {sorted(held & set(DEF_RULES))}")
             break
         if len(r.get("entry_unpriced") or []) != r["screened"] - r["entry_buyable"]:
@@ -2365,6 +2381,21 @@ def defensive_rules_failures(src, tmp):
     picked = [s for s, _, _ in mod.screen_stocks(con, date(2015, 7, 1), floor, offset_days=1, dc=dc, ur=ur)]
     if picked != ["OK.BK", "BAD.BK", "BIG.BK", "DLST.BK", "STD-R.BK"]:
         f.append(f"top 5 {picked}")
+    # no cash-flow rows at all: paid_cache is typed and empty, and each cross-currency line is unverifiable
+    # (CUR.BK's ratios row says USD, so with no cash-flow row it is not cross-currency)
+    bare, ur = defensive_source(), du.UniverseRules()
+    bare.execute("DELETE FROM cash_flow_statement")
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            con = mod.fetch_data_via_api(FakeClient(bare), ["SET"], [date(2015, 7, 1), date(2016, 7, 1)],
+                                         mktcap_min=floor, ur=ur)
+        mod.screen_stocks(con, date(2015, 7, 1), floor, offset_days=1, ur=ur)
+    except Exception as e:   # the empty-result placeholder has no columns
+        return f + [f"a leg with no cash-flow rows: {type(e).__name__}: {e}"]
+    got = sorted((d["symbol"], d["reason"]) for d in ur.drops)
+    if got != [("ADR.BK", "unverifiable"), ("HIGH.BK", "above_ceiling"), ("LAG.BK", "unverifiable"),
+               ("OK.BK", "unverifiable"), ("UNV.BK", "unverifiable")]:
+        f.append(f"no cash-flow rows: drops {got}")
     return f
 
 

@@ -636,7 +636,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                           frequency, periods_per_year, cash_periods, avg_stocks)
     output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both
-    output["universe_rules"] = ub        # the sector map and the screen only: equal in every mode
+    output["universe_rules"] = ub        # equal in drop, ltp and both (uncapped, yield drops read the raw-cap floor)
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 
