@@ -7,8 +7,12 @@ Fetches data via configurable provider, caches in DuckDB, runs locally.
 
 Signal: Stocks in Consumer Defensive, Utilities, or Healthcare sectors with
         ROE > 6%, OPM > 8%, D/E < 2.5, Dividend Yield > 0.5%, MCap > local threshold.
+Universe: ordinary shares only, and the dividend-yield rule (data_utils universe rules ur-1,
+        tracker#616): preferreds, notes, bonds, units, warrants, rights and funds are off the
+        sector map; a vendor yield above 25%, or one computed across two currencies that disagrees
+        with the company's own dividends paid, drops the line before the top-30 cut.
 Portfolio: Top 30 by dividend yield (income-ranked), equal weight. Cash if < 10 qualify.
-Rebalancing: Annual (July), 2000-2025.
+Rebalancing: Annual (July), 2000-2025. Data checks dc-1 in place of a return cap.
 
 Academic reference: Novy-Marx, R. (2013). "The Other Side of Value: The Gross
 Profitability Premium." Journal of Financial Economics 108(1), 1-28.
@@ -41,10 +45,13 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
-                        entry_buyable, LtpExits, add_exit_method_arg,
+                        entry_buyable, entry_usable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations, utc_epoch,
-                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
+                        DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
+                        load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
+                        UniverseRules, non_ordinary_sql, yield_rule_sql)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -61,22 +68,32 @@ MAX_STOCKS = 30             # Top 30 by dividend yield
 MIN_STOCKS = 10             # Hold cash if fewer than 10 qualify
 DEFAULT_FREQUENCY = "annual"
 DEFAULT_REBALANCE_MONTHS = [7]  # July (FY filings available, market settled from Q1 earnings)
-MAX_SINGLE_RETURN = 2.0     # Cap individual stock returns at 200% (data quality guard)
 MIN_ENTRY_PRICE = 1.0       # Skip stocks with entry price < $1 (price data artifact)
+# No return cap: data checks dc-1 (traded bars, NVDR twins, market-cap check at the floor) clean the
+# inputs, and every kept move over +100% or under -50% is listed in the results.
+DATA_CHECKS = DATA_CHECKS_V1
+PAID_CACHE_DDL = "CREATE TABLE paid_cache(symbol VARCHAR, filing_epoch BIGINT, paid DOUBLE, reportedCurrency VARCHAR)"
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap_min=None, dc=None, ur=None):
     """Fetch financial data and load into DuckDB.
 
     Populates tables:
-        sector_map(symbol VARCHAR, sector VARCHAR, exchange VARCHAR)
+        sector_map(symbol VARCHAR, sector VARCHAR, exchange VARCHAR): ordinary lines only
+        line_ccy(symbol, currency): each kept line's trading currency
         metrics_cache(symbol, returnOnEquity, marketCap, filing_epoch, period)
         ratios_cache(symbol, operatingProfitMargin, debtToEquityRatio, dividendYield,
-                     filing_epoch, period)
-        prices_cache(symbol, trade_epoch, adjClose)
+                     reportedCurrency, filing_epoch, period)
+        paid_cache(symbol, filing_epoch, paid, reportedCurrency): FY dividends paid
+        prices_cache(symbol, trade_epoch, adjClose, close, volume)
+        cap_check (empty unless dc is on), and with dc on: splits, prices_dropped
 
+    dc: a data_utils.DataChecks; when on, the fetch runs checks T, N and M (mktcap_min is the floor).
+    ur: a data_utils.UniverseRules, which records the lines the ordinary-shares rule removes.
     Returns DuckDB connection or None.
     """
+    checks = dc is not None and dc.on
+    ur = ur if ur is not None else UniverseRules()
     sectors_sql = "', '".join(DEFENSIVE_SECTORS)
 
     bench_symbols = {"'SPY'"}
@@ -94,15 +111,13 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
         exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
         sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
-        price_universe_filter = (
-            f"(symbol IN ({bench_list}) OR symbol IN "
-            f"(SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and} "
-            f"AND sector IN ('{sectors_sql}')))"
-        )
+        sector_sym_sql = (f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and} "
+                          f"AND sector IN ('{sectors_sql}'))")
     else:
         exchange_where = ""
         sym_filter_sql = "1=1"
-        price_universe_filter = f"(symbol IN ({bench_list}) OR symbol IN (SELECT DISTINCT symbol FROM profile WHERE sector IN ('{sectors_sql}')))"
+        sector_sym_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE sector IN ('{sectors_sql}'))"
+    price_universe_filter = f"(symbol IN ({bench_list}) OR {sector_sym_sql})"
     if listing_cond:
         print(f"  Listing filter: {listing_cond}")
 
@@ -112,10 +127,13 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     # 1. Sector map — current snapshot (sectors rarely change for established companies)
     # No isActivelyTrading filter: today's snapshot would drop names delisted since (B041).
     # The sector filter is the fund guard: FMP files nearly all funds/ETFs under Financial Services.
+    # Ordinary shares only (universe rules ur-1): the CASE names why a line is not one, and those lines
+    # stay out of the sector map.
     print("  Fetching sector & exchange mappings...")
     sector_sql = f"""
-        SELECT DISTINCT symbol, sector, exchange
-        FROM profile
+        SELECT DISTINCT symbol, sector, exchange, currency, cik, companyName,
+               {non_ordinary_sql("p")} AS non_ordinary
+        FROM profile p
         {exchange_where}
         AND sector IN ('{sectors_sql}')
     """
@@ -123,16 +141,24 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     if not sector_rows:
         print("  No symbols found for these exchanges.")
         return None
-    print(f"  Defensive universe: {len(sector_rows)} symbols")
+    kept = ur.sector_rows(sector_rows)
+    print(f"  Defensive universe: {ur.lines} symbols, {len(ur.removed)} not ordinary shares")
+    if not kept:
+        print("  No ordinary shares in this universe.")
+        return None
 
-    sym_values = ",".join(f"('{r['symbol']}', '{r['sector']}', '{r['exchange']}')"
-                          for r in sector_rows)
-    con.execute("""
-        CREATE TABLE sector_map(symbol VARCHAR, sector VARCHAR, exchange VARCHAR);
-        INSERT INTO sector_map VALUES
-    """ + sym_values)
+    con.execute("CREATE TABLE sector_map(symbol VARCHAR, sector VARCHAR, exchange VARCHAR)")
+    con.executemany("INSERT INTO sector_map VALUES (?, ?, ?)",
+                    sorted({(r["symbol"], r["sector"], r["exchange"]) for r in kept}))
+    ccy = {}   # one trading currency per line: its first non-null profile currency
+    for r in sorted(kept, key=lambda r: (r["symbol"], r["currency"] is None, str(r["currency"]))):
+        ccy.setdefault(r["symbol"], r["currency"])
+    con.execute("CREATE TABLE line_ccy(symbol VARCHAR, currency VARCHAR)")
+    con.executemany("INSERT INTO line_ccy VALUES (?, ?)", sorted(ccy.items()))
     # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
     load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
+    if checks:   # check N: SET NVDR lines share their ordinary line's security key
+        dc.record_twins_linked(mark_nvdr_twins(con))
 
     # 2. Key metrics FY (ROE, market cap)
     print("  Fetching key metrics (ROE, market cap)...")
@@ -146,10 +172,18 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     count = query_parquet(client, km_sql, con, "metrics_cache", verbose=verbose)
     print(f"    -> {count} rows")
 
-    # 3. Financial ratios FY (OPM, D/E, dividend yield)
+    # Check M (the floor reads cap_used) and the splits check F flags; cap_check stays empty when off.
+    if checks:
+        print("  Fetching market-cap check inputs and splits...")
+        dc.record_cap(load_cap_check(client, con, sym_filter_sql, mktcap_min, dc.cfg, verbose=verbose))
+        load_splits(client, con, sym_filter_sql, verbose=verbose)
+    else:
+        empty_cap_check(con)
+
+    # 3. Financial ratios FY (OPM, D/E, dividend yield and its reporting currency)
     print("  Fetching financial ratios (OPM, D/E, dividend yield)...")
     fr_sql = f"""
-        SELECT symbol, operatingProfitMargin, debtToEquityRatio, dividendYield,
+        SELECT symbol, operatingProfitMargin, debtToEquityRatio, dividendYield, reportedCurrency,
                dateEpoch AS filing_epoch, period
         FROM financial_ratios
         WHERE period = 'FY'
@@ -157,6 +191,21 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
           AND {sym_filter_sql}
     """
     count = query_parquet(client, fr_sql, con, "ratios_cache", verbose=verbose)
+    print(f"    -> {count} rows")
+
+    # 3b. FY dividends paid, for the yield rule's cross-currency check
+    print("  Fetching dividends paid (cash flow statement)...")
+    cf_sql = f"""
+        SELECT symbol, dateEpoch AS filing_epoch,
+               COALESCE(NULLIF(commonDividendsPaid, 0), netDividendsPaid) AS paid, reportedCurrency
+        FROM cash_flow_statement
+        WHERE period = 'FY'
+          AND {sector_sym_sql}
+    """
+    count = query_parquet(client, cf_sql, con, "paid_cache", verbose=verbose)
+    if not count:   # query_parquet's empty-result placeholder has none of the columns
+        con.execute("DROP TABLE paid_cache")
+        con.execute(PAID_CACHE_DDL)
     print(f"    -> {count} rows")
 
     # 4. Prices (at rebalance dates + SPY)
@@ -168,7 +217,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     date_filter = " OR ".join(date_conditions)
 
     price_sql = f"""
-        SELECT symbol, dateEpoch AS trade_epoch, adjClose, volume
+        SELECT symbol, dateEpoch AS trade_epoch, adjClose, close, volume
         FROM stock_eod
         WHERE ({date_filter})
           AND {price_universe_filter}
@@ -177,73 +226,124 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
                           verbose=verbose, limit=5_000_000, timeout=600,
                           memory_mb=4096, threads=2)
     con.execute("CREATE INDEX idx_prices_sym_epoch ON prices_cache(symbol, trade_epoch)")
+    if checks:   # check T: closed days, zero-volume and flat lines, non-positive prices, sibling-class gaps
+        dc.record_clean(clean_price_cache(con, bench_symbols, rebalance_dates, dc.cfg, siblings="cap_inputs"))
     remove_price_oscillations(con, verbose=verbose)
     print(f"    -> {count} price rows")
 
     return con
 
 
-def screen_stocks(con, target_date, mktcap_min, offset_days=1):
-    """Screen for quality stocks in defensive sectors.
-
-    Returns list of (symbol, market_cap, dividend_yield) sorted by dividend_yield DESC.
-    Top MAX_STOCKS are selected.
-    """
-    # 45-day lag for point-in-time (July rebalance → filings through ~May 17)
-    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
-    # Staleness: last 18 months only, else a delisted name's last FY row keeps a slot forever (B041)
-    earliest_epoch = utc_epoch(target_date - timedelta(days=540))
-
-    candidates = """
+def _candidates_sql(cap_test):
+    """The screen's candidate SELECT, every line that passes the quality filters and the market-cap floor,
+    with the yield rule's reason (yield_rule, NULL when the line stays) and the inputs it read. The floor
+    reads cap_used (check M), the screen reports cap_used as the market cap, and the km tie-break stays on
+    the raw cap. cap_test is the floor clause ("km.cap_used > ?", or CAP_FAIL_TEST for M's events, which
+    also read km_epoch and raw_cap). The yield rule's paid yield reads the same FY's dividends paid and its
+    key_metrics cap; the reporting currency is that FY's cash-flow row's, else the ratios row's."""
+    report_ccy = "COALESCE(cf.reportedCurrency, fr.reportedCurrency)"
+    return f"""
         WITH km AS (
-            SELECT symbol, returnOnEquity, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
-                    marketCap DESC NULLS LAST, returnOnEquity DESC NULLS LAST) AS rn
-            FROM metrics_cache
-            WHERE filing_epoch <= ? AND filing_epoch >= ?
+            SELECT m.symbol, m.returnOnEquity, m.marketCap, m.filing_epoch,
+                {cap_used_sql()} AS cap_used,
+                ROW_NUMBER() OVER (PARTITION BY m.symbol ORDER BY m.filing_epoch DESC,
+                    m.marketCap DESC NULLS LAST, m.returnOnEquity DESC NULLS LAST) AS rn
+            FROM metrics_cache m
+            LEFT JOIN cap_check cc ON cc.symbol = m.symbol AND cc.filing_epoch = m.filing_epoch
+            WHERE m.filing_epoch <= ? AND m.filing_epoch >= ?
         ),
         fr AS (
-            SELECT symbol, operatingProfitMargin, debtToEquityRatio, dividendYield,
+            SELECT symbol, operatingProfitMargin, debtToEquityRatio, dividendYield, reportedCurrency,
                    filing_epoch,
                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC,
                     dividendYield DESC NULLS LAST, operatingProfitMargin DESC NULLS LAST,
                     debtToEquityRatio DESC NULLS LAST) AS rn
             FROM ratios_cache
             WHERE filing_epoch <= ? AND filing_epoch >= ?
-        )
-        SELECT sm.symbol, km.marketCap, fr.dividendYield
+        ),
+        cf AS (
+            SELECT symbol, filing_epoch, paid, reportedCurrency,
+                ROW_NUMBER() OVER (PARTITION BY symbol, filing_epoch ORDER BY ABS(paid) DESC NULLS LAST,
+                    reportedCurrency) AS rn
+            FROM paid_cache
+        ),
+        mc AS (SELECT symbol, filing_epoch, MAX(marketCap) AS marketCap FROM metrics_cache GROUP BY ALL)
+        SELECT sm.symbol, km.cap_used AS marketCap, fr.dividendYield,
+               km.filing_epoch AS km_epoch, km.marketCap AS raw_cap,
+               fr.filing_epoch AS fy_epoch, cf.paid AS fy_paid, mc.marketCap AS fy_cap,
+               lc.currency AS trade_ccy, {report_ccy} AS report_ccy,
+               {yield_rule_sql("fr.dividendYield", "cf.paid", "mc.marketCap", "lc.currency", report_ccy)} AS yield_rule
         FROM sector_map sm
         JOIN km ON sm.symbol = km.symbol AND km.rn = 1
         JOIN fr ON sm.symbol = fr.symbol AND fr.rn = 1
+        LEFT JOIN cf ON cf.symbol = sm.symbol AND cf.filing_epoch = fr.filing_epoch AND cf.rn = 1
+        LEFT JOIN mc ON mc.symbol = sm.symbol AND mc.filing_epoch = fr.filing_epoch
+        LEFT JOIN line_ccy lc ON lc.symbol = sm.symbol
         WHERE km.returnOnEquity > ?
           AND fr.operatingProfitMargin > ?
           AND (fr.debtToEquityRatio IS NULL OR fr.debtToEquityRatio < ?)
           AND (fr.dividendYield IS NULL OR fr.dividendYield > ?)
-          AND km.marketCap > ?
+          AND {cap_test}
     """
-    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot.
+
+
+def _kept(candidates_sql, rule="IS NULL"):
+    """The candidates the yield rule keeps ("IS NULL") or drops ("IS NOT NULL")."""
+    return f"SELECT * FROM ({candidates_sql}) _y WHERE _y.yield_rule {rule}"
+
+
+def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None):
+    """Screen for quality stocks in defensive sectors.
+
+    Returns list of (symbol, market_cap, dividend_yield) sorted by dividend_yield DESC.
+    Top MAX_STOCKS are selected, after the yield rule and the security dedup.
+    dc (data_utils.DataChecks): when on, NVDR twins share a security (check N); it also records the
+    screen's twin and market-cap events. ur (data_utils.UniverseRules) records the yield rule's drops.
+    """
+    # 45-day lag for point-in-time (July rebalance → filings through ~May 17)
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    # Staleness: last 18 months only, else a delisted name's last FY row keeps a slot forever (B041)
+    earliest_epoch = utc_epoch(target_date - timedelta(days=540))
+
+    candidates = _candidates_sql("km.cap_used > ?")
+    params = [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,
+              ROE_MIN, OPM_MIN, DE_MAX, DIV_YIELD_MIN, mktcap_min]
+    kept = _kept(candidates)
+    # One row per security BEFORE the top-N cut, so a collapsed twin (or a symbol the sector_map
+    # join fans out) or a line the yield rule drops frees its slot.
     rows = con.execute(f"""
         SELECT symbol, marketCap, dividendYield
-        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        FROM ({isin_dedup_sql(kept, target_date, offset_days, MIN_ENTRY_PRICE,
+                              twin_key=dc is not None and dc.on)})
         ORDER BY dividendYield DESC, symbol
         LIMIT ?
-    """, [cutoff_epoch, earliest_epoch, cutoff_epoch, earliest_epoch,
-          ROE_MIN, OPM_MIN, DE_MAX, DIV_YIELD_MIN,
-          mktcap_min, MAX_STOCKS]).fetchall()
+    """, params + [MAX_STOCKS]).fetchall()
 
-    return [(r[0], r[1], r[2]) for r in rows]
+    picked = [(r[0], r[1], r[2]) for r in rows]
+    if ur is not None:
+        ur.yield_drops(con.execute(f"""
+            SELECT DISTINCT symbol, yield_rule, fy_epoch, dividendYield, fy_paid, fy_cap, trade_ccy, report_ccy
+            FROM ({_kept(candidates, "IS NOT NULL")})""", params).fetchall(), target_date)
+    if dc is not None:
+        dc.twins(con, kept, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _, _ in picked])
+        dc.caps(con, _kept(_candidates_sql(CAP_FAIL_TEST)), params + [mktcap_min], target_date, mktcap_min)
+    return picked
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
-    """Run Defensive Quality backtest. Returns list of period result dicts."""
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, ur=None, exit_method="drop", dc=None):
+    """Run Defensive Quality backtest. Returns list of period result dicts.
+
+    dc: the leg's data_utils.DataChecks. Without one, no check runs (the "uncapped" mode); either
+    way there is no return cap. ur: the leg's data_utils.UniverseRules (records the yield drops)."""
     results = []
+    dc = dc if dc is not None else DataChecks("uncapped", DATA_CHECKS)
 
     for i in range(len(rebalance_dates) - 1):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, offset_days=offset_days, dc=dc, ur=ur)
 
         # Benchmark return
         spy_return = get_benchmark_return(
@@ -258,7 +358,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "stocks_held": 0,
                 "screened": len(portfolio),
                 "entry_buyable": None,
+                "entry_unpriced": None,
                 "min_stocks": MIN_STOCKS,
+                **dc.row(entry_date, screened=True, priced=False),
                 "holdings": f"CASH ({len(portfolio)} passed)",
             })
             if verbose:
@@ -273,6 +375,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         symbol_data = [(sym, entry_prices.get(sym), exit_prices.get(sym), mcaps.get(sym))
                        for sym in symbols]
+        # screened names the strategy can't buy at entry (no bar, or under the floor): the book is the rest
+        unpriced = sorted(s for s in symbols if not entry_usable(entry_prices.get(s), MIN_ENTRY_PRICE))
         # LTP fills only for periods that clear the entry-side cash guard below.
         ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
                              offset_days=offset_days, min_entry_price=MIN_ENTRY_PRICE)
@@ -283,7 +387,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             # symbol_data with the exit slot taken from xmap
             clean, skipped = filter_returns([(sym, ep, xmap.get(sym), mcap) for sym, ep, _, mcap in symbol_data],
                                             min_entry_price=MIN_ENTRY_PRICE,
-                                            max_single_return=MAX_SINGLE_RETURN,
+                                            max_single_return=None,   # no return cap (data checks dc-1)
                                             verbose=verbose)
             returns = []
             for sym, raw_ret, mcap in clean:
@@ -303,8 +407,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         # as a diversified portfolio return.
         #
         # Checked on `buyable`, NOT on len(clean). filter_returns also drops a
-        # name for a missing EXIT price and for a realised return over
-        # MAX_SINGLE_RETURN, neither of which is knowable on the rebalance date.
+        # name for a missing EXIT price, which is not knowable on the rebalance
+        # date (this topic sets no return cap; a cap would be a second such drop).
         # Deciding cash from those is look-ahead and it flatters: a period the
         # strategy really held and really lost gets rewritten as a flat 0.0%. If
         # the book cleared the floor at entry the strategy ENTERED, so the
@@ -314,6 +418,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         # not changed here.
         buyable = entry_buyable(symbol_data, min_entry_price=MIN_ENTRY_PRICE)
         if buyable < MIN_STOCKS:
+            # window bars only: T's bar events, no book to flag
+            dc.prices(con, entry_date, exit_date, symbol_data, offset_days, MIN_ENTRY_PRICE, held=False)
             results.append({
                 "rebalance_date": entry_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
@@ -322,7 +428,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "stocks_held": 0,
                 "screened": len(portfolio),
                 "entry_buyable": buyable,
+                "entry_unpriced": unpriced,
                 "min_stocks": MIN_STOCKS,
+                **dc.row(entry_date, screened=True, priced=True),
                 "holdings": f"CASH ({buyable} buyable at entry of {len(portfolio)} screened)",
             })
             if verbose:
@@ -331,6 +439,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             continue
 
         port_return = sum(returns) / len(returns) if returns else 0.0
+        # window bars only (never the LTP fills): T's bar events, L and F's flags
+        dc.prices(con, entry_date, exit_date, symbol_data, offset_days, MIN_ENTRY_PRICE, held=True)
+        booked = exit_ltp if exit_method == "ltp" else exit_prices
 
         results.append({
             "rebalance_date": entry_date.isoformat(),
@@ -340,8 +451,12 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "stocks_held": len(returns),
             "screened": len(portfolio),
             "entry_buyable": buyable,
+            "entry_unpriced": unpriced,
             "min_stocks": MIN_STOCKS,
+            **dc.row(entry_date, screened=True, priced=True),
             "holdings": ",".join(sym for sym, _, _ in clean),
+            **dc.holdings_full(con, clean, entry_prices, booked, ltp_fill if exit_method == "ltp" else {},
+                               entry_date, exit_date, offset_days, ltp),
         })
         if exit_method == "both":
             c_ltp, r_ltp = book(exit_ltp, verbose=False)
@@ -423,10 +538,16 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, verbose, output_path=None, offset_days=1, exit_method="drop"):
-    """Run backtest for a single exchange set. Returns output dict or None."""
-    periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
+               risk_free_rate, verbose, output_path=None, offset_days=1, exit_method="drop",
+               data_checks="on", full_holdings=False):
+    """Run backtest for a single exchange set. Returns output dict or None.
 
+    data_checks: "on" (data checks dc-1), or "uncapped" (no check and no cap: attribution only). The
+    universe rules ur-1 apply in both. full_holdings: every invested period row also lists each booked
+    name (holdings_full)."""
+    periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
+    dc = DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)
+    ur = UniverseRules()
     mktcap_threshold = get_mktcap_threshold(exchanges)
     mktcap_label = (f"{mktcap_threshold/1e9:.0f}B" if mktcap_threshold >= 1e9
                     else f"{mktcap_threshold/1e6:.0f}M")
@@ -447,7 +568,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = generate_rebalance_dates(2000, 2025, frequency,
                                                months=DEFAULT_REBALANCE_MONTHS)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
+                             mktcap_min=mktcap_threshold, dc=dc, ur=ur)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -458,12 +580,16 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
     t1 = time.time()
     # prices_cache holds only [R, R+11d] windows at rebalance dates, so LTP reads remote stock_eod.
-    ltp = LtpExits(cr, con, verbose=verbose) if exit_method != "drop" else None
+    ltp = LtpExits(cr, con, verbose=verbose, traded_only=dc.on) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold, use_costs=use_costs,
                            verbose=verbose, offset_days=offset_days,
-                           benchmark_symbol=benchmark_symbol, ltp=ltp, exit_method=exit_method)
+                           benchmark_symbol=benchmark_symbol, ltp=ltp, ur=ur, exit_method=exit_method, dc=dc)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
+    print(f"  {dc.summary()}")
+    ub = ur.block()
+    print(f"  Universe rules: {ub['ordinary_shares']['removed_count']} lines not ordinary shares "
+          f"{ub['ordinary_shares']['by_reason']}, yield drops {ub['dividend_yield']['by_reason']}")
 
     # Phase 3: Compute metrics
     valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
@@ -479,6 +605,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                               risk_free_rate=risk_free_rate)
     print(format_metrics(metrics, "Defensive Quality", benchmark_name))
     ltp_block = ltp.results_block(exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
+    if ltp_block:
+        dc.annotate_ltp(con, ltp, ltp_block)   # F's flags on the fills, inside the ltp block
 
     # B006: count over `executed` (every rebalance the strategy actually ran),
     # not `valid` (only those the benchmark can also price). Keeps the honest
@@ -507,6 +635,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
     output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
+    output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both
+    output["universe_rules"] = ub        # equal in drop, ltp and both (uncapped, yield drops read the raw-cap floor)
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 
@@ -524,6 +654,12 @@ def main():
     parser = argparse.ArgumentParser(description="Defensive Sector Quality backtest")
     add_common_args(parser)
     add_exit_method_arg(parser)
+    parser.add_argument("--data-checks", choices=DataChecks.MODES, default="on",
+                        help="Data checks dc-1 (default on). 'uncapped' turns every check off and sets no "
+                             "return cap: the same-day attribution arm only, never published")
+    parser.add_argument("--full-holdings", action="store_true",
+                        help="Also list every booked name per invested period (holdings_full: entry and exit "
+                             "bars and prices, return before costs), for review")
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -587,7 +723,8 @@ def main():
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
                                     use_costs, rfr, args.verbose, output_path,
-                                    offset_days=offset_days, exit_method=args.exit_method)
+                                    offset_days=offset_days, exit_method=args.exit_method,
+                                    data_checks=args.data_checks, full_holdings=args.full_holdings)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -647,7 +784,7 @@ def main():
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, args.verbose, args.output, offset_days=offset_days,
-               exit_method=args.exit_method)
+               exit_method=args.exit_method, data_checks=args.data_checks, full_holdings=args.full_holdings)
 
 
 if __name__ == "__main__":

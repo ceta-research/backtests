@@ -529,8 +529,14 @@ def rows_dcf(src, latest=YIELD_CAP):
 
 
 def rows_defensive(src, first="Utilities"):
-    """Every line in a defensive sector (`first`), NOI1's second profile row in another: sector_map fans NOI1 out."""
+    """Every line in a defensive sector (`first`), NOI1's second profile row in another: sector_map fans NOI1 out.
+    Plus the columns the universe rules read (tracker#616), none of which removes or drops a line here."""
     src.execute("UPDATE profile SET sector = CASE sector WHEN 'Energy' THEN 'Healthcare' ELSE ? END", [first])
+    for col, typ in (("companyName", "VARCHAR"), ("cik", "VARCHAR"), ("isFund", "BOOLEAN"), ("isEtf", "BOOLEAN")):
+        src.execute(f"ALTER TABLE profile ADD COLUMN {col} {typ}")
+    src.execute("ALTER TABLE financial_ratios ADD COLUMN reportedCurrency VARCHAR")
+    for col, typ in (("netDividendsPaid", "DOUBLE"), ("reportedCurrency", "VARCHAR")):
+        src.execute(f"ALTER TABLE cash_flow_statement ADD COLUMN {col} {typ}")
 
 
 # Wave 3: what a screen needs that the shared fixture lacks. Each topic runs on its own source_db() plus these rows.
@@ -600,7 +606,8 @@ def leg_failures(mod, topic, src, legs=tuple(LEGS)):
             f.append(f"{ex}: every query carries {cond}")
         if not cond and any("country IN" in s or "currency IN" in s for s in sqls):
             f.append(f"{ex}: no query filters on country or currency")
-        n_isin_sql = sum(1 for s in sqls if re.search(r"\bisin\b", s))
+        # the ordinary-shares rule's query reads profile ISINs for its German sibling test
+        n_isin_sql = sum(1 for s in sqls if re.search(r"\bisin\b", s) and "non_ordinary" not in s)
         if n_isin_sql != 1 or not con.execute("SELECT COUNT(*) FROM isin_map").fetchone()[0]:
             f.append(f"{ex}: isin_map fetched")
         with contextlib.redirect_stdout(io.StringIO()):
