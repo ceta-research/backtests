@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline tests for the universe rules ur-1 (ordinary shares only, the dividend-yield rule), tracker#616.
+"""Offline tests for the universe rules ur-1 (ordinary shares only, the dividend-yield rule), defensive-quality.
 
 non_ordinary_sql() on profile rows shaped like the measured cases: a fund flag, the hand list
 (SREA, ROG.SW beside RO.SW, CIG beside CIG-C, CHSCL), Korean preferred codes with digits and

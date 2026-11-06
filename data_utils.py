@@ -2352,8 +2352,8 @@ class DataChecks:
 
 
 # ---------------------------------------------------------------------------
-# Universe rules ur-1 (tracker#616, DECISIONS #062 to #064): ordinary shares only, and the dividend-yield
-# rule. Opt-in per topic like the data checks (defensive-quality); tracker-private#28 is the all-topics ticket.
+# Universe rules ur-1: ordinary shares only, and the dividend-yield rule (METHODOLOGY.md, Universe Rules).
+# Opt-in per topic like the data checks; defensive-quality uses them.
 
 US_EXCHANGES = ("NYSE", "NASDAQ", "AMEX")
 # Plain-named lines no pattern separates, each checked against its closes and its issuer's common
