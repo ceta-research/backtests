@@ -35,6 +35,6 @@ No test covers this package. The only check that reads it is `scripts/verify_flo
 
 ## Gotchas
 
-- A run overwrites the tracked `nse_arena/results/comparison.json`. The tracked `orb_sweep.json` beside it has no writer in the current code.
+- The tracked `results/orb_sweep.json` has no writer in the current code.
 - `gap-up-scalp/backtest.py` is a separate standalone version of the gap-up scalp with its own copy of `nse_intraday_charges`. A fix here doesn't reach it.
 - Each strategy query asks the API for 16 GB of memory, 6 threads and a 600 s timeout (`run_strategy`).
