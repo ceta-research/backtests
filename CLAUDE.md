@@ -35,6 +35,7 @@ python3 qarp/generate_charts.py                   # offline: reads qarp/results/
 git clone https://github.com/ceta-research/backtests.git
 cd backtests
 python3.12 -m venv .venv
+echo .venv/ >> .git/info/exclude    # local only: gate 6 counts untracked files
 .venv/bin/pip install -r requirements.txt
 source .venv/bin/activate    # python3 in these files means the venv's Python; where activation doesn't persist, call .venv/bin/python
 export CR_API_KEY=...    # every backtest, screen and nse_arena run needs it; the offline tests don't
@@ -54,7 +55,7 @@ for t in scripts/test_*.py; do .venv/bin/python "$t" > /dev/null 2>&1 || echo "F
 .venv/bin/python scripts/verify_floor_guard.py                                                   # static gates over every topic
 ```
 
-On DuckDB 2.0.0, which `requirements.txt` now installs, the loop prints `FAIL scripts/test_domicile_dedup.py`. `verify_floor_guard.py` fails on a branch that changes a file outside its gate 6 scope, such as this file. See `scripts/CLAUDE.md` for both.
+Two known failures: `test_domicile_dedup.py` on DuckDB 2.0, and gate 6 of `verify_floor_guard.py` on a change to this file. See `scripts/CLAUDE.md`.
 
 ## How changes ship
 
@@ -78,6 +79,7 @@ On DuckDB 2.0.0, which `requirements.txt` now installs, the loop prints `FAIL sc
 - `--output` resolves against the current directory. Topic docstrings show `python3 <topic>/backtest.py ... --output results/<file>`, which from the root writes to an untracked root `results/`, while `generate_charts.py` reads `<topic>/results/`. Pass `--output <topic>/results/<file>`.
 - `README.md` is stale in places: its strategy table and tree list 3 of the 95 topics, the tree lists `ts_client.py` (gone), and it says requirements are requests and duckdb only.
 - `--cloud` is not on every script, and where it is the wiring differs by topic: `cloud_runner.run_backtest_cloud`, `cloud_runner.run_screen_cloud`, `CetaResearch.execute_code`, or nothing (a few screens accept the flag and ignore it). `run_backtest_cloud` uploads topic files only for the four topics in `cloud_runner.STRATEGY_FILES` (qarp, piotroski, low-pe, asset-growth). Read the code path before relying on `--cloud` anywhere else.
+- deleveraging, high-yield-quality, low-debt and revenue-accel `screen.py` do not parse (bad f-string braces), and `stock-split/screen.py` imports a missing `cloud_runner.run_screen_on_cloud`. None of the five runs.
 - `cloud_runner` writes the caller's API key into the uploaded `_run.py` or `_run_screen.py` wrapper.
 - `cr_client` sends its Code Execution and Projects writes through the `_*_with_csrf` helpers, which fetch a token from `GET /auth/csrf-token`. A new write call to those APIs uses the same helpers.
 - Ceta Research (`CR_*`, `CetaResearch`) is the primary name. `TS_*` names and the `ts-backtests-<topic>` cloud project names are Trading Studio backward-compat leftovers.

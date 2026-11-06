@@ -11,7 +11,7 @@ Checks and tools for the topic backtests: 30 offline tests, the LTP exit-method 
 - Options: the tests that read `sys.argv[1]` take an optional repo root; `test_data_checks.py --base REF`; `test_floor_guard.py --topic <topic> --verbose`; `test_build_output_synthetic.py -v`.
 - `test_period_accounting.py` and `test_wave3_install.py` read tracked `<topic>/results/` files, so a checkout without them fails these two.
 - `test_data_checks.py` runs `git show e1ecb7c:data_utils.py`: it needs the full history, not a shallow clone.
-- `test_domicile_dedup.py` fails on DuckDB 2.0.0: one mutant puts `uuid()` in a `PARTITION BY`, which 2.0 rejects at bind time. It passes after `.venv/bin/pip install "duckdb<2"` (1.5.6), but `test_pairs_zscore.py` ran about 4 times slower there.
+- `test_domicile_dedup.py` fails on DuckDB 2.0.0, which `requirements.txt` installs today: one mutant puts `uuid()` in a `PARTITION BY`, which 2.0 rejects at bind time. It passes after `.venv/bin/pip install "duckdb<2"` (1.5.6), but `test_pairs_zscore.py` ran about 4 times slower there.
 - Slowest on 3.12.4 with DuckDB 2.0.0: `test_pairs_fundamentals.py` and `test_pairs_multi_pair.py` (about 5 minutes each), then `test_dogs_size.py` and `test_pairs_zscore.py` (under 3 minutes each). Run one test, not the loop, while iterating.
 
 ## LTP gate
@@ -24,7 +24,7 @@ Checks and tools for the topic backtests: 30 offline tests, the LTP exit-method 
 
 - `verify_floor_guard.py`: 15 static gates over every topic (compile, import, floor guard, exit-method default, data checks and more).
 - Its gate 6 (SCOPE) fails a branch that changes any file outside `*/backtest.py`, `*/generate_charts.py`, `scripts/`, rerun results and its `SCOPE_ALLOW` set. A change to any CLAUDE.md outside `scripts/`, the root README or most topic READMEs fails it.
-- Gate 6 diffs against a local `main` branch (`git diff main...HEAD`). Without one it checks only the working tree and passes on committed changes.
+- Gate 6 diffs against a local `main` branch (`git diff main...HEAD`). Without one it checks only the working tree and passes on committed changes. Either way it counts untracked files that `.gitignore` doesn't cover, such as a new `.venv/` (the root Setup excludes it).
 - `scan_results_invariant.py`: impossible period counts across the committed results. Reads every topic's `results/`, writes nothing.
 - `check_pairs_results.py FILE.json|TOPIC ...`: a pairs results file before it is published. `--self-test` runs offline.
 - `benchmark_yield_audit.py`: which published "beat the local benchmark" claims survive a dividend adjustment. Reads the committed results and prints a report (`--json` for JSON).
