@@ -7,7 +7,7 @@ Ceta Research's reproducible quantitative strategy backtests (MIT). Each topic f
 ## Layout
 
 - `cr_client.py`: the API client `CetaResearch`, with Data Explorer SQL (`query()`, formats json, csv, parquet), Code Execution (`execute_code()`) and Projects (`create_project()`, `upsert_file()`, `run_project()`). The README's "API surface" table lists the main methods; `cr_client.py` holds the rest and the endpoint paths.
-- `data_utils.py` (132 KB, search it): data loading, prices, rebalance dates, benchmarks, `DEFAULT_EXIT_METHOD`, `LtpExits` and the data checks (`DataChecks`).
+- `data_utils.py` (144 KB, search it): data loading, prices, rebalance dates, benchmarks, `DEFAULT_EXIT_METHOD`, `LtpExits` and the data checks (`DataChecks`).
 - `metrics.py` (`compute_metrics`, stdlib only), `costs.py` (transaction costs), `cli_utils.py` (shared flags, `EXCHANGE_PRESETS`, `save_results`), `cloud_runner.py` (`--cloud` through the Projects API), `chart_utils.py` (chart benchmark helpers).
 - `pairs_universe.py`: the per-year universe and pair exits of pairs-fundamentals, pairs-zscore and pairs-multi-pair.
 - `<topic>/` (95 folders): `backtest.py`, `screen.py`, `generate_charts.py`, `README.md` and `results/`. Only 41 track a `charts/` and 8 have a `run_all_exchanges.py`. Gaps: gap-up-scalp and trending-value hold only `backtest.py`; etf-overlap and pairs-screening have no `backtest.py`; etf-crowding and etf-underowned have no `screen.py`; etf-overlap has no `generate_charts.py`; pairs-cointegration has no `results/`; rd-efficiency has no README.
@@ -51,7 +51,7 @@ export CR_API_KEY=...    # every backtest, screen and nse_arena run needs it; th
 There is no CI, Makefile or pre-commit hook: nothing runs on a pull request. Run these from the root before you push; neither needs a key or the network.
 
 ```bash
-for t in scripts/test_*.py; do .venv/bin/python "$t" > /dev/null 2>&1 || echo "FAIL $t"; done   # 30 offline tests, about 20 minutes
+for t in scripts/test_*.py; do .venv/bin/python "$t" > /dev/null 2>&1 || echo "FAIL $t"; done   # 31 offline tests, about 20 minutes
 .venv/bin/python scripts/verify_floor_guard.py                                                   # static gates over every topic
 ```
 
@@ -83,4 +83,4 @@ Two known failures: `test_domicile_dedup.py` on DuckDB 2.0, and gate 6 of `verif
 - `cloud_runner` writes the caller's API key into the uploaded `_run.py` or `_run_screen.py` wrapper.
 - `cr_client` sends its Code Execution and Projects writes through the `_*_with_csrf` helpers, which fetch a token from `GET /auth/csrf-token`. A new write call to those APIs uses the same helpers.
 - Ceta Research (`CR_*`, `CetaResearch`) is the primary name. `TS_*` names and the `ts-backtests-<topic>` cloud project names are Trading Studio backward-compat leftovers.
-- Data checks (`data_utils.DataChecks`) are on only in cyclical-timing and deleveraging. Gate 15 of `scripts/verify_floor_guard.py` holds that list and fails a use anywhere else.
+- Data checks (`data_utils.DataChecks`) are on only in cyclical-timing, deleveraging and defensive-quality. Gate 15 of `scripts/verify_floor_guard.py` holds that list and fails a use anywhere else.
