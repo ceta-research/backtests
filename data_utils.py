@@ -2348,3 +2348,179 @@ class DataChecks:
                 f"{c['twins_collapsed']} ({c['nvdr_stand_ins']} stand-ins), cap rows flagged {c['cap_rows_flagged']}, "
                 f"cap excluded {c['cap_excluded']} + signal {c['signal_cap_excluded']}, factor flags "
                 f"{c['factor_flags']}, large moves {c['large_moves']}")
+
+
+# ---------------------------------------------------------------------------
+# Universe rules ur-1 (tracker#616, DECISIONS #062 to #064): ordinary shares only, and the dividend-yield
+# rule. Opt-in per topic like the data checks (defensive-quality); tracker-private#28 is the all-topics ticket.
+
+US_EXCHANGES = ("NYSE", "NASDAQ", "AMEX")
+# Plain-named lines no pattern separates, each checked against its closes and its issuer's common
+# (tasks/tracker-616 plan, "Residue verified"): (symbol, kind, evidence).
+NON_ORDINARY_KNOWN = (
+    ("AESC", "units", "AES corporate units 2021-2024, $100 stated amount, AES is the common"),
+    ("AQNU", "units", "Algonquin equity units 2021-2024, $50, AQN is the common"),
+    ("BKDT", "units", "Brookdale tangible equity units 2022-2025, $100, BKD is the common"),
+    ("DCUE", "units", "Dominion Energy corporate units 2019-2022, $100, D is the common"),
+    ("DTP", "units", "DTE Energy corporate units 2019-2022, $50, DTE is the common"),
+    ("NIMC", "units", "NiSource equity units 2021-2023, $100, NI is the common"),
+    ("PCGU", "units", "PG&E equity units 2020-2023, $100, PCG is the common"),
+    ("PPLC", "units", "a second PPL line whose closes (26 to 49) don't track PPL's, on about 1/1000 of its volume"),
+    ("SJIV", "units", "South Jersey Industries equity units 2021-2023, $50, SJI is the common"),
+    ("SOMN", "units", "Southern Company equity units from 2025-11, $50, SO is the common"),
+    ("TSNU", "units", "Tyson Foods tangible equity units 2014-2017, $50, TSN is the common"),
+    ("UGIC", "units", "UGI equity units 2021-2024, $100, UGI is the common"),
+    ("WTRU", "units", "Aqua America tangible equity units 2019-2022, $50, WTRG is the common"),
+    ("AQNA", "notes", "Algonquin subordinated notes, $25 par (closes 23 to 28)"),
+    ("AQNB", "notes", "Algonquin subordinated notes, $25 par (closes 23 to 28)"),
+    ("BEPI", "notes", "Brookfield BRP Holdings perpetual subordinated notes, $25 par (closes 15 to 22)"),
+    ("SJIJ", "notes", "South Jersey Industries junior subordinated notes, $25 par (closes 17 to 27)"),
+    ("SREA", "notes", "Sempra junior subordinated notes, $25 par (closes 21 to 28)"),
+    ("ENJ", "bonds", "Entergy New Orleans bonds, $25 par, the issuer has no listed common"),
+    ("ENO", "bonds", "Entergy New Orleans bonds, $25 par, the issuer has no listed common"),
+    ("EZT", "bonds", "Entergy Texas bonds, $25 par, the issuer has no listed common"),
+    ("TVC", "bonds", "Tennessee Valley Authority bonds, $25 par, a federal corporation with no shares"),
+    ("TVE", "bonds", "Tennessee Valley Authority bonds, $25 par, a federal corporation with no shares"),
+    ("BDXB", "preferred", "Becton Dickinson mandatory convertible preferred depositary shares 2020-2023, $50"),
+    ("ETI", "preferred", "Entergy Texas preferred, ETI-P's ISIN, no bars, the issuer has no listed common"),
+    ("CHSCL", "preferred", "CHS Inc. preferred, $25 par, a cooperative with no listed common"),
+    ("CIG", "preferred ADR", "CEMIG preferred-share ADR, CIG-C is the common ADR"),
+    ("ELP", "preferred ADR", "COPEL class B preferred ADR, ELPC is the common ADR"),
+    ("EBR-B", "preferred ADR", "Eletrobras class B preferred ADR, EBR is the common ADR"),
+    ("ROG.SW", "certificate", "Roche non-voting Genussschein at its own price on Roche's financials, RO.SW is the share"),
+)
+NAME_TERMS = (r"%|\bnotes?\b|debenture|\bbonds?\b|\bbd\b|subordinated|\bjr\b|junior|collateral|preferred|"
+              r"\bpfd\b|\bpref\b|\bunits?\b|\bser\b|\bseries\b")
+ORDINARY_RULES = {
+    "rule": ("a line is removed when it is a different instrument from the company's ordinary share (preferred, "
+             "note, bond, unit, warrant, right, fund) or a second line at its own price on the same financials "
+             "that no security key collapses; the first reason in `order` is recorded"),
+    "order": {
+        "fund_flag": "profile isFund or isEtf",
+        "known": "NON_ORDINARY_KNOWN, the hand list below",
+        "korean_preferred": "KSC six-character code whose sixth character is not 0",
+        "german_preference": ("XETRA ticker ending in 3, beside another XETRA line whose ISIN shares its first "
+                              "9 characters (PNE3.DE, PNE's only line, stays)"),
+        "canadian_preferred": "TSX ticker ending -P plus letters",
+        "us_suffix": "NYSE, NASDAQ or AMEX ticker ending -P plus letters, -WT, -WTA, -WS, -W, -U, -UN, -R or -RI",
+        "nasdaq_fifth_letter": "five-letter NASDAQ ticker whose fifth letter is P, O, N, M (preferred), W, R, U, Z or V",
+        "name_term": f"companyName matches, ignoring case: {NAME_TERMS}",
+    },
+    "kept": ("Thai NVDRs (check N keys X-R.BK to X.BK, DECISIONS #064), ADRs and TDRs of ordinary shares, share "
+             "classes (BF-B, MKC-V, CENTA), Canadian trust units"),
+    "known": [{"symbol": s, "kind": k, "evidence": e} for s, k, e in NON_ORDINARY_KNOWN],
+}
+YIELD_CEILING = 0.25
+YIELD_AGREE = (0.8, 1.25)
+# Sub-unit quotes read as their currency (LSE pence lines report in pounds).
+SUBUNIT_CURRENCY = {"GBp": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
+YIELD_RULES = {
+    "ceiling": YIELD_CEILING, "agree": list(YIELD_AGREE), "subunits": dict(SUBUNIT_CURRENCY),
+    "rule": ("on the screen's FY financial_ratios row: no vendor dividendYield, kept; above the ceiling, dropped "
+             "(above_ceiling); trading currency (profile) and reporting currency (the same FY cash_flow_statement "
+             "row, else the ratios row) both known and different: dropped when that FY has no dividends paid "
+             "(commonDividendsPaid, else netDividendsPaid) or no positive key_metrics marketCap (unverifiable), "
+             "or when the vendor yield over |paid| / marketCap falls outside `agree` (cross_currency); applied "
+             "before the security dedup and the top-N cut"),
+}
+
+
+def _sql_list(values):
+    return ", ".join("'" + str(v).replace("'", "''") + "'" for v in values)
+
+
+def non_ordinary_sql(p="p", profile="profile", known=None):
+    """A CASE over a profile row aliased `p`: the first ORDINARY_RULES reason the line is not a company's
+    ordinary share, else NULL. `profile` is the table the German sibling test reads; `known` replaces the
+    hand list (tests). Paste as `AND (<this>) IS NULL` to keep ordinary lines only (the share-link SQL)."""
+    known = NON_ORDINARY_KNOWN if known is None else known
+    whens = [f"WHEN COALESCE({p}.isFund, FALSE) OR COALESCE({p}.isEtf, FALSE) THEN 'fund_flag'"]
+    if known:
+        whens.append(f"WHEN {p}.symbol IN ({_sql_list(s for s, _, _ in known)}) THEN 'known'")
+    whens += [
+        f"WHEN {p}.exchange = 'KSC' AND regexp_full_match({p}.symbol, '[0-9A-Z]{{6}}[.]KS')"
+        f" AND SUBSTR({p}.symbol, 6, 1) <> '0' THEN 'korean_preferred'",
+        f"WHEN {p}.exchange = 'XETRA' AND regexp_full_match({p}.symbol, '[A-Z0-9]+3[.]DE')"
+        f" AND EXISTS (SELECT 1 FROM {profile} _o WHERE _o.exchange = 'XETRA' AND _o.symbol <> {p}.symbol"
+        f" AND _o.isin <> {p}.isin AND SUBSTR(_o.isin, 1, 9) = SUBSTR({p}.isin, 1, 9)) THEN 'german_preference'",
+        f"WHEN {p}.exchange = 'TSX' AND regexp_matches({p}.symbol, '-P[A-Z]*[.]TO$') THEN 'canadian_preferred'",
+        f"WHEN {p}.exchange IN ({_sql_list(US_EXCHANGES)})"
+        f" AND regexp_matches({p}.symbol, '-(P[A-Z]*|WTA?|WS|W|U|UN|R|RI)$') THEN 'us_suffix'",
+        f"WHEN {p}.exchange = 'NASDAQ' AND regexp_full_match({p}.symbol, '[A-Z]{{4}}[PONMWRUZV]')"
+        f" THEN 'nasdaq_fifth_letter'",
+        f"WHEN regexp_matches(COALESCE({p}.companyName, ''), '{NAME_TERMS}', 'i') THEN 'name_term'",
+    ]
+    return "CASE " + " ".join(whens) + " END"
+
+
+def _ccy_sql(x):
+    subs = " ".join(f"WHEN '{k}' THEN '{v}'" for k, v in SUBUNIT_CURRENCY.items())
+    return f"(CASE {x} {subs} ELSE UPPER({x}) END)"
+
+
+def yield_rule_sql(vendor, paid, cap, trade_ccy, report_ccy):
+    """A CASE over SQL expressions for one screened FY row: the YIELD_RULES reason it drops, else NULL.
+    paid is the FY's dividends paid (any sign), cap its key_metrics marketCap."""
+    t, r = _ccy_sql(trade_ccy), _ccy_sql(report_ccy)
+    lo, hi = YIELD_AGREE
+    ratio = f"{vendor} / (ABS({paid}) / {cap})"
+    return (f"CASE WHEN {vendor} IS NULL THEN NULL"
+            f" WHEN {vendor} > {YIELD_CEILING} THEN 'above_ceiling'"
+            f" WHEN {t} IS NULL OR {r} IS NULL OR {t} = {r} THEN NULL"
+            f" WHEN {paid} IS NULL OR {paid} = 0 OR {cap} IS NULL OR {cap} <= 0 THEN 'unverifiable'"
+            f" WHEN {ratio} < {lo} OR {ratio} > {hi} THEN 'cross_currency' END")
+
+
+def paid_yield(paid, cap):
+    """|paid| / cap, or None (yield_rule_sql's paid yield, for the drop records)."""
+    return abs(paid) / cap if paid and cap and cap > 0 else None
+
+
+def cik_shared(rows, exchanges=US_EXCHANGES):
+    """Report only: kept US lines (non_ordinary None) that share a CIK, as [{"cik", "symbols"}]. A rerun
+    reads them for plain-named notes or units the rule missed (share classes like BF-A/BF-B recur)."""
+    groups = {}
+    for r in rows:
+        if r.get("non_ordinary") is None and r.get("exchange") in exchanges and r.get("cik"):
+            groups.setdefault(r["cik"], set()).add(r["symbol"])
+    return [{"cik": c, "symbols": sorted(s)} for c, s in sorted(groups.items()) if len(s) > 1]
+
+
+class UniverseRules:
+    """One leg's universe rules ur-1: the ordinary-shares removals and the yield drops, for the results
+    file's universe_rules block (screen inputs only: equal in drop, ltp and both)."""
+
+    def __init__(self):
+        self.lines, self.removed, self.cik, self.drops = 0, [], [], []
+
+    def sector_rows(self, rows):
+        """rows: the sector query's dicts (symbol, exchange, cik, companyName, non_ordinary). Returns the
+        kept rows; a symbol any of whose rows has a reason is removed under its first such row."""
+        why = {}
+        for r in sorted(rows, key=lambda r: (r["symbol"], str(r.get("non_ordinary")), str(r.get("companyName")))):
+            if r.get("non_ordinary") and r["symbol"] not in why:
+                why[r["symbol"]] = (r["non_ordinary"], r.get("companyName"))
+        self.lines = len({r["symbol"] for r in rows})
+        self.removed = [{"symbol": s, "reason": w, "name": n} for s, (w, n) in sorted(why.items())]
+        kept = [r for r in rows if r["symbol"] not in why]
+        self.cik = cik_shared(kept)
+        return kept
+
+    def yield_drops(self, rows, target_date):
+        """rows: (symbol, reason, fy_epoch, vendor, paid, cap, trade_ccy, report_ccy) of one screen's drops."""
+        for s, why, fe, v, pd, cap, t, r in sorted(rows, key=lambda x: (x[0], x[2])):
+            self.drops.append({"rebalance_date": target_date.isoformat(), "symbol": s, "reason": why,
+                               "fy": utc_date(fe).isoformat(), "vendor_yield": _sig(v),
+                               "paid_yield": _sig(paid_yield(pd, cap)), "trade_ccy": t, "report_ccy": r})
+        return len(rows)
+
+    def block(self):
+        count = lambda items: dict(sorted(((k, sum(1 for i in items if i["reason"] == k))
+                                           for k in {i["reason"] for i in items})))
+        drops = sorted(self.drops, key=lambda d: (d["rebalance_date"], d["symbol"]))
+        return {"version": "ur-1",
+                "ordinary_shares": {"rules": ORDINARY_RULES, "lines": self.lines, "removed_count": len(self.removed),
+                                    "by_reason": count(self.removed), "removed": list(self.removed),
+                                    "cik_shared": list(self.cik)},
+                "dividend_yield": {"rules": YIELD_RULES, "dropped": len(drops), "by_reason": count(drops),
+                                   "drops": drops}}

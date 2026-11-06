@@ -584,9 +584,28 @@ def cyc_cap_con(with_check=True):
     return mod, con
 
 
+def def_cap_con(with_check=True):
+    """defensive-quality's screen inputs, the same 14 names, each yielding 3% with agreeing dividends paid."""
+    mod = load_topic("defensive-quality")
+    _, con = delev_cap_con(with_check)
+    for col, typ in (("operatingProfitMargin", "DOUBLE"), ("dividendYield", "DOUBLE"), ("reportedCurrency", "VARCHAR")):
+        con.execute(f"ALTER TABLE ratios_cache ADD COLUMN {col} {typ}")
+    con.execute("UPDATE ratios_cache SET operatingProfitMargin = 0.2, dividendYield = 0.03, reportedCurrency = 'USD'")
+    con.execute("CREATE TABLE sector_map(symbol VARCHAR, sector VARCHAR, exchange VARCHAR)")
+    con.execute("CREATE TABLE line_ccy(symbol VARCHAR, currency VARCHAR)")
+    con.execute("CREATE TABLE paid_cache(symbol VARCHAR, filing_epoch BIGINT, paid DOUBLE, reportedCurrency VARCHAR)")
+    for s, fe in con.execute("SELECT DISTINCT symbol, filing_epoch FROM ratios_cache").fetchall():
+        con.execute("INSERT INTO paid_cache VALUES (?, ?, -1.5e8, 'USD')", [s, fe])
+    con.execute("INSERT INTO sector_map SELECT DISTINCT symbol, 'Utilities', 'NYSE' FROM ratios_cache")
+    con.execute("INSERT INTO line_ccy SELECT DISTINCT symbol, 'USD' FROM ratios_cache")
+    con.execute("UPDATE prices_cache SET trade_epoch = ?", [ep(date(2020, 7, 2))])
+    return mod, con
+
+
 def cap_screen_failures(with_check=True):
     """Check M at every floor: SOS (cap / 50 = 100M) and ZEST (ineligible) leave deleveraging's screen,
-    cyclical-timing's signal and its screen. With cap_check empty they pass: the mutant."""
+    cyclical-timing's signal and its screen, and defensive-quality's screen. With cap_check empty they pass:
+    the mutant."""
     f = []
     mod, con = delev_cap_con(with_check)
     dc = DataChecks("on")
@@ -607,6 +626,14 @@ def cap_screen_failures(with_check=True):
     kinds = sorted((e["check"], e["symbol"]) for e in dc.events if e["check"] in ("cap", "signal_cap"))
     if kinds != [("cap", "SOS"), ("cap", "ZEST"), ("signal_cap", "SOS"), ("signal_cap", "ZEST")]:
         f.append(f"cyclical cap events {kinds}")
+    mod, con = def_cap_con(with_check)
+    dc = DataChecks("on")
+    got = {s for s, _, _ in mod.screen_stocks(con, date(2020, 7, 1), 1e9, offset_days=1, dc=dc)}
+    if got & {"SOS", "ZEST"} or len(got) != 12:
+        f.append(f"defensive screen holds {sorted(got)}")
+    caps = sorted((e["symbol"], e["rule"]) for e in dc.events if e["check"] == "cap")
+    if caps != [("SOS", "cap_over_k"), ("ZEST", "cap_over_pf")]:
+        f.append(f"defensive cap events {caps}")
     return f
 
 
@@ -2055,6 +2082,54 @@ def synthetic_source():
     return src
 
 
+# defensive-quality's universe-rule lines: profile currency, vendor yield, paid yield (None: no cash-flow rows), name
+DEF_RULES = {
+    "NOTE.BK": ("THB", 0.07, 0.07, "Filler Utilities PCL 5.75% Notes due 2079"),   # name_term: off the sector map
+    "ADR.BK": ("USD", 0.08, 0.016, "Overseas Utilities PCL"),                      # 5 times its paid yield
+    "HIGH.BK": ("THB", 0.30, 0.30, "High Yield Utilities PCL"),                    # over the ceiling
+    "UNV.BK": ("USD", 0.07, None, "Unverified Utilities PCL"),                     # cross-currency, nothing paid
+    "OK.BK": ("USD", 0.065, 0.06, "Agreeing Utilities PCL"),                       # agrees: kept
+}
+
+
+def defensive_source():
+    """synthetic_source() as a defensive leg: every line in Utilities with D/E 1.0, OPM 20%, a vendor yield
+    (fillers 5% down to 4.05%, the special lines 6%) and dividends paid that agree with it, reported in THB.
+    Plus DEF_RULES' lines, ranked above the rest so each would be held: NOTE.BK, ADR.BK, HIGH.BK and UNV.BK
+    must leave every book, OK.BK (netDividendsPaid only, commonDividendsPaid 0) must stay."""
+    src = synthetic_source()
+    for col, typ in (("companyName", "VARCHAR"), ("cik", "VARCHAR"), ("isFund", "BOOLEAN"), ("isEtf", "BOOLEAN")):
+        src.execute(f"ALTER TABLE profile ADD COLUMN {col} {typ}")
+    src.execute("UPDATE profile SET sector = 'Utilities', companyName = symbol, isFund = FALSE, isEtf = FALSE")
+    for col, typ in (("operatingProfitMargin", "DOUBLE"), ("dividendYield", "DOUBLE"), ("reportedCurrency", "VARCHAR")):
+        src.execute(f"ALTER TABLE financial_ratios ADD COLUMN {col} {typ}")
+    src.execute("UPDATE financial_ratios SET debtToEquityRatio = 1.0, operatingProfitMargin = 0.2, reportedCurrency = 'THB',"
+                " dividendYield = CASE WHEN regexp_full_match(symbol, 'A[0-9]{2}[.]BK')"
+                " THEN 0.05 - 0.0005 * CAST(SUBSTR(symbol, 2, 2) AS INTEGER) ELSE 0.06 END")
+    src.execute("CREATE TABLE cash_flow_statement(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch UINTEGER,"
+                " commonDividendsPaid DOUBLE, netDividendsPaid DOUBLE, reportedCurrency VARCHAR)")
+    src.execute("INSERT INTO cash_flow_statement SELECT r.symbol, 'FY', r.date, r.dateEpoch, -r.dividendYield * k.marketCap,"
+                " -r.dividendYield * k.marketCap, 'THB' FROM financial_ratios r"
+                " JOIN key_metrics k ON k.symbol = r.symbol AND k.dateEpoch = r.dateEpoch")
+    for i, (s, (ccy, vy, py, name)) in enumerate(DEF_RULES.items()):
+        cap = 6e10 + 1e7 * i
+        src.execute("INSERT INTO profile VALUES (?, 'SET', 'TH', ?, 'Utilities', 6e10, TRUE, ?, ?, NULL, FALSE, FALSE)",
+                    [s, f"TH4{i:03d}000000", ccy, name])
+        for y in range(1998, 2025):
+            fy = date(y, 12, 31)
+            src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, ?, 1.0, 0.2, ?, 'THB')", [s, fy.isoformat(), ep(fy), vy])
+            src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, ?)", [s, fy.isoformat(), ep(fy), cap])
+            if py is not None:
+                src.execute("INSERT INTO cash_flow_statement VALUES (?, 'FY', ?, ?, ?, ?, 'THB')",
+                            [s, fy.isoformat(), ep(fy), 0.0 if s == "OK.BK" else -py * cap, -py * cap])
+        for d in du.generate_rebalance_dates(2000, 2025, "quarterly"):
+            for day in weekdays(d, d + timedelta(days=11)):
+                p = price(s, day)
+                src.execute("INSERT INTO stock_eod VALUES (?, ?, ?, ?, ?, ?)",
+                            [s, day.isoformat(), ep(day), p, p, 0.0 if day in CLOSED else 1e5])
+    return src
+
+
 def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False):
     """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both)."""
     mod = load_topic(topic)
@@ -2172,7 +2247,7 @@ def topic_failures(topic, src, tmp):
             ("factor_flag", "BIG.BK"), ("exit_bar", "ZV.BK"), ("entry_bar", "ZV.BK")}
     if topic == "deleveraging":
         want |= {("entry_bar", "BAD.BK"), ("factor_flag", "A05.BK")}
-    else:
+    elif topic == "cyclical-timing":   # the expansion signal's own floor
         want |= {("signal_cap", "INFL.BK")}
     if want - kinds:
         f.append(f"{topic}: missing events {sorted(want - kinds)}")
@@ -2227,6 +2302,72 @@ def topic_failures(topic, src, tmp):
     pr = lambda res: next(r["portfolio_return"] for r in res["period_data"] if r["rebalance_date"] == bad)
     if not pr(unc) > pr(ltp) + 0.05:
         f.append(f"{topic}: {bad} uncapped {pr(unc)} vs on {pr(ltp)}: BAD.BK's +246% should only be in the uncapped arm")
+    return f
+
+
+def defensive_rules_failures(src, tmp):
+    """defensive-quality's universe rules end to end on defensive_source(): NOTE.BK leaves the sector map,
+    ADR.BK, HIGH.BK and UNV.BK leave every screen under their reasons, OK.BK stays in every book, the block
+    sits after data_checks and is equal across exit methods and the uncapped arm, each priced period lists
+    its screened names with no entry price (DLST.BK from its delisting on), and a dropped line frees its slot."""
+    f = []
+    runs = {m: run_topic("defensive-quality", src, m, "on", tmp) for m in ("drop", "ltp", "both")}
+    (drop, sqls), unc = runs["drop"], run_topic("defensive-quality", src, "ltp", "uncapped", tmp)[0]
+    keys = list(drop)
+    if "universe_rules" not in drop or keys.index("universe_rules") != keys.index("data_checks") + 1:
+        return ["universe_rules sits right after data_checks"]
+    ub = drop["universe_rules"]
+    if any(r[0]["universe_rules"] != ub for r in runs.values()) or unc["universe_rules"] != ub:
+        f.append("universe_rules differs across exit methods or in the uncapped arm")
+    if (ub["version"], ub["ordinary_shares"]["rules"], ub["dividend_yield"]["rules"]) != \
+            ("ur-1", du.ORDINARY_RULES, du.YIELD_RULES):
+        f.append("universe_rules header")
+    rem = [(r["symbol"], r["reason"]) for r in ub["ordinary_shares"]["removed"]]
+    if rem != [("NOTE.BK", "name_term")] or ub["ordinary_shares"]["by_reason"] != {"name_term": 1}:
+        f.append(f"removed {rem}")
+    if not any(du.non_ordinary_sql("p") in s for s in sqls):
+        f.append("no query sent carries non_ordinary_sql")
+    drops = ub["dividend_yield"]["drops"]
+    by = {}
+    for d in drops:
+        by.setdefault(d["symbol"], set()).add(d["reason"])
+    if by != {"ADR.BK": {"cross_currency"}, "HIGH.BK": {"above_ceiling"}, "UNV.BK": {"unverifiable"}}:
+        f.append(f"yield drops {by}")
+    dates = {r["rebalance_date"] for r in drop["period_data"]}
+    for s in ("ADR.BK", "HIGH.BK", "UNV.BK"):
+        if {d["rebalance_date"] for d in drops if d["symbol"] == s} != dates:
+            f.append(f"{s} is not dropped at every screen")
+    adr = next(d for d in drops if d["symbol"] == "ADR.BK")
+    if (adr["vendor_yield"], adr["paid_yield"], adr["trade_ccy"], adr["report_ccy"]) != (0.08, 0.016, "USD", "THB") or \
+            next(d for d in drops if d["symbol"] == "UNV.BK")["paid_yield"] is not None:
+        f.append(f"drop record {adr}")
+    for r in drop["period_data"]:
+        if not r["stocks_held"]:
+            continue
+        held = set(r["holdings"].split(","))
+        if held & {"NOTE.BK", "ADR.BK", "HIGH.BK", "UNV.BK"} or "OK.BK" not in held:
+            f.append(f"{r['rebalance_date']} holds {sorted(held & set(DEF_RULES))}")
+            break
+        if len(r.get("entry_unpriced") or []) != r["screened"] - r["entry_buyable"]:
+            f.append(f"{r['rebalance_date']}: entry_unpriced {r.get('entry_unpriced')}")
+            break
+    dl = {r["rebalance_date"] for r in drop["period_data"] if "DLST.BK" in (r.get("entry_unpriced") or [])}
+    if dl != {d for d in dates if d >= "2018-07-01"}:
+        f.append(f"DLST.BK unpriced at {sorted(dl)}, want every rebalance from 2018-07-01")
+    # a dropped line frees its slot: the top 5 are OK.BK and the next four 6% lines, not 5 less the drops
+    mod = load_topic("defensive-quality")
+    floor = mod.get_mktcap_threshold(["SET"])
+    dc, ur = DataChecks("on"), du.UniverseRules()
+    with contextlib.redirect_stdout(io.StringIO()):
+        con = mod.fetch_data_via_api(FakeClient(src), ["SET"], du.generate_rebalance_dates(2000, 2025, "annual", [7]),
+                                     mktcap_min=floor, dc=dc, ur=ur)
+    saved, mod.MAX_STOCKS = mod.MAX_STOCKS, 5
+    try:
+        picked = [s for s, _, _ in mod.screen_stocks(con, date(2015, 7, 1), floor, offset_days=1, dc=dc, ur=ur)]
+    finally:
+        mod.MAX_STOCKS = saved
+    if picked != ["OK.BK", "BAD.BK", "BIG.BK", "DLST.BK", "STD-R.BK"]:
+        f.append(f"top 5 {picked}")
     return f
 
 
@@ -2347,12 +2488,14 @@ def main():
                                ("filter_returns default identity (10,000 random books)", filter_identity_failures(base)),
                                ("LtpExits(traded_only=False) identity", ltp_identity_failures(base))):
             expect(name, failures + ([stale] if failures else []))
-    # both topics end to end, and gate 15
+    # every opted-in topic end to end, and gate 15
+    srcs = {"defensive-quality": defensive_source()}
     src = synthetic_source()
     with tempfile.TemporaryDirectory() as tmp:
         for t in DATA_CHECKS_TOPICS:
-            expect(f"{t} end to end", topic_failures(t, src, tmp))
-            expect(f"{t} full holdings", holdings_full_failures(t, src, tmp))
+            expect(f"{t} end to end", topic_failures(t, srcs.get(t, src), tmp))
+            expect(f"{t} full holdings", holdings_full_failures(t, srcs.get(t, src), tmp))
+        expect("defensive-quality universe rules end to end", defensive_rules_failures(srcs["defensive-quality"], tmp))
     expect("gate 15 on the real topics and mutants", gate15_failures())
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_data_checks: PASS ({len(ran)} checks)")
