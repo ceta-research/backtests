@@ -1,12 +1,12 @@
 # scripts/
 
-Checks and tools for the topic backtests: 30 offline tests, the LTP exit-method gate, results scanners and one-off fixers. Nothing outside `scripts/` imports from here. Run every command from the repo root with the root venv (see the root CLAUDE.md).
+Checks and tools for the topic backtests: 31 offline tests, the LTP exit-method gate, results scanners and one-off fixers. Nothing outside `scripts/` imports from here. Run every command from the repo root with the root venv (see the root CLAUDE.md).
 
 ## Offline tests (`test_*.py`)
 
 - Standalone files, no test framework: `python3 scripts/test_<name>.py`. Each exits non-zero on a failure.
-- None needs a key or the network: all 30 ran with sockets blocked and none tried to connect.
-- Most load a topic's real `backtest.py` source and run it on made-up warehouse rows (a fake client, often an in-memory DuckDB). 22 of them also apply mutants (a text replacement on an anchor string of the code or doc under test) and require each to fail a check. A change to that code can move an anchor: fix the test's anchor in the same change.
+- None needs a key or the network: all 31 ran with sockets blocked and none tried to connect.
+- Most load a topic's real `backtest.py` source and run it on made-up warehouse rows (a fake client, often an in-memory DuckDB). 23 of them also apply mutants (a text replacement on an anchor string of the code or doc under test) and require each to fail a check. A change to that code can move an anchor: fix the test's anchor in the same change.
 - Each test's docstring says what it covers. `test_pairs_*.py` cover `pairs_universe.py` and the three pairs topics; `test_wave3_install.py` checks the wave 3 install block of `LTP_GATE.md` as written.
 - Options: the tests that read `sys.argv[1]` take an optional repo root; `test_data_checks.py --base REF`; `test_floor_guard.py --topic <topic> --verbose`; `test_build_output_synthetic.py -v`.
 - `test_period_accounting.py` and `test_wave3_install.py` read tracked `<topic>/results/` files, so a checkout without them fails these two.
