@@ -606,8 +606,8 @@ def leg_failures(mod, topic, src, legs=tuple(LEGS)):
             f.append(f"{ex}: every query carries {cond}")
         if not cond and any("country IN" in s or "currency IN" in s for s in sqls):
             f.append(f"{ex}: no query filters on country or currency")
-        # the ordinary-shares CASE (defensive-quality) reads profile ISINs for its German sibling test
-        n_isin_sql = sum(1 for s in sqls if re.search(r"\bisin\b", s.replace(data_utils.non_ordinary_sql("p"), "")))
+        # load_isin_map's fetch (other queries may read profile ISINs, like the ordinary-shares CASE)
+        n_isin_sql = sum(1 for s in sqls if "SELECT symbol, isin, isActivelyTrading" in s)
         if n_isin_sql != 1 or not con.execute("SELECT COUNT(*) FROM isin_map").fetchone()[0]:
             f.append(f"{ex}: isin_map fetched")
         with contextlib.redirect_stdout(io.StringIO()):

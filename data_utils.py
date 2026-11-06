@@ -20,6 +20,7 @@ import json
 import math
 import os
 import tempfile
+from collections import Counter
 from datetime import date, timedelta
 
 
@@ -2413,7 +2414,7 @@ ORDINARY_RULES = {
 YIELD_CEILING = 0.25
 YIELD_AGREE = (0.8, 1.25)
 # Sub-unit quotes read as their currency (LSE pence lines report in pounds).
-SUBUNIT_CURRENCY = {"GBp": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
+SUBUNIT_CURRENCY = {QUOTE_CURRENCY[e]: LOCAL_CURRENCY[e] for e in QUOTE_CURRENCY}
 YIELD_RULES = {
     "ceiling": YIELD_CEILING, "agree": list(YIELD_AGREE), "subunits": dict(SUBUNIT_CURRENCY),
     "rule": ("on the screen's FY financial_ratios row: no vendor dividendYield, kept; above the ceiling, dropped "
@@ -2429,11 +2430,10 @@ def _sql_list(values):
     return ", ".join("'" + str(v).replace("'", "''") + "'" for v in values)
 
 
-def non_ordinary_sql(p="p", profile="profile", known=None):
+def non_ordinary_sql(p="p", profile="profile", known=NON_ORDINARY_KNOWN):
     """A CASE over a profile row aliased `p`: the first ORDINARY_RULES reason the line is not a company's
     ordinary share, else NULL. `profile` is the table the German sibling test reads; `known` replaces the
     hand list (tests). Paste as `AND (<this>) IS NULL` to keep ordinary lines only (the share-link SQL)."""
-    known = NON_ORDINARY_KNOWN if known is None else known
     whens = [f"WHEN COALESCE({p}.isFund, FALSE) OR COALESCE({p}.isEtf, FALSE) THEN 'fund_flag'"]
     if known:
         whens.append(f"WHEN {p}.symbol IN ({_sql_list(s for s, _, _ in known)}) THEN 'known'")
@@ -2468,7 +2468,7 @@ def yield_rule_sql(vendor, paid, cap, trade_ccy, report_ccy):
             f" WHEN {vendor} > {YIELD_CEILING} THEN 'above_ceiling'"
             f" WHEN {t} IS NULL OR {r} IS NULL OR {t} = {r} THEN NULL"
             f" WHEN {paid} IS NULL OR {paid} = 0 OR {cap} IS NULL OR {cap} <= 0 THEN 'unverifiable'"
-            f" WHEN {ratio} < {lo} OR {ratio} > {hi} THEN 'cross_currency' END")
+            f" WHEN {ratio} NOT BETWEEN {lo} AND {hi} THEN 'cross_currency' END")
 
 
 def paid_yield(paid, cap):
@@ -2476,12 +2476,12 @@ def paid_yield(paid, cap):
     return abs(paid) / cap if paid and cap and cap > 0 else None
 
 
-def cik_shared(rows, exchanges=US_EXCHANGES):
+def cik_shared(rows):
     """Report only: kept US lines (non_ordinary None) that share a CIK, as [{"cik", "symbols"}]. A rerun
     reads them for plain-named notes or units the rule missed (share classes like BF-A/BF-B recur)."""
     groups = {}
     for r in rows:
-        if r.get("non_ordinary") is None and r.get("exchange") in exchanges and r.get("cik"):
+        if r.get("non_ordinary") is None and r.get("exchange") in US_EXCHANGES and r.get("cik"):
             groups.setdefault(r["cik"], set()).add(r["symbol"])
     return [{"cik": c, "symbols": sorted(s)} for c, s in sorted(groups.items()) if len(s) > 1]
 
@@ -2508,16 +2508,14 @@ class UniverseRules:
 
     def yield_drops(self, rows, target_date):
         """rows: (symbol, reason, fy_epoch, vendor, paid, cap, trade_ccy, report_ccy) of one screen's drops."""
-        for s, why, fe, v, pd, cap, t, r in sorted(rows, key=lambda x: (x[0], x[2])):
+        for s, why, fe, v, pd, cap, t, r in rows:
             self.drops.append({"rebalance_date": target_date.isoformat(), "symbol": s, "reason": why,
                                "fy": utc_date(fe).isoformat(), "vendor_yield": _sig(v),
                                "paid_yield": _sig(paid_yield(pd, cap)), "trade_ccy": t, "report_ccy": r})
-        return len(rows)
 
     def block(self):
-        count = lambda items: dict(sorted(((k, sum(1 for i in items if i["reason"] == k))
-                                           for k in {i["reason"] for i in items})))
-        drops = sorted(self.drops, key=lambda d: (d["rebalance_date"], d["symbol"]))
+        count = lambda items: dict(sorted(Counter(i["reason"] for i in items).items()))
+        drops = sorted(self.drops, key=lambda d: (d["rebalance_date"], d["symbol"], d["fy"], d["reason"]))
         return {"version": "ur-1",
                 "ordinary_shares": {"rules": ORDINARY_RULES, "lines": self.lines, "removed_count": len(self.removed),
                                     "by_reason": count(self.removed), "removed": list(self.removed),

@@ -593,7 +593,7 @@ def def_cap_con(with_check=True):
     con.execute("UPDATE ratios_cache SET operatingProfitMargin = 0.2, dividendYield = 0.03, reportedCurrency = 'USD'")
     con.execute("CREATE TABLE sector_map(symbol VARCHAR, sector VARCHAR, exchange VARCHAR)")
     con.execute("CREATE TABLE line_ccy(symbol VARCHAR, currency VARCHAR)")
-    con.execute("CREATE TABLE paid_cache(symbol VARCHAR, filing_epoch BIGINT, paid DOUBLE, reportedCurrency VARCHAR)")
+    con.execute(mod.PAID_CACHE_DDL)
     for s, fe in con.execute("SELECT DISTINCT symbol, filing_epoch FROM ratios_cache").fetchall():
         con.execute("INSERT INTO paid_cache VALUES (?, ?, -1.5e8, 'USD')", [s, fe])
     con.execute("INSERT INTO sector_map SELECT DISTINCT symbol, 'Utilities', 'NYSE' FROM ratios_cache")
@@ -2247,7 +2247,7 @@ def topic_failures(topic, src, tmp):
             ("factor_flag", "BIG.BK"), ("exit_bar", "ZV.BK"), ("entry_bar", "ZV.BK")}
     if topic == "deleveraging":
         want |= {("entry_bar", "BAD.BK"), ("factor_flag", "A05.BK")}
-    elif topic == "cyclical-timing":   # the expansion signal's own floor
+    elif DATA_CHECKS_TOPICS[topic] == 2:   # a signal with its own floor (cyclical-timing)
         want |= {("signal_cap", "INFL.BK")}
     if want - kinds:
         f.append(f"{topic}: missing events {sorted(want - kinds)}")
@@ -2271,7 +2271,7 @@ def topic_failures(topic, src, tmp):
                  f"apart from the uncapped arm: {sorted(held(ltp) ^ held(unc))}")
     keys = ["entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost", "twins_collapsed", "cap_excluded",
             "factor_flags"]
-    keys += ["signal_cap_excluded"] if topic == "cyclical-timing" else []
+    keys += ["signal_cap_excluded"] if DATA_CHECKS_TOPICS[topic] == 2 else []
     for r in drop["period_data"]:
         if [k for k in keys if k not in r] or any(r[k] is not None and not isinstance(r[k], int) for k in keys):
             f.append(f"{topic}: period row {r['rebalance_date']} keys")
@@ -2361,11 +2361,8 @@ def defensive_rules_failures(src, tmp):
     with contextlib.redirect_stdout(io.StringIO()):
         con = mod.fetch_data_via_api(FakeClient(src), ["SET"], du.generate_rebalance_dates(2000, 2025, "annual", [7]),
                                      mktcap_min=floor, dc=dc, ur=ur)
-    saved, mod.MAX_STOCKS = mod.MAX_STOCKS, 5
-    try:
-        picked = [s for s, _, _ in mod.screen_stocks(con, date(2015, 7, 1), floor, offset_days=1, dc=dc, ur=ur)]
-    finally:
-        mod.MAX_STOCKS = saved
+    mod.MAX_STOCKS = 5   # a fresh module, used only here
+    picked = [s for s, _, _ in mod.screen_stocks(con, date(2015, 7, 1), floor, offset_days=1, dc=dc, ur=ur)]
     if picked != ["OK.BK", "BAD.BK", "BIG.BK", "DLST.BK", "STD-R.BK"]:
         f.append(f"top 5 {picked}")
     return f

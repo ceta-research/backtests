@@ -72,6 +72,7 @@ MIN_ENTRY_PRICE = 1.0       # Skip stocks with entry price < $1 (price data arti
 # No return cap: data checks dc-1 (traded bars, NVDR twins, market-cap check at the floor) clean the
 # inputs, and every kept move over +100% or under -50% is listed in the results.
 DATA_CHECKS = DATA_CHECKS_V1
+PAID_CACHE_DDL = "CREATE TABLE paid_cache(symbol VARCHAR, filing_epoch BIGINT, paid DOUBLE, reportedCurrency VARCHAR)"
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap_min=None, dc=None, ur=None):
@@ -110,15 +111,13 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
         exchange_where = f"WHERE exchange IN ({ex_filter}){listing_and}"
         sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
-        price_universe_filter = (
-            f"(symbol IN ({bench_list}) OR symbol IN "
-            f"(SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and} "
-            f"AND sector IN ('{sectors_sql}')))"
-        )
+        sector_sym_sql = (f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and} "
+                          f"AND sector IN ('{sectors_sql}'))")
     else:
         exchange_where = ""
         sym_filter_sql = "1=1"
-        price_universe_filter = f"(symbol IN ({bench_list}) OR symbol IN (SELECT DISTINCT symbol FROM profile WHERE sector IN ('{sectors_sql}')))"
+        sector_sym_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE sector IN ('{sectors_sql}'))"
+    price_universe_filter = f"(symbol IN ({bench_list}) OR {sector_sym_sql})"
     if listing_cond:
         print(f"  Listing filter: {listing_cond}")
 
@@ -201,12 +200,12 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
                COALESCE(NULLIF(commonDividendsPaid, 0), netDividendsPaid) AS paid, reportedCurrency
         FROM cash_flow_statement
         WHERE period = 'FY'
-          AND {sym_filter_sql}
+          AND {sector_sym_sql}
     """
     count = query_parquet(client, cf_sql, con, "paid_cache", verbose=verbose)
     if not count:   # query_parquet's empty-result placeholder has none of the columns
         con.execute("DROP TABLE paid_cache")
-        con.execute("CREATE TABLE paid_cache(symbol VARCHAR, filing_epoch BIGINT, paid DOUBLE, reportedCurrency VARCHAR)")
+        con.execute(PAID_CACHE_DDL)
     print(f"    -> {count} rows")
 
     # 4. Prices (at rebalance dates + SPY)
@@ -242,6 +241,7 @@ def _candidates_sql(cap_test):
     the raw cap. cap_test is the floor clause ("km.cap_used > ?", or CAP_FAIL_TEST for M's events, which
     also read km_epoch and raw_cap). The yield rule's paid yield reads the same FY's dividends paid and its
     key_metrics cap; the reporting currency is that FY's cash-flow row's, else the ratios row's."""
+    report_ccy = "COALESCE(cf.reportedCurrency, fr.reportedCurrency)"
     return f"""
         WITH km AS (
             SELECT m.symbol, m.returnOnEquity, m.marketCap, m.filing_epoch,
@@ -271,9 +271,8 @@ def _candidates_sql(cap_test):
         SELECT sm.symbol, km.cap_used AS marketCap, fr.dividendYield,
                km.filing_epoch AS km_epoch, km.marketCap AS raw_cap,
                fr.filing_epoch AS fy_epoch, cf.paid AS fy_paid, mc.marketCap AS fy_cap,
-               lc.currency AS trade_ccy, COALESCE(cf.reportedCurrency, fr.reportedCurrency) AS report_ccy,
-               {yield_rule_sql("fr.dividendYield", "cf.paid", "mc.marketCap", "lc.currency",
-                               "COALESCE(cf.reportedCurrency, fr.reportedCurrency)")} AS yield_rule
+               lc.currency AS trade_ccy, {report_ccy} AS report_ccy,
+               {yield_rule_sql("fr.dividendYield", "cf.paid", "mc.marketCap", "lc.currency", report_ccy)} AS yield_rule
         FROM sector_map sm
         JOIN km ON sm.symbol = km.symbol AND km.rn = 1
         JOIN fr ON sm.symbol = fr.symbol AND fr.rn = 1
@@ -323,7 +322,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None)
     picked = [(r[0], r[1], r[2]) for r in rows]
     if ur is not None:
         ur.yield_drops(con.execute(f"""
-            SELECT symbol, yield_rule, fy_epoch, dividendYield, fy_paid, fy_cap, trade_ccy, report_ccy
+            SELECT DISTINCT symbol, yield_rule, fy_epoch, dividendYield, fy_paid, fy_cap, trade_ccy, report_ccy
             FROM ({_kept(candidates, "IS NOT NULL")})""", params).fetchall(), target_date)
     if dc is not None:
         dc.twins(con, kept, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _, _ in picked])
