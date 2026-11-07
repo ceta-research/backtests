@@ -8,7 +8,7 @@ Fetches data via configurable provider, caches in DuckDB, runs locally.
 Signal: Stocks in Consumer Defensive, Utilities, or Healthcare sectors with
         ROE > 6%, OPM > 8%, D/E < 2.5, Dividend Yield > 0.5%, MCap > local threshold.
 Universe: ordinary shares only, and the dividend-yield rule (data_utils universe rules ur-1,
-        tracker#616): preferreds, notes, bonds, units, warrants, rights and funds are off the
+        METHODOLOGY.md): preferreds, notes, bonds, units, warrants, rights and funds are off the
         sector map; a vendor yield above 25%, or one computed across two currencies that disagrees
         with the company's own dividends paid, drops the line before the top-30 cut.
 Portfolio: Top 30 by dividend yield (income-ranked), equal weight. Cash if < 10 qualify.

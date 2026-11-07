@@ -2,8 +2,8 @@
   "universe": "TSX",
   "n_periods": 25,
   "total_rebalances": 25,
-  "cash_periods": 7,
-  "invested_periods": 18,
+  "cash_periods": 10,
+  "invested_periods": 15,
   "measured_start": "2000-07-01",
   "measured_end": "2025-07-01",
   "requested_start": "2000-07-01",
@@ -15,7 +15,7 @@
   "window_label": "2000-2025",
   "years": 25.0,
   "frequency": "annual",
-  "avg_stocks_when_invested": 12.6,
+  "avg_stocks_when_invested": 12.0,
   "period_data": [
     {
       "rebalance_date": "2000-07-01",
@@ -23,10 +23,18 @@
       "portfolio_return": 0.0,
       "spy_return": -0.24119465430827325,
       "stocks_held": 0,
-      "screened": 8,
+      "screened": 5,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
-      "holdings": "CASH (8 passed)"
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
+      "holdings": "CASH (5 passed)"
     },
     {
       "rebalance_date": "2001-07-01",
@@ -34,10 +42,18 @@
       "portfolio_return": 0.0,
       "spy_return": -0.09345432098372937,
       "stocks_held": 0,
-      "screened": 8,
+      "screened": 5,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
-      "holdings": "CASH (8 passed)"
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
+      "holdings": "CASH (5 passed)"
     },
     {
       "rebalance_date": "2002-07-01",
@@ -45,10 +61,18 @@
       "portfolio_return": 0.0,
       "spy_return": -0.0032937088889547056,
       "stocks_held": 0,
-      "screened": 7,
+      "screened": 5,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
-      "holdings": "CASH (7 passed)"
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
+      "holdings": "CASH (5 passed)"
     },
     {
       "rebalance_date": "2003-07-01",
@@ -56,20 +80,38 @@
       "portfolio_return": 0.0,
       "spy_return": 0.21415390495747788,
       "stocks_held": 0,
-      "screened": 11,
-      "entry_buyable": 7,
+      "screened": 8,
+      "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
-      "holdings": "CASH (7 buyable at entry of 11 screened)"
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
+      "holdings": "CASH (8 passed)"
     },
     {
       "rebalance_date": "2004-07-01",
       "exit_date": "2005-07-01",
-      "portfolio_return": 0.337769,
+      "portfolio_return": 0.343597,
       "spy_return": 0.171374,
       "stocks_held": 10,
-      "screened": 18,
+      "screened": 11,
       "entry_buyable": 10,
+      "entry_unpriced": [
+        "CU-X.TO"
+      ],
       "min_stocks": 10,
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 1,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 1,
       "holdings": "AQN.TO,TA.TO,EMA.TO,FTS.TO,CU.TO,ACO-X.TO,ACO-Y.TO,ALA.TO,BEP-UN.TO,SAP.TO"
     },
     {
@@ -78,120 +120,235 @@
       "portfolio_return": 0.0,
       "spy_return": 0.18018874105200877,
       "stocks_held": 0,
-      "screened": 13,
+      "screened": 10,
       "entry_buyable": 9,
+      "entry_unpriced": [
+        "CU-X.TO"
+      ],
       "min_stocks": 10,
-      "holdings": "CASH (9 buyable at entry of 13 screened)"
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 1,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CASH (9 buyable at entry of 10 screened)"
     },
     {
       "rebalance_date": "2006-07-01",
       "exit_date": "2007-07-01",
-      "portfolio_return": 0.231939,
-      "spy_return": 0.19871,
-      "stocks_held": 10,
-      "screened": 16,
-      "entry_buyable": 10,
+      "portfolio_return": 0.0,
+      "spy_return": 0.19870964112024062,
+      "stocks_held": 0,
+      "screened": 13,
+      "entry_buyable": 9,
+      "entry_unpriced": [
+        "ACO-Y.TO",
+        "CU-X.TO",
+        "EXE.TO",
+        "H.TO"
+      ],
       "min_stocks": 10,
-      "holdings": "NPI.TO,EMA.TO,CSW-A.TO,CSW-B.TO,FTS.TO,CU.TO,BHC.TO,TA.TO,ACO-X.TO,ACO-Y.TO"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 1,
+      "entries_lost": 1,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CASH (9 buyable at entry of 13 screened)"
     },
     {
       "rebalance_date": "2007-07-01",
       "exit_date": "2008-07-01",
-      "portfolio_return": -0.060892,
+      "portfolio_return": -0.065403,
       "spy_return": -0.002176,
       "stocks_held": 11,
-      "screened": 17,
+      "screened": 13,
       "entry_buyable": 11,
+      "entry_unpriced": [
+        "CU-X.TO",
+        "H.TO"
+      ],
       "min_stocks": 10,
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 2,
       "holdings": "AQN.TO,NPI.TO,ALA.TO,EMA.TO,CU.TO,FTS.TO,BHC.TO,SAP.TO,ACO-X.TO,ACO-Y.TO,EXE.TO"
     },
     {
       "rebalance_date": "2008-07-01",
       "exit_date": "2009-07-01",
-      "portfolio_return": -0.111895,
+      "portfolio_return": -0.113808,
       "spy_return": -0.269928,
       "stocks_held": 12,
-      "screened": 20,
+      "screened": 15,
       "entry_buyable": 12,
+      "entry_unpriced": [
+        "ATD-B.TO",
+        "CU-X.TO",
+        "H.TO"
+      ],
       "min_stocks": 10,
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 1,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 1,
       "holdings": "BHC.TO,AQN.TO,CSW-A.TO,CSW-B.TO,ALA.TO,EMA.TO,FTS.TO,TA.TO,CU.TO,SAP.TO,ACO-X.TO,ACO-Y.TO"
     },
     {
       "rebalance_date": "2009-07-01",
       "exit_date": "2010-07-01",
-      "portfolio_return": 0.1971,
+      "portfolio_return": 0.199262,
       "spy_return": 0.092739,
       "stocks_held": 11,
-      "screened": 17,
+      "screened": 13,
       "entry_buyable": 11,
+      "entry_unpriced": [
+        "CU-X.TO",
+        "H.TO"
+      ],
       "min_stocks": 10,
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 1,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
       "holdings": "ALA.TO,BHC.TO,NPI.TO,FTS.TO,EMA.TO,TA.TO,CU.TO,CSW-A.TO,CSW-B.TO,ACO-X.TO,ACO-Y.TO"
     },
     {
       "rebalance_date": "2010-07-01",
       "exit_date": "2011-07-01",
-      "portfolio_return": 0.421629,
+      "portfolio_return": 0.42311,
       "spy_return": 0.19564,
       "stocks_held": 10,
-      "screened": 15,
+      "screened": 11,
       "entry_buyable": 10,
+      "entry_unpriced": [
+        "CU-X.TO"
+      ],
       "min_stocks": 10,
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 1,
       "holdings": "ALA.TO,SPB.TO,ACO-X.TO,ACO-Y.TO,BHC.TO,TA.TO,EMA.TO,FTS.TO,CU.TO,SAP.TO"
     },
     {
       "rebalance_date": "2011-07-01",
       "exit_date": "2012-07-01",
-      "portfolio_return": 0.103315,
+      "portfolio_return": 0.102407,
       "spy_return": -0.114869,
       "stocks_held": 10,
-      "screened": 17,
+      "screened": 11,
       "entry_buyable": 10,
+      "entry_unpriced": [
+        "CU-X.TO"
+      ],
       "min_stocks": 10,
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 1,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
       "holdings": "ALA.TO,BEP-UN.TO,ACO-X.TO,ACO-Y.TO,TA.TO,FTS.TO,EMA.TO,CU.TO,TPX-B.TO,SAP.TO"
     },
     {
       "rebalance_date": "2012-07-01",
       "exit_date": "2013-07-01",
-      "portfolio_return": 0.112532,
-      "spy_return": 0.027817,
-      "stocks_held": 10,
-      "screened": 14,
-      "entry_buyable": 10,
+      "portfolio_return": 0.0,
+      "spy_return": 0.027817212825999374,
+      "stocks_held": 0,
+      "screened": 10,
+      "entry_buyable": 9,
+      "entry_unpriced": [
+        "CU-X.TO"
+      ],
       "min_stocks": 10,
-      "holdings": "ACO-X.TO,ACO-Y.TO,ALA.TO,TA.TO,EMA-PC.TO,EMA.TO,CU.TO,FTS.TO,TPX-B.TO,SAP.TO"
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 1,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CASH (9 buyable at entry of 10 screened)"
     },
     {
       "rebalance_date": "2013-07-01",
       "exit_date": "2014-07-01",
-      "portfolio_return": 0.125535,
+      "portfolio_return": 0.134686,
       "spy_return": 0.248916,
-      "stocks_held": 11,
-      "screened": 12,
-      "entry_buyable": 11,
+      "stocks_held": 10,
+      "screened": 10,
+      "entry_buyable": 10,
+      "entry_unpriced": [],
       "min_stocks": 10,
-      "holdings": "RSI.TO,EMA-PC.TO,EMA.TO,FTS.TO,CU-X.TO,CU.TO,LAS-A.TO,ACO-X.TO,ACO-Y.TO,SAP.TO,DOL.TO"
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 1,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "RSI.TO,EMA.TO,FTS.TO,CU-X.TO,CU.TO,LAS-A.TO,ACO-X.TO,ACO-Y.TO,SAP.TO,DOL.TO"
     },
     {
       "rebalance_date": "2014-07-01",
       "exit_date": "2015-07-01",
-      "portfolio_return": 0.005615,
+      "portfolio_return": 0.010489,
       "spy_return": -0.037594,
-      "stocks_held": 18,
-      "screened": 22,
-      "entry_buyable": 18,
+      "stocks_held": 17,
+      "screened": 18,
+      "entry_buyable": 17,
+      "entry_unpriced": [
+        "H.TO"
+      ],
       "min_stocks": 10,
-      "holdings": "RSI.TO,DR.TO,CSW-A.TO,CSW-B.TO,NPI.TO,CPX.TO,EMA-PC.TO,EMA.TO,INE.TO,ALA.TO,FTS.TO,TPX-B.TO,CU-X.TO,CU.TO,SAP.TO,ACO-X.TO,ACO-Y.TO,DOL.TO"
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 2,
+      "holdings": "RSI.TO,DR.TO,CSW-A.TO,CSW-B.TO,NPI.TO,CPX.TO,EMA.TO,INE.TO,ALA.TO,FTS.TO,TPX-B.TO,CU-X.TO,CU.TO,SAP.TO,ACO-X.TO,ACO-Y.TO,DOL.TO"
     },
     {
       "rebalance_date": "2015-07-01",
       "exit_date": "2016-07-01",
-      "portfolio_return": 0.144042,
+      "portfolio_return": 0.175139,
       "spy_return": -0.025898,
-      "stocks_held": 11,
-      "screened": 13,
-      "entry_buyable": 11,
+      "stocks_held": 10,
+      "screened": 11,
+      "entry_buyable": 10,
+      "entry_unpriced": [
+        "H.TO"
+      ],
       "min_stocks": 10,
-      "holdings": "EMA-PC.TO,EMA.TO,CSW-A.TO,CSW-B.TO,CU.TO,CU-X.TO,TPX-B.TO,ACO-X.TO,ACO-Y.TO,SAP.TO,DOL.TO"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "EMA.TO,CSW-A.TO,CSW-B.TO,CU-X.TO,CU.TO,TPX-B.TO,ACO-X.TO,ACO-Y.TO,SAP.TO,DOL.TO"
     },
     {
       "rebalance_date": "2016-07-01",
@@ -199,65 +356,116 @@
       "portfolio_return": 0.0,
       "spy_return": 0.061133691583585024,
       "stocks_held": 0,
-      "screened": 9,
+      "screened": 7,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
-      "holdings": "CASH (9 passed)"
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
+      "holdings": "CASH (7 passed)"
     },
     {
       "rebalance_date": "2017-07-01",
       "exit_date": "2018-07-01",
-      "portfolio_return": -0.017593,
+      "portfolio_return": -0.020017,
       "spy_return": 0.074855,
-      "stocks_held": 14,
-      "screened": 15,
-      "entry_buyable": 14,
+      "stocks_held": 13,
+      "screened": 13,
+      "entry_buyable": 13,
+      "entry_unpriced": [],
       "min_stocks": 10,
-      "holdings": "BIP-UN.TO,CSW-A.TO,CSW-B.TO,SPB.TO,RSI.TO,H.TO,AQN-PA.TO,CU.TO,CU-X.TO,ACO-X.TO,ACO-Y.TO,PBH.TO,SAP.TO,LAS-A.TO"
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "BIP-UN.TO,CSW-A.TO,CSW-B.TO,SPB.TO,RSI.TO,H.TO,CU-X.TO,CU.TO,ACO-X.TO,ACO-Y.TO,PBH.TO,SAP.TO,LAS-A.TO"
     },
     {
       "rebalance_date": "2018-07-01",
       "exit_date": "2019-07-01",
-      "portfolio_return": -0.036374,
+      "portfolio_return": -0.036916,
       "spy_return": 0.012796,
       "stocks_held": 12,
       "screened": 12,
       "entry_buyable": 12,
+      "entry_unpriced": [],
       "min_stocks": 10,
-      "holdings": "H.TO,CSW-A.TO,CSW-B.TO,CU-X.TO,CU.TO,FTS.TO,TPX-B.TO,PBH.TO,SAP.TO,ADW-A.TO,ADW-B.TO,LAS-A.TO"
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "H.TO,CSW-A.TO,CSW-B.TO,CU.TO,CU-X.TO,FTS.TO,TPX-B.TO,PBH.TO,SAP.TO,ADW-A.TO,ADW-B.TO,LAS-A.TO"
     },
     {
       "rebalance_date": "2019-07-01",
       "exit_date": "2020-07-01",
-      "portfolio_return": 0.013821,
+      "portfolio_return": 0.020249,
       "spy_return": -0.051538,
-      "stocks_held": 16,
-      "screened": 18,
-      "entry_buyable": 16,
+      "stocks_held": 14,
+      "screened": 14,
+      "entry_buyable": 14,
+      "entry_unpriced": [],
       "min_stocks": 10,
-      "holdings": "RNW.TO,CPX.TO,RSI.TO,CU-X.TO,CU.TO,H.TO,CSW-A.TO,CSW-B.TO,EMA-PC.TO,EMA-PH.TO,EMA.TO,FTS.TO,TPX-B.TO,PBH.TO,JWEL.TO,SAP.TO"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "RNW.TO,CPX.TO,RSI.TO,CU-X.TO,CU.TO,H.TO,CSW-A.TO,CSW-B.TO,EMA.TO,FTS.TO,TPX-B.TO,PBH.TO,JWEL.TO,SAP.TO"
     },
     {
       "rebalance_date": "2020-07-01",
       "exit_date": "2021-07-01",
-      "portfolio_return": 0.239043,
+      "portfolio_return": 0.208436,
       "spy_return": 0.294686,
-      "stocks_held": 20,
-      "screened": 20,
-      "entry_buyable": 20,
+      "stocks_held": 17,
+      "screened": 17,
+      "entry_buyable": 17,
+      "entry_unpriced": [],
       "min_stocks": 10,
-      "holdings": "BIPC.TO,CSW-A.TO,CSW-B.TO,SPB.TO,RNW.TO,CU-X.TO,CU.TO,CUP-U.TO,H.TO,ACO-X.TO,ACO-Y.TO,EMA-PC.TO,EMA-PH.TO,EMA.TO,AQN-PA.TO,AQN.TO,FTS.TO,PBH.TO,SAP.TO,JWEL.TO"
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "BIPC.TO,CSW-A.TO,CSW-B.TO,SPB.TO,RNW.TO,CU-X.TO,CU.TO,CUP-U.TO,H.TO,ACO-X.TO,ACO-Y.TO,EMA.TO,AQN.TO,FTS.TO,PBH.TO,SAP.TO,JWEL.TO"
     },
     {
       "rebalance_date": "2021-07-01",
       "exit_date": "2022-07-01",
-      "portfolio_return": 0.006472,
+      "portfolio_return": 0.032728,
       "spy_return": -0.059191,
-      "stocks_held": 15,
-      "screened": 18,
-      "entry_buyable": 15,
+      "stocks_held": 11,
+      "screened": 13,
+      "entry_buyable": 11,
+      "entry_unpriced": [
+        "ATD-B.TO",
+        "NWC.TO"
+      ],
       "min_stocks": 10,
-      "holdings": "BIPC.TO,CU.TO,ALA.TO,SPB.TO,ACO-X.TO,ACO-Y.TO,H.TO,FTS.TO,EMA-PC.TO,EMA-PH.TO,EMA.TO,AQN-PA.TO,AQN.TO,SAP.TO,JWEL.TO"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 1,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CU.TO,ALA.TO,SPB.TO,ACO-X.TO,ACO-Y.TO,H.TO,FTS.TO,EMA.TO,AQN.TO,SAP.TO,JWEL.TO"
     },
     {
       "rebalance_date": "2022-07-01",
@@ -267,41 +475,69 @@
       "stocks_held": 0,
       "screened": 10,
       "entry_buyable": 9,
+      "entry_unpriced": [
+        "NWC.TO"
+      ],
       "min_stocks": 10,
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
       "holdings": "CASH (9 buyable at entry of 10 screened)"
     },
     {
       "rebalance_date": "2023-07-01",
       "exit_date": "2024-07-01",
-      "portfolio_return": 0.043041,
+      "portfolio_return": 0.021448,
       "spy_return": 0.086558,
-      "stocks_held": 14,
-      "screened": 15,
-      "entry_buyable": 14,
+      "stocks_held": 12,
+      "screened": 12,
+      "entry_buyable": 12,
+      "entry_unpriced": [],
       "min_stocks": 10,
-      "holdings": "CU-X.TO,CU.TO,ALA.TO,ACO-X.TO,ACO-Y.TO,EMA-PC.TO,EMA-PH.TO,EMA.TO,H.TO,FTS.TO,NPI.TO,JWEL.TO,SAP.TO,BEPC.TO"
+      "entry_bars_moved": 2,
+      "exit_bars_moved": 1,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CU-X.TO,CU.TO,ALA.TO,ACO-X.TO,ACO-Y.TO,EMA.TO,H.TO,FTS.TO,NPI.TO,JWEL.TO,SAP.TO,BEPC.TO"
     },
     {
       "rebalance_date": "2024-07-01",
       "exit_date": "2025-07-01",
-      "portfolio_return": 0.255582,
-      "spy_return": 0.22392,
-      "stocks_held": 11,
-      "screened": 14,
-      "entry_buyable": 11,
+      "portfolio_return": 0.0,
+      "spy_return": 0.22392018900337307,
+      "stocks_held": 0,
+      "screened": 10,
+      "entry_buyable": 9,
+      "entry_unpriced": [
+        "CU-X.TO"
+      ],
       "min_stocks": 10,
-      "holdings": "RSI.TO,CPX.TO,CU.TO,EMA-PC.TO,EMA-PH.TO,EMA.TO,H.TO,FTS.TO,TPX-B.TO,JWEL.TO,PRMW.TO"
+      "entry_bars_moved": 1,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CASH (9 buyable at entry of 10 screened)"
     }
   ],
   "portfolio": {
-    "total_return": 482.78,
-    "cagr": 7.31,
-    "max_drawdown": -16.6,
-    "annualized_volatility": 13.31,
-    "sharpe_ratio": 0.361,
-    "sortino_ratio": 1.25,
-    "calmar_ratio": 0.44,
-    "var_95": -6.09,
+    "total_return": 246.28,
+    "cagr": 5.09,
+    "max_drawdown": -17.18,
+    "annualized_volatility": 12.55,
+    "sharpe_ratio": 0.207,
+    "sortino_ratio": 0.65,
+    "calmar_ratio": 0.297,
+    "var_95": -6.54,
     "max_consecutive_losses": 2,
     "pct_negative_periods": 16.0
   },
@@ -318,17 +554,17 @@
     "pct_negative_periods": 40.0
   },
   "comparison": {
-    "excess_cagr": 3.35,
-    "win_rate": 60.0,
-    "information_ratio": 0.245,
-    "tracking_error": 12.5,
-    "up_capture": 89.04,
-    "down_capture": -11.17,
-    "beta": 0.549,
-    "alpha": 4.01
+    "excess_cagr": 1.14,
+    "win_rate": 48.0,
+    "information_ratio": 0.052,
+    "tracking_error": 14.47,
+    "up_capture": 59.37,
+    "down_capture": -18.0,
+    "beta": 0.379,
+    "alpha": 2.04
   },
-  "excess_cagr": 3.35,
-  "win_rate_vs_spy": 60.0,
+  "excess_cagr": 1.14,
+  "win_rate_vs_spy": 48.0,
   "annual_returns": [
     {
       "year": 2000,
@@ -356,9 +592,9 @@
     },
     {
       "year": 2004,
-      "portfolio": 33.78,
+      "portfolio": 34.36,
       "spy": 17.14,
-      "excess": 16.64
+      "excess": 17.22
     },
     {
       "year": 2005,
@@ -368,63 +604,63 @@
     },
     {
       "year": 2006,
-      "portfolio": 23.19,
+      "portfolio": 0.0,
       "spy": 19.87,
-      "excess": 3.32
+      "excess": -19.87
     },
     {
       "year": 2007,
-      "portfolio": -6.09,
+      "portfolio": -6.54,
       "spy": -0.22,
-      "excess": -5.87
+      "excess": -6.32
     },
     {
       "year": 2008,
-      "portfolio": -11.19,
+      "portfolio": -11.38,
       "spy": -26.99,
-      "excess": 15.8
+      "excess": 15.61
     },
     {
       "year": 2009,
-      "portfolio": 19.71,
+      "portfolio": 19.93,
       "spy": 9.27,
-      "excess": 10.44
+      "excess": 10.65
     },
     {
       "year": 2010,
-      "portfolio": 42.16,
+      "portfolio": 42.31,
       "spy": 19.56,
-      "excess": 22.6
+      "excess": 22.75
     },
     {
       "year": 2011,
-      "portfolio": 10.33,
+      "portfolio": 10.24,
       "spy": -11.49,
-      "excess": 21.82
+      "excess": 21.73
     },
     {
       "year": 2012,
-      "portfolio": 11.25,
+      "portfolio": 0.0,
       "spy": 2.78,
-      "excess": 8.47
+      "excess": -2.78
     },
     {
       "year": 2013,
-      "portfolio": 12.55,
+      "portfolio": 13.47,
       "spy": 24.89,
-      "excess": -12.34
+      "excess": -11.42
     },
     {
       "year": 2014,
-      "portfolio": 0.56,
+      "portfolio": 1.05,
       "spy": -3.76,
-      "excess": 4.32
+      "excess": 4.81
     },
     {
       "year": 2015,
-      "portfolio": 14.4,
+      "portfolio": 17.51,
       "spy": -2.59,
-      "excess": 16.99
+      "excess": 20.1
     },
     {
       "year": 2016,
@@ -434,33 +670,33 @@
     },
     {
       "year": 2017,
-      "portfolio": -1.76,
+      "portfolio": -2.0,
       "spy": 7.49,
-      "excess": -9.24
+      "excess": -9.49
     },
     {
       "year": 2018,
-      "portfolio": -3.64,
+      "portfolio": -3.69,
       "spy": 1.28,
-      "excess": -4.92
+      "excess": -4.97
     },
     {
       "year": 2019,
-      "portfolio": 1.38,
+      "portfolio": 2.02,
       "spy": -5.15,
-      "excess": 6.54
+      "excess": 7.18
     },
     {
       "year": 2020,
-      "portfolio": 23.9,
+      "portfolio": 20.84,
       "spy": 29.47,
-      "excess": -5.56
+      "excess": -8.62
     },
     {
       "year": 2021,
-      "portfolio": 0.65,
+      "portfolio": 3.27,
       "spy": -5.92,
-      "excess": 6.57
+      "excess": 9.19
     },
     {
       "year": 2022,
@@ -470,58 +706,3900 @@
     },
     {
       "year": 2023,
-      "portfolio": 4.3,
+      "portfolio": 2.14,
       "spy": 8.66,
-      "excess": -4.35
+      "excess": -6.51
     },
     {
       "year": 2024,
-      "portfolio": 25.56,
+      "portfolio": 0.0,
       "spy": 22.39,
-      "excess": 3.17
+      "excess": -22.39
     }
   ],
   "listing_filter": null,
   "isin_dedup": true,
+  "data_checks": {
+    "version": "dc-1",
+    "mode": "on",
+    "max_single_return": null,
+    "rules": {
+      "fetch_window_days": 11,
+      "closed_day_ratio": 0.5,
+      "closed_day_min_ref": 20,
+      "closed_day_min_other_dates": 3,
+      "closed_day_skip": "a date is not tested when its window has fewer than 3 other dates or their median traded count is under 20; closed_day_test_skipped counts windows with such a date",
+      "zero_volume": "moved when the same line has a traded row in the same window, or when the line has none and its close changes on fewer than no_volume_min_changes days there, day over day in date order (a flat line, or a stale quote that steps once, with no volume is not buyable); a line with no traded row whose close changes on that many days or more keeps every row",
+      "no_volume_min_changes": 2,
+      "nonpositive_price": "rows with adjClose NULL or <= 0 moved",
+      "sibling": {
+        "min_shared_fy": 2,
+        "gap": 1.25,
+        "ref_days": 400,
+        "ref_min_days": 5,
+        "ref_min_windows": 2,
+        "stable_share": 0.8,
+        "rule": "siblings are lines that carry an identical FY key_metrics cap in min_shared_fy FYs or more; a line is tested in a window only when T moved a row before its first remaining row there (the anchor: the earliest moved row), and only against a thicker sibling (median close x volume over the reference days); ref = the median of the per-window median close ratios over the cache's other windows within ref_days (one window each side on an annual leg), with ref_min_windows windows, ref_min_days traded days of both, stable_share of those days within gap of ref, and the anchor's ratio within gap of ref; from the first remaining row, a row more than gap from both ref and the anchor's ratio, for every sibling that can test it, moves; the first row on scale or untestable stops it"
+      },
+      "benchmarks_exempt": true,
+      "twins": "SET X-R.BK takes X.BK's ISIN as its security key when X.BK is in the leg, the ISINs share characters 1 to 6 and character 10 of the NVDR's is R; within a key: buyable at entry, then the ordinary line, then isActivelyTrading, home currency, symbol",
+      "cap": {
+        "pf_min": 3.0,
+        "turnover_max": 0.0001,
+        "bars": 20,
+        "lookback_days": 45,
+        "min_traded_bars": 10,
+        "k_min": 3.0,
+        "eps_min": 0.05,
+        "net_income_min": 1000000.0,
+        "k_tol": 1.5,
+        "split_max": 10000.0,
+        "split_min": 2.0,
+        "split_dup_days": 120,
+        "share_tol": 1.5,
+        "share_step": [
+          0.5,
+          2.0
+        ],
+        "lower_only": true,
+        "order": "gate on pf or the later consolidations; turnover over every line with the same FY cap (lines that share an identical FY cap in sibling.min_shared_fy FYs or more); k within k_tol of pf lowers first and turnover is tested on the lowered cap; a failing cap is lowered by the divisor (and k) when turnover clears on the lowered cap, else ineligible; a k that disagrees with pf keeps turnover-then-k; unknown turnover lowers; the divisor needs evidence beyond the split records: a measured price factor P (raw close against stock_eod at the period end, or the same line's nearest FY with no split record between) of pf_min or more gives P times the later forward splits, a P under pf_min gives P times the records FMP's FY share count was restated for, no P gives the records at which that count steps; a record repeating the ratio of a record kept within split_dup_days before it counts once; a row is only made ineligible when pf opened the gate and every line of its group has bars in the lookback, else a failing cap lowers; a failing row whose divisor is within 1e-9 of 1 keeps FMP's cap as unchecked, counted in cap_rows_flagged"
+      },
+      "factor": {
+        "band": [
+          0.9523809523809523,
+          1.15
+        ],
+        "split_min": 2.0,
+        "mode": "flag only: no price or return is changed"
+      },
+      "fill_basis": {
+        "min_reversals": 2,
+        "rule": "an LTP fill books its close over the entry close (basis 'close') when the line's adjClose / close flips by more than factor.band's upper bound on consecutive rows while the close moves less than that bound, the flips reverse direction min_reversals times or more from the fetched context to the window end, and the fill's drift against the entry bar leaves factor.band"
+      },
+      "large_move_log": 0.6931471805599453
+    },
+    "counts": {
+      "rows_moved": {
+        "closed_day": 57,
+        "zero_volume": 1202,
+        "nonpositive_price": 0
+      },
+      "symbol_windows_without_volume": 35,
+      "flat_windows_moved": 33,
+      "sibling_gap_rows": 0,
+      "closed_day_test_skipped": 0,
+      "entry_bars_moved": 14,
+      "exit_bars_moved": 9,
+      "entries_lost": 1,
+      "exits_lost": 1,
+      "twins_linked": 0,
+      "twins_collapsed": 0,
+      "nvdr_stand_ins": 0,
+      "cap_rows_checked": 9439,
+      "cap_rows_flagged": 257,
+      "cap_excluded": 0,
+      "signal_cap_excluded": 0,
+      "factor_checked": 179,
+      "factor_flags": 7,
+      "large_moves": 3
+    },
+    "closed_dates": [
+      {
+        "date": "2000-07-03",
+        "traded": 0,
+        "ref": 35.0
+      },
+      {
+        "date": "2001-07-02",
+        "traded": 2,
+        "ref": 38.0
+      },
+      {
+        "date": "2002-07-01",
+        "traded": 3,
+        "ref": 37.0
+      },
+      {
+        "date": "2003-07-01",
+        "traded": 2,
+        "ref": 38.5
+      },
+      {
+        "date": "2004-07-01",
+        "traded": 3,
+        "ref": 43.0
+      }
+    ],
+    "events": [
+      {
+        "rebalance_date": "2004-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "exit_bar",
+        "side": "exit",
+        "first_bar": {
+          "date": "2005-07-04",
+          "adjClose": 19.61,
+          "close": 35.0,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2005-07-05",
+          "adjClose": 20.37,
+          "close": 36.35,
+          "volume": 2400.0
+        }
+      },
+      {
+        "rebalance_date": "2004-07-01",
+        "symbol": "AQN.TO",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2004-07-02",
+        "exit_bar_date": "2005-07-04",
+        "drift": 1.20965,
+        "r_adj": 0.331897,
+        "r_close": 0.101064,
+        "splits": [],
+        "reasons": [
+          "band"
+        ]
+      },
+      {
+        "rebalance_date": "2005-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2005-07-04",
+          "adjClose": 19.61,
+          "close": 35.0,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2005-07-05",
+          "adjClose": 20.37,
+          "close": 36.35,
+          "volume": 2400.0
+        }
+      },
+      {
+        "rebalance_date": "2005-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "exit_lost",
+        "side": "exit",
+        "first_bar": {
+          "date": "2006-07-04",
+          "adjClose": 10.49,
+          "close": 18.35,
+          "volume": 0.0,
+          "reason": "flat_no_volume"
+        }
+      },
+      {
+        "rebalance_date": "2006-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "entry_lost",
+        "side": "entry",
+        "first_bar": {
+          "date": "2006-07-04",
+          "adjClose": 10.49,
+          "close": 18.35,
+          "volume": 0.0,
+          "reason": "flat_no_volume"
+        }
+      },
+      {
+        "rebalance_date": "2006-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "exit_bar",
+        "side": "exit",
+        "first_bar": {
+          "date": "2007-07-03",
+          "adjClose": 16.06,
+          "close": 27.6,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2007-07-04",
+          "adjClose": 16.92,
+          "close": 29.08,
+          "volume": 600.0
+        }
+      },
+      {
+        "rebalance_date": "2007-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2007-07-03",
+          "adjClose": 16.06,
+          "close": 27.6,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2007-07-04",
+          "adjClose": 16.92,
+          "close": 29.08,
+          "volume": 600.0
+        }
+      },
+      {
+        "rebalance_date": "2007-07-01",
+        "symbol": "BHC.TO",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2007-07-03",
+        "exit_bar_date": "2008-07-02",
+        "drift": 1.11693,
+        "r_adj": -0.575499,
+        "r_close": -0.61994,
+        "splits": [],
+        "reasons": [
+          "large_move"
+        ]
+      },
+      {
+        "rebalance_date": "2007-07-01",
+        "symbol": "SAP.TO",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2007-07-03",
+        "exit_bar_date": "2008-07-02",
+        "drift": 1.01773,
+        "r_adj": 0.244502,
+        "r_close": 0.222821,
+        "splits": [
+          {
+            "date": "2007-12-06",
+            "numerator": 2.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2008-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "exit_bar",
+        "side": "exit",
+        "first_bar": {
+          "date": "2009-07-02",
+          "adjClose": 12.11,
+          "close": 19.94,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2009-07-07",
+          "adjClose": 11.75,
+          "close": 19.35,
+          "volume": 1000.0
+        }
+      },
+      {
+        "rebalance_date": "2008-07-01",
+        "symbol": "AQN.TO",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2008-07-02",
+        "exit_bar_date": "2009-07-02",
+        "drift": 1.108,
+        "r_adj": -0.501618,
+        "r_close": -0.550196,
+        "splits": [],
+        "reasons": [
+          "large_move"
+        ]
+      },
+      {
+        "rebalance_date": "2009-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2009-07-02",
+          "adjClose": 12.11,
+          "close": 19.94,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2009-07-07",
+          "adjClose": 11.75,
+          "close": 19.35,
+          "volume": 1000.0
+        }
+      },
+      {
+        "rebalance_date": "2009-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "exit_bar",
+        "side": "exit",
+        "first_bar": {
+          "date": "2010-07-02",
+          "adjClose": 14.78,
+          "close": 23.8,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2010-07-05",
+          "adjClose": 14.62,
+          "close": 23.55,
+          "volume": 800.0
+        }
+      },
+      {
+        "rebalance_date": "2010-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2010-07-02",
+          "adjClose": 14.78,
+          "close": 23.8,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2010-07-05",
+          "adjClose": 14.62,
+          "close": 23.55,
+          "volume": 800.0
+        }
+      },
+      {
+        "rebalance_date": "2010-07-01",
+        "symbol": "BHC.TO",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2010-07-02",
+        "exit_bar_date": "2011-07-04",
+        "drift": 1.004,
+        "r_adj": 1.52755,
+        "r_close": 1.51748,
+        "splits": [],
+        "reasons": [
+          "large_move"
+        ]
+      },
+      {
+        "rebalance_date": "2011-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "exit_bar",
+        "side": "exit",
+        "first_bar": {
+          "date": "2012-07-03",
+          "adjClose": 23.38,
+          "close": 36.25,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2012-07-04",
+          "adjClose": 23.7,
+          "close": 36.75,
+          "volume": 400.0
+        }
+      },
+      {
+        "rebalance_date": "2011-07-01",
+        "symbol": "TPX-B.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2011-07-04",
+          "adjClose": 30.63,
+          "close": 43.41,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2011-07-05",
+          "adjClose": 31.39,
+          "close": 44.39,
+          "volume": 3700.0
+        }
+      },
+      {
+        "rebalance_date": "2012-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2012-07-03",
+          "adjClose": 23.38,
+          "close": 36.25,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2012-07-04",
+          "adjClose": 23.7,
+          "close": 36.75,
+          "volume": 400.0
+        }
+      },
+      {
+        "rebalance_date": "2012-07-01",
+        "symbol": "CU-X.TO",
+        "check": "exit_bar",
+        "side": "exit",
+        "first_bar": {
+          "date": "2013-07-02",
+          "adjClose": 23.32,
+          "close": 36.25,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2013-07-03",
+          "adjClose": 23.32,
+          "close": 36.25,
+          "volume": 500.0
+        }
+      },
+      {
+        "rebalance_date": "2013-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "exit_bar",
+        "side": "exit",
+        "first_bar": {
+          "date": "2014-07-02",
+          "adjClose": 34.55,
+          "close": 52.25,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2014-07-03",
+          "adjClose": 34.22,
+          "close": 51.75,
+          "volume": 100.0
+        }
+      },
+      {
+        "rebalance_date": "2013-07-01",
+        "symbol": "CU-X.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2013-07-02",
+          "adjClose": 23.32,
+          "close": 36.25,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2013-07-03",
+          "adjClose": 23.32,
+          "close": 36.25,
+          "volume": 500.0
+        }
+      },
+      {
+        "rebalance_date": "2014-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2014-07-02",
+          "adjClose": 34.55,
+          "close": 52.25,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2014-07-03",
+          "adjClose": 34.22,
+          "close": 51.75,
+          "volume": 100.0
+        }
+      },
+      {
+        "rebalance_date": "2014-07-01",
+        "symbol": "DOL.TO",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2014-07-02",
+        "exit_bar_date": "2015-07-02",
+        "drift": 1.00566,
+        "r_adj": 0.705718,
+        "r_close": 0.696118,
+        "splits": [
+          {
+            "date": "2014-11-18",
+            "numerator": 2.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2014-07-01",
+        "symbol": "SAP.TO",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2014-07-02",
+        "exit_bar_date": "2015-07-02",
+        "drift": 1.01992,
+        "r_adj": -0.0478619,
+        "r_close": -0.0664587,
+        "splits": [
+          {
+            "date": "2014-09-30",
+            "numerator": 2.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2017-07-01",
+        "symbol": "CU-X.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2017-07-04",
+          "adjClose": 30.39,
+          "close": 41.65,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2017-07-06",
+          "adjClose": 29.96,
+          "close": 41.05,
+          "volume": 1300.0
+        }
+      },
+      {
+        "rebalance_date": "2018-07-01",
+        "symbol": "ADW-B.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2018-07-03",
+          "adjClose": 14.0,
+          "close": 17.0,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2018-07-04",
+          "adjClose": 14.11,
+          "close": 17.13,
+          "volume": 200.0
+        }
+      },
+      {
+        "rebalance_date": "2020-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2020-07-02",
+          "adjClose": 30.89,
+          "close": 39.0,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2020-07-06",
+          "adjClose": 28.11,
+          "close": 35.49,
+          "volume": 100.0
+        }
+      },
+      {
+        "rebalance_date": "2021-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "exit_bar",
+        "side": "exit",
+        "first_bar": {
+          "date": "2022-07-04",
+          "adjClose": 37.88,
+          "close": 44.0,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2022-07-05",
+          "adjClose": 37.88,
+          "close": 44.0,
+          "volume": 400.0
+        }
+      },
+      {
+        "rebalance_date": "2023-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2023-07-04",
+          "adjClose": 35.67,
+          "close": 39.7,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2023-07-05",
+          "adjClose": 35.28,
+          "close": 39.26,
+          "volume": 100.0
+        }
+      },
+      {
+        "rebalance_date": "2023-07-01",
+        "symbol": "ACO-Y.TO",
+        "check": "exit_bar",
+        "side": "exit",
+        "first_bar": {
+          "date": "2024-07-02",
+          "adjClose": 38.08,
+          "close": 40.34,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2024-07-03",
+          "adjClose": 38.08,
+          "close": 40.34,
+          "volume": 500.0
+        }
+      },
+      {
+        "rebalance_date": "2023-07-01",
+        "symbol": "CU-X.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2023-07-04",
+          "adjClose": 33.39,
+          "close": 34.38,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2023-07-10",
+          "adjClose": 32.64,
+          "close": 33.61,
+          "volume": 300.0
+        }
+      },
+      {
+        "rebalance_date": "2024-07-01",
+        "symbol": "TPX-B.TO",
+        "check": "entry_bar",
+        "side": "entry",
+        "first_bar": {
+          "date": "2024-07-02",
+          "adjClose": 65.75,
+          "close": 68.57,
+          "volume": 0.0,
+          "reason": "zero_volume"
+        },
+        "used_bar": {
+          "date": "2024-07-04",
+          "adjClose": 65.83,
+          "close": 68.65,
+          "volume": 400.0
+        }
+      }
+    ],
+    "large_moves": [
+      {
+        "rebalance_date": "2007-07-01",
+        "symbol": "BHC.TO",
+        "return": -0.575499,
+        "entry_bar": {
+          "date": "2007-07-03",
+          "adjClose": 20.589748,
+          "close": 26.68,
+          "volume": 308700.0
+        },
+        "exit_bar": {
+          "date": "2008-07-02",
+          "adjClose": 8.740365,
+          "close": 10.14,
+          "volume": 571300.0
+        }
+      },
+      {
+        "rebalance_date": "2008-07-01",
+        "symbol": "AQN.TO",
+        "return": -0.501618,
+        "entry_bar": {
+          "date": "2008-07-02",
+          "adjClose": 3.09,
+          "close": 7.67,
+          "volume": 116000.0
+        },
+        "exit_bar": {
+          "date": "2009-07-02",
+          "adjClose": 1.54,
+          "close": 3.45,
+          "volume": 139700.0
+        }
+      },
+      {
+        "rebalance_date": "2010-07-01",
+        "symbol": "BHC.TO",
+        "return": 1.52755,
+        "entry_bar": {
+          "date": "2010-07-02",
+          "adjClose": 19.940281,
+          "close": 20.02,
+          "volume": 1133500.0
+        },
+        "exit_bar": {
+          "date": "2011-07-04",
+          "adjClose": 50.400002,
+          "close": 50.400002,
+          "volume": 89500.0
+        }
+      }
+    ],
+    "sibling_gaps": [],
+    "cap_unchecked": [
+      {
+        "symbol": "AEZS.TO",
+        "fy": "1996-12-31",
+        "cap": 321652017792.0,
+        "pf": 60000.0,
+        "pf_source": "splits",
+        "pf_cons": 60000.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.00166667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "AUP.TO",
+        "fy": "1998-11-30",
+        "cap": 530357916.59599984,
+        "pf": 50.0,
+        "pf_source": "splits",
+        "pf_cons": 50.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "BCT.TO",
+        "fy": "2006-07-31",
+        "cap": 92996647100.0,
+        "pf": 48.3871,
+        "pf_source": "splits",
+        "pf_cons": 48.3871,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "BLU.TO",
+        "fy": "2003-12-31",
+        "cap": 822796421.469458,
+        "pf": 108.303,
+        "pf_source": "splits",
+        "pf_cons": 108.303,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00004
+      },
+      {
+        "symbol": "BLU.TO",
+        "fy": "2004-12-31",
+        "cap": 640877778.12348,
+        "pf": 108.303,
+        "pf_source": "splits",
+        "pf_cons": 108.303,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "BLU.TO",
+        "fy": "2005-12-31",
+        "cap": 570430664.377066,
+        "pf": 108.303,
+        "pf_source": "splits",
+        "pf_cons": 108.303,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999979
+      },
+      {
+        "symbol": "BLU.TO",
+        "fy": "2006-12-31",
+        "cap": 1006129618.775905,
+        "pf": 108.303,
+        "pf_source": "splits",
+        "pf_cons": 108.303,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999991
+      },
+      {
+        "symbol": "BNG.TO",
+        "fy": "1997-03-31",
+        "cap": 630000000.0,
+        "pf": 47.619,
+        "pf_source": "splits",
+        "pf_cons": 50.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.2,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "CSCI.TO",
+        "fy": "1996-12-31",
+        "cap": 817254144.0,
+        "pf": 3.0,
+        "pf_source": "splits",
+        "pf_cons": 3.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "CSCI.TO",
+        "fy": "1997-12-31",
+        "cap": 544667541.6,
+        "pf": 3.0,
+        "pf_source": "splits",
+        "pf_cons": 3.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "CSCI.TO",
+        "fy": "2006-12-31",
+        "cap": 830501615.6999999,
+        "pf": 3.0,
+        "pf_source": "splits",
+        "pf_cons": 3.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 0.998524
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2008-12-31",
+        "cap": 534579315.1,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00041
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2009-12-31",
+        "cap": 600138715.34,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00434
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2010-12-31",
+        "cap": 705048611.52,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.99901
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2011-12-31",
+        "cap": 761583285.92,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00161
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2012-12-31",
+        "cap": 1284984653.52,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00122
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2013-12-31",
+        "cap": 1471838880.94,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998162
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2014-12-31",
+        "cap": 1596928933.14,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00252
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2015-12-31",
+        "cap": 1970770120.42,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998209
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2016-12-31",
+        "cap": 2020827695.94,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.996883
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2017-12-31",
+        "cap": 2162667464.42,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00166
+      },
+      {
+        "symbol": "CUF-UN.TO",
+        "fy": "2018-12-31",
+        "cap": 2138518812.72,
+        "pf": 3.61011,
+        "pf_source": "splits",
+        "pf_cons": 3.61011,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.277,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00396
+      },
+      {
+        "symbol": "CURA.TO",
+        "fy": "2017-12-31",
+        "cap": 4788505283.948988,
+        "pf": 3.0,
+        "pf_source": "splits",
+        "pf_cons": 3.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "CURA.TO",
+        "fy": "2018-12-31",
+        "cap": 5410116142.514496,
+        "pf": 3.0,
+        "pf_source": "splits",
+        "pf_cons": 3.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 1.02526
+      },
+      {
+        "symbol": "CURA.TO",
+        "fy": "2019-12-31",
+        "cap": 6631769274.671856,
+        "pf": 3.0,
+        "pf_source": "splits",
+        "pf_cons": 3.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 0.994111
+      },
+      {
+        "symbol": "CURA.TO",
+        "fy": "2020-12-31",
+        "cap": 8142246445.844448,
+        "pf": 3.0,
+        "pf_source": "splits",
+        "pf_cons": 3.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 0.9994
+      },
+      {
+        "symbol": "EQX.TO",
+        "fy": "2013-03-31",
+        "cap": 962024038.806168,
+        "pf": 30.0,
+        "pf_source": "splits",
+        "pf_cons": 30.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0333333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "EQX.TO",
+        "fy": "2013-12-31",
+        "cap": 931958546.6752199,
+        "pf": 30.0,
+        "pf_source": "splits",
+        "pf_cons": 30.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0333333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00029
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2003-12-31",
+        "cap": 1247527159.8999999,
+        "pf": 10.2365,
+        "pf_source": "splits",
+        "pf_cons": 23.8095,
+        "pf_fwd": 2.267,
+        "sh_restated": 0.42,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": 0.98055
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2004-12-31",
+        "cap": 3637463908.6000004,
+        "pf": 10.2365,
+        "pf_source": "splits",
+        "pf_cons": 23.8095,
+        "pf_fwd": 2.267,
+        "sh_restated": 0.42,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": 0.968628
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2005-12-31",
+        "cap": 3552935315.6000004,
+        "pf": 10.2365,
+        "pf_source": "splits",
+        "pf_cons": 23.8095,
+        "pf_fwd": 2.267,
+        "sh_restated": 0.42,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": 0.984275
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2006-12-31",
+        "cap": 680024943.0,
+        "pf": 10.2365,
+        "pf_source": "splits",
+        "pf_cons": 23.8095,
+        "pf_fwd": 2.267,
+        "sh_restated": 0.42,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": 0.999434
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2009-12-31",
+        "cap": 605446755.3000001,
+        "pf": 4.29933,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 2.267,
+        "sh_restated": 1.0,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2010-12-31",
+        "cap": 954777339.44,
+        "pf": 4.29933,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 2.267,
+        "sh_restated": 1.0,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2011-12-31",
+        "cap": 621214337.45,
+        "pf": 4.29933,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 2.267,
+        "sh_restated": 1.0,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2013-12-31",
+        "cap": 508889997.42,
+        "pf": 4.29933,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 2.267,
+        "sh_restated": 1.0,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2014-12-31",
+        "cap": 535665897.25,
+        "pf": 4.29933,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 2.267,
+        "sh_restated": 1.0,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2015-12-31",
+        "cap": 522878864.82000005,
+        "pf": 4.29933,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 2.267,
+        "sh_restated": 1.0,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2016-12-31",
+        "cap": 511987132.79999995,
+        "pf": 4.29933,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 2.267,
+        "sh_restated": 1.0,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": 0.978372
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2020-12-31",
+        "cap": 721181997.91,
+        "pf": 4.29933,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 2.267,
+        "sh_restated": 1.0,
+        "sh_step": 0.441112,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2021-12-31",
+        "cap": 1464220904.4,
+        "pf": 9.74659,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.982076
+      },
+      {
+        "symbol": "GFP.TO",
+        "fy": "2022-12-31",
+        "cap": 741688369.2,
+        "pf": 9.74659,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999561
+      },
+      {
+        "symbol": "IMP.TO",
+        "fy": "2007-12-31",
+        "cap": 530902862.7839999,
+        "pf": 8.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.125,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.997794
+      },
+      {
+        "symbol": "IPCI.TO",
+        "fy": "1996-11-30",
+        "cap": 1622372469.8999994,
+        "pf": 100.0,
+        "pf_source": "splits",
+        "pf_cons": 100.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998173
+      },
+      {
+        "symbol": "IVQ.TO",
+        "fy": "2009-12-31",
+        "cap": 560456160.0,
+        "pf": 250.0,
+        "pf_source": "splits",
+        "pf_cons": 250.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "IVQ.TO",
+        "fy": "2010-12-31",
+        "cap": 591526980.0,
+        "pf": 250.0,
+        "pf_source": "splits",
+        "pf_cons": 250.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "IVQ.TO",
+        "fy": "2011-12-31",
+        "cap": 578295299.9999999,
+        "pf": 250.0,
+        "pf_source": "splits",
+        "pf_cons": 250.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "JAG.TO",
+        "fy": "2007-12-31",
+        "cap": 7763941596.66443,
+        "pf": 909.091,
+        "pf_source": "splits",
+        "pf_cons": 909.091,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00002
+      },
+      {
+        "symbol": "JAG.TO",
+        "fy": "2009-12-31",
+        "cap": 900959274.688177,
+        "pf": 909.091,
+        "pf_source": "splits",
+        "pf_cons": 909.091,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999986
+      },
+      {
+        "symbol": "JAG.TO",
+        "fy": "2010-12-31",
+        "cap": 628704906.1232511,
+        "pf": 909.091,
+        "pf_source": "splits",
+        "pf_cons": 909.091,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "JAG.TO",
+        "fy": "2011-12-31",
+        "cap": 565061436.480612,
+        "pf": 909.091,
+        "pf_source": "splits",
+        "pf_cons": 909.091,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "MARI.TO",
+        "fy": "2005-12-31",
+        "cap": 1958003279.9999995,
+        "pf": 19.2308,
+        "pf_source": "splits",
+        "pf_cons": 25.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.04,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "MMX.TO",
+        "fy": "2008-09-30",
+        "cap": 731121648.47,
+        "pf": 40.0,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "MPCT-UN.TO",
+        "fy": "2013-12-31",
+        "cap": 527103190.24,
+        "pf": 4.0,
+        "pf_source": "splits",
+        "pf_cons": 4.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.25,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998971
+      },
+      {
+        "symbol": "NFI.TO",
+        "fy": "2005-12-31",
+        "cap": 725152000.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999546
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1985-12-31",
+        "cap": 2368435317.972542,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1986-12-31",
+        "cap": 2475731349.681,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1987-12-31",
+        "cap": 2706230139.9471793,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1988-12-31",
+        "cap": 3050622639.4995003,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1989-12-31",
+        "cap": 3147286964.7008457,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1990-12-31",
+        "cap": 3167598913.9221783,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1991-12-31",
+        "cap": 3190022709.2589903,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1992-12-31",
+        "cap": 2934512505.2407093,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1993-12-31",
+        "cap": 2809186952.645814,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1994-12-31",
+        "cap": 2335340760.75,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1995-12-31",
+        "cap": 2768414725.500534,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1996-12-31",
+        "cap": 3827732582.4,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.894289
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1997-12-31",
+        "cap": 4721922788.01139,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1998-12-31",
+        "cap": 4518974490.017845,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "1999-12-31",
+        "cap": 4936942230.710145,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2000-12-31",
+        "cap": 5511215893.3826885,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999817
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2001-12-31",
+        "cap": 5270745475.120671,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00843
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2002-12-31",
+        "cap": 10126283575.87238,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.974307
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2003-12-31",
+        "cap": 13738243363.164036,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00211
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2004-12-31",
+        "cap": 16003407782.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999262
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2005-12-31",
+        "cap": 16658010800.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.997267
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2006-12-31",
+        "cap": 16750733850.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00126
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2007-12-31",
+        "cap": 19646064288.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999385
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2008-12-31",
+        "cap": 16118827350.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.973998
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2009-12-31",
+        "cap": 20067509008.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998782
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2010-12-31",
+        "cap": 21397474584.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00042
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2011-12-31",
+        "cap": 21003877180.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998798
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2012-12-31",
+        "cap": 21700685472.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998032
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2013-12-31",
+        "cap": 20343428484.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999236
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2014-12-31",
+        "cap": 18635383042.999996,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00193
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2015-12-31",
+        "cap": 16184415336.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00855
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2016-12-31",
+        "cap": 17106903279.999998,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.997448
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2017-12-31",
+        "cap": 18439848153.999996,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.981842
+      },
+      {
+        "symbol": "NGT.TO",
+        "fy": "2018-12-31",
+        "cap": 16962993632.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00035
+      },
+      {
+        "symbol": "OGI.TO",
+        "fy": "2018-08-31",
+        "cap": 794516760.0,
+        "pf": 4.0,
+        "pf_source": "splits",
+        "pf_cons": 4.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.25,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999165
+      },
+      {
+        "symbol": "OGI.TO",
+        "fy": "2019-08-31",
+        "cap": 791992880.0,
+        "pf": 4.0,
+        "pf_source": "splits",
+        "pf_cons": 4.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.25,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.996895
+      },
+      {
+        "symbol": "OGI.TO",
+        "fy": "2021-08-31",
+        "cap": 865685600.0,
+        "pf": 4.0,
+        "pf_source": "splits",
+        "pf_cons": 4.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.25,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999367
+      },
+      {
+        "symbol": "ONC.TO",
+        "fy": "1999-12-31",
+        "cap": 5724456966.72,
+        "pf": 9.52381,
+        "pf_source": "splits",
+        "pf_cons": 9.52381,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.105,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "ORA.TO",
+        "fy": "2009-12-31",
+        "cap": 593097281.5171679,
+        "pf": 6.54879,
+        "pf_source": "splits",
+        "pf_cons": 100.0,
+        "pf_fwd": 15.0,
+        "sh_restated": 0.15,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00167
+      },
+      {
+        "symbol": "ORA.TO",
+        "fy": "2010-12-31",
+        "cap": 782066620.5612,
+        "pf": 6.54879,
+        "pf_source": "splits",
+        "pf_cons": 100.0,
+        "pf_fwd": 15.0,
+        "sh_restated": 0.15,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00041
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "1996-04-30",
+        "cap": 9131470484.906448,
+        "pf": 4.63453,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "1997-04-30",
+        "cap": 10195424981.543089,
+        "pf": 4.63453,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998836
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "1998-04-30",
+        "cap": 11203124916.454128,
+        "pf": 9.26907,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.996841
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "1999-04-30",
+        "cap": 11344070368.777609,
+        "pf": 9.26907,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999187
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "1999-12-31",
+        "cap": 12591441338.24052,
+        "pf": 9.26907,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999975
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "2000-12-31",
+        "cap": 13538099205.679104,
+        "pf": 9.26907,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999582
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "2001-12-31",
+        "cap": 14317532368.788097,
+        "pf": 9.26907,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0004
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "2002-12-31",
+        "cap": 14612282017.829496,
+        "pf": 9.26907,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00068
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "2003-12-31",
+        "cap": 14665873289.8734,
+        "pf": 9.26907,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.956728
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "2004-12-31",
+        "cap": 15595283931.182928,
+        "pf": 9.26907,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999835
+      },
+      {
+        "symbol": "PD.TO",
+        "fy": "2005-12-31",
+        "cap": 7954731460.01016,
+        "pf": 18.5381,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.05,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00002
+      },
+      {
+        "symbol": "PNC-B.TO",
+        "fy": "2010-08-31",
+        "cap": 1050627847.5,
+        "pf": 68.9338,
+        "pf_source": "splits",
+        "pf_cons": 150.0,
+        "pf_fwd": 2.176,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999984
+      },
+      {
+        "symbol": "PNC-B.TO",
+        "fy": "2011-08-31",
+        "cap": 1050627847.5,
+        "pf": 68.9338,
+        "pf_source": "splits",
+        "pf_cons": 150.0,
+        "pf_fwd": 2.176,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999966
+      },
+      {
+        "symbol": "QRC.TO",
+        "fy": "2011-08-31",
+        "cap": 533101492.5,
+        "pf": 50.0,
+        "pf_source": "splits",
+        "pf_cons": 50.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.02,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "SCL.TO",
+        "fy": "1996-12-31",
+        "cap": 545064495.855914,
+        "pf": 2.99978,
+        "pf_source": "raw",
+        "pf_cons": 3.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.333333,
+        "sh_step": 1.0,
+        "u": 9.24661e-05,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "SHLE.TO",
+        "fy": "2014-12-31",
+        "cap": 529070724.0,
+        "pf": 12.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999912
+      },
+      {
+        "symbol": "SHLE.TO",
+        "fy": "2015-12-31",
+        "cap": 529070724.0,
+        "pf": 12.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999811
+      },
+      {
+        "symbol": "SHLE.TO",
+        "fy": "2016-12-31",
+        "cap": 529070724.0,
+        "pf": 12.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999977
+      },
+      {
+        "symbol": "SII.TO",
+        "fy": "2007-12-31",
+        "cap": 1300171500.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999584
+      },
+      {
+        "symbol": "SMU-UN.TO",
+        "fy": "2000-10-31",
+        "cap": 4099537560.0,
+        "pf": 12.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "TLO.TO",
+        "fy": "2004-12-31",
+        "cap": 714086400.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "TLO.TO",
+        "fy": "2025-12-31",
+        "cap": 629920560.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "TLRY.TO",
+        "fy": "2015-05-31",
+        "cap": 591213588.144256,
+        "pf": 11.9318,
+        "pf_source": "splits",
+        "pf_cons": 11.9318,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.01144
+      },
+      {
+        "symbol": "TLRY.TO",
+        "fy": "2016-05-31",
+        "cap": 724099586.54528,
+        "pf": 11.9318,
+        "pf_source": "splits",
+        "pf_cons": 11.9318,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "TLRY.TO",
+        "fy": "2017-05-31",
+        "cap": 1254345319.3110402,
+        "pf": 11.9318,
+        "pf_source": "splits",
+        "pf_cons": 11.9318,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.993326
+      },
+      {
+        "symbol": "TLRY.TO",
+        "fy": "2018-05-31",
+        "cap": 2015216836.8710399,
+        "pf": 11.9318,
+        "pf_source": "splits",
+        "pf_cons": 11.9318,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00461
+      },
+      {
+        "symbol": "TLRY.TO",
+        "fy": "2019-05-31",
+        "cap": 2906973373.0752,
+        "pf": 11.9318,
+        "pf_source": "splits",
+        "pf_cons": 11.9318,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999416
+      },
+      {
+        "symbol": "TLRY.TO",
+        "fy": "2020-05-31",
+        "cap": 3203398781.401104,
+        "pf": 11.9318,
+        "pf_source": "splits",
+        "pf_cons": 11.9318,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00882
+      },
+      {
+        "symbol": "TNT-UN.TO",
+        "fy": "2014-12-31",
+        "cap": 581870352.7,
+        "pf": 5.78035,
+        "pf_source": "splits",
+        "pf_cons": 5.78035,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.173,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00189
+      },
+      {
+        "symbol": "TNT-UN.TO",
+        "fy": "2015-12-31",
+        "cap": 504876706.46,
+        "pf": 5.78035,
+        "pf_source": "splits",
+        "pf_cons": 5.78035,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.173,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00329
+      },
+      {
+        "symbol": "TNT-UN.TO",
+        "fy": "2016-12-31",
+        "cap": 1025712982.26,
+        "pf": 5.78035,
+        "pf_source": "splits",
+        "pf_cons": 5.78035,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.173,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "TNT-UN.TO",
+        "fy": "2017-12-31",
+        "cap": 1583797476.24,
+        "pf": 5.78035,
+        "pf_source": "splits",
+        "pf_cons": 5.78035,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.173,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00541
+      },
+      {
+        "symbol": "TNT-UN.TO",
+        "fy": "2018-12-31",
+        "cap": 1862401729.6499999,
+        "pf": 5.78035,
+        "pf_source": "splits",
+        "pf_cons": 5.78035,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.173,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00319
+      },
+      {
+        "symbol": "TNT-UN.TO",
+        "fy": "2019-12-31",
+        "cap": 3246711000.6400003,
+        "pf": 5.78035,
+        "pf_source": "splits",
+        "pf_cons": 5.78035,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.173,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.02013
+      },
+      {
+        "symbol": "TNT-UN.TO",
+        "fy": "2020-12-31",
+        "cap": 3127040857.06,
+        "pf": 5.78035,
+        "pf_source": "splits",
+        "pf_cons": 5.78035,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.173,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.980111
+      },
+      {
+        "symbol": "TNT-UN.TO",
+        "fy": "2021-12-31",
+        "cap": 3750304833.04,
+        "pf": 5.78035,
+        "pf_source": "splits",
+        "pf_cons": 5.78035,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.173,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.996563
+      },
+      {
+        "symbol": "TNT-UN.TO",
+        "fy": "2022-12-31",
+        "cap": 538470077.6999999,
+        "pf": 5.78035,
+        "pf_source": "splits",
+        "pf_cons": 5.78035,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.173,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.996145
+      },
+      {
+        "symbol": "TRIL.TO",
+        "fy": "2004-12-31",
+        "cap": 2449533419.99,
+        "pf": 300.0,
+        "pf_source": "splits",
+        "pf_cons": 300.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2001-12-31",
+        "cap": 521627264.84477705,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00031
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2002-12-31",
+        "cap": 797542320.0681001,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00357
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2003-12-31",
+        "cap": 1211664813.4931235,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00185
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2004-12-31",
+        "cap": 1510235588.014086,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998999
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2005-12-31",
+        "cap": 1691833077.1260002,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998939
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2006-12-31",
+        "cap": 1857238335.762741,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.99968
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2007-12-31",
+        "cap": 2416212939.791664,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999965
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2008-12-31",
+        "cap": 1980510463.371375,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00089
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2009-12-31",
+        "cap": 2364264592.865568,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999259
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2010-12-31",
+        "cap": 3062201402.7600484,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.99896
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2011-12-31",
+        "cap": 4085513891.35296,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00073
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2012-12-31",
+        "cap": 4789781552.1652565,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00022
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2013-12-31",
+        "cap": 5247269103.804,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.996097
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2014-12-31",
+        "cap": 7306318316.6238,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.995436
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2015-12-31",
+        "cap": 6247682503.366799,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00197
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2016-12-31",
+        "cap": 6429377036.8752,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00327
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2017-12-31",
+        "cap": 6891337119.9876,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999235
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2018-12-31",
+        "cap": 6339407282.860801,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998332
+      },
+      {
+        "symbol": "TRQ.TO",
+        "fy": "2019-12-31",
+        "cap": 6656031609.4884,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0031
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1985-12-31",
+        "cap": 682693253.496108,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1986-12-31",
+        "cap": 740652189.570072,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1987-12-31",
+        "cap": 797281314.111468,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1988-12-31",
+        "cap": 861486683.8861609,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1989-12-31",
+        "cap": 930818544.44856,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1990-12-31",
+        "cap": 890827638.49836,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1991-12-31",
+        "cap": 976885348.3263601,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1992-12-31",
+        "cap": 1125809599.547596,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1993-12-31",
+        "cap": 1124608192.03512,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1994-12-31",
+        "cap": 1115842238.4037921,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1995-12-31",
+        "cap": 1115523347.024336,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1996-12-31",
+        "cap": 1192347203.518464,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00104
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1997-12-31",
+        "cap": 1278509848.21664,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.9947
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1998-12-31",
+        "cap": 1256816016.066912,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00181
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "1999-12-31",
+        "cap": 1513398022.966896,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999292
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "2000-12-31",
+        "cap": 1448052483.200448,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00035
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "2001-12-31",
+        "cap": 1435018021.2972243,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999656
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "2002-12-31",
+        "cap": 1711478659.521236,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00021
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "2003-12-31",
+        "cap": 2070295922.677242,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00088
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "2004-12-31",
+        "cap": 2190339434.723704,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00178
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "2005-12-31",
+        "cap": 2354733799.9488,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.9999
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "2006-12-31",
+        "cap": 2353917923.1901803,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00006
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "2007-12-31",
+        "cap": 5652607168.9584,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00464
+      },
+      {
+        "symbol": "UFS.TO",
+        "fy": "2008-12-31",
+        "cap": 5020511742.872701,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 12.0,
+        "pf_fwd": 2.0,
+        "sh_restated": 0.0833333,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00011
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2004-02-29",
+        "cap": 742619886.3,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2007-02-28",
+        "cap": 1050202378.5,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00082
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2008-02-29",
+        "cap": 711036582.6,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2009-02-28",
+        "cap": 608361798.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999902
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2010-02-28",
+        "cap": 2794760302.95,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2011-02-28",
+        "cap": 3510978156.6000004,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2012-02-29",
+        "cap": 1955151396.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2013-02-28",
+        "cap": 1070136581.85,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2014-02-28",
+        "cap": 765166439.25,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2015-02-28",
+        "cap": 973291518.0000001,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2016-02-29",
+        "cap": 1189578522.0,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2017-02-28",
+        "cap": 3705634040.3999996,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "VGCX.TO",
+        "fy": "2018-02-28",
+        "cap": 3165531530.1000004,
+        "pf": 15.0,
+        "pf_source": "splits",
+        "pf_cons": 15.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.0666667,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "WRG.TO",
+        "fy": "2009-12-31",
+        "cap": 703382448.0,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 120.0,
+        "pf_fwd": 20.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00002
+      },
+      {
+        "symbol": "WRG.TO",
+        "fy": "2010-12-31",
+        "cap": 1854546624.0,
+        "pf": 6.0,
+        "pf_source": "splits",
+        "pf_cons": 120.0,
+        "pf_fwd": 20.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.983205
+      },
+      {
+        "symbol": "WRG.TO",
+        "fy": "2011-12-31",
+        "cap": 4953441779.364384,
+        "pf": 120.0,
+        "pf_source": "splits",
+        "pf_cons": 120.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.995839
+      },
+      {
+        "symbol": "WRG.TO",
+        "fy": "2012-12-31",
+        "cap": 4717510066.7369995,
+        "pf": 120.0,
+        "pf_source": "splits",
+        "pf_cons": 120.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00168
+      },
+      {
+        "symbol": "WRG.TO",
+        "fy": "2013-12-31",
+        "cap": 5790300792.0,
+        "pf": 120.0,
+        "pf_source": "splits",
+        "pf_cons": 120.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00249
+      },
+      {
+        "symbol": "WRG.TO",
+        "fy": "2014-12-31",
+        "cap": 5068080911.127468,
+        "pf": 120.0,
+        "pf_source": "splits",
+        "pf_cons": 120.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00753
+      },
+      {
+        "symbol": "WRG.TO",
+        "fy": "2015-12-31",
+        "cap": 3264939958.873968,
+        "pf": 120.0,
+        "pf_source": "splits",
+        "pf_cons": 120.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00024
+      },
+      {
+        "symbol": "WRG.TO",
+        "fy": "2016-12-31",
+        "cap": 2589791460.0,
+        "pf": 120.0,
+        "pf_source": "splits",
+        "pf_cons": 120.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999801
+      },
+      {
+        "symbol": "WRG.TO",
+        "fy": "2017-12-31",
+        "cap": 1081913209.98021,
+        "pf": 120.0,
+        "pf_source": "splits",
+        "pf_cons": 120.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0001
+      }
+    ]
+  },
+  "universe_rules": {
+    "version": "ur-1",
+    "ordinary_shares": {
+      "rules": {
+        "rule": "a line is removed when it is a different instrument from the company's ordinary share (preferred, note, bond, unit, warrant, right, fund) or a second line at its own price on the same financials that no security key collapses; the first reason in `order` is recorded",
+        "order": {
+          "fund_flag": "profile isFund or isEtf",
+          "known": "NON_ORDINARY_KNOWN, the hand list below",
+          "korean_preferred": "KSC six-character code whose sixth character is not 0",
+          "german_preference": "XETRA ticker ending in 3, beside another XETRA line whose ISIN shares its first 9 characters (PNE3.DE, PNE's only line, stays)",
+          "canadian_preferred": "TSX ticker ending -P plus letters",
+          "us_suffix": "NYSE, NASDAQ or AMEX ticker ending -P plus letters, -WT, -WTA, -WS, -W, -U, -UN, -R or -RI",
+          "nasdaq_fifth_letter": "five-letter NASDAQ ticker whose fifth letter is P, O, N, M (preferred), W, R, U, Z or V",
+          "name_term": "companyName matches, ignoring case: %|\\bnotes?\\b|debenture|\\bbonds?\\b|\\bbd\\b|subordinated|\\bjr\\b|junior|collateral|preferred|\\bpfd\\b|\\bpref\\b|\\bunits?\\b|\\bser\\b|\\bseries\\b"
+        },
+        "kept": "Thai NVDRs (check N keys X-R.BK to X.BK, DECISIONS #064), ADRs and TDRs of ordinary shares, share classes (BF-B, MKC-V, CENTA), Canadian trust units",
+        "known": [
+          {
+            "symbol": "AESC",
+            "kind": "units",
+            "evidence": "AES corporate units 2021-2024, $100 stated amount, AES is the common"
+          },
+          {
+            "symbol": "AQNU",
+            "kind": "units",
+            "evidence": "Algonquin equity units 2021-2024, $50, AQN is the common"
+          },
+          {
+            "symbol": "BKDT",
+            "kind": "units",
+            "evidence": "Brookdale tangible equity units 2022-2025, $100, BKD is the common"
+          },
+          {
+            "symbol": "DCUE",
+            "kind": "units",
+            "evidence": "Dominion Energy corporate units 2019-2022, $100, D is the common"
+          },
+          {
+            "symbol": "DTP",
+            "kind": "units",
+            "evidence": "DTE Energy corporate units 2019-2022, $50, DTE is the common"
+          },
+          {
+            "symbol": "NIMC",
+            "kind": "units",
+            "evidence": "NiSource equity units 2021-2023, $100, NI is the common"
+          },
+          {
+            "symbol": "PCGU",
+            "kind": "units",
+            "evidence": "PG&E equity units 2020-2023, $100, PCG is the common"
+          },
+          {
+            "symbol": "PPLC",
+            "kind": "units",
+            "evidence": "a second PPL line whose closes (26 to 49) don't track PPL's, on about 1/1000 of its volume"
+          },
+          {
+            "symbol": "SJIV",
+            "kind": "units",
+            "evidence": "South Jersey Industries equity units 2021-2023, $50, SJI is the common"
+          },
+          {
+            "symbol": "SOMN",
+            "kind": "units",
+            "evidence": "Southern Company equity units from 2025-11, $50, SO is the common"
+          },
+          {
+            "symbol": "TSNU",
+            "kind": "units",
+            "evidence": "Tyson Foods tangible equity units 2014-2017, $50, TSN is the common"
+          },
+          {
+            "symbol": "UGIC",
+            "kind": "units",
+            "evidence": "UGI equity units 2021-2024, $100, UGI is the common"
+          },
+          {
+            "symbol": "WTRU",
+            "kind": "units",
+            "evidence": "Aqua America tangible equity units 2019-2022, $50, WTRG is the common"
+          },
+          {
+            "symbol": "AQNA",
+            "kind": "notes",
+            "evidence": "Algonquin subordinated notes, $25 par (closes 23 to 28)"
+          },
+          {
+            "symbol": "AQNB",
+            "kind": "notes",
+            "evidence": "Algonquin subordinated notes, $25 par (closes 23 to 28)"
+          },
+          {
+            "symbol": "BEPI",
+            "kind": "notes",
+            "evidence": "Brookfield BRP Holdings perpetual subordinated notes, $25 par (closes 15 to 22)"
+          },
+          {
+            "symbol": "SJIJ",
+            "kind": "notes",
+            "evidence": "South Jersey Industries junior subordinated notes, $25 par (closes 17 to 27)"
+          },
+          {
+            "symbol": "SREA",
+            "kind": "notes",
+            "evidence": "Sempra junior subordinated notes, $25 par (closes 21 to 28)"
+          },
+          {
+            "symbol": "ENJ",
+            "kind": "bonds",
+            "evidence": "Entergy New Orleans bonds, $25 par, the issuer has no listed common"
+          },
+          {
+            "symbol": "ENO",
+            "kind": "bonds",
+            "evidence": "Entergy New Orleans bonds, $25 par, the issuer has no listed common"
+          },
+          {
+            "symbol": "EZT",
+            "kind": "bonds",
+            "evidence": "Entergy Texas bonds, $25 par, the issuer has no listed common"
+          },
+          {
+            "symbol": "TVC",
+            "kind": "bonds",
+            "evidence": "Tennessee Valley Authority bonds, $25 par, a federal corporation with no shares"
+          },
+          {
+            "symbol": "TVE",
+            "kind": "bonds",
+            "evidence": "Tennessee Valley Authority bonds, $25 par, a federal corporation with no shares"
+          },
+          {
+            "symbol": "BDXB",
+            "kind": "preferred",
+            "evidence": "Becton Dickinson mandatory convertible preferred depositary shares 2020-2023, $50"
+          },
+          {
+            "symbol": "ETI",
+            "kind": "preferred",
+            "evidence": "Entergy Texas preferred, ETI-P's ISIN, no bars, the issuer has no listed common"
+          },
+          {
+            "symbol": "CHSCL",
+            "kind": "preferred",
+            "evidence": "CHS Inc. preferred, $25 par, a cooperative with no listed common"
+          },
+          {
+            "symbol": "CIG",
+            "kind": "preferred ADR",
+            "evidence": "CEMIG preferred-share ADR, CIG-C is the common ADR"
+          },
+          {
+            "symbol": "ELP",
+            "kind": "preferred ADR",
+            "evidence": "COPEL class B preferred ADR, ELPC is the common ADR"
+          },
+          {
+            "symbol": "EBR-B",
+            "kind": "preferred ADR",
+            "evidence": "Eletrobras class B preferred ADR, EBR is the common ADR"
+          },
+          {
+            "symbol": "ROG.SW",
+            "kind": "certificate",
+            "evidence": "Roche non-voting Genussschein at its own price on Roche's financials, RO.SW is the share"
+          },
+          {
+            "symbol": "ROP.SW",
+            "kind": "certificate",
+            "evidence": "Roche's second line from 2026-04-22 (ROG.SW's bars end 2026-04-13), at its own price, RO.SW is the share"
+          },
+          {
+            "symbol": "LISP.SW",
+            "kind": "certificate",
+            "evidence": "Lindt participation certificate (Partizipationsschein), LISN.SW is the share"
+          },
+          {
+            "symbol": "RE-B.L",
+            "kind": "preferred",
+            "evidence": "R.E.A. Holdings cumulative preference shares, closes at a median of 100p (their par), RE.L is the common"
+          }
+        ]
+      },
+      "lines": 200,
+      "removed_count": 13,
+      "by_reason": {
+        "canadian_preferred": 12,
+        "fund_flag": 1
+      },
+      "removed": [
+        {
+          "symbol": "ALA-PK.TO",
+          "reason": "canadian_preferred",
+          "name": "AltaGas Ltd."
+        },
+        {
+          "symbol": "AQN-PA.TO",
+          "reason": "canadian_preferred",
+          "name": "Algonquin Power & Utilities Corp."
+        },
+        {
+          "symbol": "BEP-PK.TO",
+          "reason": "canadian_preferred",
+          "name": "Brookfield Renewable Partners L.P."
+        },
+        {
+          "symbol": "BEP-PM.TO",
+          "reason": "canadian_preferred",
+          "name": "Brookfield Renewable Partners L.P."
+        },
+        {
+          "symbol": "BIP-PD.TO",
+          "reason": "canadian_preferred",
+          "name": "Brookfield Infrastructure Partners L.P."
+        },
+        {
+          "symbol": "BIP-PE.TO",
+          "reason": "canadian_preferred",
+          "name": "Brookfield Infrastructure Partners L.P."
+        },
+        {
+          "symbol": "CPX-PI.TO",
+          "reason": "canadian_preferred",
+          "name": "Capital Power Corporation"
+        },
+        {
+          "symbol": "EMA-PC.TO",
+          "reason": "canadian_preferred",
+          "name": "Emera Incorporated"
+        },
+        {
+          "symbol": "EMA-PH.TO",
+          "reason": "canadian_preferred",
+          "name": "Emera Incorporated"
+        },
+        {
+          "symbol": "L-PB.TO",
+          "reason": "canadian_preferred",
+          "name": "Loblaw Companies Limited"
+        },
+        {
+          "symbol": "LS.TO",
+          "reason": "fund_flag",
+          "name": "Middlefield Healthcare Dividend ETF"
+        },
+        {
+          "symbol": "TA-PH.TO",
+          "reason": "canadian_preferred",
+          "name": "TransAlta Corp"
+        },
+        {
+          "symbol": "WN-PA.TO",
+          "reason": "canadian_preferred",
+          "name": "George Weston Limited"
+        }
+      ],
+      "cik_shared": []
+    },
+    "dividend_yield": {
+      "rules": {
+        "ceiling": 0.25,
+        "agree": [
+          0.8,
+          1.25
+        ],
+        "subunits": {
+          "GBp": "GBP",
+          "ZAc": "ZAR",
+          "ILA": "ILS"
+        },
+        "rule": "on the screen's FY financial_ratios row: no vendor dividendYield, kept; above the ceiling, dropped (above_ceiling); trading currency (profile) and reporting currency (the same FY cash_flow_statement row, else the ratios row) both known and different: dropped when that FY has no dividends paid (commonDividendsPaid, else netDividendsPaid) or no positive key_metrics marketCap (unverifiable), or when the vendor yield over |paid| / marketCap falls outside `agree` (cross_currency); applied before the security dedup and the top-N cut"
+      },
+      "dropped": 3,
+      "by_reason": {
+        "above_ceiling": 2,
+        "cross_currency": 1
+      },
+      "drops": [
+        {
+          "rebalance_date": "2019-07-01",
+          "symbol": "BIPC.TO",
+          "reason": "above_ceiling",
+          "fy": "2018-12-31",
+          "vendor_yield": 0.40308,
+          "paid_yield": 0.40308,
+          "trade_ccy": "CAD",
+          "report_ccy": "USD"
+        },
+        {
+          "rebalance_date": "2021-07-01",
+          "symbol": "BIPC.TO",
+          "reason": "cross_currency",
+          "fy": "2020-12-31",
+          "vendor_yield": 0.15175,
+          "paid_yield": 0.0101418,
+          "trade_ccy": "CAD",
+          "report_ccy": "USD"
+        },
+        {
+          "rebalance_date": "2024-07-01",
+          "symbol": "RGSI.TO",
+          "reason": "above_ceiling",
+          "fy": "2024-03-31",
+          "vendor_yield": 0.427319,
+          "paid_yield": null,
+          "trade_ccy": "CAD",
+          "report_ccy": "USD"
+        }
+      ]
+    }
+  },
   "exit_method": "ltp",
   "ltp": {
     "exit_method": "ltp",
     "source": "remote stock_eod",
     "delist_grace_days": 7,
-    "missing_exits": 2,
-    "ltp_filled": 2,
+    "missing_exits": 1,
+    "ltp_filled": 1,
     "still_missing": 0,
     "filled_local": 0,
-    "filled_remote": 2,
+    "filled_remote": 1,
     "closed_by_delisting": 0,
     "filled_without_delisting_row": 1,
     "filled_ignoring_delisting_row": 0,
     "filled_delisting_not_binding": 0,
+    "traded_only": true,
+    "zero_volume_rows_moved": 53,
+    "close_basis_fills": 0,
     "fills": [
       {
         "symbol": "CU-X.TO",
         "entry_date": "2023-07-01",
-        "entry_bar": "2023-07-04",
-        "entry_price": 33.39,
+        "entry_bar": "2023-07-10",
+        "entry_price": 32.64,
         "last_bar": "2023-12-19",
         "ltp": 34.4,
         "delisted_date": null,
         "delisting_bound": "none",
         "source": "remote",
-        "exit_date": "2024-07-01"
-      },
-      {
-        "symbol": "PRMW.TO",
-        "entry_date": "2024-07-01",
-        "entry_bar": "2024-07-02",
-        "entry_price": 27.82,
-        "last_bar": "2024-11-12",
-        "ltp": 37.4,
-        "delisted_date": "2024-11-11",
-        "delisting_bound": "applied",
-        "source": "remote",
-        "exit_date": "2025-07-01"
+        "exit_date": "2024-07-01",
+        "ltp_close": 34.4,
+        "ltp_volume": 100.0,
+        "factor_check": {
+          "drift": 1.02972,
+          "splits": [],
+          "reasons": [],
+          "flagged": false
+        }
       }
-    ]
+    ],
+    "factor_flagged": 0,
+    "large_move_fills": 0,
+    "large_moves": []
   }
 }

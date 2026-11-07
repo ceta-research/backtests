@@ -221,7 +221,7 @@ Added 2026-03-03. `filter_returns()` in `data_utils.py` provides reusable price 
 
 Used by: asset-growth. Should be adopted by all future strategies. Existing strategies (qarp, low-pe, interest-coverage) can be retrofitted.
 
-Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging and cyclical-timing pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
+Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing and defensive-quality pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
 
 ### How to check a new exchange
 Before adding an exchange to a backtest, run these checks:
@@ -1215,7 +1215,8 @@ still hold every listed line; read them with the measurements earlier in this se
 ## Data checks in place of the return cap (deleveraging and cyclical-timing, 2026-10)
 
 **Status:** in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks), and both
-topics' committed results were rerun with it in October 2026. The other topics keep their existing cap
+topics' committed results were rerun with it in October 2026; defensive-quality joined in November
+2026 (see "Lines that aren't ordinary shares" below). The other topics keep their existing cap
 (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their own rerun.
 
 The 200% single-return cap drops a holding only when its return is high. Reading every holding
@@ -1488,6 +1489,65 @@ its filing date, because the 45-day lag runs from the period end (ZEST's FY2019,
 the larger of two rows for the same fiscal year. Preferred lines can be held beside their common
 line (TSX, US). LTP fills have no per-date holiday test. Twelve other topics with SET legs still
 hold NVDR lines beside their ordinary lines until their own reruns.
+
+---
+
+## Lines that aren't ordinary shares, and yields across two currencies (defensive-quality, 2026-11)
+
+**Status:** fixed for defensive-quality by its universe rules (METHODOLOGY.md, Universe Rules) in
+its November 2026 rerun. Every other topic still holds these lines.
+
+defensive-quality ranks by the vendor's dividend yield, so anything carrying a company's yield
+without being its ordinary share, and any yield on the wrong scale, takes a slot near the top.
+Measured on its committed books before the rerun (4,546 held line-years, the Shanghai-only file left
+out):
+
+- **Notes, bonds and units in the US book:** 12.4% of US line-years, 10 to 12 of the 24 to 28 lines
+  held in each year from 2020 to 2024. Utility junior subordinated notes (SOJC, SOJD, CMSC, CMSD,
+  SREA, SJIJ), first-mortgage bonds of subsidiaries with no listed common (EAI, EMP, ELC, ENJ, ENO),
+  corporate units (DTP) and Brazilian preferred-share ADRs (CIG, ELP, EBR-B). Each carries its
+  issuer's fiscal-year financials and yield, so a $25 note ranks as its parent does. Most are plain
+  named, so they are removed by ticker suffix, by debt or unit terms in the name, or by a hand list
+  checked against each line's closes (a $25 note holds a narrow range near par).
+- **Preference lines beside the ordinary line:** Korea 26.1% of line-years (codes not ending in 0),
+  Germany 14.9% (HEN3, SRT3, DRW3, BIO3), Canada 7.5% (EMA-PC, EMA-PH, AQN-PA).
+- **Second lines at their own price:** Roche's ROG.SW sat beside RO.SW in all ten invested Swiss
+  years, so each of Switzerland's six 10-name books held nine companies.
+- **Thai NVDRs:** 40.7% of Thai line-years, 133 of the 143 beside their ordinary line. They stay in
+  the universe; check N holds each pair once.
+- **FEMSA's ADR (FMX):** in the US book in 24 of 25 years, on recorded yields of 10% to 64%. In 21
+  of those years the yield is about five times (4.7 to 5.6) FEMSA's own dividends paid over its
+  market cap: the dividends are reported in pesos and the yield was taken against the dollar line.
+- **Yields above 25%:** 23 held line-years, 13 of them FMX's.
+
+Read against the same FY's dividends paid, the vendor yield agrees within 25% in 4,204 of 4,546
+held line-years, so the yield rule checks only lines whose trading and reporting currencies differ:
+applied everywhere it would also drop 116 Chinese line-years whose dividends are declared and paid in
+different years. On the old books the rule drops 105 line-years: 23 over the ceiling, 70 cross-
+currency disagreements and 12 cross-currency lines whose cash flow shows no dividends paid that year
+(BTI 2000-2002, DEO 2001, SBS 2004-2005, EVO 2018-2019 among them), which can't be checked.
+
+**Open:** the hand list holds what one probe of the universe found, and outside the US nothing
+reports a new plain-named second line. Other topics keep these lines until a shared rule lands.
+
+---
+
+## Price history that starts in April 2026 (measured 2026-11-06)
+
+**Status:** open, upstream of every topic.
+
+Some lines have no `stock_eod` rows before 2026-04-01 although they listed long before. In
+defensive-quality's universe (Consumer Defensive, Utilities and Healthcare on 20 exchange codes,
+7,181 lines), lines whose first bar falls on 2026-03-25 to 04-02 with an IPO before 2025: NASDAQ
+182, LSE 43, HKSE 38, JPX 19, SET 17, STO 15, XETRA 15, SHZ 13, AMEX 11, NSE 9, NYSE 8, TSX 8,
+JNB 7, SIX 7, KSC 6, and 2 to 4 on TWO, JKT, KLS and SHH. They include Tyson Foods (TSN, 152 bars
+against PG's 13,536), Essential Utilities (WTRG) and both Lindt lines (LISN.SW, LISP.SW). Brazilian
+lines start there too (WEGE3.SA, ITSA3.SA, ITSA4.SA, PETR4.SA, GGBR3.SA and LREN3.SA, measured
+2026-10-11).
+
+A screen picks such a line from its fundamentals, finds no entry price, and holds the rest of its
+book: the slot isn't refilled. defensive-quality's period records list these names as
+`entry_unpriced`, so the posts can say how many of a year's screened names were bought.
 
 ---
 

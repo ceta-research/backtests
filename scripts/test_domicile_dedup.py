@@ -530,7 +530,7 @@ def rows_dcf(src, latest=YIELD_CAP):
 
 def rows_defensive(src, first="Utilities"):
     """Every line in a defensive sector (`first`), NOI1's second profile row in another: sector_map fans NOI1 out.
-    Plus the columns the universe rules read (tracker#616), none of which removes or drops a line here."""
+    Plus the columns the universe rules read (defensive-quality), none of which removes or drops a line here."""
     src.execute("UPDATE profile SET sector = CASE sector WHEN 'Energy' THEN 'Healthcare' ELSE ? END", [first])
     for col, typ in (("companyName", "VARCHAR"), ("cik", "VARCHAR"), ("isFund", "BOOLEAN"), ("isEtf", "BOOLEAN")):
         src.execute(f"ALTER TABLE profile ADD COLUMN {col} {typ}")

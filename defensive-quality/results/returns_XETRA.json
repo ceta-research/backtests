@@ -2,8 +2,8 @@
   "universe": "XETRA",
   "n_periods": 25,
   "total_rebalances": 25,
-  "cash_periods": 10,
-  "invested_periods": 15,
+  "cash_periods": 13,
+  "invested_periods": 12,
   "measured_start": "2000-07-01",
   "measured_end": "2025-07-01",
   "requested_start": "2000-07-01",
@@ -15,7 +15,7 @@
   "window_label": "2000-2025",
   "years": 25.0,
   "frequency": "annual",
-  "avg_stocks_when_invested": 12.1,
+  "avg_stocks_when_invested": 10.6,
   "period_data": [
     {
       "rebalance_date": "2000-07-01",
@@ -25,7 +25,15 @@
       "stocks_held": 0,
       "screened": 1,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
       "holdings": "CASH (1 passed)"
     },
     {
@@ -36,7 +44,15 @@
       "stocks_held": 0,
       "screened": 2,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
       "holdings": "CASH (2 passed)"
     },
     {
@@ -45,10 +61,18 @@
       "portfolio_return": 0.0,
       "spy_return": -0.2275790015976885,
       "stocks_held": 0,
-      "screened": 2,
+      "screened": 1,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
-      "holdings": "CASH (2 passed)"
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
+      "holdings": "CASH (1 passed)"
     },
     {
       "rebalance_date": "2003-07-01",
@@ -56,10 +80,18 @@
       "portfolio_return": 0.0,
       "spy_return": 0.23379223066013508,
       "stocks_held": 0,
-      "screened": 5,
+      "screened": 4,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
-      "holdings": "CASH (5 passed)"
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
+      "holdings": "CASH (4 passed)"
     },
     {
       "rebalance_date": "2004-07-01",
@@ -69,7 +101,15 @@
       "stocks_held": 0,
       "screened": 6,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
       "holdings": "CASH (6 passed)"
     },
     {
@@ -78,32 +118,60 @@
       "portfolio_return": 0.0,
       "spy_return": 0.23560094138290427,
       "stocks_held": 0,
-      "screened": 9,
+      "screened": 8,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
-      "holdings": "CASH (9 passed)"
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
+      "holdings": "CASH (8 passed)"
     },
     {
       "rebalance_date": "2006-07-01",
       "exit_date": "2007-07-01",
-      "portfolio_return": 0.33312,
+      "portfolio_return": 0.33504,
       "spy_return": 0.393081,
-      "stocks_held": 11,
-      "screened": 12,
-      "entry_buyable": 11,
+      "stocks_held": 10,
+      "screened": 11,
+      "entry_buyable": 10,
+      "entry_unpriced": [
+        "EBK.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "MVV1.DE,DTEA.DE,FRE.DE,EOAN.DE,RWE.DE,RHK.DE,BAYN.DE,BEI.DE,HEN.DE,HEN3.DE,FME.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 4,
+      "holdings": "MVV1.DE,DTEA.DE,FRE.DE,EOAN.DE,RWE.DE,RHK.DE,BAYN.DE,BEI.DE,HEN.DE,FME.DE"
     },
     {
       "rebalance_date": "2007-07-01",
       "exit_date": "2008-07-01",
-      "portfolio_return": -0.213642,
-      "spy_return": -0.207687,
-      "stocks_held": 11,
-      "screened": 12,
-      "entry_buyable": 11,
+      "portfolio_return": 0.0,
+      "spy_return": -0.2076866573285359,
+      "stocks_held": 0,
+      "screened": 10,
+      "entry_buyable": 9,
+      "entry_unpriced": [
+        "EBK.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "DTEA.DE,FRE.DE,RWE.DE,BAYN.DE,SRT.DE,SRT3.DE,FME.DE,BEI.DE,HEN.DE,HEN3.DE,AFX.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CASH (9 buyable at entry of 10 screened)"
     },
     {
       "rebalance_date": "2008-07-01",
@@ -111,10 +179,18 @@
       "portfolio_return": 0.0,
       "spy_return": -0.2516770821223614,
       "stocks_held": 0,
-      "screened": 10,
-      "entry_buyable": 9,
+      "screened": 9,
+      "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
-      "holdings": "CASH (9 buyable at entry of 10 screened)"
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
+      "holdings": "CASH (9 passed)"
     },
     {
       "rebalance_date": "2009-07-01",
@@ -124,7 +200,15 @@
       "stocks_held": 0,
       "screened": 9,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
       "holdings": "CASH (9 passed)"
     },
     {
@@ -135,118 +219,231 @@
       "stocks_held": 0,
       "screened": 9,
       "entry_buyable": null,
+      "entry_unpriced": null,
       "min_stocks": 10,
+      "entry_bars_moved": null,
+      "exit_bars_moved": null,
+      "entries_lost": null,
+      "exits_lost": null,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": null,
       "holdings": "CASH (9 passed)"
     },
     {
       "rebalance_date": "2011-07-01",
       "exit_date": "2012-07-01",
-      "portfolio_return": 0.065081,
+      "portfolio_return": 0.065524,
       "spy_return": -0.127218,
-      "stocks_held": 14,
-      "screened": 16,
-      "entry_buyable": 14,
+      "stocks_held": 12,
+      "screened": 14,
+      "entry_buyable": 12,
+      "entry_unpriced": [
+        "COP.DE",
+        "EBK.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "RWE.DE,EOAN.DE,SZU.DE,FRE.DE,MVV1.DE,BAYN.DE,BEI.DE,AFX.DE,FME.DE,HEN.DE,HEN3.DE,DRW3.DE,DRW8.DE,MRK.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "RWE.DE,EOAN.DE,SZU.DE,FRE.DE,MVV1.DE,BAYN.DE,BEI.DE,AFX.DE,FME.DE,HEN.DE,DRW8.DE,MRK.DE"
     },
     {
       "rebalance_date": "2012-07-01",
       "exit_date": "2013-07-01",
-      "portfolio_return": 0.267901,
+      "portfolio_return": 0.234919,
       "spy_return": 0.217776,
-      "stocks_held": 13,
-      "screened": 13,
-      "entry_buyable": 13,
+      "stocks_held": 10,
+      "screened": 10,
+      "entry_buyable": 10,
+      "entry_unpriced": [],
       "min_stocks": 10,
-      "holdings": "AFX.DE,SZU.DE,DRW3.DE,DRW8.DE,FRE.DE,BAYN.DE,RHK.DE,HEN.DE,HEN3.DE,SRT.DE,SRT3.DE,GXI.DE,FME.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "AFX.DE,SZU.DE,DRW8.DE,FRE.DE,BAYN.DE,RHK.DE,HEN.DE,SRT.DE,GXI.DE,FME.DE"
     },
     {
       "rebalance_date": "2013-07-01",
       "exit_date": "2014-07-01",
-      "portfolio_return": 0.180339,
+      "portfolio_return": 0.119223,
       "spy_return": 0.252883,
-      "stocks_held": 13,
-      "screened": 14,
-      "entry_buyable": 13,
+      "stocks_held": 10,
+      "screened": 11,
+      "entry_buyable": 10,
+      "entry_unpriced": [
+        "COP.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "SZU.DE,FRE.DE,BAYN.DE,GXI.DE,AFX.DE,FME.DE,HEN.DE,HEN3.DE,SRT.DE,SRT3.DE,BEI.DE,BIO.DE,BIO3.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "SZU.DE,FRE.DE,BAYN.DE,GXI.DE,AFX.DE,FME.DE,HEN.DE,SRT.DE,BEI.DE,BIO.DE"
     },
     {
       "rebalance_date": "2014-07-01",
       "exit_date": "2015-07-01",
-      "portfolio_return": 0.245119,
+      "portfolio_return": 0.244523,
       "spy_return": 0.119872,
-      "stocks_held": 15,
-      "screened": 16,
-      "entry_buyable": 15,
+      "stocks_held": 11,
+      "screened": 12,
+      "entry_buyable": 11,
+      "entry_unpriced": [
+        "COP.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "FRE.DE,BAYN.DE,GXI.DE,AFX.DE,MRK.DE,DRW3.DE,DRW8.DE,FME.DE,HEN.DE,HEN3.DE,SRT.DE,SRT3.DE,BEI.DE,BIO.DE,BIO3.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 1,
+      "holdings": "FRE.DE,BAYN.DE,GXI.DE,AFX.DE,MRK.DE,DRW8.DE,FME.DE,HEN.DE,SRT.DE,BEI.DE,BIO.DE"
     },
     {
       "rebalance_date": "2015-07-01",
       "exit_date": "2016-07-01",
-      "portfolio_return": 0.201117,
+      "portfolio_return": 0.175172,
       "spy_return": -0.125256,
-      "stocks_held": 13,
-      "screened": 15,
-      "entry_buyable": 13,
+      "stocks_held": 11,
+      "screened": 13,
+      "entry_buyable": 11,
+      "entry_unpriced": [
+        "COP.DE",
+        "SBS.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "FRE.DE,DTEA.DE,GXI.DE,AFX.DE,BAYN.DE,MRK.DE,FME.DE,HEN.DE,HEN3.DE,RHK.DE,BEI.DE,SRT.DE,SRT3.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 1,
+      "holdings": "FRE.DE,DTEA.DE,GXI.DE,AFX.DE,BAYN.DE,MRK.DE,FME.DE,HEN.DE,RHK.DE,BEI.DE,SRT.DE"
     },
     {
       "rebalance_date": "2016-07-01",
       "exit_date": "2017-07-01",
-      "portfolio_return": 0.11555,
+      "portfolio_return": 0.116593,
       "spy_return": 0.28491,
-      "stocks_held": 12,
-      "screened": 14,
-      "entry_buyable": 12,
+      "stocks_held": 11,
+      "screened": 13,
+      "entry_buyable": 11,
+      "entry_unpriced": [
+        "COP.DE",
+        "SBS.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "RHK.DE,BAYN.DE,FRE.DE,DTEA.DE,AFX.DE,MRK.DE,GXI.DE,HEN.DE,HEN3.DE,FME.DE,BEI.DE,ECV.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "RHK.DE,BAYN.DE,FRE.DE,DTEA.DE,AFX.DE,MRK.DE,GXI.DE,HEN.DE,FME.DE,BEI.DE,ECV.DE"
     },
     {
       "rebalance_date": "2017-07-01",
       "exit_date": "2018-07-01",
-      "portfolio_return": 0.042206,
+      "portfolio_return": 0.011095,
       "spy_return": -0.019009,
-      "stocks_held": 12,
-      "screened": 14,
-      "entry_buyable": 12,
+      "stocks_held": 10,
+      "screened": 12,
+      "entry_buyable": 10,
+      "entry_unpriced": [
+        "COP.DE",
+        "SBS.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "GXI.DE,BAYN.DE,DTEA.DE,MRK.DE,HEN.DE,HEN3.DE,AFX.DE,FME.DE,BEI.DE,FRE.DE,SRT.DE,SRT3.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "GXI.DE,BAYN.DE,DTEA.DE,MRK.DE,HEN.DE,AFX.DE,FME.DE,BEI.DE,FRE.DE,SRT.DE"
     },
     {
       "rebalance_date": "2018-07-01",
       "exit_date": "2019-07-01",
-      "portfolio_return": 0.061804,
+      "portfolio_return": 0.048182,
       "spy_return": 0.023578,
-      "stocks_held": 12,
-      "screened": 15,
-      "entry_buyable": 12,
+      "stocks_held": 10,
+      "screened": 13,
+      "entry_buyable": 10,
+      "entry_unpriced": [
+        "COP.DE",
+        "EBK.DE",
+        "SBS.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "BAYN.DE,DTEA.DE,GXI.DE,MRK.DE,HEN.DE,HEN3.DE,FME.DE,AFX.DE,FRE.DE,BEI.DE,SRT.DE,SRT3.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "BAYN.DE,DTEA.DE,GXI.DE,MRK.DE,HEN.DE,FME.DE,AFX.DE,FRE.DE,BEI.DE,SRT.DE"
     },
     {
       "rebalance_date": "2019-07-01",
       "exit_date": "2020-07-01",
-      "portfolio_return": 0.071946,
-      "spy_return": 0.006525,
-      "stocks_held": 10,
-      "screened": 11,
-      "entry_buyable": 10,
+      "portfolio_return": 0.0,
+      "spy_return": 0.006525270468567061,
+      "stocks_held": 0,
+      "screened": 10,
+      "entry_buyable": 9,
+      "entry_unpriced": [
+        "COP.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "DTEA.DE,MRK.DE,HEN.DE,HEN3.DE,FME.DE,GXI.DE,FRE.DE,BEI.DE,AFX.DE,SHL.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CASH (9 buyable at entry of 10 screened)"
     },
     {
       "rebalance_date": "2020-07-01",
       "exit_date": "2021-07-01",
-      "portfolio_return": 0.33566,
+      "portfolio_return": 0.362787,
       "spy_return": 0.241237,
-      "stocks_held": 11,
-      "screened": 13,
-      "entry_buyable": 11,
+      "stocks_held": 10,
+      "screened": 12,
+      "entry_buyable": 10,
+      "entry_unpriced": [
+        "COP.DE",
+        "SBS.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "BAYN.DE,HEN.DE,HEN3.DE,SHL.DE,DMP.DE,GXI.DE,FRE.DE,MRK.DE,BEI.DE,EUZ.DE,AFX.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 1,
+      "holdings": "BAYN.DE,HEN.DE,SHL.DE,DMP.DE,GXI.DE,FRE.DE,MRK.DE,BEI.DE,EUZ.DE,AFX.DE"
     },
     {
       "rebalance_date": "2021-07-01",
@@ -254,56 +451,100 @@
       "portfolio_return": 0.0,
       "spy_return": -0.18381427772695177,
       "stocks_held": 0,
-      "screened": 11,
-      "entry_buyable": 9,
+      "screened": 10,
+      "entry_buyable": 8,
+      "entry_unpriced": [
+        "COP.DE",
+        "SBS.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "CASH (9 buyable at entry of 11 screened)"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CASH (8 buyable at entry of 10 screened)"
     },
     {
       "rebalance_date": "2022-07-01",
       "exit_date": "2023-07-01",
-      "portfolio_return": 0.141298,
-      "spy_return": 0.258949,
-      "stocks_held": 10,
-      "screened": 12,
-      "entry_buyable": 10,
+      "portfolio_return": 0.0,
+      "spy_return": 0.25894948303024573,
+      "stocks_held": 0,
+      "screened": 11,
+      "entry_buyable": 9,
+      "entry_unpriced": [
+        "COP.DE",
+        "SBS.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "HEN.DE,HEN3.DE,FRE.DE,ETG.DE,ECV.DE,GXI.DE,SHL.DE,DMP.DE,BEI.DE,MRK.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "CASH (9 buyable at entry of 11 screened)"
     },
     {
       "rebalance_date": "2023-07-01",
       "exit_date": "2024-07-01",
-      "portfolio_return": -0.03461,
+      "portfolio_return": -0.052395,
       "spy_return": 0.142621,
-      "stocks_held": 12,
-      "screened": 14,
-      "entry_buyable": 12,
+      "stocks_held": 11,
+      "screened": 13,
+      "entry_buyable": 11,
+      "entry_unpriced": [
+        "COP.DE",
+        "SBS.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "DMP.DE,BAYN.DE,HEN.DE,HEN3.DE,SHL.DE,ETG.DE,GXI.DE,ECV.DE,MRK.DE,EUZ.DE,AFX.DE,BEI.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 0,
+      "holdings": "DMP.DE,BAYN.DE,HEN.DE,SHL.DE,ETG.DE,GXI.DE,ECV.DE,MRK.DE,EUZ.DE,AFX.DE,BEI.DE"
     },
     {
       "rebalance_date": "2024-07-01",
       "exit_date": "2025-07-01",
-      "portfolio_return": -0.134553,
+      "portfolio_return": -0.131448,
       "spy_return": 0.294733,
-      "stocks_held": 12,
-      "screened": 14,
-      "entry_buyable": 12,
+      "stocks_held": 11,
+      "screened": 13,
+      "entry_buyable": 11,
+      "entry_unpriced": [
+        "COP.DE",
+        "SBS.DE"
+      ],
       "min_stocks": 10,
-      "holdings": "SZU.DE,ETG.DE,HEN.DE,HEN3.DE,DMP.DE,SHL.DE,MRK.DE,GXI.DE,AFX.DE,EUZ.DE,EKT.DE,BEI.DE"
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_collapsed": 0,
+      "cap_excluded": 0,
+      "factor_flags": 1,
+      "holdings": "SZU.DE,ETG.DE,HEN.DE,DMP.DE,SHL.DE,MRK.DE,GXI.DE,AFX.DE,EUZ.DE,EKT.DE,BEI.DE"
     }
   ],
   "portfolio": {
-    "total_return": 321.17,
-    "cagr": 5.92,
-    "max_drawdown": -21.36,
-    "annualized_volatility": 13.37,
-    "sharpe_ratio": 0.293,
-    "sortino_ratio": 0.67,
-    "calmar_ratio": 0.277,
-    "var_95": -13.46,
+    "total_return": 281.67,
+    "cagr": 5.5,
+    "max_drawdown": -17.7,
+    "annualized_volatility": 12.09,
+    "sharpe_ratio": 0.29,
+    "sortino_ratio": 0.958,
+    "calmar_ratio": 0.311,
+    "var_95": -5.24,
     "max_consecutive_losses": 2,
-    "pct_negative_periods": 12.0
+    "pct_negative_periods": 8.0
   },
   "spy": {
     "total_return": 241.86,
@@ -318,16 +559,16 @@
     "pct_negative_periods": 36.0
   },
   "comparison": {
-    "excess_cagr": 0.88,
+    "excess_cagr": 0.46,
     "win_rate": 52.0,
-    "information_ratio": -0.023,
-    "tracking_error": 20.16,
-    "up_capture": 46.94,
-    "down_capture": -6.01,
-    "beta": 0.245,
-    "alpha": 3.18
+    "information_ratio": -0.051,
+    "tracking_error": 21.06,
+    "up_capture": 37.86,
+    "down_capture": -15.96,
+    "beta": 0.166,
+    "alpha": 3.0
   },
-  "excess_cagr": 0.88,
+  "excess_cagr": 0.46,
   "win_rate_vs_spy": 52.0,
   "annual_returns": [
     {
@@ -368,15 +609,15 @@
     },
     {
       "year": 2006,
-      "portfolio": 33.31,
+      "portfolio": 33.5,
       "spy": 39.31,
-      "excess": -6.0
+      "excess": -5.8
     },
     {
       "year": 2007,
-      "portfolio": -21.36,
+      "portfolio": 0.0,
       "spy": -20.77,
-      "excess": -0.6
+      "excess": 20.77
     },
     {
       "year": 2008,
@@ -398,63 +639,63 @@
     },
     {
       "year": 2011,
-      "portfolio": 6.51,
+      "portfolio": 6.55,
       "spy": -12.72,
-      "excess": 19.23
+      "excess": 19.27
     },
     {
       "year": 2012,
-      "portfolio": 26.79,
+      "portfolio": 23.49,
       "spy": 21.78,
-      "excess": 5.01
+      "excess": 1.71
     },
     {
       "year": 2013,
-      "portfolio": 18.03,
+      "portfolio": 11.92,
       "spy": 25.29,
-      "excess": -7.25
+      "excess": -13.37
     },
     {
       "year": 2014,
-      "portfolio": 24.51,
+      "portfolio": 24.45,
       "spy": 11.99,
-      "excess": 12.52
+      "excess": 12.47
     },
     {
       "year": 2015,
-      "portfolio": 20.11,
+      "portfolio": 17.52,
       "spy": -12.53,
-      "excess": 32.64
+      "excess": 30.04
     },
     {
       "year": 2016,
-      "portfolio": 11.56,
+      "portfolio": 11.66,
       "spy": 28.49,
-      "excess": -16.94
+      "excess": -16.83
     },
     {
       "year": 2017,
-      "portfolio": 4.22,
+      "portfolio": 1.11,
       "spy": -1.9,
-      "excess": 6.12
+      "excess": 3.01
     },
     {
       "year": 2018,
-      "portfolio": 6.18,
+      "portfolio": 4.82,
       "spy": 2.36,
-      "excess": 3.82
+      "excess": 2.46
     },
     {
       "year": 2019,
-      "portfolio": 7.19,
+      "portfolio": 0.0,
       "spy": 0.65,
-      "excess": 6.54
+      "excess": -0.65
     },
     {
       "year": 2020,
-      "portfolio": 33.57,
+      "portfolio": 36.28,
       "spy": 24.12,
-      "excess": 9.44
+      "excess": 12.16
     },
     {
       "year": 2021,
@@ -464,25 +705,1489 @@
     },
     {
       "year": 2022,
-      "portfolio": 14.13,
+      "portfolio": 0.0,
       "spy": 25.89,
-      "excess": -11.77
+      "excess": -25.89
     },
     {
       "year": 2023,
-      "portfolio": -3.46,
+      "portfolio": -5.24,
       "spy": 14.26,
-      "excess": -17.72
+      "excess": -19.5
     },
     {
       "year": 2024,
-      "portfolio": -13.46,
+      "portfolio": -13.14,
       "spy": 29.47,
-      "excess": -42.93
+      "excess": -42.62
     }
   ],
   "listing_filter": "country DE",
   "isin_dedup": true,
+  "data_checks": {
+    "version": "dc-1",
+    "mode": "on",
+    "max_single_return": null,
+    "rules": {
+      "fetch_window_days": 11,
+      "closed_day_ratio": 0.5,
+      "closed_day_min_ref": 20,
+      "closed_day_min_other_dates": 3,
+      "closed_day_skip": "a date is not tested when its window has fewer than 3 other dates or their median traded count is under 20; closed_day_test_skipped counts windows with such a date",
+      "zero_volume": "moved when the same line has a traded row in the same window, or when the line has none and its close changes on fewer than no_volume_min_changes days there, day over day in date order (a flat line, or a stale quote that steps once, with no volume is not buyable); a line with no traded row whose close changes on that many days or more keeps every row",
+      "no_volume_min_changes": 2,
+      "nonpositive_price": "rows with adjClose NULL or <= 0 moved",
+      "sibling": {
+        "min_shared_fy": 2,
+        "gap": 1.25,
+        "ref_days": 400,
+        "ref_min_days": 5,
+        "ref_min_windows": 2,
+        "stable_share": 0.8,
+        "rule": "siblings are lines that carry an identical FY key_metrics cap in min_shared_fy FYs or more; a line is tested in a window only when T moved a row before its first remaining row there (the anchor: the earliest moved row), and only against a thicker sibling (median close x volume over the reference days); ref = the median of the per-window median close ratios over the cache's other windows within ref_days (one window each side on an annual leg), with ref_min_windows windows, ref_min_days traded days of both, stable_share of those days within gap of ref, and the anchor's ratio within gap of ref; from the first remaining row, a row more than gap from both ref and the anchor's ratio, for every sibling that can test it, moves; the first row on scale or untestable stops it"
+      },
+      "benchmarks_exempt": true,
+      "twins": "SET X-R.BK takes X.BK's ISIN as its security key when X.BK is in the leg, the ISINs share characters 1 to 6 and character 10 of the NVDR's is R; within a key: buyable at entry, then the ordinary line, then isActivelyTrading, home currency, symbol",
+      "cap": {
+        "pf_min": 3.0,
+        "turnover_max": 0.0001,
+        "bars": 20,
+        "lookback_days": 45,
+        "min_traded_bars": 10,
+        "k_min": 3.0,
+        "eps_min": 0.05,
+        "net_income_min": 1000000.0,
+        "k_tol": 1.5,
+        "split_max": 10000.0,
+        "split_min": 2.0,
+        "split_dup_days": 120,
+        "share_tol": 1.5,
+        "share_step": [
+          0.5,
+          2.0
+        ],
+        "lower_only": true,
+        "order": "gate on pf or the later consolidations; turnover over every line with the same FY cap (lines that share an identical FY cap in sibling.min_shared_fy FYs or more); k within k_tol of pf lowers first and turnover is tested on the lowered cap; a failing cap is lowered by the divisor (and k) when turnover clears on the lowered cap, else ineligible; a k that disagrees with pf keeps turnover-then-k; unknown turnover lowers; the divisor needs evidence beyond the split records: a measured price factor P (raw close against stock_eod at the period end, or the same line's nearest FY with no split record between) of pf_min or more gives P times the later forward splits, a P under pf_min gives P times the records FMP's FY share count was restated for, no P gives the records at which that count steps; a record repeating the ratio of a record kept within split_dup_days before it counts once; a row is only made ineligible when pf opened the gate and every line of its group has bars in the lookback, else a failing cap lowers; a failing row whose divisor is within 1e-9 of 1 keeps FMP's cap as unchecked, counted in cap_rows_flagged"
+      },
+      "factor": {
+        "band": [
+          0.9523809523809523,
+          1.15
+        ],
+        "split_min": 2.0,
+        "mode": "flag only: no price or return is changed"
+      },
+      "fill_basis": {
+        "min_reversals": 2,
+        "rule": "an LTP fill books its close over the entry close (basis 'close') when the line's adjClose / close flips by more than factor.band's upper bound on consecutive rows while the close moves less than that bound, the flips reverse direction min_reversals times or more from the fetched context to the window end, and the fill's drift against the entry bar leaves factor.band"
+      },
+      "large_move_log": 0.6931471805599453
+    },
+    "counts": {
+      "rows_moved": {
+        "closed_day": 0,
+        "zero_volume": 518,
+        "nonpositive_price": 0
+      },
+      "symbol_windows_without_volume": 14,
+      "flat_windows_moved": 12,
+      "sibling_gap_rows": 0,
+      "closed_day_test_skipped": 0,
+      "entry_bars_moved": 0,
+      "exit_bars_moved": 0,
+      "entries_lost": 0,
+      "exits_lost": 0,
+      "twins_linked": 0,
+      "twins_collapsed": 0,
+      "nvdr_stand_ins": 0,
+      "cap_rows_checked": 3916,
+      "cap_rows_flagged": 79,
+      "cap_excluded": 0,
+      "signal_cap_excluded": 0,
+      "factor_checked": 127,
+      "factor_flags": 8,
+      "large_moves": 2
+    },
+    "closed_dates": [],
+    "events": [
+      {
+        "rebalance_date": "2006-07-01",
+        "symbol": "BEI.DE",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2006-07-03",
+        "exit_bar_date": "2007-07-02",
+        "drift": 1.0112,
+        "r_adj": 0.352423,
+        "r_close": 0.337439,
+        "splits": [
+          {
+            "date": "2006-07-17",
+            "numerator": 3.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2006-07-01",
+        "symbol": "FME.DE",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2006-07-03",
+        "exit_bar_date": "2007-07-02",
+        "drift": 1.01278,
+        "r_adj": 0.163038,
+        "r_close": 0.148359,
+        "splits": [
+          {
+            "date": "2007-06-18",
+            "numerator": 3.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2006-07-01",
+        "symbol": "FRE.DE",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2006-07-03",
+        "exit_bar_date": "2007-07-02",
+        "drift": 1.00893,
+        "r_adj": 0.341805,
+        "r_close": 0.329925,
+        "splits": [
+          {
+            "date": "2007-02-02",
+            "numerator": 3.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2006-07-01",
+        "symbol": "HEN.DE",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2006-07-03",
+        "exit_bar_date": "2007-07-02",
+        "drift": 1.01404,
+        "r_adj": 0.311917,
+        "r_close": 0.293748,
+        "splits": [
+          {
+            "date": "2007-06-18",
+            "numerator": 3.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2014-07-01",
+        "symbol": "FRE.DE",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2014-07-02",
+        "exit_bar_date": "2015-07-02",
+        "drift": 1.00765,
+        "r_adj": 0.576196,
+        "r_close": 0.564228,
+        "splits": [
+          {
+            "date": "2014-08-04",
+            "numerator": 3.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2015-07-01",
+        "symbol": "SRT.DE",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2015-07-02",
+        "exit_bar_date": "2016-07-04",
+        "drift": 1.0055,
+        "r_adj": 0.787924,
+        "r_close": 0.778148,
+        "splits": [
+          {
+            "date": "2016-06-13",
+            "numerator": 4.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2020-07-01",
+        "symbol": "EUZ.DE",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2020-07-02",
+        "exit_bar_date": "2021-07-02",
+        "drift": 1.00226,
+        "r_adj": 1.60135,
+        "r_close": 1.59548,
+        "splits": [
+          {
+            "date": "2020-07-31",
+            "numerator": 4.0,
+            "denominator": 1.0
+          }
+        ],
+        "reasons": [
+          "large_move",
+          "split"
+        ]
+      },
+      {
+        "rebalance_date": "2024-07-01",
+        "symbol": "GXI.DE",
+        "check": "factor_flag",
+        "side": null,
+        "entry_bar_date": "2024-07-02",
+        "exit_bar_date": "2025-07-02",
+        "drift": 1.00081,
+        "r_adj": -0.508521,
+        "r_close": -0.508917,
+        "splits": [],
+        "reasons": [
+          "large_move"
+        ]
+      }
+    ],
+    "large_moves": [
+      {
+        "rebalance_date": "2020-07-01",
+        "symbol": "EUZ.DE",
+        "return": 1.60135,
+        "entry_bar": {
+          "date": "2020-07-02",
+          "adjClose": 11.89,
+          "close": 12.83,
+          "volume": 328103.0
+        },
+        "exit_bar": {
+          "date": "2021-07-02",
+          "adjClose": 30.93,
+          "close": 33.3,
+          "volume": 177244.0
+        }
+      },
+      {
+        "rebalance_date": "2024-07-01",
+        "symbol": "GXI.DE",
+        "return": -0.508521,
+        "entry_bar": {
+          "date": "2024-07-02",
+          "adjClose": 99.17,
+          "close": 99.25,
+          "volume": 79450.0
+        },
+        "exit_bar": {
+          "date": "2025-07-02",
+          "adjClose": 48.74,
+          "close": 48.74,
+          "volume": 169340.0
+        }
+      }
+    ],
+    "sibling_gaps": [],
+    "cap_unchecked": [
+      {
+        "symbol": "ACT.DE",
+        "fy": "2015-12-31",
+        "cap": 2137031400.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "ACT.DE",
+        "fy": "2016-12-31",
+        "cap": 1546803680.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 0.1,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2011-12-31",
+        "cap": 730639954.8,
+        "pf": 16.9852,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.996922
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2012-12-31",
+        "cap": 1967033864.4599998,
+        "pf": 18.0213,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.976802
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2013-12-31",
+        "cap": 1786018478.1599998,
+        "pf": 18.0213,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.997336
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2014-12-31",
+        "cap": 1159257611.3999999,
+        "pf": 18.0213,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.998283
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2015-12-31",
+        "cap": 868125169.8,
+        "pf": 18.4504,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00421
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2016-12-31",
+        "cap": 1879184494.96,
+        "pf": 18.6534,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.996226
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2017-12-31",
+        "cap": 3133875951.15,
+        "pf": 18.6534,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.990272
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2018-12-31",
+        "cap": 4867468662.42,
+        "pf": 19.5674,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00414
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2019-12-31",
+        "cap": 4303035179.52,
+        "pf": 19.5674,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.978271
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2020-12-31",
+        "cap": 3347523395.58,
+        "pf": 19.5674,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.982801
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2021-12-31",
+        "cap": 1763083714.35,
+        "pf": 20.0957,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.01239
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2022-12-31",
+        "cap": 1798389996.48,
+        "pf": 21.0,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 1.00203
+      },
+      {
+        "symbol": "B8F.DE",
+        "fy": "2023-12-31",
+        "cap": 589577215.92,
+        "pf": 21.0,
+        "pf_source": "splits",
+        "pf_cons": 21.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2009-12-31",
+        "cap": 1024543117.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2010-12-31",
+        "cap": 693950625.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 0.999978
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2012-12-31",
+        "cap": 650395219.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2013-12-31",
+        "cap": 552809145.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2014-12-31",
+        "cap": 730807635.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2015-12-31",
+        "cap": 1302332528.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2016-12-31",
+        "cap": 2424723444.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2017-12-31",
+        "cap": 3491979684.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 0.989193
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2018-12-31",
+        "cap": 2704816640.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 0.81812
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2019-12-31",
+        "cap": 2646748528.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2020-12-31",
+        "cap": 1692101502.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2021-12-31",
+        "cap": 1595409858.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 1.00045
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2022-12-31",
+        "cap": 843935905.2,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 0.999871
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2023-12-31",
+        "cap": 718137947.5,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 1.00008
+      },
+      {
+        "symbol": "C1V.DE",
+        "fy": "2024-12-31",
+        "cap": 693845979.4,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 0.99979
+      },
+      {
+        "symbol": "C3RY.DE",
+        "fy": "2020-12-31",
+        "cap": 772254000.0,
+        "pf": 4.0,
+        "pf_source": "splits",
+        "pf_cons": 4.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 0.994981
+      },
+      {
+        "symbol": "CORE.DE",
+        "fy": "2005-12-31",
+        "cap": 965820860.0,
+        "pf": 9.51475,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0064
+      },
+      {
+        "symbol": "CORE.DE",
+        "fy": "2006-12-31",
+        "cap": 2765674240.0,
+        "pf": 9.51475,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 2.95702
+      },
+      {
+        "symbol": "CORE.DE",
+        "fy": "2007-12-31",
+        "cap": 4145481620.0000005,
+        "pf": 9.51475,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999833
+      },
+      {
+        "symbol": "CORE.DE",
+        "fy": "2009-12-31",
+        "cap": 928477440.0,
+        "pf": 9.51475,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00656
+      },
+      {
+        "symbol": "CORE.DE",
+        "fy": "2010-12-31",
+        "cap": 882414720.0000001,
+        "pf": 9.51475,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.993583
+      },
+      {
+        "symbol": "DFTK.DE",
+        "fy": "2004-12-31",
+        "cap": 582080000.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "DFTK.DE",
+        "fy": "2005-12-31",
+        "cap": 582080000.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00868
+      },
+      {
+        "symbol": "DFTK.DE",
+        "fy": "2006-12-31",
+        "cap": 552334000.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2003-12-31",
+        "cap": 2996112000.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 1.00358
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2004-12-31",
+        "cap": 4891528800.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 0.999398
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2005-12-31",
+        "cap": 5810606400.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 0.99454
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2006-12-31",
+        "cap": 6003213600.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 0.997333
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2007-12-31",
+        "cap": 6477501600.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2008-12-31",
+        "cap": 9229528800.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 1.00129
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2009-12-31",
+        "cap": 10352781600.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 0.997988
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2010-12-31",
+        "cap": 14343741600.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 0.994035
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2011-12-31",
+        "cap": 3129722400.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 1.00056
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2012-12-31",
+        "cap": 3129722400.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 0.998176
+      },
+      {
+        "symbol": "ECX.DE",
+        "fy": "2013-12-31",
+        "cap": 3878172000.0,
+        "pf": 9.81354,
+        "pf_source": "splits",
+        "pf_cons": 40.0,
+        "pf_fwd": 4.0,
+        "sh_restated": 0.125,
+        "sh_step": 0.25,
+        "u": null,
+        "lines": 1,
+        "k": 1.00426
+      },
+      {
+        "symbol": "GAG.DE",
+        "fy": "2016-12-31",
+        "cap": 1077580000.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "GAG.DE",
+        "fy": "2018-12-31",
+        "cap": 1077580000.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 1,
+        "k": null
+      },
+      {
+        "symbol": "N4G.DE",
+        "fy": "2020-12-31",
+        "cap": 1658557360.0,
+        "pf": 10.0,
+        "pf_source": "splits",
+        "pf_cons": 10.0,
+        "pf_fwd": 1.0,
+        "sh_restated": null,
+        "sh_step": null,
+        "u": null,
+        "lines": 2,
+        "k": null
+      },
+      {
+        "symbol": "UN0.DE",
+        "fy": "2013-12-31",
+        "cap": 1720100000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00001
+      },
+      {
+        "symbol": "UN0.DE",
+        "fy": "2014-12-31",
+        "cap": 1720100000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "UN0.DE",
+        "fy": "2015-12-31",
+        "cap": 3728600000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999997
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2013-12-31",
+        "cap": 1522100832000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00001
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2014-12-31",
+        "cap": 1522100832000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2015-12-31",
+        "cap": 1505630449910.4,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999997
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2016-12-31",
+        "cap": 1919304000000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999987
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2017-12-31",
+        "cap": 3733200000000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.00008
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2018-12-31",
+        "cap": 3282288000000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999883
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2019-12-31",
+        "cap": 4331976000000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.9999
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2020-12-31",
+        "cap": 4163616000000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 0.999816
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2021-12-31",
+        "cap": 6136417280000.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      },
+      {
+        "symbol": "UN01.DE",
+        "fy": "2022-12-31",
+        "cap": 599476933368.0,
+        "pf": 20.0,
+        "pf_source": "splits",
+        "pf_cons": 20.0,
+        "pf_fwd": 1.0,
+        "sh_restated": 1.0,
+        "sh_step": 1.0,
+        "u": null,
+        "lines": 1,
+        "k": 1.0
+      }
+    ]
+  },
+  "universe_rules": {
+    "version": "ur-1",
+    "ordinary_shares": {
+      "rules": {
+        "rule": "a line is removed when it is a different instrument from the company's ordinary share (preferred, note, bond, unit, warrant, right, fund) or a second line at its own price on the same financials that no security key collapses; the first reason in `order` is recorded",
+        "order": {
+          "fund_flag": "profile isFund or isEtf",
+          "known": "NON_ORDINARY_KNOWN, the hand list below",
+          "korean_preferred": "KSC six-character code whose sixth character is not 0",
+          "german_preference": "XETRA ticker ending in 3, beside another XETRA line whose ISIN shares its first 9 characters (PNE3.DE, PNE's only line, stays)",
+          "canadian_preferred": "TSX ticker ending -P plus letters",
+          "us_suffix": "NYSE, NASDAQ or AMEX ticker ending -P plus letters, -WT, -WTA, -WS, -W, -U, -UN, -R or -RI",
+          "nasdaq_fifth_letter": "five-letter NASDAQ ticker whose fifth letter is P, O, N, M (preferred), W, R, U, Z or V",
+          "name_term": "companyName matches, ignoring case: %|\\bnotes?\\b|debenture|\\bbonds?\\b|\\bbd\\b|subordinated|\\bjr\\b|junior|collateral|preferred|\\bpfd\\b|\\bpref\\b|\\bunits?\\b|\\bser\\b|\\bseries\\b"
+        },
+        "kept": "Thai NVDRs (check N keys X-R.BK to X.BK, DECISIONS #064), ADRs and TDRs of ordinary shares, share classes (BF-B, MKC-V, CENTA), Canadian trust units",
+        "known": [
+          {
+            "symbol": "AESC",
+            "kind": "units",
+            "evidence": "AES corporate units 2021-2024, $100 stated amount, AES is the common"
+          },
+          {
+            "symbol": "AQNU",
+            "kind": "units",
+            "evidence": "Algonquin equity units 2021-2024, $50, AQN is the common"
+          },
+          {
+            "symbol": "BKDT",
+            "kind": "units",
+            "evidence": "Brookdale tangible equity units 2022-2025, $100, BKD is the common"
+          },
+          {
+            "symbol": "DCUE",
+            "kind": "units",
+            "evidence": "Dominion Energy corporate units 2019-2022, $100, D is the common"
+          },
+          {
+            "symbol": "DTP",
+            "kind": "units",
+            "evidence": "DTE Energy corporate units 2019-2022, $50, DTE is the common"
+          },
+          {
+            "symbol": "NIMC",
+            "kind": "units",
+            "evidence": "NiSource equity units 2021-2023, $100, NI is the common"
+          },
+          {
+            "symbol": "PCGU",
+            "kind": "units",
+            "evidence": "PG&E equity units 2020-2023, $100, PCG is the common"
+          },
+          {
+            "symbol": "PPLC",
+            "kind": "units",
+            "evidence": "a second PPL line whose closes (26 to 49) don't track PPL's, on about 1/1000 of its volume"
+          },
+          {
+            "symbol": "SJIV",
+            "kind": "units",
+            "evidence": "South Jersey Industries equity units 2021-2023, $50, SJI is the common"
+          },
+          {
+            "symbol": "SOMN",
+            "kind": "units",
+            "evidence": "Southern Company equity units from 2025-11, $50, SO is the common"
+          },
+          {
+            "symbol": "TSNU",
+            "kind": "units",
+            "evidence": "Tyson Foods tangible equity units 2014-2017, $50, TSN is the common"
+          },
+          {
+            "symbol": "UGIC",
+            "kind": "units",
+            "evidence": "UGI equity units 2021-2024, $100, UGI is the common"
+          },
+          {
+            "symbol": "WTRU",
+            "kind": "units",
+            "evidence": "Aqua America tangible equity units 2019-2022, $50, WTRG is the common"
+          },
+          {
+            "symbol": "AQNA",
+            "kind": "notes",
+            "evidence": "Algonquin subordinated notes, $25 par (closes 23 to 28)"
+          },
+          {
+            "symbol": "AQNB",
+            "kind": "notes",
+            "evidence": "Algonquin subordinated notes, $25 par (closes 23 to 28)"
+          },
+          {
+            "symbol": "BEPI",
+            "kind": "notes",
+            "evidence": "Brookfield BRP Holdings perpetual subordinated notes, $25 par (closes 15 to 22)"
+          },
+          {
+            "symbol": "SJIJ",
+            "kind": "notes",
+            "evidence": "South Jersey Industries junior subordinated notes, $25 par (closes 17 to 27)"
+          },
+          {
+            "symbol": "SREA",
+            "kind": "notes",
+            "evidence": "Sempra junior subordinated notes, $25 par (closes 21 to 28)"
+          },
+          {
+            "symbol": "ENJ",
+            "kind": "bonds",
+            "evidence": "Entergy New Orleans bonds, $25 par, the issuer has no listed common"
+          },
+          {
+            "symbol": "ENO",
+            "kind": "bonds",
+            "evidence": "Entergy New Orleans bonds, $25 par, the issuer has no listed common"
+          },
+          {
+            "symbol": "EZT",
+            "kind": "bonds",
+            "evidence": "Entergy Texas bonds, $25 par, the issuer has no listed common"
+          },
+          {
+            "symbol": "TVC",
+            "kind": "bonds",
+            "evidence": "Tennessee Valley Authority bonds, $25 par, a federal corporation with no shares"
+          },
+          {
+            "symbol": "TVE",
+            "kind": "bonds",
+            "evidence": "Tennessee Valley Authority bonds, $25 par, a federal corporation with no shares"
+          },
+          {
+            "symbol": "BDXB",
+            "kind": "preferred",
+            "evidence": "Becton Dickinson mandatory convertible preferred depositary shares 2020-2023, $50"
+          },
+          {
+            "symbol": "ETI",
+            "kind": "preferred",
+            "evidence": "Entergy Texas preferred, ETI-P's ISIN, no bars, the issuer has no listed common"
+          },
+          {
+            "symbol": "CHSCL",
+            "kind": "preferred",
+            "evidence": "CHS Inc. preferred, $25 par, a cooperative with no listed common"
+          },
+          {
+            "symbol": "CIG",
+            "kind": "preferred ADR",
+            "evidence": "CEMIG preferred-share ADR, CIG-C is the common ADR"
+          },
+          {
+            "symbol": "ELP",
+            "kind": "preferred ADR",
+            "evidence": "COPEL class B preferred ADR, ELPC is the common ADR"
+          },
+          {
+            "symbol": "EBR-B",
+            "kind": "preferred ADR",
+            "evidence": "Eletrobras class B preferred ADR, EBR is the common ADR"
+          },
+          {
+            "symbol": "ROG.SW",
+            "kind": "certificate",
+            "evidence": "Roche non-voting Genussschein at its own price on Roche's financials, RO.SW is the share"
+          },
+          {
+            "symbol": "ROP.SW",
+            "kind": "certificate",
+            "evidence": "Roche's second line from 2026-04-22 (ROG.SW's bars end 2026-04-13), at its own price, RO.SW is the share"
+          },
+          {
+            "symbol": "LISP.SW",
+            "kind": "certificate",
+            "evidence": "Lindt participation certificate (Partizipationsschein), LISN.SW is the share"
+          },
+          {
+            "symbol": "RE-B.L",
+            "kind": "preferred",
+            "evidence": "R.E.A. Holdings cumulative preference shares, closes at a median of 100p (their par), RE.L is the common"
+          }
+        ]
+      },
+      "lines": 81,
+      "removed_count": 5,
+      "by_reason": {
+        "german_preference": 5
+      },
+      "removed": [
+        {
+          "symbol": "B4B3.DE",
+          "reason": "german_preference",
+          "name": "Metro AG"
+        },
+        {
+          "symbol": "BIO3.DE",
+          "reason": "german_preference",
+          "name": "Biotest AG"
+        },
+        {
+          "symbol": "DRW3.DE",
+          "reason": "german_preference",
+          "name": "Dr\u00e4gerwerk AG & Co. KGaA"
+        },
+        {
+          "symbol": "HEN3.DE",
+          "reason": "german_preference",
+          "name": "Henkel AG & Co. KGaA"
+        },
+        {
+          "symbol": "SRT3.DE",
+          "reason": "german_preference",
+          "name": "Sartorius AG"
+        }
+      ],
+      "cik_shared": []
+    },
+    "dividend_yield": {
+      "rules": {
+        "ceiling": 0.25,
+        "agree": [
+          0.8,
+          1.25
+        ],
+        "subunits": {
+          "GBp": "GBP",
+          "ZAc": "ZAR",
+          "ILA": "ILS"
+        },
+        "rule": "on the screen's FY financial_ratios row: no vendor dividendYield, kept; above the ceiling, dropped (above_ceiling); trading currency (profile) and reporting currency (the same FY cash_flow_statement row, else the ratios row) both known and different: dropped when that FY has no dividends paid (commonDividendsPaid, else netDividendsPaid) or no positive key_metrics marketCap (unverifiable), or when the vendor yield over |paid| / marketCap falls outside `agree` (cross_currency); applied before the security dedup and the top-N cut"
+      },
+      "dropped": 1,
+      "by_reason": {
+        "above_ceiling": 1
+      },
+      "drops": [
+        {
+          "rebalance_date": "2003-07-01",
+          "symbol": "MVV1.DE",
+          "reason": "above_ceiling",
+          "fy": "2002-09-30",
+          "vendor_yield": 0.410708,
+          "paid_yield": 0.410708,
+          "trade_ccy": "EUR",
+          "report_ccy": "EUR"
+        }
+      ]
+    }
+  },
   "exit_method": "ltp",
   "ltp": {
     "exit_method": "ltp",
@@ -497,6 +2202,12 @@
     "filled_without_delisting_row": 0,
     "filled_ignoring_delisting_row": 0,
     "filled_delisting_not_binding": 0,
-    "fills": []
+    "traded_only": true,
+    "zero_volume_rows_moved": 0,
+    "close_basis_fills": 0,
+    "fills": [],
+    "factor_flagged": 0,
+    "large_move_fills": 0,
+    "large_moves": []
   }
 }
