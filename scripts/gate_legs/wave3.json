@@ -87,7 +87,7 @@
   }
  },
  "defensive-quality": {
-  "_source": "backtest.py --global presets_to_run, plus two legs it does not run and the comparison post cites: china_shh (SHH alone, the post's China row; the charts' China is SHZ_SHH) and southafrica (JNB, cited as all cash). us is --exchange, so universe equals the comparison key; the live file was a --preset us run of the same exchanges. india is NSE: the live comparison key BSE_NSE has no leg",
+  "_source": "backtest.py --global presets_to_run, plus two legs it does not run and the comparison post cites: china_shh (SHH alone, the October post's China row; the charts' and the November posts' China is SHZ_SHH) and southafrica (JNB, cited as all cash). us is --exchange, so universe equals the comparison key; the live file was a --preset us run of the same exchanges. india is NSE: the live comparison key BSE_NSE has no leg",
   "_checks": "stage-a,det,flip: 5 runs a leg (both, drop, ltp, default, ltp.rep)",
   "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
   "legs": {
