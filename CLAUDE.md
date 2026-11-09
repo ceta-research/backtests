@@ -52,7 +52,7 @@ python3 qarp/generate_charts.py                   # offline: reads qarp/results/
 git clone https://github.com/ceta-research/backtests.git
 cd backtests
 python3.12 -m venv .venv
-echo .venv/ >> .git/info/exclude    # local only: gate 6 counts untracked files
+echo .venv/ >> .git/info/exclude    # local only: scripts/CLAUDE.md, Scanners (gate 6)
 .venv/bin/pip install -r requirements.txt
 source .venv/bin/activate    # python3 in these files means the venv's Python; where activation doesn't persist, call .venv/bin/python
 export CR_API_KEY=...    # every backtest, screen and nse_arena run needs it; the offline tests don't
