@@ -1958,6 +1958,7 @@ def mark_nvdr_twins(con, table="isin_map"):
     """
     con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS sec_key VARCHAR")
     con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS nvdr BOOLEAN")
+    con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS class_twin BOOLEAN")   # ur-2's twins (mark_class_twins)
     con.execute(f"""
         UPDATE {table} AS t SET sec_key = o.isin, nvdr = TRUE
         FROM (SELECT symbol, MIN(NULLIF(UPPER(TRIM(isin)), '')) AS isin FROM {table} GROUP BY symbol) o
@@ -1981,13 +1982,13 @@ def _twin_ranked_sql(candidates_sql, target_date, offset_days, min_entry_price, 
                 PARTITION BY COALESCE(_i.sec_key, _i.isin, _c.symbol)
                 ORDER BY CASE WHEN _px.adjClose > 0 AND _px.adjClose >= {float(min_entry_price)}
                               THEN 0 ELSE 1 END,
-                         CASE WHEN _i.nvdr THEN 1 ELSE 0 END,
+                         CASE WHEN COALESCE(_i.nvdr, FALSE) OR COALESCE(_i.class_twin, FALSE) THEN 1 ELSE 0 END,
                          CASE WHEN _i.live THEN 0 ELSE 1 END, CASE WHEN _i.home THEN 0 ELSE 1 END,
                          _c.symbol) AS _isin_rn
             FROM ({candidates_sql}) _c
             LEFT JOIN (SELECT symbol, MIN(NULLIF(UPPER(TRIM(isin)), '')) AS isin,
                               BOOL_OR(isActivelyTrading) AS live, BOOL_OR(home_ccy) AS home,
-                              MIN(sec_key) AS sec_key, BOOL_OR(nvdr) AS nvdr
+                              MIN(sec_key) AS sec_key, BOOL_OR(nvdr) AS nvdr, BOOL_OR(class_twin) AS class_twin
                        FROM {isin_table} GROUP BY symbol) _i ON _i.symbol = _c.symbol
             LEFT JOIN (SELECT symbol, adjClose FROM {prices_table}
                        WHERE trade_epoch >= {lo} AND trade_epoch <= {hi}
@@ -2726,7 +2727,7 @@ def _sql_list(values):
 def non_ordinary_sql(p="p", profile="profile", known=None, cfg=None):
     """A CASE over a profile row aliased `p`: the first reason in cfg's rules (UNIVERSE_RULES_V1 when None,
     or UNIVERSE_RULES_V2) the line is not a company's ordinary share, else NULL. `profile` is the table the
-    German sibling test reads; `known` replaces cfg's hand list (tests). Paste as `AND (<this>) IS NULL` to
+    German and Brazil sibling tests read; `known` replaces cfg's hand list (tests). Paste as `AND (<this>) IS NULL` to
     keep ordinary lines only (the share-link SQL)."""
     cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
     known = cfg["known"] if known is None else known
@@ -2803,16 +2804,19 @@ class UniverseRules:
     def __init__(self, cfg=None):
         self.cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
         self.lines, self.removed, self.cik, self.drops = 0, [], [], []
-        self.class_keyed, self.class_held = 0, {}
+        self.class_twins, self.class_held = set(), {}
 
-    def record_class_twins(self, n):
-        """mark_class_twins' count of lines keyed to their company's ordinary line."""
-        self.class_keyed = n
+    def mark_twins(self, con, universe="universe"):
+        """Key the cfg's class twins (mark_class_twins) among the `universe` table's lines; nothing outside ur-2."""
+        if self.cfg.get("class_twins"):
+            mark_class_twins(con, universe=universe)
+            self.class_twins = class_twin_symbols(con)
 
-    def stand_ins(self, symbols, target_date):
-        """symbols: the class twins one screen picked, each holding its company's slot for the ordinary line."""
-        if symbols:
-            self.class_held[target_date.isoformat()] = sorted(symbols)
+    def stand_ins(self, picked, target_date):
+        """picked: one screen's book; the class twins in it each hold their company's slot."""
+        held = sorted(s for s in picked if s in self.class_twins)
+        if held:
+            self.class_held[target_date.isoformat()] = held
 
     def sector_rows(self, rows):
         """rows: the sector query's dicts (symbol, exchange, cik, companyName, non_ordinary). Returns the
@@ -2846,7 +2850,7 @@ class UniverseRules:
                                      "drops": drops}
         if self.cfg.get("class_twins"):
             by_period = [{"rebalance_date": d, "symbols": s} for d, s in sorted(self.class_held.items())]
-            out["class_stand_ins"] = {"rule": CLASS_TWIN_RULE, "lines_keyed": self.class_keyed,
+            out["class_stand_ins"] = {"rule": CLASS_TWIN_RULE, "lines_keyed": len(self.class_twins),
                                       "picked": sum(len(p["symbols"]) for p in by_period), "by_period": by_period}
         return out
 
@@ -2974,17 +2978,23 @@ def _sao_ordinary_sql(t):
             f" ELSE regexp_full_match({t}.symbol, '[A-Z0-9]{{4}}3[A-Z]?[.]SA') END)")
 
 
-def mark_class_twins(con, table="isin_map"):
+def mark_class_twins(con, table="isin_map", universe=None):
     """ur-2's Brazil stand-in: key each SAO line that isn't its company's ordinary share to the ordinary line's
-    security (sec_key, with the stand-in flag in the nvdr column), as check N keys an NVDR, so
-    isin_dedup_sql(twin_key=True) holds one line per company: the ordinary line when it has an entry price,
-    else the first priced sibling. Lines brazil_class removed never reach the screen. Adds the twin columns
-    when check N hasn't. Returns the number of lines keyed."""
-    con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS sec_key VARCHAR")
-    con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS nvdr BOOLEAN")
+    security (sec_key, flagged class_twin), as check N keys an NVDR, so isin_dedup_sql(twin_key=True) holds one
+    line per company: the ordinary line when it has an entry price, else the first priced sibling. `universe`
+    (a table of symbols) limits the keyed lines to the leg's kept ones. Adds the twin columns when check N
+    hasn't. Returns the number of lines keyed."""
+    for col, typ in (("sec_key", "VARCHAR"), ("nvdr", "BOOLEAN"), ("class_twin", "BOOLEAN")):
+        con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {typ}")
+    kept = f" AND t.symbol IN (SELECT symbol FROM {universe})" if universe else ""
     con.execute(f"""
-        UPDATE {table} AS t SET sec_key = o.key, nvdr = TRUE
+        UPDATE {table} AS t SET sec_key = o.key, class_twin = TRUE
         FROM (SELECT {_sao_issuer_sql('m')} AS issuer, MIN(COALESCE(NULLIF(UPPER(TRIM(m.isin)), ''), m.symbol)) AS key
               FROM {table} m WHERE m.symbol LIKE '%.SA' AND {_sao_ordinary_sql('m')} GROUP BY 1) o
-        WHERE t.symbol LIKE '%.SA' AND NOT {_sao_ordinary_sql('t')} AND {_sao_issuer_sql('t')} = o.issuer""")
-    return con.execute(f"SELECT COUNT(DISTINCT symbol) FROM {table} WHERE nvdr AND symbol LIKE '%.SA'").fetchone()[0]
+        WHERE t.symbol LIKE '%.SA' AND NOT {_sao_ordinary_sql('t')} AND {_sao_issuer_sql('t')} = o.issuer{kept}""")
+    return len(class_twin_symbols(con, table))
+
+
+def class_twin_symbols(con, table="isin_map"):
+    """The symbols mark_class_twins keyed."""
+    return {r[0] for r in con.execute(f"SELECT symbol FROM {table} WHERE class_twin").fetchall()}

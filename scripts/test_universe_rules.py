@@ -528,35 +528,44 @@ def class_twin_failures():
     """mark_class_twins keys each SAO non-ordinary line to its company's ordinary line (ISIN, else symbol) and
     flags it, leaves ordinary lines, companies with no ordinary line and other markets alone, after check N too;
     ur-2's block records the stand-ins by date, ur-1's has no such key."""
+    def isin_con():
+        con = duckdb.connect()
+        con.execute("CREATE TABLE isin_map(symbol VARCHAR, isin VARCHAR, isActivelyTrading BOOLEAN, home_ccy BOOLEAN)")
+        con.executemany("INSERT INTO isin_map VALUES (?, ?, TRUE, TRUE)", [(s, i) for s, i, _ in CLASS_TWIN_MAP])
+        return con
+
     f = []
-    con = duckdb.connect()
-    con.execute("CREATE TABLE isin_map(symbol VARCHAR, isin VARCHAR, isActivelyTrading BOOLEAN, home_ccy BOOLEAN)")
-    con.executemany("INSERT INTO isin_map VALUES (?, ?, TRUE, TRUE)", [(s, i) for s, i, _ in CLASS_TWIN_MAP])
+    con = isin_con()
     nvdr = du.mark_nvdr_twins(con)
     n = du.mark_class_twins(con)
-    got = {s: (k, fl) for s, k, fl in con.execute("SELECT symbol, sec_key, nvdr FROM isin_map").fetchall()}
+    got = {s: rest for s, *rest in con.execute("SELECT symbol, sec_key, nvdr, class_twin FROM isin_map").fetchall()}
     for s, _, key in CLASS_TWIN_MAP:
-        want = (key, True if key else None)
+        want = [key, None, True if key else None]
         if s == "PTT-R.BK":
-            want = ("TH0646010007", True)   # check N's own key, untouched
+            want = ["TH0646010007", True, None]   # check N's own key and flag, untouched
         if got[s] != want:
             f.append(f"{s}: {got[s]}, want {want}")
-    keyed = sum(1 for _, _, k in CLASS_TWIN_MAP if k)
-    if (nvdr, n) != (1, keyed):
-        f.append(f"counts: check N {nvdr}, class twins {n}, want 1 and {keyed}")
+    keyed = {s for s, _, k in CLASS_TWIN_MAP if k}
+    if (nvdr, n, du.class_twin_symbols(con)) != (1, len(keyed), keyed):
+        f.append(f"counts: check N {nvdr}, class twins {n}, want 1 and {len(keyed)}")
+    # the leg's UniverseRules keys only its universe's lines, and its stand-ins are the class twins it picked
+    con = isin_con()
+    con.execute("CREATE TABLE universe AS SELECT symbol FROM isin_map WHERE symbol <> 'AXIA6.SA'")
     ur = du.UniverseRules(du.UNIVERSE_RULES_V2)
-    ur.record_class_twins(n)
-    ur.stand_ins(["PETR4.SA"], date(2021, 7, 1))
-    ur.stand_ins([], date(2022, 7, 1))
-    ur.stand_ins(["KLBN11.SA", "CMIG4.SA"], date(2020, 7, 1))
+    ur.mark_twins(con)
+    ur.stand_ins(["PETR4.SA", "PETR3.SA", "MSFT"], date(2021, 7, 1))
+    ur.stand_ins(["ELET3.SA"], date(2022, 7, 1))
+    ur.stand_ins(["KLBN11.SA", "CMIG4.SA", "AXIA6.SA"], date(2020, 7, 1))
     b = ur.block().get("class_stand_ins")
-    want = {"rule": du.CLASS_TWIN_RULE, "lines_keyed": keyed, "picked": 3,
+    want = {"rule": du.CLASS_TWIN_RULE, "lines_keyed": len(keyed) - 1, "picked": 3,
             "by_period": [{"rebalance_date": "2020-07-01", "symbols": ["CMIG4.SA", "KLBN11.SA"]},
                           {"rebalance_date": "2021-07-01", "symbols": ["PETR4.SA"]}]}
     if b != want:
         f.append(f"ur-2 class_stand_ins {b}")
-    if "class_stand_ins" in du.UniverseRules().block():
-        f.append("ur-1's block carries class_stand_ins")
+    v1 = du.UniverseRules()
+    v1.mark_twins(con)
+    if "class_stand_ins" in v1.block() or v1.class_twins:
+        f.append("ur-1 keys class twins or carries class_stand_ins")
     return f
 
 

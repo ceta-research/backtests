@@ -157,8 +157,7 @@ def window_text(entry, bars=False):
     annual = entry.get("annual_returns") or []
     end = window_end(entry)
     if end:
-        first = annual[0]["year"] if annual else (entry.get("partial_year") or {}).get("year", "")
-        return f"{(entry.get('measured_start') or '')[:4] or first} to {end}"
+        return f"{(entry.get('measured_start') or '')[:4]} to {end}"
     if bars and annual:
         return f"{annual[0]['year']}-{annual[-1]['year']}"
     label = (entry.get("window_label") or "").split(" (")[0]

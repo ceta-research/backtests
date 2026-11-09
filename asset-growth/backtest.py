@@ -50,7 +50,7 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
                         load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
-                        UniverseRules, non_ordinary_sql, mark_class_twins, UNIVERSE_RULES_V2)
+                        UniverseRules, non_ordinary_sql, UNIVERSE_RULES_V2)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -77,7 +77,6 @@ PRIOR_FY_MAX_DAYS = 430       # (52/53-week years and a moved year-end fit; a sk
 # inputs, and every kept move over +100% or under -50% is listed in the results.
 DATA_CHECKS = DATA_CHECKS_V1
 UNIVERSE_RULES = UNIVERSE_RULES_V2
-CLASS_TWINS = bool(UNIVERSE_RULES.get("class_twins"))   # SAO preferred and unit lines key to the ordinary line
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap_min=None, dc=None, ur=None,
@@ -131,8 +130,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     if not kept:
         print("  No ordinary shares in this universe.")
         return None
-    con.execute("CREATE TABLE universe(symbol VARCHAR)")
-    con.executemany("INSERT INTO universe VALUES (?)", sorted({(r["symbol"],) for r in kept}))
+    con.execute("CREATE TABLE universe AS SELECT DISTINCT unnest(?::VARCHAR[]) AS symbol",
+                [sorted({r["symbol"] for r in kept})])
 
     if exchanges:
         sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
@@ -142,8 +141,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
     if checks:   # check N: SET NVDR lines share their ordinary line's security key
         dc.record_twins_linked(mark_nvdr_twins(con))
-    if CLASS_TWINS:   # ur-2: an SAO preferred or unit line stands in for an unpriced ordinary line
-        ur.record_class_twins(mark_class_twins(con))
+    ur.mark_twins(con)   # ur-2: an SAO preferred or unit line stands in for an unpriced ordinary line
 
     # 2. Balance sheet (two FY rows in one currency for YoY growth), key metrics, ratios
     queries = [
@@ -257,13 +255,9 @@ class PriorYearGuard:
 
 
 def _candidates_sql(cap_test, events=False):
-    """The screen's candidate SELECT: every line in `universe` whose latest FY balance-sheet, key-metrics
-    and ratios rows have a period end in (T-410, T-45] and pass the quality tests and the market-cap floor,
-    with the prior-year guard's reason (prior_guard, NULL when the line is paired). The prior row is the
-    latest 300 to 430 days before the current one in its reportedCurrency (NULL matches NULL), and the
-    growth band applies to paired lines only. The floor reads cap_used (check M), the screen reports
-    cap_used as the market cap, and the km tie-break stays on the raw cap. cap_test is the floor clause
-    ("km.cap_used > ?", or CAP_FAIL_TEST for M's events, which also read km_epoch and raw_cap)."""
+    """The screen's candidates in `universe`, each with prior_guard (PriorYearGuard.RULE; NULL when paired). The
+    floor reads cap_used (check M); cap_test is the floor clause ("km.cap_used > ?", or CAP_FAIL_TEST for M's
+    events, which also read km_epoch and raw_cap)."""
     extra = ", km.filing_epoch AS km_epoch, km.marketCap AS raw_cap" if events else ""
     growth = "(bc.totalAssets - bp.totalAssets_prior) / bp.totalAssets_prior"
     return f"""
@@ -355,15 +349,14 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
     rows = con.execute(f"""
         SELECT symbol, marketCap, asset_growth
         FROM ({isin_dedup_sql(paired, target_date, offset_days, MIN_ENTRY_PRICE,
-                              twin_key=(dc is not None and dc.on) or CLASS_TWINS)})
+                              twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get("class_twins")))})
         ORDER BY asset_growth ASC, symbol
         LIMIT ?
     """, params + [MAX_STOCKS]).fetchall()
 
     picked = [(r[0], r[1]) for r in rows]
-    if ur is not None and CLASS_TWINS:
-        twins = {r[0] for r in con.execute("SELECT symbol FROM isin_map WHERE nvdr AND symbol LIKE '%.SA'").fetchall()}
-        ur.stand_ins([s for s, _ in picked if s in twins], target_date)
+    if ur is not None:
+        ur.stand_ins([s for s, _ in picked], target_date)
     if guard is not None:
         guard.record(con.execute(f"SELECT DISTINCT symbol, prior_guard FROM ({_paired(candidates, 'IS NOT NULL')})",
                                  params).fetchall(), target_date)
@@ -437,17 +430,10 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                             min_entry_price=MIN_ENTRY_PRICE,
                                             max_single_return=None,   # no return cap (data checks dc-1)
                                             verbose=verbose)
-            returns = []
-            for sym, raw_ret, mcap in clean:
-                if use_costs:
-                    cost = tiered_cost(mcap)
-                    net_ret = apply_costs(raw_ret, cost)
-                else:
-                    net_ret = raw_ret
-                returns.append(net_ret)
-            return clean, returns
+            return clean, [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in clean]
 
-        clean, returns = book(exit_ltp if exit_method == "ltp" else exit_prices)
+        booked = exit_ltp if exit_method == "ltp" else exit_prices
+        clean, returns = book(booked)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
         # Screening can pass 30 names while only a handful of them have a usable
@@ -491,7 +477,6 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         # window bars only (never the LTP fills): T's bar events, L and F's flags
         dc.prices(con, entry_date, exit_date, symbol_data, offset_days, MIN_ENTRY_PRICE, held=True,
                   exit_offset_days=x_off)
-        booked = exit_ltp if exit_method == "ltp" else exit_prices
 
         results.append({
             "rebalance_date": entry_date.isoformat(),

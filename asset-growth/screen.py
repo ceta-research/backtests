@@ -24,7 +24,9 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold, EXCHANGE_PRESETS
-from data_utils import non_ordinary_sql, utc_epoch, UNIVERSE_RULES_V2
+from data_utils import non_ordinary_sql, utc_epoch
+from backtest import (FILING_LAG_DAYS, CURRENT_ROW_MAX_DAYS, PRIOR_FY_MIN_DAYS, PRIOR_FY_MAX_DAYS,
+                      UNIVERSE_RULES)
 
 # Signal parameters (match backtest.py)
 ASSET_GROWTH_MAX = 0.10
@@ -34,10 +36,6 @@ ROA_MIN = 0.05
 OPM_MIN = 0.10
 # MKTCAP_MIN removed - now computed per-exchange via get_mktcap_threshold(use_low_threshold=True)
 MAX_STOCKS = 30
-FILING_LAG_DAYS = 45
-CURRENT_ROW_MAX_DAYS = 410
-PRIOR_FY_MIN_DAYS = 300
-PRIOR_FY_MAX_DAYS = 430
 
 
 def run_screen(client, exchanges, mktcap_min, verbose=False, today=None):
@@ -104,7 +102,7 @@ def run_screen(client, exchanges, mktcap_min, verbose=False, today=None):
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Asset Management%')
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Shell Companies%')
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Closed-End Fund%')
-          AND ({non_ordinary_sql("p", cfg=UNIVERSE_RULES_V2)}) IS NULL
+          AND ({non_ordinary_sql("p", cfg=UNIVERSE_RULES)}) IS NULL
           {exchange_filter}
         ORDER BY g.asset_growth ASC
         LIMIT {MAX_STOCKS}

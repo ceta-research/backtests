@@ -28,7 +28,7 @@ with open(PATH) as fh:
     SRC = fh.read()
 sys.path.insert(0, ROOT)
 from data_utils import (DataChecks, UniverseRules, UNIVERSE_RULES_V2, empty_cap_check,   # noqa: E402
-                        mark_class_twins, mark_nvdr_twins)
+                        mark_nvdr_twins)
 
 D = date(2020, 7, 1)
 D2 = date(2019, 7, 1)                   # a second screen, for the record's order
@@ -263,7 +263,7 @@ def brazil_failures(mod):
     out = []
     for label, dc in (("data checks off", None), ("data checks on", DataChecks("on"))):
         con, ur = db(BRAZIL), UniverseRules(UNIVERSE_RULES_V2)
-        mark_class_twins(con)
+        ur.mark_twins(con)
         got = {s for s, _ in screen(mod, con, D, dc=dc, ur=ur)}
         if got != BRAZIL_BOOK:
             out.append(f"Brazil book ({label}): {sorted(got)}, want {sorted(BRAZIL_BOOK)}")
@@ -331,13 +331,13 @@ SEMI = "          AND bc.symbol IN (SELECT symbol FROM universe)\n"
 BAND = "{growth} < ? AND {growth} > ?)"
 LAG = "cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))"
 DEDUP = ("FROM ({isin_dedup_sql(paired, target_date, offset_days, MIN_ENTRY_PRICE,\n"
-         "                              twin_key=(dc is not None and dc.on) or CLASS_TWINS)})")
+         "                              twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get(\"class_twins\")))})")
 # name: [(old, new), ...]; every `old` must occur exactly once in the source
 MUTANTS = {
     # Brazil's class twins
-    "class twins not keyed in the screen": [("twin_key=(dc is not None and dc.on) or CLASS_TWINS)",
+    "class twins not keyed in the screen": [("twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get(\"class_twins\")))",
                                             "twin_key=dc is not None and dc.on)")],
-    "stand-ins not recorded": [("ur.stand_ins([s for s, _ in picked if s in twins], target_date)", "pass")],
+    "stand-ins not recorded": [("ur.stand_ins([s for s, _ in picked], target_date)", "pass")],
     # the prior row
     "any earlier row (the old screen)": [(GAP_WHERE, "WHERE b.filing_epoch < c.curr_epoch AND ? IS NOT NULL"
                                                      " AND ? IS NOT NULL\n")],
