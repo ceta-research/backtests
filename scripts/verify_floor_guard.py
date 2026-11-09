@@ -88,6 +88,8 @@ RERUN_TOPICS = {"cyclical-timing", "asset-growth", "fcf-conversion", "cash-conve
 SCOPE_ALLOW = {
     # The live screen takes defensive-quality's universe rules (ordinary shares, the 25% yield ceiling).
     "defensive-quality/screen.py",
+    # The live screen takes asset growth's universe rules ur-2 and its prior-year guard.
+    "asset-growth/screen.py",
     # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
     # same-day duplicate rows compare against; the note records that and the prod
     # check to run before publishing.
@@ -655,7 +657,7 @@ def forward_hits(tree):
 # each at its own rerun: a topic opts in by joining DATA_CHECKS_TOPICS with its number of
 # market-cap floors. The cap may go only where check M reads every floor (cap_used): without M an
 # inflated market cap lets a name into the book whose return only the cap used to drop (SOS, ZEST).
-DATA_CHECKS_TOPICS = {"deleveraging": 1, "cyclical-timing": 2, "defensive-quality": 1}
+DATA_CHECKS_TOPICS = {"deleveraging": 1, "cyclical-timing": 2, "defensive-quality": 1, "asset-growth": 1}
 DC_NAMES = ("DATA_CHECKS_V1", "DataChecks", "clean_price_cache", "mark_nvdr_twins", "load_cap_check",
             "load_splits", "empty_cap_check", "cap_used_sql", "CAP_FAIL_TEST", "nvdr_twins_sql",
             "apply_cap_rule", "cap_check_sql")

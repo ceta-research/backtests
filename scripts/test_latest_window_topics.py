@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""The three topics on the run window, end to end on test_data_checks.py's synthetic SET leg.
+"""The topics on the run window, end to end on test_data_checks.py's synthetic SET leg.
 
-  1 BYTES    each topic at the base ref and at HEAD with --end-year 2025 writes the same results files,
-             byte for byte: drop, ltp, both and ltp with full holdings through run_single, and ltp
+  1 BYTES    each topic already on the run window at the base (defensive-quality, cyclical-timing,
+             deleveraging), at the base ref and at HEAD with --end-year 2025, writes the same results
+             files, byte for byte: drop, ltp, both and ltp with full holdings through run_single, and ltp
              through main() (--exchange SET, CetaResearch patched to the fake client). The base runs
              in a subprocess on its own tree (its .py files archived to a temp dir) and its own
              test_data_checks.py, with the shared modules checked to load from there
@@ -45,7 +46,7 @@ import scan_results_invariant as sri   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
 from gate_ltp import check_stage_a, first_diff   # noqa: E402
 
-TOPICS = ("defensive-quality", "cyclical-timing", "deleveraging")
+TOPICS = ("defensive-quality", "cyclical-timing", "deleveraging", "asset-growth")
 FREQ = {"deleveraging": "quarterly"}
 END, TODAY = date(2026, 11, 6), date(2026, 11, 9)
 HALT, ZEROV = "A03.BK", "A04.BK"   # stops trading after 2026-10-30 (back on 11-09); no volume on END
@@ -134,7 +135,7 @@ def extend(src):
     tweak = {"income_statement": {"revenue": "revenue * 1.05", "filingDate": "'2026-03-01'"},
              "financial_ratios": {"debtToEquityRatio": "debtToEquityRatio * 0.85"}}
     tables = {r[0] for r in src.execute("SELECT table_name FROM information_schema.tables").fetchall()}
-    for t in ("key_metrics", "income_statement", "financial_ratios", "cash_flow_statement"):
+    for t in ("key_metrics", "income_statement", "financial_ratios", "cash_flow_statement", "balance_sheet"):
         if t in tables:
             rep = {"date": "'2025-12-31'", "dateEpoch": str(e25), **tweak.get(t, {})}
             src.execute(f"INSERT INTO {t} SELECT * REPLACE ({', '.join(f'{v} AS {k}' for k, v in rep.items())})"
@@ -162,7 +163,8 @@ def extend(src):
 
 def sources():
     synthetic = extend(tdc.synthetic_source())
-    return {"defensive-quality": extend(tdc.defensive_source()), "cyclical-timing": synthetic, "deleveraging": synthetic}
+    return {"defensive-quality": extend(tdc.defensive_source()), "cyclical-timing": synthetic, "deleveraging": synthetic,
+            "asset-growth": extend(tdc.asset_growth_source())}
 
 
 _WINDOWS = {}   # one window per fixture and kind: run_single copies it (for_leg) before grid() changes it

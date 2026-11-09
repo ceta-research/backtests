@@ -2,7 +2,7 @@
 
 Known data quality issues affecting backtests. All strategies in this repo are affected unless noted otherwise.
 
-Last updated: 2026-10-30
+Last updated: 2026-11-09
 
 ---
 
@@ -221,7 +221,7 @@ Added 2026-03-03. `filter_returns()` in `data_utils.py` provides reusable price 
 
 Used by: asset-growth. Should be adopted by all future strategies. Existing strategies (qarp, low-pe, interest-coverage) can be retrofitted.
 
-Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing and defensive-quality pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
+Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller. asset-growth's committed results predate the change: they still come from the 2.0 cap.
 
 ### How to check a new exchange
 Before adding an exchange to a backtest, run these checks:
@@ -1216,7 +1216,8 @@ still hold every listed line; read them with the measurements earlier in this se
 
 **Status:** in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks), and both
 topics' committed results were rerun with it in October 2026; defensive-quality joined in November
-2026 (see "Lines that aren't ordinary shares" below). The other topics keep their existing cap
+2026 (see "Lines that aren't ordinary shares" below). asset-growth's code joined in November 2026
+too; its committed results are still the October run's, with the cap. The other topics keep their existing cap
 (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their own rerun.
 
 The 200% single-return cap drops a holding only when its return is high. Reading every holding
@@ -1495,7 +1496,9 @@ hold NVDR lines beside their ordinary lines until their own reruns.
 ## Lines that aren't ordinary shares, and yields across two currencies (defensive-quality, 2026-11)
 
 **Status:** fixed for defensive-quality by its universe rules (METHODOLOGY.md, Universe Rules) in
-its November 2026 rerun. Every other topic still holds these lines.
+its November 2026 rerun. asset-growth's code removes them under universe rules ur-2 (see "Asset
+growth's data fixes" below), and its committed results predate that. Every other topic still holds
+these lines.
 
 defensive-quality ranks by the vendor's dividend yield, so anything carrying a company's yield
 without being its ordinary share, and any yield on the wrong scale, takes a slot near the top.
@@ -1529,6 +1532,158 @@ currency disagreements and 12 cross-currency lines whose cash flow shows no divi
 
 **Open:** the hand list holds what one probe of the universe found, and outside the US nothing
 reports a new plain-named second line. Other topics keep these lines until a shared rule lands.
+
+---
+
+## Asset growth's data fixes (2026-11)
+
+**Status:** asset-growth's code carries universe rules ur-2, the prior-year guard and the data
+checks (METHODOLOGY.md, Universe Rules, Filing and Selection Rules and Data Checks). Its committed
+results are the October 2026 run's and predate all three. The counts below are of those committed
+books, 7,064 held line-years over 16 legs, and each entry says what is fixed and what stays open.
+
+### KSC lines that duplicate KOSDAQ series
+
+**Status:** fixed in asset-growth (ur-2) for the five duplicates its book held; open for the other
+KSC lines and for every other topic's Korea leg.
+
+82 KSC (KOSPI) lines share their six-digit code with a KOSDAQ (KOE) line. By their bars, 20 are
+concurrent duplicates of the `.KQ` series (the same close on 90% or more of the days both traded),
+50 are `.KS`-only histories of KOSDAQ companies whose `.KQ` series starts on 2026-01-16, and 12
+overlap with different closes, some of them real moves to KOSPI (022100.KS POSCO DX, 066970.KS L&F,
+090460.KS BH, 030190.KS NICE). Almost every `.KS` series stops between 2024-08-13 and 2024-08-21, so
+a KOSDAQ company with only a `.KS` line has no bars from August 2024 to January 2026.
+
+asset-growth's KSC book held 14 line-years on these lines: 029960.KS 5, 069080.KS 3, and 013030,
+049070, 064760, 073490, 085370 and 265520.KS once each. 11 sit on the five concurrent duplicates
+(029960, 049070, 064760, 069080, 265520), which join ur-2's hand list. A hand-list entry removes its
+line in every year: in 2024 these lines are a data error (the feed stop below), and before that they
+price a KOSDAQ company correctly, in a KOSPI leg. The other 3 are KOSDAQ companies whose only history
+before 2026 is the `.KS` line: 013030 (Hy-Lok), 073490, and 085370 (Lutronic, whose two series both
+end in 2023 with no delisting record). They stay. Whether a KOSPI leg should hold them is a listing
+question, and it's open.
+
+Four 2024 holdings exited at a last traded price in mid-August 2024: 013030, 029960, 064760 and
+265520.KS. Those exits are the feed stop, not delistings. Three have no delisting record, and
+013030.KS's is dated 2024-08-14, the day its bars stop; Hy-Lok trades on as 013030.KQ from
+2026-01-16. Under ur-2, 013030.KS can still exit this way. fcf-conversion's Korea leg holds 4
+line-years on these lines and rising-yield's 2, both open.
+
+### BCE's three TSX lines
+
+**Status:** open for the run window's final period. ur-2 keeps BCE-PY.TO and removes BCE-PA.TO;
+nothing handles 2026 yet.
+
+BCE.TO, BCE-PY.TO and BCE-PA.TO are three TSX lines named BCE Inc., each with its own ISIN, and they
+carry the same fiscal-year rows. BCE-PY.TO is BCE's common price series through 2025: its July
+closes run from 6.97 (1996) to 63.37 (2022), on 0.4 to 11 million shares a day. BCE.TO has bars only
+in 2026. In 2026 BCE-PY.TO drops to a preferred's price (21.09 on 800 shares on 2026-07-03) and BCE.TO
+takes the common's (30.37). BCE-PA.TO is a preferred. asset-growth's October 2026 Canada book held
+BCE-PA.TO and BCE-PY.TO together in 10 years (2007-2020), and BCE.TO in none.
+
+ur-1's `canadian_preferred` reason removes both `-P` lines, which takes BCE out of Canada. ur-2
+keeps BCE-PY.TO on its keep list and removes BCE-PA.TO. The keep list reads no date, so two things
+stay open. A run past July 2025 that holds BCE from the 2025 rebalance books it on BCE-PY.TO from
+31.04 to 21.09, a fake -32%, and from 2026 BCE.TO and BCE-PY.TO can both screen on the same rows.
+Before 2026, a year BCE screens in can also seat BCE.TO beside it with no entry price
+(`entry_unpriced`). Whether BCE screens at the 2025 or 2026 rebalance isn't measured yet.
+
+### GUD.AX and AOV.AX, and other renamed or legacy lines
+
+**Status:** GUD.AX fixed in asset-growth (ur-2's hand list); the other lines are open.
+
+GUD Holdings was renamed Amotiv on 2024-06-18. AOV.AX, the new line, carries GUD's price history
+under a different ISIN, with the same close on every July bar from 1990 to 2024, so the same-ISIN
+dedup can't join the two. GUD.AX has a delisting record dated 2024-06-27. asset-growth's Australia
+book held both lines in 2009, 2010 and 2024. In 2024 GUD.AX exited at its last bar, 2024-07-04,
+while AOV.AX sat in the same book: one company held twice, then exited early. ur-2 hand-lists
+GUD.AX.
+
+The October books also held these renamed or legacy lines beside their company's main line, and
+they stay: 76ID.L beside ROR.L (Rotork) in 7 UK books, BC88.L beside CHG.L once, NTCO3.SA with
+NATU3.SA (one company under its old and new ticker, with identical July closes) in 2009, AZZA3.SA
+with ARZZ3.SA in 2016 and 2019, ABG.AX with ABP.AX twice, SHA.DE beside SHA0.DE twice, and two
+Saudi lines with 95xx codes, likely the parallel market: 9512.SR beside 3092.SR three times and
+9511.SR beside 4323.SR once. The October Sweden book also held two `-PREF` lines that no
+pattern reads, CORE-PREF.ST and SDIP-PREF.ST, and they stay as well. Open: a hand-list entry each, or a test for two lines with one name and
+identical closes.
+
+### JUP.L's fund flag and SATS's reused ticker
+
+**Status:** JUP.L fixed in asset-growth (ur-2's keep list); SATS's removal accepted.
+
+- **JUP.L.** The profile sets `isFund` on Jupiter Fund Management plc, an asset manager's ordinary
+  share. asset-growth's UK book held it in 5 years (2012-2019). ur-1's `fund_flag` removes it; ur-2
+  checks its keep list first and keeps it.
+- **SATS.** The ticker was EchoStar's common, which asset-growth's US book held in 2022 (July 2022
+  close 19.09). In 2026 a Strive preferred took it: the profile now reads "Strive, Inc. 15.00%
+  Series A Perpetual SATS Preferred Stock" (listed 2026-10-20), and the line's FY2025 balance row
+  is already Strive's ($0.75bn of total assets, against EchoStar's $60.9bn for FY2024). `name_term`
+  removes SATS under ur-1 and ur-2, so EchoStar's 2022 line-year leaves the book. Accepted: that
+  year's screen passed 30 names, so the slot goes to the next-ranked one. Without a keep entry,
+  Strive's rows can't enter a 2026 book either.
+
+### US ADRs the profile doesn't flag, and converted trusts
+
+**Status:** the four ADRs fixed in asset-growth (ur-2's hand list); the converted trust open.
+
+ur-2's `us_adr` reads the profile's `isAdr` flag, which misses four ADRs asset-growth's US book
+held: AZN in 2001, 2003 and 2012 and JHX in 2003 (each now carries its ordinary share's ISIN after
+a direct US listing, AstraZeneca in 2026 and James Hardie in 2025), RDS-B in 2002 (Royal Dutch
+Shell's class B ADR, held beside SHEL, which the profile flags) and WIMI in 2020 (WiMi Hologram's
+depositary shares). ur-2 hand-lists all four, which removes them in every year. The flag also errs
+the other way: VRN, Veren's Canadian common share on NYSE, carries `isAdr` (held only in
+rising-yield's book).
+
+The profile names a line by what it is today. Texas Pacific Land Trust, held in 2010 and 2011, has
+been a corporation since January 2021, so its profile name is "Texas Pacific Land Corporation" and
+no trust rule sees its trust years. Blackstone's one held line-year, at the 2019-07-01 rebalance,
+fell on the day it converted from an LP.
+
+### Notes and certificates no rule sees
+
+**Status:** open, under ur-1 and ur-2.
+
+No pattern in either version removes KTH (Corts Trust, a trust certificate), NSS (NuStar Logistics
+notes; its profile name ends "SB NT", and `nt` isn't a name term) or US notes listed under plain
+tickers that the suffix rules can't read: TANNL, KKRS, DHCNL, OPINL, NYMTL, WHLRL and ADAMH. A
+hand-list entry each, checked against its closes, would take them out. The probe behind ur-2's
+trust and LP rule read US names with trust, LP, partners, LLC or royalty in them, so a note under
+another name isn't covered.
+
+### The prior-year pair
+
+**Status:** fixed in asset-growth by its prior-year guard (METHODOLOGY.md, Filing and Selection
+Rules); its committed results predate it.
+
+The old screen paired each company's latest fiscal-year balance row on or before the 45-day cutoff
+with its latest row at least 410 days before the rebalance date, with no lower bound and no
+`reportedCurrency` test (the two rows had to differ, which kept the current row inside the 410
+days). Replicated for every held line-year on today's balance rows, 21 of the 7,064 (0.3%) sit on a
+flawed pair:
+
+- 4 currency switches: CSL.AX 2010 (FY2008 AUD 4.49bn to FY2009 USD 4.75bn, +5.8%), CSL.AX 2014
+  (USD 6.03bn to AUD 5.98bn, -0.8%), WDS.AX 2014 (AUD 24.81bn to USD 23.77bn, -4.2%) and EVOK.L 2022
+  (USD 485.8m to GBP 400.1m, -17.6%).
+- 4 gaps over 18 months: CLDN.L 2004 (four years), SPLPETRO.NS 2016 (640 days, past its 2015-06-30
+  row), DSL 2017 (two years, a fund) and VLN.TO 2010 (638 days).
+- 9 year-end changes of 15 to 18 months: JINDALSAW.NS, MPHASIS.NS, 0151.HK, RNK.L, EASTW.BK and
+  EASTW-R.BK, BCT.BK, EOLU-B.ST and GIL.TO.
+- 4 short years under 300 days: 2914.T 2015, 6723.T 2017, 3254.T 2022 (183 days) and 2314.HK 2013.
+
+No two rows of one fiscal year sit in a held pair, and no balance row has a missing
+`reportedCurrency` (73,142 rows). CSL.AX's rows switch between AUD and USD 14 times from 1996 to
+2021, and its growth read across a switch runs from -22% to +180%. Switches also kept companies
+out: over every rebalance of the held symbols there are 40 switch pairs, 36 in years the line
+wasn't held, 27 of them outside the -20% to +10% band (10 of them CSL.AX's; TFII.TO 2016 at -21.6%,
+WFG.TO 2022 at +148%, SIL.TO 2021 at +96%).
+
+The guard takes the prior row 300 to 430 days before the current one, in the current row's
+currency, and leaves a company with none unranked. The switches, the long gaps and the year-end
+changes drop, and a short year ranks only on a row 300 to 430 days back. Nothing is restated, so a
+company whose rows switch stays out that year, as the 27 out-of-band pairs already were. The
+key-metrics and ratios rows now share the current row's window; on the 4,093 held line-years
+checked, both already came from the balance row's fiscal year.
 
 ---
 

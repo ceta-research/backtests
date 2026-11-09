@@ -18,22 +18,37 @@ Cooper, Gulen & Schill (2008), "Asset Growth and the Cross-Section of Stock Retu
 
 **Sorting:** Lowest asset growth first (ascending). Top 30.
 
-**Asset Growth** = (Total Assets current FY - Total Assets prior FY) / Total Assets prior FY
+**Asset Growth** = (Total Assets current FY minus Total Assets prior FY) / Total Assets prior FY. The prior FY is the company's own previous fiscal year: its balance sheet 300 to 430 days before the current one, in the same reporting currency.
+
+On each rebalance date, for every ordinary share on the market's exchanges:
+
+1. Take the company's latest fiscal-year `balance_sheet`, `key_metrics` and `financial_ratios` rows whose fiscal year ended at least 45 days and less than 410 days before the rebalance date.
+2. Pair the balance sheet with the company's prior fiscal-year row: the latest one 300 to 430 days before it, in the same `reportedCurrency`. A company with none isn't ranked that year: a gap of more than 430 days (a skipped year or a moved year-end) or a switch of reporting currency leaves it out.
+3. Keep the company if its asset growth is inside -20% to +10% and it passes the other four filters above.
+4. Keep one line per security (ISIN; a Thai NVDR shares its ordinary line's).
+5. Rank by asset growth, lowest first, and hold the top 30 at equal weight.
+
+Each results file counts the lines step 2 leaves out among those that pass the other filters, before the one-line-per-security step, per rebalance date and by reason (`currency_switch`, `no_prior_in_window`), under `prior_year_guard` ([METHODOLOGY.md](../METHODOLOGY.md#filing-and-selection-rules-rerun-topics), Filing and Selection Rules).
+
+**Ordinary shares only** (universe rules `ur-2`, [METHODOLOGY.md](../METHODOLOGY.md#universe-rules)). Preferred and preference shares, notes, bonds, units, warrants, rights, funds and second lines at their own price on a company's financials never enter the universe; on SAO that leaves the ordinary class only (ISIN class NO). A book also holds only what its market's main index can hold: no ADRs, royalty trusts or LPs on NYSE, NASDAQ and AMEX (the S&P 500 holds none), and no BDRs on SAO. A hand list takes out lines no pattern sees: the HKEX pilot-programme lines of US companies (4333.HK, 4335.HK, 4338.HK and three more), five KSC lines that repeat their company's KOSDAQ series, GUD.AX (since GUD Holdings became Amotiv in 2024, AOV.AX carries the same closes), and others such as SCHP.SW (a participation certificate), MAN3.DE (a preference line with no ISIN), PBR-A (a preferred ADR), BASA.DE (a second BASF line) and four US ADRs the profile doesn't flag (AZN, RDS-B, WIMI, JHX). Schindler and MAN leave the Swiss and German books with SCHP.SW and MAN3.DE: SCHN.SW has bars only from April 2026, and MAN.DE has none. A keep list holds ordinary shares that a pattern or a flag misreads, such as JUP.L (flagged as a fund) and BCE-PY.TO (BCE's common price series to 2025). Trust units and LPs outside the US, REITs, share classes and Thai NVDRs stay. Every results file records the rules and what they removed under `universe_rules`.
 
 ## Parameters
 
-- **Rebalancing:** Annual, on July 1, executed at the next available close. 25 periods, July 2000 to July 2025.
-- **Min stocks:** 10 (holds cash if fewer qualify, or if fewer than 10 have a usable entry price). A cash year earns 0%. The floor is checked at entry only. A name that fails a data check at exit (a return above the 200% single-stock cap, or no exit price at all) is left out of that year's average and not replaced, so an invested year can hold fewer than 10: Brazil's 2007 book had 10 buyable names and averaged 9.
+- **Rebalancing:** Annual, on July 1, executed at the next available close, from July 2000 to the latest close every market in the run traded, with the last year partial (METHODOLOGY.md, "Run Window"). `--end-year 2025` gives the published window, 25 periods from July 2000 to July 2025.
+- **Min stocks:** 10 (holds cash if fewer qualify, or if fewer than 10 have a usable entry price). A cash year earns 0%. The floor is checked at entry only. Under `--exit-method drop`, a name with no exit price is left out of that year's average and not replaced, so an invested year can hold fewer than 10.
 - **Max stocks:** 30
 - **Weighting:** Equal weight
+- **Data checks:** No return cap. The data checks (`dc-1`, [METHODOLOGY.md](../METHODOLOGY.md#data-checks)) move holiday rows, zero-volume rows of lines that traded, stale lines with no volume, a thin share class's bar off its sibling's scale and non-positive prices out of each price window, hold a Thai NVDR line and its ordinary line once, test the market-cap floor on a cap checked against later reverse splits, and flag adjustment-factor steps, splits and every return above +100% or below -50% for review. The October 2026 results below were made before them, with a 200% cap on a single stock's annual return. The cap left a capped name out of that year's average without replacing it: Brazil's 2007 book had 10 buyable names and averaged 9.
 - **Transaction costs:** Size-tiered, one-way: 0.1% above $10B market cap, 0.3% for $2-10B, 0.5% below $2B, charged on entry and on exit (0.2% to 1.0% round trip). The tier thresholds are in US dollars and market caps aren't converted, so on NSE, JPX and KSC, where the market-cap floor is at least 10 billion local units (₹10B, ¥50B, ₩250B), every holding pays the 0.1% tier.
-- **Data lag:** 45 days (point-in-time)
+- **Data lag:** 45 days after the fiscal year end (point-in-time). A fiscal year that ended 410 days or more before the rebalance isn't used.
 - **Exits:** A holding with no price in the 10-day window after the exit date exits at its last traded price (`--exit-method ltp`, the default).
-- **Listing rules:** XETRA holds Germany-domiciled companies only, SIX Switzerland-domiciled companies only, and LSE pence-quoted (GBp) lines only. On every market, a security listed under more than one ticker (same ISIN) is held once. Share classes have their own ISINs, so a company's ordinary and preference shares can both be held: Germany's book holds both lines of at least one of Henkel (HEN.DE, HEN3.DE), Fuchs (FPE.DE, FPE3.DE), Sartorius, Biotest or BMW in 17 of its 18 invested years, and Brazil's holds COCE5.SA and COCE6.SA together in five.
+- **Listing rules:** XETRA holds Germany-domiciled companies only, SIX Switzerland-domiciled companies only, and LSE pence-quoted (GBp) lines only. On every market, a security listed under more than one ticker (same ISIN) is held once. Share classes have their own ISINs, so a company's two classes can both be held. The October 2026 books, made before the universe rules, also held preference lines beside their ordinary lines: Germany's held both lines of at least one of Henkel (HEN.DE, HEN3.DE), Fuchs (FPE.DE, FPE3.DE), Sartorius, Biotest or BMW in 17 of its 18 invested years, and Brazil's held COCE5.SA and COCE6.SA together in five.
 - **Benchmark:** Each market's own index, in local currency. The US is measured against SPY. Saudi Arabia has no local index configured and is measured against the S&P 500 in USD. China (SHZ + SHH) is measured against the SSE Composite.
 - **Risk-free rate (Sharpe):** Fixed per market, from `REGIONAL_RISK_FREE_RATES` in `cli_utils.py` (2.0% US, 6.5% India, 0.1% Japan, 10.5% Brazil).
 
-## Results (July 2000 to July 2025)
+## Results (October 2026 run, July 2000 to July 2025)
+
+These are the October 2026 run's results. They were made before the data checks, the universe rules and the prior-year guard, so the current code doesn't reproduce them, and a rerun on it will replace them.
 
 The strategy beat its own market's index in 12 of 15 markets. Germany, Australia and Thailand trailed. Saudi Arabia is left out of the count because its benchmark is the S&P 500 in USD; it trailed that by 5.19pp.
 
@@ -83,18 +98,28 @@ The listing rules drive the large moves:
 
 Run from the repository root. `--exit-method` defaults to `ltp`. The listing rules need no flag: they apply whenever XETRA, SIX or LSE is run as its own market, as in the table below. A mixed leg such as `--exchange XETRA,LSE` or `--exchange LSE,NYSE` gets no listing rule.
 
+A run goes to the latest close every market in it traded, with the last year partial (METHODOLOGY.md, "Run Window"). `--end-year 2025` gives the published July 2000 to July 2025 window. The committed files are the October 2026 run's, made before the data checks, the universe rules and the prior-year guard, so no command here reproduces them. A rerun for new figures gives every market one `--end-date` (`scripts/data_end.py --legs-file scripts/gate_legs/wave1.json --topic asset-growth` prints the common date), so the comparison file holds one window: `rebuild_comparison.py` refuses markets that end on different dates.
+
 ```bash
-# US (default universe: NYSE + NASDAQ + AMEX)
+# US (default universe: NYSE + NASDAQ + AMEX), to the latest close
 python3 asset-growth/backtest.py --verbose
 
-# One market, written to the committed results file
-python3 asset-growth/backtest.py --exchange XETRA --output asset-growth/results/returns_XETRA.json
+# One market on the published window, written to its results file
+python3 asset-growth/backtest.py --end-year 2025 --exchange XETRA --output asset-growth/results/returns_XETRA.json
 
-# All markets in one loop, plus exchange_comparison.json
-python3 asset-growth/backtest.py --global --output asset-growth/results/exchange_comparison.json --verbose
+# One market to a pinned end date (the date data_end.py prints)
+python3 asset-growth/backtest.py --end-date YYYY-MM-DD --exchange XETRA --output asset-growth/results/returns_XETRA.json
 
-# The old exit rule (doesn't reproduce old results: the listing rules and dedup still apply)
-python3 asset-growth/backtest.py --exchange LSE --exit-method drop
+# All 16 markets on one end date, plus exchange_comparison.json
+python3 asset-growth/backtest.py --global --end-date YYYY-MM-DD --output asset-growth/results/exchange_comparison.json --verbose
+
+# The old exit rule (doesn't reproduce old results: the listing rules, dedup, data checks, universe
+# rules and prior-year guard still apply)
+python3 asset-growth/backtest.py --end-year 2025 --exchange LSE --exit-method drop
+
+# Every booked name per invested year (holdings_full), for review. --data-checks uncapped turns the data
+# checks off (no cap either): an attribution arm only, never published
+python3 asset-growth/backtest.py --end-year 2025 --exchange LSE --full-holdings
 
 # Charts from results/exchange_comparison.json
 python3 asset-growth/generate_charts.py
@@ -104,7 +129,7 @@ python3 asset-growth/screen.py
 python3 asset-growth/screen.py --preset india
 ```
 
-Per-market runs that reproduce the committed files:
+Per-market runs, each with `--end-year 2025` or one `--end-date`:
 
 | Market | `--exchange` | Output file | Listing rule |
 |--------|--------------|-------------|--------------|
@@ -125,22 +150,32 @@ Per-market runs that reproduce the committed files:
 | Saudi Arabia | `SAU` | `returns_SAU.json` | |
 | Australia | `ASX` | `returns_ASX.json` | |
 
-Use `--exchange` as shown. `--preset canada` adds TSXV and `--preset taiwan` adds TWO, so neither reproduces the TSX or TAI file. `--global` also tries Singapore (SGX); no Singapore results are committed.
+Use `--exchange` as shown. `--preset canada` adds TSXV and `--preset taiwan` adds TWO, so neither writes the TSX or TAI file's universe. `--global` runs these 16 markets on one end date and has no Singapore leg; no Singapore results are committed.
+
+## Known limits
+
+- Survivorship, the 45-day lag from the fiscal year end and a size floor read in the reporting currency apply here as in the other rerun topics: METHODOLOGY.md (Limitations) and DATA_QUALITY_ISSUES.md.
+- **The ordinary-shares rule is a list of patterns plus a hand list and a keep list**, and it reads today's profile. A trust or LP that later converted carries its corporate name back, so the trust rule can't see Texas Pacific Land Trust's 2010 and 2011 line-years (a corporation since 2021). SATS's profile names the Strive preferred that took the ticker in 2026, so EchoStar's 2022 line is removed too. No rule sees KTH, NSS or plain-ticker notes such as TANNL, KKRS, DHCNL, OPINL, NYMTL, WHLRL and ADAMH.
+- **Second lines of one company.** Renamed or legacy lines the hand list doesn't hold can put one company in a book twice: 76ID.L beside ROR.L, BC88.L, NTCO3.SA, AZZA3.SA, ABG.AX, SHA.DE, 9512.SR and 9511.SR. Two Stockholm `-PREF` lines that no pattern reads, CORE-PREF.ST and SDIP-PREF.ST, stay too. KOSDAQ companies whose only history before 2026 is a KSC line stay in the Korea leg (013030, 073490, 085370.KS). Share classes have their own ISINs, so both can be held, and Avg stocks counts lines, not companies.
+- **BCE's three TSX lines** carry one set of financials. BCE-PY.TO is BCE's common price series through 2025 and prints a preferred's price in 2026, when BCE.TO's bars start, so a run past July 2025 that holds BCE isn't handled yet. DATA_QUALITY_ISSUES.md (Asset growth's data fixes) has this and the entries above.
+- **Unpriced names.** A screened name with no usable entry price takes its top-30 slot and isn't replaced; each period's `entry_unpriced` lists them.
+- The entry floor of 1.00 is in local units: one Hong Kong dollar, one penny on the LSE, one baht.
 
 ## Data Requirements
 
-- `balance_sheet` (FY): totalAssets (two consecutive years)
+- `balance_sheet` (FY): totalAssets and reportedCurrency (the current year and the prior year 300 to 430 days before it, in one currency)
 - `key_metrics` (FY): returnOnEquity, returnOnAssets, marketCap
 - `financial_ratios` (FY): operatingProfitMargin
-- `stock_eod`: adjClose after each rebalance date, and the last traded price for exits
-- `profile`: exchange, country (XETRA and SIX rule), currency (LSE rule, dedup tie-break), isin and isActivelyTrading (dedup)
+- `stock_eod`: adjClose, close and volume after each rebalance date, and the last traded price for exits
+- `income_statement`, `stock_prices_non_split_adjusted_daily`, `splits_calendar`: the market-cap check and the split flags
+- `profile`: exchange, country (XETRA and SIX rule), currency (LSE rule, dedup tie-break), isin and isActivelyTrading (dedup), companyName, isFund, isEtf, isAdr, isin and cik (ordinary-shares rule)
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `backtest.py` | Historical backtest (2000-2025) |
-| `screen.py` | Current stock screen (TTM data). Lists every line on the exchange, without the listing rules or dedup. It also excludes the Asset Management, Shell Companies and Closed-End Fund industries, which the backtest doesn't |
+| `backtest.py` | Historical backtest, from July 2000 to the latest close or to a typed end year |
+| `screen.py` | Current stock screen. Growth reads the FY balance sheets with the backtest's row windows and currency test; ROE, ROA, margin and size read TTM rows. It keeps ordinary shares only (`ur-2`), but not the listing rules, the dedup or the data checks. It also excludes the Asset Management, Shell Companies and Closed-End Fund industries, which the backtest doesn't |
 | `generate_charts.py` | Charts from `results/exchange_comparison.json` |
 | `README.md` | This file |
 | `results/` | `returns_<market>.json` per market and `exchange_comparison.json` |
