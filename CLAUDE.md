@@ -1,5 +1,10 @@
 # backtests (ceta-research/backtests)
 
+## Before you change anything
+
+- `results/` and `charts/` are in `.gitignore` but tracked (force-added), and published numbers depend on them. Superseded files are kept on purpose (see a `RESULTS_PROVENANCE.md`). Never `git add -A`, `git clean`, or `git rm --cached` there. Add a results file by path with `git add -f`.
+- `cloud_runner` writes the caller's API key into the uploaded `_run.py` or `_run_screen.py` wrapper.
+
 <!-- shared:public-rules v2. Every public repo of ours carries this block word for word; change it in all of them at once, never in one repo alone. -->
 ## Rules for every change
 
@@ -13,7 +18,7 @@
 
 ## What this is
 
-Ceta Research's reproducible quantitative strategy backtests (MIT). Each topic folder is one strategy study: its `README.md` describes the study, and its tracked `results/` and `charts/` hold the numbers and charts the published posts use. Data comes from the Ceta Research API through `cr_client.py`.
+Ceta Research's reproducible quantitative strategy backtests (MIT). Each topic folder is one strategy study: its `README.md` describes the study, and its tracked `results/` and `charts/` hold the study's numbers and charts. Data comes from the Ceta Research API through `cr_client.py`.
 
 ## Layout
 
@@ -63,11 +68,11 @@ export CR_API_KEY=...    # every backtest, screen and nse_arena run needs it; th
 There is no CI, Makefile or pre-commit hook: nothing runs on a pull request. Run these from the root before you push; neither needs a key or the network.
 
 ```bash
-for t in scripts/test_*.py; do .venv/bin/python "$t" > /dev/null 2>&1 || echo "FAIL $t"; done   # 34 offline tests, about 20 minutes
+for t in scripts/test_*.py; do .venv/bin/python "$t" > /dev/null 2>&1 || echo "FAIL $t"; done   # offline tests, about 20 minutes
 .venv/bin/python scripts/verify_floor_guard.py                                                   # static gates over every topic
 ```
 
-Two known failures: `test_domicile_dedup.py` on DuckDB 2.0, and gate 6 of `verify_floor_guard.py` on a change to this file. See `scripts/CLAUDE.md`.
+Two known failures: `scripts/CLAUDE.md`, Offline tests (`test_*.py`) and Scanners.
 
 ## How changes ship
 
@@ -76,14 +81,12 @@ Two known failures: `test_domicile_dedup.py` on DuckDB 2.0, and gate 6 of `verif
 
 ## Gotchas
 
-- `results/` and `charts/` are in `.gitignore` but tracked (force-added), and published numbers depend on them. Superseded files are kept on purpose (see a `RESULTS_PROVENANCE.md`). Never `git add -A`, `git clean`, or `git rm --cached` there. Add a results file by path with `git add -f`.
 - A run overwrites the tracked results or chart files it writes. Check `git status` after every run.
 - A run-window topic's default run (`--end-date latest`), written over its `results/`, replaces the published window. `--end-year 2025` reproduces the committed files, and the topic READMEs' results-writing commands carry it. For a rerun with new figures, see the topic's README and `scripts/CLAUDE.md` (`data_end.py`).
 - `--output` resolves against the current directory. Topic docstrings show `python3 <topic>/backtest.py ... --output results/<file>`, which from the root writes to an untracked root `results/`, while `generate_charts.py` reads `<topic>/results/`. Pass `--output <topic>/results/<file>`.
 - `README.md` is stale in places: its strategy table and tree list 3 of the 95 topics, the tree lists `ts_client.py` (gone), and it says requirements are requests and duckdb only.
 - `--cloud` is not on every script, and where it is the wiring differs by topic: `cloud_runner.run_backtest_cloud`, `cloud_runner.run_screen_cloud`, `CetaResearch.execute_code`, or nothing (a few screens accept the flag and ignore it). `run_backtest_cloud` uploads topic files only for the four topics in `cloud_runner.STRATEGY_FILES` (qarp, piotroski, low-pe, asset-growth). Read the code path before relying on `--cloud` anywhere else.
 - deleveraging, high-yield-quality, low-debt and revenue-accel `screen.py` do not parse (bad f-string braces), and `stock-split/screen.py` imports a missing `cloud_runner.run_screen_on_cloud`. None of the five runs.
-- `cloud_runner` writes the caller's API key into the uploaded `_run.py` or `_run_screen.py` wrapper.
 - `cr_client` sends its Code Execution and Projects writes through the `_*_with_csrf` helpers, which fetch a token from `GET /auth/csrf-token`. A new write call to those APIs uses the same helpers.
 - Ceta Research (`CR_*`, `CetaResearch`) is the primary name. `TS_*` names and the `ts-backtests-<topic>` cloud project names are Trading Studio backward-compat leftovers.
 - Data checks (`data_utils.DataChecks`) are on only in cyclical-timing, deleveraging and defensive-quality. Gate 15 of `scripts/verify_floor_guard.py` holds that list and fails a use anywhere else.
