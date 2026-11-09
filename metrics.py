@@ -239,9 +239,27 @@ def period_accounting(executed, valid, cash_periods, *,
     return acct
 
 
+def span_years(fractions, periods_per_year):
+    """Years a run spans: its periods' fractions (1 for a full period) added up, over periods_per_year."""
+    return sum(fractions) / periods_per_year
+
+
+def _partial_last(fractions, n):
+    """True when the last of n periods is partial (fraction below 1). Raises on any other shape."""
+    if fractions is None:
+        return False
+    if len(fractions) != n:
+        raise ValueError(f"{len(fractions)} fractions for {n} periods")
+    if any(f != 1 for f in fractions[:-1]):
+        raise ValueError("only the last period may be partial")
+    if n and not 0 <= fractions[-1] <= 1:
+        raise ValueError(f"fraction {fractions[-1]} outside [0, 1]")
+    return bool(n) and fractions[-1] != 1
+
+
 def compute_metrics(period_returns, benchmark_returns, periods_per_year,
                     risk_free_rate=0.02, additional_benchmarks=None,
-                    years=None):
+                    years=None, fractions=None):
     """Compute full metrics suite for a strategy vs benchmark(s).
 
     Args:
@@ -261,26 +279,38 @@ def compute_metrics(period_returns, benchmark_returns, periods_per_year,
             years by ~1/1.45 and deflate CAGR. Pass `years` explicitly in that
             case. See strategy-backtester/lib/equity_curve.py for the type-safe
             variant used in the position-level simulator.
+        fractions: optional list[float] - each period's share of a full period, one per return
+            (METHODOLOGY.md, "Run window"). Only the last may be below 1: a run that ends on the
+            latest close holds its last rebalance for part of a period. That period counts in total
+            return, CAGR (over span_years), drawdown, Calmar and excess CAGR, and every other figure
+            uses the full periods only. None, or all 1, gives today's results.
 
     Returns:
         dict with keys: "portfolio", "benchmark", "comparison", "additional_benchmarks"
         All return values are raw floats (e.g. 0.0996 for 9.96% CAGR).
     """
     n = len(period_returns)
-    if n < 2:
+    partial = _partial_last(fractions, n)
+    full = n - 1 if partial else n
+    if full < 2:
         return _empty_metrics()
 
     ppy = periods_per_year
-    rf_period = risk_free_rate / ppy
+    if partial and years is None:
+        years = span_years(fractions, ppy)
+
+    def series(rets):
+        return _compute_series_metrics(rets[:full], ppy, risk_free_rate, years=years,
+                                       path_returns=rets if partial else None)
 
     # Portfolio metrics
-    port = _compute_series_metrics(period_returns, ppy, risk_free_rate, years=years)
+    port = series(period_returns)
 
     # Benchmark metrics
-    bench = _compute_series_metrics(benchmark_returns, ppy, risk_free_rate, years=years)
+    bench = series(benchmark_returns)
 
     # Comparison metrics (portfolio vs primary benchmark)
-    comp = _compute_comparison(period_returns, benchmark_returns, ppy, risk_free_rate,
+    comp = _compute_comparison(period_returns[:full], benchmark_returns[:full], ppy, risk_free_rate,
                                port["cagr"], bench["cagr"])
 
     result = {
@@ -294,8 +324,8 @@ def compute_metrics(period_returns, benchmark_returns, periods_per_year,
         result["additional_benchmarks"] = {}
         for name, bench_rets in additional_benchmarks.items():
             if len(bench_rets) == n:
-                ab_metrics = _compute_series_metrics(bench_rets, ppy, risk_free_rate, years=years)
-                ab_comp = _compute_comparison(period_returns, bench_rets, ppy,
+                ab_metrics = series(bench_rets)
+                ab_comp = _compute_comparison(period_returns[:full], bench_rets[:full], ppy,
                                               risk_free_rate, port["cagr"], ab_metrics["cagr"])
                 result["additional_benchmarks"][name] = {
                     "metrics": ab_metrics,
@@ -305,15 +335,18 @@ def compute_metrics(period_returns, benchmark_returns, periods_per_year,
     return result
 
 
-def _compute_series_metrics(returns, ppy, risk_free_rate, years=None):
+def _compute_series_metrics(returns, ppy, risk_free_rate, years=None, path_returns=None):
     """Compute metrics for a single return series.
 
     `years`: optional wall-clock years. If None, uses `len(returns) / ppy`.
     See compute_metrics() docstring for when to pass explicitly.
+    `path_returns`: optional, the whole run when `returns` holds its full periods only. The growth path
+    (total return, CAGR, drawdown) then runs over it, and the rest over `returns`.
     """
     n = len(returns)
     if n < 2:
         return {}
+    path = returns if path_returns is None else path_returns
 
     rf_period = risk_free_rate / ppy
 
@@ -327,7 +360,7 @@ def _compute_series_metrics(returns, ppy, risk_free_rate, years=None):
     in_drawdown = False
 
     cumulative_values = []
-    for i, r in enumerate(returns):
+    for i, r in enumerate(path):
         cumulative *= (1 + r)
         cumulative_values.append(cumulative)
 
@@ -349,7 +382,7 @@ def _compute_series_metrics(returns, ppy, risk_free_rate, years=None):
 
     # If still in drawdown at end, count duration to end
     if in_drawdown:
-        duration = n - current_dd_start
+        duration = len(path) - current_dd_start
         if duration > max_dd_duration:
             max_dd_duration = duration
 
@@ -583,6 +616,36 @@ def compute_annual_returns(period_returns, benchmark_returns, period_dates,
                 "excess": port_annual - bench_annual,
             })
     return result
+
+
+def annual_with_partial(period_returns, benchmark_returns, period_dates, exit_dates, fractions,
+                        periods_per_year):
+    """compute_annual_returns for a run that can end part way through a year. Returns (annual, partial_year).
+
+    The final year (labelled as compute_annual_returns labels it, by the rebalance date's year) is the
+    partial year when its periods' fractions add up to less than periods_per_year. It's never dropped:
+    partial_year holds its first rebalance date, last exit, period count, year_fraction (6 dp) and the
+    compounded returns, and annual holds the years before it. A full final year stays in annual and
+    partial_year is None. fractions None means every period is full.
+    """
+    if not period_dates:
+        return [], None
+    fractions = fractions or [1.0] * len(period_dates)
+    last = period_dates[-1][:4]
+    idx = [i for i, d in enumerate(period_dates) if d[:4] == last]
+    year_fraction = round(sum(fractions[i] for i in idx) / periods_per_year, 6)
+    if year_fraction >= 1:
+        return compute_annual_returns(period_returns, benchmark_returns, period_dates, periods_per_year), None
+    head = idx[0]   # the final year's periods are the tail of the run
+    annual = compute_annual_returns(period_returns[:head], benchmark_returns[:head], period_dates[:head],
+                                    periods_per_year)
+    gp = gb = 1.0
+    for i in idx:
+        gp *= 1 + period_returns[i]
+        gb *= 1 + benchmark_returns[i]
+    return annual, {"year": int(last), "start": period_dates[head], "end": exit_dates[idx[-1]],
+                    "periods": len(idx), "year_fraction": year_fraction,
+                    "portfolio": gp - 1, "benchmark": gb - 1, "excess": (gp - 1) - (gb - 1)}
 
 
 def compute_rolling_cagr(period_returns, periods_per_year, window_years=3):

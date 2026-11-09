@@ -1648,13 +1648,15 @@ def load_base(tmp, ref):
     return mod, src
 
 
-CHANGED = {"isin_dedup_sql", "filter_returns", "LtpExits"}
-LTP_CHANGED = {"__init__", "fill", "_last_bars", "provenance"}
+CHANGED = {"isin_dedup_sql", "filter_returns", "LtpExits", "get_benchmark_return"}
+LTP_CHANGED = {"__init__", "fill", "_last_bars", "provenance", "results_block"}
 
 
 def ast_failures(base_src):
-    """Every function, class and constant of BASE's data_utils is unchanged, except the three that
-    gained a default-off kwarg (and in LtpExits only the methods that carry it)."""
+    """Every function, class and constant of BASE's data_utils is unchanged, except the four that
+    gained a default-off kwarg (and in LtpExits only the methods that carry it). get_benchmark_return's
+    exit_offset_days and LtpExits' end_date and results_block fractions come from the run window
+    (scripts/test_run_window.py checks them off)."""
     old, new = ast.parse(base_src), ast.parse(open(os.path.join(ROOT, "data_utils.py")).read())
 
     def names(tree):
@@ -2149,16 +2151,18 @@ def defensive_source():
     return src
 
 
-def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False):
-    """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both)."""
+def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=None, tag=""):
+    """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both). win: the
+    run window (default the fixture's 2000-2025 grid, --end-year 2025); tag names the output file apart."""
     mod = load_topic(topic)
-    out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}{'.full' if full_holdings else ''}.json")
+    out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}{'.full' if full_holdings else ''}{tag}.json")
     client = FakeClient(src)
     freq = "quarterly" if topic == "deleveraging" else "annual"
     kw = {"full_holdings": True} if full_holdings else {}
     with contextlib.redirect_stdout(io.StringIO()):
         mod.run_single(client, ["SET"], "SET", freq, True, 0.02, False, out, offset_days=1,
-                       exit_method=run_mode, data_checks=data_checks, **kw)
+                       exit_method=run_mode, data_checks=data_checks,
+                       win=win if win is not None else du.RunWindow.typed(2025), **kw)
     with open(out) as fh:
         return json.load(fh), client.sqls
 

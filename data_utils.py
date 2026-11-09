@@ -339,7 +339,7 @@ def get_local_benchmark(exchanges):
 
 
 def get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
-                         offset_days=0, window_days=10):
+                         offset_days=0, window_days=10, exit_offset_days=None):
     """Get benchmark return for a period.
 
     Convenience wrapper around get_prices() for the common 8-line benchmark
@@ -352,14 +352,16 @@ def get_benchmark_return(con, benchmark_symbol, entry_date, exit_date,
         exit_date: date - period end
         offset_days: int - days to shift for MOC execution
         window_days: int - price lookup window
+        exit_offset_days: int or None - the exit's offset when it differs from the entry's
+            (RunWindow.exit_offset: 0 for a partial exit). None uses offset_days.
 
     Returns:
         float or None - benchmark return for the period
     """
     entry = get_prices(con, [benchmark_symbol], entry_date,
                        window_days=window_days, offset_days=offset_days)
-    exit_ = get_prices(con, [benchmark_symbol], exit_date,
-                       window_days=window_days, offset_days=offset_days)
+    exit_ = get_prices(con, [benchmark_symbol], exit_date, window_days=window_days,
+                       offset_days=offset_days if exit_offset_days is None else exit_offset_days)
     ep = entry.get(benchmark_symbol)
     xp = exit_.get(benchmark_symbol)
     if ep and xp and ep > 0:
@@ -817,8 +819,11 @@ class LtpExits:
     # Remote cleaning context each side of the window; the filter's widest neighbour span is 20 days.
     CONTEXT_DAYS = 30
 
-    def __init__(self, client, con, local=False, verbose=False, traded_only=False):
+    def __init__(self, client, con, local=False, verbose=False, traded_only=False, end_date=None):
+        """end_date: the run window's end (RunWindow.end_date). No bar after it is fetched, not even as
+        cleaning context, so a pinned rerun on a later day reads what the first run read. None: no cut."""
         self.client, self.con, self.local, self.verbose = client, con, local, verbose
+        self.end_date = end_date
         self.traded_only, self.zero_volume_moved, self._bar_extra = traded_only, 0, {}
         self.close_basis, self._flips = 0, {}
         # One row per symbol (9,900 rows / 9,900 symbols, checked 2026-10-09).
@@ -862,6 +867,8 @@ class LtpExits:
             lo = utc_date(e)
             hi, dd = exit_date, self.delisted.get(s)
             ctx = hi + timedelta(days=self.CONTEXT_DAYS)   # remote cleaning context end
+            if self.end_date is not None:
+                ctx = min(ctx, self.end_date)
             if dd is None:
                 kind = "none"
             elif dd + timedelta(days=LTP_EARLIER_HOLDER_DAYS) >= lo:
@@ -1038,8 +1045,9 @@ class LtpExits:
         return {r[0]: (int(r[1]), r[2]) for r in rows}
 
     def results_block(self, exit_method, valid, periods_per_year, risk_free_rate,
-                      key="portfolio_return", spy_key="spy_return"):
-        """Results-JSON block. In both mode, also the LTP series' metrics over the SAME periods/benchmark."""
+                      key="portfolio_return", spy_key="spy_return", fractions=None):
+        """Results-JSON block. In both mode, also the LTP series' metrics over the SAME periods/benchmark.
+        fractions: as compute_metrics takes them (RunWindow.fractions)."""
         out = {"exit_method": exit_method, **self.provenance()}
         if exit_method == "both":
             from metrics import compute_metrics
@@ -1048,7 +1056,7 @@ class LtpExits:
             for m, rets in (("drop", [r[key] for r in valid]),
                             ("ltp", [r.get(f"{key}_ltp", r[key]) for r in valid])):
                 p = compute_metrics(rets, [r[spy_key] for r in valid], periods_per_year,
-                                    risk_free_rate=risk_free_rate)["portfolio"]
+                                    risk_free_rate=risk_free_rate, fractions=fractions)["portfolio"]
                 out[f"{m}_portfolio"] = {"cagr": pct(p.get("cagr")), "max_drawdown": pct(p.get("max_drawdown")),
                                          "sharpe_ratio": round(p["sharpe_ratio"], 3) if p.get("sharpe_ratio") is not None else None,
                                          "total_return": pct(p.get("total_return")),
@@ -1109,6 +1117,248 @@ def generate_rebalance_dates(start_year, end_year, frequency, months=None):
             dates.append(d)
 
     return sorted(dates)
+
+
+# The run window (METHODOLOGY.md, "Run window"): a run ends on the latest close every market in it has.
+END_DATE_MIN_STUB_DAYS = 7    # a shorter final stub isn't held: the last grid date is a full period's exit
+END_DATE_LAG_WARN_DAYS = 5    # a leg whose latest close is further behind the latest leg's warns
+DATA_END_LOOKBACK_DAYS = 21
+DATA_END_MIN_COVERAGE = 0.5   # a good day: each exchange traded at least this share of its median line count
+
+
+def good_days(client, legs, until, lookback=DATA_END_LOOKBACK_DAYS):
+    """{leg: {"YYYY-MM-DD": coverage}}: each leg's good days in the lookback days to `until`.
+
+    legs is {name: (exchanges, benchmark_symbol)}. A good day has a bar of the leg's benchmark, and on it
+    every exchange of the leg (one with rows in the lookback) traded at least DATA_END_MIN_COVERAGE of its
+    median daily count of traded lines (stock_eod rows with volume > 0, as data check T counts them): FMP
+    writes holiday rows with copied prices and no volume, and a day still loading has too few lines.
+    coverage is the day's lowest exchange ratio. Two queries for the whole run."""
+    ratios, bench_days = traded_ratios(client, legs, until, lookback)
+    return {name: {d: round(min(r.get(d, 0.0) for r in ratios[name].values()), 3)
+                   for d in sorted(bench_days[name])
+                   if ratios[name] and all(r.get(d, 0.0) >= DATA_END_MIN_COVERAGE for r in ratios[name].values())}
+            for name in legs}
+
+
+def traded_ratios(client, legs, until, lookback=DATA_END_LOOKBACK_DAYS):
+    """({leg: {exchange: {"YYYY-MM-DD": traded lines / median}}}, {leg: benchmark bar days}) over the
+    lookback days to `until`, for good_days and scripts/data_end.py. An exchange with no rows is left out."""
+    import statistics
+    since = (until - timedelta(days=lookback)).isoformat()
+    exchanges = sorted({e for exs, _ in legs.values() for e in exs})
+    counts = client.query(f"""
+        SELECT p.exchange, e.date AS d, COUNT(DISTINCT e.symbol) FILTER (WHERE e.volume > 0) AS n
+        FROM stock_eod e
+        JOIN (SELECT DISTINCT symbol, exchange FROM profile WHERE exchange IN ({_sql_list(exchanges)})) p
+          ON p.symbol = e.symbol
+        WHERE e.date >= '{since}' AND e.date <= '{until.isoformat()}'
+        GROUP BY 1, 2
+    """, timeout=300) or []
+    bars = client.query(f"""
+        SELECT DISTINCT symbol, date AS d FROM stock_eod
+        WHERE symbol IN ({_sql_list(sorted({b for _, b in legs.values()}))})
+          AND date >= '{since}' AND date <= '{until.isoformat()}' AND adjClose > 0
+    """, timeout=300) or []
+    per_ex, bench_days = {}, {}
+    for r in counts:
+        per_ex.setdefault(r["exchange"], {})[str(r["d"])[:10]] = int(r["n"] or 0)
+    for r in bars:
+        bench_days.setdefault(r["symbol"], set()).add(str(r["d"])[:10])
+    ratios = {}
+    for name, (exs, _) in legs.items():
+        ratios[name] = {}
+        for e in exs:
+            days = per_ex.get(e)
+            med = statistics.median(days.values()) if days else 0
+            if med > 0:
+                ratios[name][e] = {d: n / med for d, n in days.items()}
+    return ratios, {name: bench_days.get(bench, set()) for name, (_, bench) in legs.items()}
+
+
+class RunWindow:
+    """A run's end date and the rebalance grid it implies (METHODOLOGY.md, "Run window").
+
+    latest(): end_date is the latest day every leg traded (good_days). pinned(): a given date that every
+    leg traded (--end-date). typed(): a typed end year (--end-year), as before the run window existed:
+    today's grid, today's exits and no new results key. A topic builds one window per run (every leg of a
+    --global run shares it) and per leg: for_leg(), grid() before the loop, exit_offset() at each exit,
+    mark() on the rows after it, then fractions(), annual(), years() and fields() for the results."""
+
+    def __init__(self, end_date=None, requested=None, data_end_by_market=None, checked_at=None,
+                 end_year=None, data_end=None, legacy=False):
+        self.end_date, self.requested, self.end_year, self.legacy = end_date, requested, end_year, legacy
+        self.data_end_by_market, self.checked_at, self.data_end = data_end_by_market, checked_at, data_end
+        self.partial_exit = self.last_rebalance = None
+        self.offset_days = self.period_days = None
+
+    @classmethod
+    def latest(cls, client, legs, today=None, stream=None):
+        """end_date: the latest day before the run (UTC) that is a good day (good_days) for every leg: a
+        market still trading already has a bar for the run day, before its close. Each leg's data_end is
+        its own latest good day; a leg more than END_DATE_LAG_WARN_DAYS behind the latest one warns."""
+        import sys
+        from datetime import datetime, timezone
+        good = good_days(client, legs, (today or datetime.now(timezone.utc).date()) - timedelta(days=1))
+        empty = sorted(n for n, g in good.items() if not g)
+        if empty:
+            raise ValueError(f"no good day in the last {DATA_END_LOOKBACK_DAYS} days for {', '.join(empty)}")
+        by = {n: max(g) for n, g in good.items()}
+        common = set.intersection(*(set(g) for g in good.values()))
+        if not common:
+            raise ValueError(f"no day in the last {DATA_END_LOOKBACK_DAYS} days is a good day for every leg")
+        end, newest = max(common), max(by.values())
+        late = sorted(n for n, d in by.items()
+                      if (date.fromisoformat(newest) - date.fromisoformat(d)).days > END_DATE_LAG_WARN_DAYS)
+        if late:
+            print(f"WARNING run window: {', '.join(f'{n} ({by[n]})' for n in late)} more than "
+                  f"{END_DATE_LAG_WARN_DAYS} days behind the latest leg ({newest}); every leg ends on {end}",
+                  file=stream or sys.stderr)
+        if end < min(by.values()):
+            print(f"  run window: {end}, the latest day every leg traded "
+                  f"(some leg was closed on {min(by.values())})", file=stream or sys.stderr)
+        return cls(end_date=date.fromisoformat(end), requested="latest", data_end_by_market=by,
+                   checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+    @classmethod
+    def pinned(cls, client, legs, end_date, today=None):
+        """end_date as given; it must be before the run day (UTC) and a good day (good_days) for every leg."""
+        from datetime import datetime, timezone
+        if end_date >= (today or datetime.now(timezone.utc).date()):
+            raise ValueError(f"--end-date {end_date}: not before the run day, and a market still trading "
+                             "has a bar for it before its close")
+        good = good_days(client, legs, end_date)
+        bad = sorted(n for n, g in good.items() if end_date.isoformat() not in g)
+        if bad:
+            raise ValueError(f"--end-date {end_date}: not a good day (a benchmark bar and enough lines traded) "
+                             f"for {', '.join(bad)}")
+        return cls(end_date=end_date, requested=end_date.isoformat())
+
+    @classmethod
+    def typed(cls, end_year=None):
+        """A legacy window: grid() ends in end_year as generate_rebalance_dates does. Without end_year it
+        only prices exits and writes rows as before (a topic loop's default)."""
+        return cls(end_year=end_year, legacy=True)
+
+    @classmethod
+    def from_args(cls, args, client, legs):
+        """From add_end_date_arg's flags: --end-year, else --end-date (a date, or latest)."""
+        if getattr(args, "end_year", None) is not None:
+            return cls.typed(args.end_year)
+        if args.end_date != "latest":
+            return cls.pinned(client, legs, date.fromisoformat(args.end_date))
+        return cls.latest(client, legs)
+
+    def for_leg(self, name):
+        """This window for one leg: its own data_end, and a grid of its own."""
+        return RunWindow(self.end_date, self.requested, self.data_end_by_market, self.checked_at, self.end_year,
+                         (self.data_end_by_market or {}).get(name), self.legacy)
+
+    def grid(self, start_year, frequency, months=None, offset_days=1):
+        """Rebalance dates, the final exit last, so `for i in range(len(dates) - 1)` loops run as before.
+
+        The grid stops at the last grid date whose execution day (the date plus offset_days) is on or
+        before end_date. That date is the last rebalance, held to end_date, when end_date is at least
+        END_DATE_MIN_STUB_DAYS after it: end_date is then the final exit (partial_exit). Otherwise it's
+        the final exit of a full period."""
+        if self.legacy:
+            return generate_rebalance_dates(start_year, self.end_year, frequency, months)
+        end = self.end_date
+        every = generate_rebalance_dates(start_year, end.year + 1, frequency, months)
+        dates = [d for d in every if d + timedelta(days=offset_days) <= end]
+        if not dates:
+            raise ValueError(f"no rebalance date from {start_year} executes by {end}")
+        last = dates[-1]
+        self._grid_done = True
+        if (end - last).days < END_DATE_MIN_STUB_DAYS:
+            self.partial_exit = None
+            return dates
+        self.partial_exit, self.last_rebalance, self.offset_days = end, last, offset_days
+        self.period_days = (every[len(dates)] - last).days
+        return dates + [end]
+
+    def exit_offset(self, exit_date, offset_days):
+        """The offset to price an exit with: 0 (the close on end_date) at end_date, else offset_days. Only
+        the partial exit falls on end_date: a full period's exit executes on or before it."""
+        return 0 if self.end_date is not None and exit_date == self.end_date else offset_days
+
+    def fetch_end(self, d, days):
+        """End of the fetch window [d, d + days], cut at end_date so no later bar reaches the cache."""
+        e = d + timedelta(days=days)
+        return e if self.end_date is None else min(e, self.end_date)
+
+    def fraction(self):
+        """The partial period's share of a full period: its days from execution to end_date over the full
+        period's grid days, 6 dp (the metrics use this rounded value)."""
+        held = (self.partial_exit - self.last_rebalance - timedelta(days=self.offset_days)).days
+        return round(held / self.period_days, 6)
+
+    def _gridded(self):
+        if not hasattr(self, "_grid_done"):
+            raise RuntimeError("RunWindow: call grid() on this leg's window first")
+
+    def mark(self, results):
+        """Set each period_data row's partial flag (and the partial row's fraction) in place, by its
+        exit_date: one call after the loop, so no append site can miss it. A legacy window adds nothing."""
+        if self.legacy:
+            return results
+        self._gridded()
+        end = self.partial_exit.isoformat() if self.partial_exit is not None else None
+        for r in results:
+            r["partial"] = r["exit_date"] == end
+            if r["partial"]:
+                r["fraction"] = self.fraction()
+        return results
+
+    def fractions(self, rows):
+        """compute_metrics' fractions for rows (None on a legacy window, so today's path runs). Raises when
+        a row wasn't marked."""
+        if self.legacy:
+            return None
+        if any("partial" not in r for r in rows):
+            raise ValueError("RunWindow.fractions: a row without its partial flag (call mark() on the results)")
+        return [r["fraction"] if r["partial"] else 1.0 for r in rows]
+
+    def annual(self, valid, periods_per_year, key="portfolio_return", bench_key="spy_return"):
+        """(annual_returns, partial_year) over the measured rows: metrics.annual_with_partial, or on a legacy
+        window compute_annual_returns as before and None."""
+        from metrics import annual_with_partial, compute_annual_returns
+        args = ([r[key] for r in valid], [r[bench_key] for r in valid], [r["rebalance_date"] for r in valid])
+        if self.legacy:
+            return compute_annual_returns(*args, periods_per_year), None
+        return annual_with_partial(*args, [r["exit_date"] for r in valid], self.fractions(valid), periods_per_year)
+
+    def years(self, valid, periods_per_year):
+        """The results' `years`, 1 dp: the span (span_years) of the measured rows."""
+        from metrics import span_years
+        return round(span_years(self.fractions(valid) or [1.0] * len(valid), periods_per_year), 1)
+
+    def fields(self, valid, periods_per_year, partial_year):
+        """The run window's results keys for a leg (METHODOLOGY.md, "Run window"); {} on a legacy window.
+        valid: the measured rows; partial_year: annual()'s second value."""
+        if self.legacy:
+            return {}
+        self._gridded()
+        from metrics import span_years
+        fr = self.fractions(valid)
+        pct = lambda v: round(v * 100, 2)
+        part = None
+        if any(r["partial"] for r in valid):   # the partial period, when it's measured
+            part = {"rebalance_date": self.last_rebalance.isoformat(),
+                    "entry_day": (self.last_rebalance + timedelta(days=self.offset_days)).isoformat(),
+                    "exit_date": self.partial_exit.isoformat(),
+                    "days": (self.partial_exit - self.last_rebalance - timedelta(days=self.offset_days)).days,
+                    "period_days": self.period_days, "fraction": self.fraction()}
+        py = None
+        if partial_year is not None:
+            py = {k: partial_year[k] for k in ("year", "start", "end", "periods", "year_fraction")}
+            py.update({"portfolio": pct(partial_year["portfolio"]), "spy": pct(partial_year["benchmark"]),
+                       "excess": pct(partial_year["excess"])})
+        return {"end_date_requested": self.requested, "end_date": self.end_date.isoformat(),
+                "data_end": self.data_end, "data_end_by_market": self.data_end_by_market,
+                "data_end_checked_at": self.checked_at,
+                "full_periods": sum(1 for f in fr if f == 1), "span_years": round(span_years(fr, periods_per_year), 6),
+                "partial_period": part, "partial_year": py}
 
 
 def get_benchmark_tickers(exchanges, factor_type=None):
@@ -2183,8 +2433,10 @@ class DataChecks:
             out.setdefault(s, []).append({"date": utc_date(e).isoformat(), "numerator": num, "denominator": den})
         return out
 
-    def prices(self, con, entry_date, exit_date, symbol_data, offset_days, min_entry_price, held=True):
+    def prices(self, con, entry_date, exit_date, symbol_data, offset_days, min_entry_price, held=True,
+               exit_offset_days=None):
         """Checks on one priced period's window bars: T's bar events, then for a held book L and F.
+        exit_offset_days: the exit's offset when it differs (RunWindow.exit_offset); None uses offset_days.
 
         symbol_data is the topic's (symbol, entry, exit, mcap) list from get_prices. The bars are read
         again with their dates and closes, and must carry the same adjClose (an assert). F only
@@ -2196,16 +2448,17 @@ class DataChecks:
         if not self.on:
             return
         syms = [s for s, *_ in symbol_data]
+        x_off = offset_days if exit_offset_days is None else exit_offset_days
         bars = {"entry": self._bars(con, syms, entry_date, offset_days),
-                "exit": self._bars(con, syms, exit_date, offset_days)}
+                "exit": self._bars(con, syms, exit_date, x_off)}
         for s, ep, xp, _ in symbol_data:
             for side, px in (("entry", ep), ("exit", xp)):
                 got = bars[side].get(s, {}).get("adjClose")
                 if got != px:
                     raise AssertionError(f"data checks: {side} bar of {s} on {entry_date} reads {got}, get_prices {px}")
         out = lambda b: None if b is None else {k: b[k] for k in ("date", "adjClose", "close", "volume")}
-        for side, d in (("entry", entry_date), ("exit", exit_date)):
-            for s, row in sorted(self._first_moved(con, syms, d, offset_days).items()):
+        for side, d, off in (("entry", entry_date, offset_days), ("exit", exit_date, x_off)):
+            for s, row in sorted(self._first_moved(con, syms, d, off).items()):
                 used = bars[side].get(s)
                 if used is None:   # T moved every row of the window
                     p[self.LOST[side]] += 1
@@ -2276,17 +2529,18 @@ class DataChecks:
         block["large_moves"] = sorted(moves, key=lambda m: (m["rebalance_date"], m["symbol"]))
 
     def holdings_full(self, con, clean, entry_prices, exit_prices, filled, entry_date, exit_date, offset_days,
-                      ltp=None):
+                      ltp=None, exit_offset_days=None):
         """{} unless full_holdings, else {"holdings_full": [...]}: one item per booked name of `clean`
         (filter_returns' (symbol, return, mcap), in its order) with the entry bar and price, the exit
         bar and price ("window": the exit window's bar; "last_traded": an LTP fill, with its last bar)
         and the booked return before costs. `exit_prices` is the map the book read, `filled` the
-        names whose exit came from an LTP fill (ltp holds the fills)."""
+        names whose exit came from an LTP fill (ltp holds the fills). exit_offset_days as in prices()."""
         if not self.full_holdings:
             return {}
         syms = [s for s, _, _ in clean]
         ebar = self._bars(con, syms, entry_date, offset_days)
-        xbar = self._bars(con, [s for s in syms if s not in filled], exit_date, offset_days)
+        xbar = self._bars(con, [s for s in syms if s not in filled], exit_date,
+                          offset_days if exit_offset_days is None else exit_offset_days)
         fills = {f["symbol"]: f for f in (ltp.fills if ltp is not None else [])
                  if f["entry_date"] == entry_date.isoformat()}
         out = []
