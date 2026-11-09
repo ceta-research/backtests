@@ -16,7 +16,8 @@
                annual_returns hold full years, partial_year closes the identity, CAGR uses span_years
                drop, ltp and both pass gate_ltp's stage-a and the results scanners
                latest equals the pin apart from end_date_requested and the data_end keys
-               main() takes --end-date; a run held in cash marks its partial row too
+               main() takes --end-date; a run held in cash (too few screened, or too few buyable at
+               entry) marks its partial row too; the data checks read the end date's bars
   3 SCRIPTS  the moved topics call no generate_rebalance_dates
   4 MUTANTS  each wiring of the run window in defensive-quality, broken in a copy, fails a check
 
@@ -219,6 +220,9 @@ def leg_failures(topic, r, src):
             continue
         if (h["exit"], h["exit_bar"]) != ("window", "2026-11-06"):
             f.append(f"{topic}: {s} exits {h['exit']} on {h['exit_bar']}, want the window bar on the end date")
+    # the data checks read the end date's bar too: ZEROV's no-volume bar there is a lost exit
+    if (last.get("exits_lost") or 0) < 1:
+        f.append(f"{topic}: the partial row's exits_lost {last.get('exits_lost')}: T's end-date window not read")
     fills = {x["symbol"]: x for x in r["ltp"]["fills"] if x["entry_date"] == part["rebalance_date"]}
     for s, last_bar in ((HALT, "2026-10-30"), (ZEROV, "2026-11-05")):
         x = fills.get(s)
@@ -282,13 +286,24 @@ def window_failures(topic, mod_of, src, tmp, tag="", full_check=True):
     if (m.get("end_date"), m.get("end_date_requested"), m.get("partial_period")) != \
             ("2026-11-06", "2026-11-06", PARTIAL[FREQ.get(topic, "annual")]):
         f.append(f"{topic}: main() --end-date: {m.get('end_date')} {m.get('partial_period')}")
-    cash = mod_of()
-    cash.MIN_STOCKS = 10 ** 6
-    c = run(cash, topic, src, "ltp", window(src, "pin"), tmp, "cash", full=False)
-    last = c["period_data"][-1]
-    if (last.get("partial"), last.get("fraction"), last["stocks_held"], c["full_periods"]) != \
-            (True, PARTIAL[FREQ.get(topic, "annual")]["fraction"], 0, c["n_periods"] - 1):
-        f.append(f"{topic}: cash partial row {last.get('partial')} {last.get('fraction')} {last['stocks_held']}")
+    return f + cash_failures(topic, mod_of, src, tmp)
+
+
+def cash_failures(topic, mod_of, src, tmp, tag=""):
+    """A run held in cash marks its partial row too, through both cash branches: too few names screened
+    (MIN_STOCKS raised), and too few buyable at entry (entry_buyable replaced), whose data checks read the
+    end date's bars."""
+    f = []
+    for name, patch in (("cash.screen", {"MIN_STOCKS": 10 ** 6}),
+                        ("cash.buyable", {"entry_buyable": lambda *a, **k: 0})):
+        mod = mod_of()
+        for k, v in patch.items():
+            setattr(mod, k, v)
+        c = run(mod, topic, src, "ltp", window(src, "pin"), tmp, name + tag, full=False)
+        last = c["period_data"][-1]
+        if (last.get("partial"), last.get("fraction"), last["stocks_held"], c["full_periods"]) != \
+                (True, PARTIAL[FREQ.get(topic, "annual")]["fraction"], 0, c["n_periods"] - 1):
+            f.append(f"{topic} {name}: partial row {last.get('partial')} {last.get('fraction')} {last['stocks_held']}")
     return f
 
 
@@ -314,6 +329,8 @@ MUTANTS = [   # (name, old text, new text) in defensive-quality's script: each m
     ("rows unmarked", "    win.mark(results)\n", "\n"),
     ("fetch past the end date", "end = win.fetch_end(d, 11)", "end = d + timedelta(days=11)"),
     ("data checks read the next day", "held=True,\n                  exit_offset_days=x_off)", "held=True)"),
+    ("the cash branch's data checks read the next day", "held=False,\n                      exit_offset_days=x_off)",
+     "held=False)"),
     ("CAGR over the period count", "risk_free_rate=risk_free_rate, fractions=fractions)",
      "risk_free_rate=risk_free_rate)"),
     ("keys not written", "**win.fields(con, benchmark_symbol, valid, periods_per_year, partial_year, offset_days),", ""),
@@ -340,7 +357,8 @@ def mutant_failures(src, tmp):
             spec.loader.exec_module(mod)
             return mod
         try:
-            caught = window_failures("defensive-quality", mod_of, src, tmp, tag=f".m{i}", full_check=False)
+            caught = (window_failures("defensive-quality", mod_of, src, tmp, tag=f".m{i}", full_check=False)
+                      or cash_failures("defensive-quality", mod_of, src, tmp, tag=f".m{i}"))
         except Exception:   # a crash is a caught mutant
             caught = ["crashed"]
         if not caught:

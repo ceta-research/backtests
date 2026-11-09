@@ -6,13 +6,13 @@
              holiday of zero-volume rows, a day without the benchmark and a day one exchange of the leg
              missed don't count. data_end is a leg's latest good day; end_date is the latest day that
              is a good day for every leg; a spread over 5 days warns and names the late legs; a leg with
-             no good day fails; no ';' reaches the API; two queries for the whole run
+             no good day fails; no ';' reaches the API; one query for the whole run
   2 PIN      --end-date pins the date: it must be a good day for every leg, and the data_end keys are null
   3 GRID     the grid stops at the last grid date whose execution day (date + offset) is on or before
              end_date; that date is the last rebalance when end_date is 7 days or more after it, and
              the final exit otherwise; annual, semi-annual and quarterly grids; --no-next-day
   4 PRICING  the partial exit is priced at the close on end_date (offset 0), every other exit as
-             today; fetch windows stop at end_date
+             today; fetch windows stop at end_date, and so does an LTP fill's cleaning context
   5 LEGACY   --end-year builds today's grid, prices every exit as today and adds no key
   6 ROWS     mark() flags every row and gives the partial one its fraction, from the execution day;
              fractions() refuses an unmarked row; fields() writes the leg's keys, and an unmeasured
@@ -272,6 +272,28 @@ def pricing_failures(du):
     if du.get_benchmark_return(con, "SPY", date(2026, 7, 1), date(2026, 11, 6), offset_days=1) is not None:
         f.append("get_benchmark_return without exit_offset_days changed (want today's: no bar after 11-07)")
     f += benchmark_identity_failures(du)
+    f += ltp_cut_failures(du)
+    return f
+
+
+def ltp_cut_failures(du):
+    """LtpExits(end_date=...) fetches no bar after the end date, not even as cleaning context: the remote
+    query of a fill ends the day after end_date. Without end_date the context runs CONTEXT_DAYS past the exit."""
+    f = []
+    for end, want in ((date(2026, 11, 6), "e.date < '2026-11-07'"), (None, "e.date < '2026-12-07'")):
+        con = duckdb.connect()
+        con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
+        con.execute("INSERT INTO prices_cache VALUES ('H', ?, 50.0)", [ep(date(2026, 7, 2))])
+        src = duckdb.connect()
+        src.execute("CREATE TABLE delisted_companies(symbol VARCHAR, delistedDate DATE)")
+        src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date VARCHAR, dateEpoch BIGINT, adjClose DOUBLE,"
+                    " close DOUBLE, volume DOUBLE)")
+        client = FakeClient(src)
+        du.LtpExits(client, con, end_date=end).fill(["H"], {"H": 50.0}, {"H": None}, date(2026, 7, 1),
+                                                    date(2026, 11, 6), offset_days=1)
+        sql = [s for s in client.sqls if "stock_eod" in s]
+        if not sql or want not in sql[-1]:
+            f.append(f"LtpExits(end_date={end}): the fill's remote query doesn't end with {want!r}")
     return f
 
 
@@ -376,6 +398,15 @@ def rows_failures(du):
     got = win.fields(con, "SPY", rows, 1, None, 1)
     if got["partial_period"] is not None or got["full_periods"] != 26 or any(r["partial"] for r in rows):
         f.append(f"stub under 7 days: {got['partial_period']} {got['full_periods']}")
+    # a quarterly run to 2027-02-12: the partial January period stands in for January to April (90 days),
+    # not October to January (92)
+    win = at(du, date(2027, 2, 12))
+    win.grid(2000, "quarterly", offset_days=1)
+    if (win.period_days, win.held_days(), win.fraction()) != (90, 41, 0.455556):
+        f.append(f"quarterly to 2027-02-12: period_days {win.period_days}, held {win.held_days()}, "
+                 f"fraction {win.fraction()}; want 90, 41, 0.455556")
+    win = at(du, date(2026, 7, 5))
+    win.grid(2000, "annual", months=[7], offset_days=1)
     # the stub: the last exit is the 2026-07-01 grid date, priced on the next bar (07-03 here), not the grid date
     if win.priced_to(con, "SPY", rows, 1) != "2026-07-03":
         f.append(f"priced_to in the stub case: {win.priced_to(con, 'SPY', rows, 1)}, want the bar 2026-07-03")
@@ -422,6 +453,10 @@ MUTANTS = [
     ("full periods count the partial one", "\"full_periods\": sum(1 for f in fr if f == 1)", "\"full_periods\": len(fr)"),
     ("an unmarked row taken", "if any(\"partial\" not in r for r in rows):", "if False:"),
     ("an unmeasured partial period described", "if any(r[\"partial\"] for r in valid):", "if self.partial_exit is not None:"),
+    ("the LTP context runs past the end date", "            if self.end_date is not None:\n"
+     "                ctx = min(ctx, self.end_date)", "            if False:\n                ctx = min(ctx, self.end_date)"),
+    ("period_days from the period before", "self.period_days = (every[len(dates)] - last).days",
+     "self.period_days = (last - every[len(dates) - 2]).days"),
     ("priced_to the last exit date", "return utc_date(bar[benchmark_symbol][1]).isoformat() if benchmark_symbol in bar else None",
      "return valid[-1][\"exit_date\"]"),
 ]

@@ -42,7 +42,7 @@ When invested, select top 30 by ROE (return on equity) among stocks with positiv
 
 Run from the repository root. `--exit-method` defaults to `ltp` (last-traded-price exits). The listing rules apply automatically on XETRA, SIX and LSE runs; there is no flag for them.
 
-A run goes to the latest close every market in it traded, with the last period partial (METHODOLOGY.md, "Run Window"). The committed files are the published 2001-2025 window, and `--end-year 2025` rebuilds them. A rerun for new figures gives every market one `--end-date` (`scripts/data_end.py` prints the common date), so the comparison file holds one window.
+A run goes to the latest close every market in it traded, with the last period partial (METHODOLOGY.md, "Run Window"). The committed files are the published 2001-2025 window, and `--end-year 2025` rebuilds them. A rerun for new figures gives every market one `--end-date` (`scripts/data_end.py --legs-file scripts/gate_legs/wave1.json --topic cyclical-timing` prints the common date), so the comparison file holds one window: `rebuild_comparison.py` refuses markets that end on different dates.
 
 ```bash
 # All 16 markets: writes returns_<market>.json for each and exchange_comparison.json
