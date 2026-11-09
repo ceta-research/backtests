@@ -187,7 +187,7 @@ def _iso_date(s):
 
 def add_end_date_arg(parser):
     """--end-date latest|YYYY-MM-DD and --end-year YYYY, for topics on the run window
-    (data_utils.RunWindow.from_args, METHODOLOGY.md "Run window")."""
+    (data_utils.RunWindow.from_args, METHODOLOGY.md "Run Window")."""
     g = parser.add_mutually_exclusive_group()
     g.add_argument("--end-date", type=_iso_date, default="latest",
                    help="End the run on this date's close, or on the latest close every leg has (default latest)")

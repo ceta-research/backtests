@@ -12,7 +12,7 @@ Universe: ordinary shares only, and the dividend-yield rule (data_utils universe
         sector map; a vendor yield above 25%, or one computed across two currencies that disagrees
         with the company's own dividends paid, drops the line before the top-30 cut.
 Portfolio: Top 30 by dividend yield (income-ranked), equal weight. Cash if < 10 qualify.
-Rebalancing: Annual (July), from 2000 to the latest close (METHODOLOGY.md, "Run window"); the published
+Rebalancing: Annual (July), from 2000 to the latest close (METHODOLOGY.md, "Run Window"); the published
         window is 2000-2025 (--end-year 2025). Data checks dc-1 in place of a return cap.
 
 Academic reference: Novy-Marx, R. (2013). "The Other Side of Value: The Gross
@@ -728,7 +728,7 @@ def main():
 
         offset_days = 0 if args.no_next_day else 1
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
-        # one end date for every leg: the earliest leg's latest close, or the pin
+        # one end date for every leg: the latest day every leg traded, or the pin
         win = RunWindow.from_args(args, cr, {"_".join(ex): (ex, get_local_benchmark(ex)[0])
                                              for _, ex in presets_to_run})
 

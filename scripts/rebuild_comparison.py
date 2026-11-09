@@ -152,7 +152,7 @@ def main(argv=None):
                  for k in args.only if k not in old]
     blockers += [f"{k}: {files[k]} holds an ERROR entry"
                  for k in (args.only or new) if "error" in per.get(k, {})]
-    # A run-window file (METHODOLOGY.md "Run window") names its end_date: one comparison, one end date.
+    # A run-window file (METHODOLOGY.md "Run Window") names its end_date: one comparison, one end date.
     ends = {k: v.get("end_date") for k, v in new.items() if isinstance(v, dict) and "error" not in v}
     if any(ends.values()) and len(set(ends.values())) > 1:
         blockers.append("the legs end on different dates (" + ", ".join(f"{k} {e or 'a typed end year'}"

@@ -280,7 +280,7 @@ def compute_metrics(period_returns, benchmark_returns, periods_per_year,
             case. See strategy-backtester/lib/equity_curve.py for the type-safe
             variant used in the position-level simulator.
         fractions: optional list[float] - each period's share of a full period, one per return
-            (METHODOLOGY.md, "Run window"). Only the last may be below 1: a run that ends on the
+            (METHODOLOGY.md, "Run Window"). Only the last may be below 1: a run that ends on the
             latest close holds its last rebalance for part of a period. That period counts in total
             return, CAGR (over span_years), drawdown, Calmar and excess CAGR, and every other figure
             uses the full periods only. None, or all 1, gives today's results.

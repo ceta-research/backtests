@@ -12,7 +12,7 @@ Selection: Top 30 by ROE (return on equity) among stocks with positive YoY
            revenue growth. Quality-within-cyclicals approach avoids commodity
            peak-cycle traps that pure revenue-momentum selection creates.
 Rebalancing: Annual (July), from 2001 (2 years data needed for first signal) to the latest close
-             (METHODOLOGY.md, "Run window"); the published window is 2001-2025 (--end-year 2025).
+             (METHODOLOGY.md, "Run Window"); the published window is 2001-2025 (--end-year 2025).
 
 Rationale: Corporate revenue is the most direct measure of economic activity.
 When cyclical sectors' revenues are broadly growing, we're in expansion phase.
@@ -789,7 +789,7 @@ def main():
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
         all_results = {}
-        # one end date for every leg: the earliest leg's latest close, or the pin
+        # one end date for every leg: the latest day every leg traded, or the pin
         win = RunWindow.from_args(args, cr, {"_".join(ex): (ex, get_local_benchmark(ex)[0])
                                              for _, ex in presets_to_run})
 

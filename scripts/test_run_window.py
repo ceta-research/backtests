@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The run window: a run ends on the latest close (data_utils.RunWindow, METHODOLOGY.md "Run window").
+"""The run window: a run ends on the latest close (data_utils.RunWindow, METHODOLOGY.md "Run Window").
 
   1 FINDER   a leg's good day has a benchmark bar, and every exchange of the leg traded (volume > 0)
              at least half its median daily line count over the last 21 days: a half-loaded day, a
@@ -445,9 +445,8 @@ MUTANTS = [
      "offset_days=offset_days)"),
     ("legacy grid moved", "return generate_rebalance_dates(start_year, self.end_year, frequency, months)",
      "return generate_rebalance_dates(start_year, self.end_year + 1, frequency, months)"),
-    ("fraction from the grid date",
-     "held = (self.partial_exit - self.last_rebalance - timedelta(days=self.offset_days)).days",
-     "held = (self.partial_exit - self.last_rebalance).days"),
+    ("days from the grid date", "return (self.partial_exit - self.last_rebalance - timedelta(days=self.offset_days)).days",
+     "return (self.partial_exit - self.last_rebalance).days"),
     ("full periods count the partial one", "\"full_periods\": sum(1 for f in fr if f == 1)", "\"full_periods\": len(fr)"),
     ("an unmarked row taken", "if any(\"partial\" not in r for r in rows):", "if False:"),
     ("an unmeasured partial period described", "if any(r[\"partial\"] for r in valid):", "if self.partial_exit is not None:"),

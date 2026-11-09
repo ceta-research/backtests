@@ -7,7 +7,7 @@ Fetches data via configurable provider, caches in DuckDB, runs locally.
 
 Signal: D/E YoY reduction > 10%, prior D/E > 0.1, current D/E > 0.01, ROE > 8%
 Portfolio: Top 30 by magnitude of deleveraging, equal weight. Cash if < 10 qualify.
-Rebalancing: Quarterly (Jan/Apr/Jul/Oct), from 2000 to the latest close (METHODOLOGY.md, "Run window");
+Rebalancing: Quarterly (Jan/Apr/Jul/Oct), from 2000 to the latest close (METHODOLOGY.md, "Run Window");
              the published window is 2000-2025 (--end-year 2025).
 
 Academic basis: Deleveraging as a contrarian signal for balance sheet improvement.
@@ -653,7 +653,7 @@ def main():
         ]
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
-        # one end date for every leg: the earliest leg's latest close, or the pin
+        # one end date for every leg: the latest day every leg traded, or the pin
         win = RunWindow.from_args(args, cr, {"_".join(ex): (ex, get_local_benchmark(ex)[0])
                                              for _, ex in presets_to_run})
 

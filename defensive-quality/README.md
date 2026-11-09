@@ -194,12 +194,14 @@ What moved by more than 1pp, and the verdict changes:
 
 Run from the repository root. `--exit-method` defaults to `ltp`. The listing rules need no flag: they apply whenever XETRA, SIX or LSE is run as its own market, as in the table below.
 
+A run goes to the latest close every market in it traded, with the last year partial (METHODOLOGY.md, "Run Window"). The committed files are the published July 2000 to July 2025 window, and `--end-year 2025` rebuilds them. A rerun for new figures gives every market one `--end-date` (`scripts/data_end.py --legs-file scripts/gate_legs/wave3.json --topic defensive-quality` prints the common date), so the comparison file holds one window: `rebuild_comparison.py` refuses markets that end on different dates.
+
 The committed files were made one market at a time, each with `--exchange` and an explicit `--output`:
 
 ```bash
 # One market, written to the committed results file
-python3 defensive-quality/backtest.py --exchange LSE --output defensive-quality/results/returns_LSE.json
-python3 defensive-quality/backtest.py --exchange NYSE,NASDAQ,AMEX --output defensive-quality/results/returns_NYSE_NASDAQ_AMEX.json
+python3 defensive-quality/backtest.py --end-year 2025 --exchange LSE --output defensive-quality/results/returns_LSE.json
+python3 defensive-quality/backtest.py --end-year 2025 --exchange NYSE,NASDAQ,AMEX --output defensive-quality/results/returns_NYSE_NASDAQ_AMEX.json
 
 # After all 17: rebuild the comparison file the charts read (16 markets: SHH is left out,
 # the charts' China is SHZ_SHH), then check it against the per-market files
@@ -243,7 +245,7 @@ python3 defensive-quality/screen.py --exchange NYSE,NASDAQ,AMEX
 
 Use `--exchange` as shown. The exchange list sets the universe name written into the file, so a `--preset` run writes a different name (`--preset us` writes US_MAJOR) and `--preset canada` adds TSXV.
 
-`--global` isn't how these files were made. It runs 15 of the 17 markets (not SHH or JNB), writes the per-market files next to whatever path `--output` gives, and writes all 15 into that file, so it needs `--output defensive-quality/results/exchange_comparison.json` and is then followed by the `--keep` rebuild above. A market that fails inside the loop is recorded as an error entry and its old file stays on disk, so run the `--check` afterwards.
+`--global` isn't how these files were made. It runs 15 of the 17 markets (not SHH or JNB) on one end date, writes the per-market files next to whatever path `--output` gives, and writes all 15 into that file, so it needs `--output defensive-quality/results/exchange_comparison.json` (and `--end-year 2025` for the committed window) and is then followed by the `--keep` rebuild above. A market that fails inside the loop is recorded as an error entry and its old file stays on disk, so run the `--check` afterwards.
 
 ## Known limits
 

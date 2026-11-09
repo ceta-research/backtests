@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A run window's end date for a set of legs (data_utils.RunWindow, METHODOLOGY.md "Run window").
+"""A run window's end date for a set of legs (data_utils.RunWindow, METHODOLOGY.md "Run Window").
 
 Prints each leg's latest good day (data_end), the run's end_date (the latest day every leg traded) and, per
 exchange, the lines that traded over the 21-day median for the last 5 dates. Use it to choose a gate's

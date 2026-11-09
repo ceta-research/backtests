@@ -2,7 +2,7 @@
 """The final partial period in metrics.py (runs that end on the latest close).
 
 A run that ends on the latest close holds its last rebalance for part of a period. METHODOLOGY.md,
-"Run window", sets how each figure treats that period:
+"Run Window", sets how each figure treats that period:
 
   1 IDENTITY   with no partial period, compute_metrics, compute_annual_returns and period_accounting
                give the base ref's results to the last bit, on many series and every frequency

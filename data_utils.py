@@ -821,7 +821,7 @@ class LtpExits:
 
     def __init__(self, client, con, local=False, verbose=False, traded_only=False, end_date=None):
         """end_date: the run window's end (RunWindow.end_date). No bar after it is fetched, not even as
-        cleaning context, so a pinned rerun on a later day reads what the first run read. None: no cut."""
+        cleaning context, so no later price reaches a fill. None: no cut."""
         self.client, self.con, self.local, self.verbose = client, con, local, verbose
         self.end_date = end_date
         self.traded_only, self.zero_volume_moved, self._bar_extra = traded_only, 0, {}
@@ -1119,7 +1119,7 @@ def generate_rebalance_dates(start_year, end_year, frequency, months=None):
     return sorted(dates)
 
 
-# The run window (METHODOLOGY.md, "Run window"): a run ends on the latest close every market in it has.
+# The run window (METHODOLOGY.md, "Run Window"): a run ends on the latest close every market in it has.
 END_DATE_MIN_STUB_DAYS = 7    # a shorter final stub isn't held: the last grid date is a full period's exit
 END_DATE_LAG_WARN_DAYS = 5    # a leg whose latest close is further behind the latest leg's warns
 DATA_END_LOOKBACK_DAYS = 21
@@ -1177,7 +1177,7 @@ def traded_ratios(client, legs, until, lookback=DATA_END_LOOKBACK_DAYS):
 
 
 class RunWindow:
-    """A run's end date and the rebalance grid it implies (METHODOLOGY.md, "Run window").
+    """A run's end date and the rebalance grid it implies (METHODOLOGY.md, "Run Window").
 
     latest(): end_date is the latest day every leg traded (good_days). pinned(): a given date that every
     leg traded (--end-date). typed(): a typed end year (--end-year), as before the run window existed:
@@ -1191,6 +1191,7 @@ class RunWindow:
         self.data_end_by_market, self.checked_at, self.data_end = data_end_by_market, checked_at, data_end
         self.partial_exit = self.last_rebalance = None
         self.offset_days = self.period_days = None
+        self._grid_done = False
 
     @classmethod
     def latest(cls, client, legs, today=None, stream=None):
@@ -1287,14 +1288,17 @@ class RunWindow:
         e = d + timedelta(days=days)
         return e if self.end_date is None else min(e, self.end_date)
 
+    def held_days(self):
+        """The partial period's calendar days, from its execution day to end_date."""
+        return (self.partial_exit - self.last_rebalance - timedelta(days=self.offset_days)).days
+
     def fraction(self):
-        """The partial period's share of a full period: its days from execution to end_date over the full
-        period's grid days, 6 dp (the metrics use this rounded value)."""
-        held = (self.partial_exit - self.last_rebalance - timedelta(days=self.offset_days)).days
-        return round(held / self.period_days, 6)
+        """The partial period's share of a full period: held_days over the full period's grid days, 6 dp
+        (the metrics use this rounded value)."""
+        return round(self.held_days() / self.period_days, 6)
 
     def _gridded(self):
-        if not hasattr(self, "_grid_done"):
+        if not self._grid_done:
             raise RuntimeError("RunWindow: call grid() on this leg's window first")
 
     def mark(self, results):
@@ -1344,7 +1348,7 @@ class RunWindow:
         return utc_date(bar[benchmark_symbol][1]).isoformat() if benchmark_symbol in bar else None
 
     def fields(self, valid, periods_per_year, partial_year, priced_to=None):
-        """The run window's results keys for a leg (METHODOLOGY.md, "Run window"); {} on a legacy window.
+        """The run window's results keys for a leg (METHODOLOGY.md, "Run Window"); {} on a legacy window.
         valid: the measured rows; partial_year: annual()'s second value; priced_to: priced_to()'s value."""
         if self.legacy:
             return {}
@@ -1357,8 +1361,7 @@ class RunWindow:
             part = {"rebalance_date": self.last_rebalance.isoformat(),
                     "entry_day": (self.last_rebalance + timedelta(days=self.offset_days)).isoformat(),
                     "exit_date": self.partial_exit.isoformat(),
-                    "days": (self.partial_exit - self.last_rebalance - timedelta(days=self.offset_days)).days,
-                    "period_days": self.period_days, "fraction": self.fraction()}
+                    "days": self.held_days(), "period_days": self.period_days, "fraction": self.fraction()}
         py = None
         if partial_year is not None:
             py = {k: partial_year[k] for k in ("year", "start", "end", "periods", "year_fraction")}
