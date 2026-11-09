@@ -2749,9 +2749,11 @@ def non_ordinary_sql(p="p", profile="profile", known=None, cfg=None):
     if cfg["v2"]:
         us = _sql_list(US_EXCHANGES)
         whens += [
-            f"WHEN {p}.exchange = 'SAO' AND (CASE WHEN NULLIF(TRIM({p}.isin), '') IS NOT NULL"
-            f" THEN SUBSTR(TRIM({p}.isin), 9, 2) <> 'NO'"
-            f" ELSE NOT regexp_full_match({p}.symbol, '[A-Z0-9]{{4}}3[A-Z]?[.]SA') END) THEN 'brazil_class'",
+            f"WHEN {p}.exchange = 'SAO' AND NOT {_sao_ordinary_sql(p)}"
+            f" AND (COALESCE(SUBSTR(NULLIF(UPPER(TRIM({p}.isin)), ''), 9, 2) IN ('R0', 'F0'), FALSE)"
+            f" OR NOT EXISTS (SELECT 1 FROM {profile} _b WHERE _b.exchange = 'SAO'"
+            f" AND {_sao_issuer_sql('_b')} = {_sao_issuer_sql(p)} AND {_sao_ordinary_sql('_b')}))"
+            f" THEN 'brazil_class'",
             f"WHEN {p}.exchange IN ({us}) AND COALESCE({p}.isAdr, FALSE) THEN 'us_adr'",
             f"WHEN {p}.exchange IN ({us}) AND regexp_matches(COALESCE({p}.companyName, ''),"
             f" '{US_TRUST_LP_TERMS}', 'i') THEN 'us_trust_lp'",
@@ -2801,6 +2803,16 @@ class UniverseRules:
     def __init__(self, cfg=None):
         self.cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
         self.lines, self.removed, self.cik, self.drops = 0, [], [], []
+        self.class_keyed, self.class_held = 0, {}
+
+    def record_class_twins(self, n):
+        """mark_class_twins' count of lines keyed to their company's ordinary line."""
+        self.class_keyed = n
+
+    def stand_ins(self, symbols, target_date):
+        """symbols: the class twins one screen picked, each holding its company's slot for the ordinary line."""
+        if symbols:
+            self.class_held[target_date.isoformat()] = sorted(symbols)
 
     def sector_rows(self, rows):
         """rows: the sector query's dicts (symbol, exchange, cik, companyName, non_ordinary). Returns the
@@ -2832,6 +2844,10 @@ class UniverseRules:
         if self.cfg["dividend_yield"]:
             out["dividend_yield"] = {"rules": YIELD_RULES, "dropped": len(drops), "by_reason": count(drops),
                                      "drops": drops}
+        if self.cfg.get("class_twins"):
+            by_period = [{"rebalance_date": d, "symbols": s} for d, s in sorted(self.class_held.items())]
+            out["class_stand_ins"] = {"rule": CLASS_TWIN_RULE, "lines_keyed": self.class_keyed,
+                                      "picked": sum(len(p["symbols"]) for p in by_period), "by_period": by_period}
         return out
 
 
@@ -2920,18 +2936,55 @@ ORDINARY_RULES_V2 = {
     # ur-1's reasons with the longer hand list, then the new ones ahead of name_term
     "order": {**{k: v for k, v in ORDINARY_RULES["order"].items() if k != "name_term"},
               "known": "NON_ORDINARY_KNOWN_V2, the hand list below",
-              "brazil_class": ("SAO line whose ISIN class (characters 9-10) is not NO (preferred, unit, fund or "
-                               "BDR), or, with no ISIN, whose ticker class digit is not 3"),
+              "brazil_class": ("SAO line that isn't the ordinary share (ISIN class, characters 9-10, NO; with "
+                               "no ISIN, ticker class digit 3) and is a BDR (R0) or fund (F0), or a line of a "
+                               "company with no ordinary line (issuer: ISIN characters 3-6, else the ticker's "
+                               "first four)"),
               "us_adr": "NYSE, NASDAQ or AMEX line the profile flags isAdr",
               "us_trust_lp": f"NYSE, NASDAQ or AMEX line whose companyName matches, ignoring case: {US_TRUST_LP_TERMS}",
               "name_term": f"companyName matches, ignoring case: {NAME_TERMS_V2}"},
     "kept": ("Thai NVDRs (check N keys X-R.BK to X.BK), depositary receipts of ordinary shares outside NYSE, "
              "NASDAQ, AMEX and SAO (TDRs, isAdr lines), share classes (BF-B, MKC-V, CENTA, the Swedish ser. B "
-             "lines), REITs and their units, trust units and LPs outside the US, and the `keep` lines below"),
+             "lines), REITs and their units, trust units and LPs outside the US, SAO preferred and unit lines of "
+             "a company with an ordinary line (class twins: one slot, see class_stand_ins), and the `keep` lines "
+             "below"),
     "known": [{"symbol": s, "kind": k, "evidence": e} for s, k, e in NON_ORDINARY_KNOWN_V2],
     "keep": [{"symbol": s, "evidence": e} for s, e in ORDINARY_KNOWN_V2],
 }
 UNIVERSE_RULES_V1 = {"version": "ur-1", "ordinary": ORDINARY_RULES, "known": NON_ORDINARY_KNOWN,
                      "name_terms": NAME_TERMS, "keep": (), "v2": False, "dividend_yield": True}
 UNIVERSE_RULES_V2 = {"version": "ur-2", "ordinary": ORDINARY_RULES_V2, "known": NON_ORDINARY_KNOWN_V2,
-                     "name_terms": NAME_TERMS_V2, "keep": ORDINARY_KNOWN_V2, "v2": True, "dividend_yield": False}
+                     "name_terms": NAME_TERMS_V2, "keep": ORDINARY_KNOWN_V2, "v2": True, "dividend_yield": False,
+                     "class_twins": True}
+CLASS_TWIN_RULE = ("an SAO preferred or unit line of a company with an ordinary line shares that line's security "
+                   "key, so the company holds one slot: the ordinary line when it has an entry price, else the "
+                   "first priced sibling, which stands in; by_period lists the stand-ins each screen picked, as "
+                   "check N's counts do, so a period the cash rule then holds in cash still lists its picks")
+
+
+def _sao_issuer_sql(t):
+    """An SAO line's company: ISIN characters 3-6, else the ticker's first four."""
+    return (f"(CASE WHEN NULLIF(TRIM({t}.isin), '') IS NOT NULL THEN SUBSTR(UPPER(TRIM({t}.isin)), 3, 4)"
+            f" ELSE SUBSTR({t}.symbol, 1, 4) END)")
+
+
+def _sao_ordinary_sql(t):
+    """An SAO line is the ordinary share: ISIN class (characters 9-10) NO, else a ticker class digit 3."""
+    return (f"(CASE WHEN NULLIF(TRIM({t}.isin), '') IS NOT NULL THEN SUBSTR(UPPER(TRIM({t}.isin)), 9, 2) = 'NO'"
+            f" ELSE regexp_full_match({t}.symbol, '[A-Z0-9]{{4}}3[A-Z]?[.]SA') END)")
+
+
+def mark_class_twins(con, table="isin_map"):
+    """ur-2's Brazil stand-in: key each SAO line that isn't its company's ordinary share to the ordinary line's
+    security (sec_key, with the stand-in flag in the nvdr column), as check N keys an NVDR, so
+    isin_dedup_sql(twin_key=True) holds one line per company: the ordinary line when it has an entry price,
+    else the first priced sibling. Lines brazil_class removed never reach the screen. Adds the twin columns
+    when check N hasn't. Returns the number of lines keyed."""
+    con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS sec_key VARCHAR")
+    con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS nvdr BOOLEAN")
+    con.execute(f"""
+        UPDATE {table} AS t SET sec_key = o.key, nvdr = TRUE
+        FROM (SELECT {_sao_issuer_sql('m')} AS issuer, MIN(COALESCE(NULLIF(UPPER(TRIM(m.isin)), ''), m.symbol)) AS key
+              FROM {table} m WHERE m.symbol LIKE '%.SA' AND {_sao_ordinary_sql('m')} GROUP BY 1) o
+        WHERE t.symbol LIKE '%.SA' AND NOT {_sao_ordinary_sql('t')} AND {_sao_issuer_sql('t')} = o.issuer""")
+    return con.execute(f"SELECT COUNT(DISTINCT symbol) FROM {table} WHERE nvdr AND symbol LIKE '%.SA'").fetchone()[0]

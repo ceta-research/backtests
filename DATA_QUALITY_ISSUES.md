@@ -1608,6 +1608,19 @@ Saudi lines with 95xx codes, likely the parallel market: 9512.SR beside 3092.SR 
 pattern reads, CORE-PREF.ST and SDIP-PREF.ST, and they stay as well. Open: a hand-list entry each, or a test for two lines with one name and
 identical closes.
 
+### Brazil's ordinary lines without prices before 2026
+
+**Status:** handled in asset-growth by ur-2's class stand-ins; open as a warehouse gap.
+
+Many SAO ordinary lines (ISIN class NO) have no price bars before 2026, while their company's
+preferred or unit line does ("Price history that starts in April 2026" below names WEGE3, ITSA3 and
+LREN3, and some preferred lines start then too, such as PETR4). In an asset-growth run on ordinary lines only, Brazil's screen listed 12 to 19
+unpriced names a period before 2026 and 4 in July 2026, and the leg sat in cash in 16 of 27
+periods. 130 of those 269 unpriced line-periods belong to a company with a preferred or unit line.
+ur-2 keys that line to the ordinary line's security (`mark_class_twins`), so it stands in when the
+ordinary line has no entry price and the company still holds one slot. Each stand-in is listed in
+the results under `universe_rules.class_stand_ins`.
+
 ### JUP.L's fund flag and SATS's reused ticker
 
 **Status:** JUP.L fixed in asset-growth (ur-2's keep list); SATS's removal accepted.

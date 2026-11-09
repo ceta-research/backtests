@@ -285,7 +285,16 @@ PROFILE_V2 = [
     ("PBR", "NYSE", "Petróleo Brasileiro S.A. - Petrobras", "US71654V4086", "0001119639", F, F, T, "us_adr", None),
     ("BATS.L", "LSE", "British American Tobacco p.l.c.", "GB0002875804", None, F, F, T, None, None),
     ("LIN", "NYSE", "Linde plc", "IE000S9YS762", None, F, F, F, None, None),
-    ("PETR4.SA", "SAO", "Petróleo Brasileiro S.A. - Petrobras", "BRPETRACNPR6", None, F, F, F, "brazil_class", None),
+    ("PETR4.SA", "SAO", "Petróleo Brasileiro S.A. - Petrobras", "BRPETRACNPR6", None, F, F, F, None, None),
+    ("KLBN11.SA", "SAO", "Klabin S.A.", "BRKLBNCDAM18", None, F, F, F, None, None),
+    ("KLBN3.SA", "SAO", "Klabin S.A.", "brklbnacnor1", None, F, F, F, None, None),
+    ("GGBR4.SA", "SAO", "Gerdau S.A.", None, None, F, F, F, None, None),
+    ("GGBR3.SA", "SAO", "Gerdau S.A.", None, None, F, F, F, None, None),
+    ("CMIG4.SA", "SAO", "Companhia Energética de Minas Gerais", "BRCMIGACNPR3", None, F, F, F, None, None),
+    ("CMIG3.SA", "SAO", "Companhia Energética de Minas Gerais", None, None, F, F, F, None, None),
+    ("AXIA6.SA", "SAO", "Centrais Elétricas Brasileiras S.A. - Eletrobras", "BRELETACNPB7", None, F, F, F, None, None),
+    ("ELET3.SA", "SAO", "Centrais Elétricas Brasileiras S.A. - Eletrobras", "BRELETACNOR6", None, F, F, F, None, None),
+    ("ABCD3.SA", "SAO", "Abcd Industria S.A.", " ", None, F, F, F, None, None),
     ("TAEE11.SA", "SAO", "Transmissora Aliança de Energia Elétrica S.A.", "BRTAEECDAM10", None, F, F, F,
      "brazil_class", None),
     ("XPML11.SA", "SAO", "XP Malls Fundo de Investimento Imobiliario", "BRXPMLCTF000", None, F, F, F,
@@ -295,7 +304,7 @@ PROFILE_V2 = [
     ("COCE5.SA", "SAO", "Companhia Energética do Ceará - Coelce", None, None, F, F, F, "brazil_class", None),
     ("X3YZ4.SA", "SAO", "X3YZ Participacoes S.A.", None, None, F, F, F, "brazil_class", None),
     ("AURA33.SA", "SAO", "Aura Minerals Inc.", None, None, F, F, F, "brazil_class", None),
-    ("ABCD4.SA", "SAO", "Abcd Industria S.A.", " ", None, F, F, F, "brazil_class", None),
+    ("ABCD4.SA", "SAO", "Abcd Industria S.A.", " ", None, F, F, F, None, None),
     ("FESA4.SA", "SAO", "Cia de Ferro Ligas da Bahia-Ferbasa Pfd", "BRFESAACNPR5", None, F, F, F, "brazil_class",
      "name_term"),
     ("PETR3.SA", "SAO", "Petróleo Brasileiro S.A. - Petrobras", "BRPETRACNOR9", None, F, F, F, None, None),
@@ -404,11 +413,21 @@ def v2_mutants():
         "keep list off": lambda p="p", profile="profile": du.non_ordinary_sql(
             p, profile, cfg=dict(du.UNIVERSE_RULES_V2, keep=())),
         "hand list empty": lambda p="p", profile="profile": v2_sql(p, profile, known=()),
-        "Brazil class inverted": lambda p="p", profile="profile": v2_sql(p, profile).replace("<> 'NO'", "= 'NO'", 1),
+        "Brazil class inverted": lambda p="p", profile="profile": v2_sql(p, profile).replace(
+            "SUBSTR(UPPER(TRIM(p.isin)), 9, 2) = 'NO'", "SUBSTR(UPPER(TRIM(p.isin)), 9, 2) <> 'NO'", 1),
         "Brazil ticker route off": lambda p="p", profile="profile": v2_sql(p, profile).replace(
             "'[A-Z0-9]{4}3[A-Z]?[.]SA'", "'.*'", 1),
         "Brazil blank ISIN not routed": lambda p="p", profile="profile": v2_sql(p, profile).replace(
-            "NULLIF(TRIM(p.isin), '') IS NOT NULL", "p.isin IS NOT NULL", 1),
+            "NULLIF(TRIM(p.isin), '') IS NOT NULL", "p.isin IS NOT NULL"),
+        "Brazil no-ordinary test off": lambda p="p", profile="profile": v2_sql(p, profile).replace(
+            " OR NOT EXISTS (SELECT 1 FROM profile _b", " OR FALSE AND NOT EXISTS (SELECT 1 FROM profile _b", 1),
+        "Brazil BDRs as stand-ins": lambda p="p", profile="profile": v2_sql(p, profile).replace(
+            "IN ('R0', 'F0')", "IN ('F0')", 1),
+        "Brazil sibling ISIN case-sensitive": lambda p="p", profile="profile": v2_sql(p, profile).replace(
+            "SUBSTR(UPPER(TRIM(_b.isin)), 9, 2) = 'NO'", "SUBSTR(TRIM(_b.isin), 9, 2) = 'NO'", 1),
+        "Brazil issuer by ticker only": lambda p="p", profile="profile": v2_sql(p, profile).replace(
+            "(CASE WHEN NULLIF(TRIM(p.isin), '') IS NOT NULL THEN SUBSTR(UPPER(TRIM(p.isin)), 3, 4)"
+            " ELSE SUBSTR(p.symbol, 1, 4) END)", "SUBSTR(p.symbol, 1, 4)", 1),
         "ADR rule off": lambda p="p", profile="profile": v2_sql(p, profile).replace(
             "COALESCE(p.isAdr, FALSE)", "FALSE", 1),
         "ADR rule on every exchange": lambda p="p", profile="profile": v2_sql(p, profile).replace(
@@ -474,12 +493,15 @@ def v2_shape_failures():
         f.append("NAME_TERMS_V2 is not ur-1's with ser anchored at the end")
     v2 = du.UNIVERSE_RULES_V2
     want = {"version": "ur-2", "ordinary": r, "known": known, "name_terms": du.NAME_TERMS_V2, "keep": keep,
-            "v2": True, "dividend_yield": False}
+            "v2": True, "dividend_yield": False, "class_twins": True}
     if v2 != want or v2["ordinary"] is not r or v2["known"] is not known or v2["keep"] is not keep:
         f.append("UNIVERSE_RULES_V2 is not ur-2's objects")
     b = du.UniverseRules(v2).block()
-    if list(b) != ["version", "ordinary_shares"] or b["version"] != "ur-2" or b["ordinary_shares"]["rules"] is not r:
+    if list(b) != ["version", "ordinary_shares", "class_stand_ins"] or b["version"] != "ur-2" or \
+            b["ordinary_shares"]["rules"] is not r:
         f.append(f"UniverseRules(V2).block() keys {list(b)}, version {b.get('version')}")
+    if re.search(r"#\d", du.CLASS_TWIN_RULE):
+        f.append("the class-twin rule text cites an issue or decision number")
     # each keep line's row is one ur-2 would remove without the keep list
     nokeep = du.non_ordinary_sql("p", cfg=dict(du.UNIVERSE_RULES_V2, keep=()))
     got = dict(profile_v2_con().execute(f"SELECT p.symbol, {nokeep} FROM profile p"
@@ -488,6 +510,53 @@ def v2_shape_failures():
         f.append(f"keep rows ur-2 would remove anyway: {sorted(s for s, w in got.items() if w)}")
     if {r[0] for r in PROFILE_V2 if r[8] == "known" and r[9] is None} != set(NEW_KNOWN):
         f.append("PROFILE_V2 lacks a row for an added hand-list line")
+    return f
+
+
+CLASS_TWIN_MAP = [   # isin_map rows: (symbol, isin), and the (sec_key, flag) mark_class_twins should leave
+    ("PETR3.SA", "BRPETRACNOR9", None), ("PETR4.SA", "BRPETRACNPR6", "BRPETRACNOR9"),
+    ("KLBN3.SA", "brklbnacnor1", None), ("KLBN11.SA", "BRKLBNCDAM18", "BRKLBNACNOR1"),
+    ("GGBR3.SA", None, None), ("GGBR4.SA", "", "GGBR3.SA"),
+    ("CMIG3.SA", None, None), ("CMIG4.SA", "BRCMIGACNPR3", "CMIG3.SA"),
+    ("ELET3.SA", "BRELETACNOR6", None), ("AXIA6.SA", "BRELETACNPB7", "BRELETACNOR6"),
+    ("FESA4.SA", "BRFESAACNPR5", None),
+    ("PTT.BK", "TH0646010007", None), ("PTT-R.BK", "TH0646010R18", None), ("MSFT", "US5949181045", None),
+]
+
+
+def class_twin_failures():
+    """mark_class_twins keys each SAO non-ordinary line to its company's ordinary line (ISIN, else symbol) and
+    flags it, leaves ordinary lines, companies with no ordinary line and other markets alone, after check N too;
+    ur-2's block records the stand-ins by date, ur-1's has no such key."""
+    f = []
+    con = duckdb.connect()
+    con.execute("CREATE TABLE isin_map(symbol VARCHAR, isin VARCHAR, isActivelyTrading BOOLEAN, home_ccy BOOLEAN)")
+    con.executemany("INSERT INTO isin_map VALUES (?, ?, TRUE, TRUE)", [(s, i) for s, i, _ in CLASS_TWIN_MAP])
+    nvdr = du.mark_nvdr_twins(con)
+    n = du.mark_class_twins(con)
+    got = {s: (k, fl) for s, k, fl in con.execute("SELECT symbol, sec_key, nvdr FROM isin_map").fetchall()}
+    for s, _, key in CLASS_TWIN_MAP:
+        want = (key, True if key else None)
+        if s == "PTT-R.BK":
+            want = ("TH0646010007", True)   # check N's own key, untouched
+        if got[s] != want:
+            f.append(f"{s}: {got[s]}, want {want}")
+    keyed = sum(1 for _, _, k in CLASS_TWIN_MAP if k)
+    if (nvdr, n) != (1, keyed):
+        f.append(f"counts: check N {nvdr}, class twins {n}, want 1 and {keyed}")
+    ur = du.UniverseRules(du.UNIVERSE_RULES_V2)
+    ur.record_class_twins(n)
+    ur.stand_ins(["PETR4.SA"], date(2021, 7, 1))
+    ur.stand_ins([], date(2022, 7, 1))
+    ur.stand_ins(["KLBN11.SA", "CMIG4.SA"], date(2020, 7, 1))
+    b = ur.block().get("class_stand_ins")
+    want = {"rule": du.CLASS_TWIN_RULE, "lines_keyed": keyed, "picked": 3,
+            "by_period": [{"rebalance_date": "2020-07-01", "symbols": ["CMIG4.SA", "KLBN11.SA"]},
+                          {"rebalance_date": "2021-07-01", "symbols": ["PETR4.SA"]}]}
+    if b != want:
+        f.append(f"ur-2 class_stand_ins {b}")
+    if "class_stand_ins" in du.UniverseRules().block():
+        f.append("ur-1's block carries class_stand_ins")
     return f
 
 
@@ -528,6 +597,7 @@ def main():
     expect("ur-2 on the ur-1 cases, pasted as a filter too", ordinary_failures(v2_sql))
     expect("each CASE emits its rules' reasons in order; ur-2's keep list first", reason_failures())
     expect("ur-2 hand list, keep list, rules text and config", v2_shape_failures())
+    expect("ur-2 class twins: keyed to the ordinary line, the rest untouched, stand-ins by date", class_twin_failures())
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_universe_rules: PASS ({len(ran)} checks)")
 

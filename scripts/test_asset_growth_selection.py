@@ -27,7 +27,8 @@ PATH = os.path.join(ROOT, "asset-growth", "backtest.py")
 with open(PATH) as fh:
     SRC = fh.read()
 sys.path.insert(0, ROOT)
-from data_utils import DataChecks, empty_cap_check, mark_nvdr_twins   # noqa: E402
+from data_utils import (DataChecks, UniverseRules, UNIVERSE_RULES_V2, empty_cap_check,   # noqa: E402
+                        mark_class_twins, mark_nvdr_twins)
 
 D = date(2020, 7, 1)
 D2 = date(2019, 7, 1)                   # a second screen, for the record's order
@@ -167,6 +168,16 @@ CROWD = {f"F{i:02d}": year(FY19, curr=900.0 + 5 * i) for i in range(31)}
 CROWD["SWITCH"] = year(FY19, curr=850.0, ccys={FY18: "AUD"})
 CROWD_EXPECT = ranked(CROWD, {"SWITCH"})
 
+# ur-2's Brazil class twins: one slot per company, the ordinary line when priced, else a priced sibling.
+BRAZIL = {
+    "BRAA3.SA": year(FY19, isin="BRBRAAACNOR1"), "BRAA4.SA": year(FY19, isin="BRBRAAACNPR2"),  # ordinary priced
+    "BRBB3.SA": year(FY19, px=None), "BRBB4.SA": year(FY19),                                    # a stand-in
+    "BRCC3.SA": year(FY19, px=None), "BRCC4.SA": year(FY19), "BRCC11.SA": year(FY19),          # two siblings
+    "BREE3.SA": year(FY19, px=None), "BREE4.SA": year(FY19, px=None),                           # neither priced
+}
+BRAZIL_BOOK = {"BRAA3.SA", "BRBB4.SA", "BRCC11.SA", "BREE3.SA"}
+BRAZIL_STAND_INS = [{"rebalance_date": D.isoformat(), "symbols": ["BRBB4.SA", "BRCC11.SA"]}]
+
 
 def db(companies, epoch_type="UINTEGER"):
     """The caches screen_stocks reads. The warehouse's dateEpoch is unsigned 32-bit."""
@@ -245,6 +256,23 @@ def checked_failures(mod):
     return out
 
 
+def brazil_failures(mod):
+    """Each SAO company holds one line, with data checks on and off: the ordinary line when it has an entry
+    price; else its first priced sibling, which the leg's UniverseRules records as a stand-in; the ordinary
+    line again when no line is priced."""
+    out = []
+    for label, dc in (("data checks off", None), ("data checks on", DataChecks("on"))):
+        con, ur = db(BRAZIL), UniverseRules(UNIVERSE_RULES_V2)
+        mark_class_twins(con)
+        got = {s for s, _ in screen(mod, con, D, dc=dc, ur=ur)}
+        if got != BRAZIL_BOOK:
+            out.append(f"Brazil book ({label}): {sorted(got)}, want {sorted(BRAZIL_BOOK)}")
+        stand = ur.block()["class_stand_ins"]["by_period"]
+        if stand != BRAZIL_STAND_INS:
+            out.append(f"Brazil stand-ins ({label}): {stand}, want {BRAZIL_STAND_INS}")
+    return out
+
+
 # Sweep: one company per month-end fiscal calendar, FY2009-FY2021 rows growing 5% a year, screened at every
 # July rebalance 2012-2021. GAPPY_* never have two consecutive years; SWITCH15 reports in AUD to FY2014 and
 # in USD from FY2015, so only the 2016 screen leaves it unranked.
@@ -285,7 +313,7 @@ def failures(src, epoch_types=("UINTEGER",)):
         mod = load(src)
         for t in epoch_types:   # the book first: it reads only what any version of the screen takes
             out += diff(f"book ({t})", screen(mod, db(COMPANIES, t), D), EXPECT)
-        return out + checked_failures(mod) + sweep(mod)
+        return out + checked_failures(mod) + brazil_failures(mod) + sweep(mod)
     except Exception as e:  # reported as an error: main() does not count it as a caught mutant
         return out + [f"error: {type(e).__name__}: {e}"]
 
@@ -303,9 +331,13 @@ SEMI = "          AND bc.symbol IN (SELECT symbol FROM universe)\n"
 BAND = "{growth} < ? AND {growth} > ?)"
 LAG = "cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))"
 DEDUP = ("FROM ({isin_dedup_sql(paired, target_date, offset_days, MIN_ENTRY_PRICE,\n"
-         "                              twin_key=dc is not None and dc.on)})")
+         "                              twin_key=(dc is not None and dc.on) or CLASS_TWINS)})")
 # name: [(old, new), ...]; every `old` must occur exactly once in the source
 MUTANTS = {
+    # Brazil's class twins
+    "class twins not keyed in the screen": [("twin_key=(dc is not None and dc.on) or CLASS_TWINS)",
+                                            "twin_key=dc is not None and dc.on)")],
+    "stand-ins not recorded": [("ur.stand_ins([s for s, _ in picked if s in twins], target_date)", "pass")],
     # the prior row
     "any earlier row (the old screen)": [(GAP_WHERE, "WHERE b.filing_epoch < c.curr_epoch AND ? IS NOT NULL"
                                                      " AND ? IS NOT NULL\n")],

@@ -2318,6 +2318,9 @@ def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
         f.append("universe_rules differs across exit methods or in the uncapped arm")
     if (ub["version"], ub["ordinary_shares"]["rules"]) != ("ur-2", du.ORDINARY_RULES_V2) or "dividend_yield" in ub:
         f.append(f"universe_rules header {ub['version']} {list(ub)}")
+    cs = ub.get("class_stand_ins") or {}
+    if (cs.get("rule"), cs.get("lines_keyed"), cs.get("picked"), cs.get("by_period")) != (du.CLASS_TWIN_RULE, 0, 0, []):
+        f.append(f"class_stand_ins on a leg with no SAO lines: {cs}")
     rem = [(r["symbol"], r["reason"], r["name"]) for r in ub["ordinary_shares"]["removed"]]
     if rem != [("GUD.AX", "known", AG_RULES["GUD.AX"][0])] or ub["ordinary_shares"]["by_reason"] != {"known": 1}:
         f.append(f"removed {rem}")

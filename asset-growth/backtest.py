@@ -50,7 +50,7 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
                         load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
-                        UniverseRules, non_ordinary_sql, UNIVERSE_RULES_V2)
+                        UniverseRules, non_ordinary_sql, mark_class_twins, UNIVERSE_RULES_V2)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -77,6 +77,7 @@ PRIOR_FY_MAX_DAYS = 430       # (52/53-week years and a moved year-end fit; a sk
 # inputs, and every kept move over +100% or under -50% is listed in the results.
 DATA_CHECKS = DATA_CHECKS_V1
 UNIVERSE_RULES = UNIVERSE_RULES_V2
+CLASS_TWINS = bool(UNIVERSE_RULES.get("class_twins"))   # SAO preferred and unit lines key to the ordinary line
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap_min=None, dc=None, ur=None,
@@ -141,6 +142,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
     if checks:   # check N: SET NVDR lines share their ordinary line's security key
         dc.record_twins_linked(mark_nvdr_twins(con))
+    if CLASS_TWINS:   # ur-2: an SAO preferred or unit line stands in for an unpriced ordinary line
+        ur.record_class_twins(mark_class_twins(con))
 
     # 2. Balance sheet (two FY rows in one currency for YoY growth), key metrics, ratios
     queries = [
@@ -330,8 +333,9 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
     Returns list of (symbol, market_cap) tuples sorted by asset growth ASC, top MAX_STOCKS after the
     prior-year guard and the security dedup.
     dc (data_utils.DataChecks): when on, NVDR twins share a security (check N); it also records the
-    screen's twin and market-cap events. ur: the leg's data_utils.UniverseRules (its rules act at the
-    fetch; ur-2 has no screen-time rule). guard (PriorYearGuard) records the unranked candidates.
+    screen's twin and market-cap events. ur-2's class twins share a security in every mode, so an SAO
+    company holds one line. ur: the leg's data_utils.UniverseRules (its removals act at the fetch; it
+    records the class twins each screen picks). guard (PriorYearGuard) records the unranked candidates.
     """
     # 45-day lag for point-in-time (July rebalance = filings through ~May 17)
     cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
@@ -351,12 +355,15 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
     rows = con.execute(f"""
         SELECT symbol, marketCap, asset_growth
         FROM ({isin_dedup_sql(paired, target_date, offset_days, MIN_ENTRY_PRICE,
-                              twin_key=dc is not None and dc.on)})
+                              twin_key=(dc is not None and dc.on) or CLASS_TWINS)})
         ORDER BY asset_growth ASC, symbol
         LIMIT ?
     """, params + [MAX_STOCKS]).fetchall()
 
     picked = [(r[0], r[1]) for r in rows]
+    if ur is not None and CLASS_TWINS:
+        twins = {r[0] for r in con.execute("SELECT symbol FROM isin_map WHERE nvdr AND symbol LIKE '%.SA'").fetchall()}
+        ur.stand_ins([s for s, _ in picked if s in twins], target_date)
     if guard is not None:
         guard.record(con.execute(f"SELECT DISTINCT symbol, prior_guard FROM ({_paired(candidates, 'IS NOT NULL')})",
                                  params).fetchall(), target_date)
