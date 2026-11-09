@@ -304,6 +304,8 @@ def cash_failures(topic, mod_of, src, tmp, tag=""):
         if (last.get("partial"), last.get("fraction"), last["stocks_held"], c["full_periods"]) != \
                 (True, PARTIAL[FREQ.get(topic, "annual")]["fraction"], 0, c["n_periods"] - 1):
             f.append(f"{topic} {name}: partial row {last.get('partial')} {last.get('fraction')} {last['stocks_held']}")
+        if name == "cash.buyable" and (last.get("exits_lost") or 0) < 1:
+            f.append(f"{topic} {name}: exits_lost {last.get('exits_lost')}: T's end-date window not read")
     return f
 
 
