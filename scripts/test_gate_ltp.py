@@ -268,9 +268,27 @@ def _test_report():
         check(bad == 1 and "det: drop run != its repeat" in out.getvalue(), "report catches a det failure")
 
 
+def test_run_window_legs():
+    """A topic on the run window (its script takes --end-date) gates pinned runs: every one of its legs in a
+    legs file carries --end-date or --end-year, before the exchange args (the leg's name is its last arg)."""
+    d = os.path.join(gate.REPO, "scripts", "gate_legs")
+    moved = set()
+    for name in sorted(os.listdir(d)):
+        for g in gate.load_legs(os.path.join(d, name)):
+            src = open(os.path.join(gate.REPO, g["topic"], "backtest.py")).read()
+            if "add_end_date_arg(parser)" not in src:
+                continue
+            moved.add(g["topic"])
+            a = g["leg_args"]
+            pin = [i for i, x in enumerate(a) if x in ("--end-date", "--end-year")]
+            check(pin and pin[0] + 2 < len(a), f"{name} {g['topic']} {g['leg']}: no --end-date/--end-year "
+                                               f"before the exchange args: {a}")
+    check(moved == {"cyclical-timing", "deleveraging", "defensive-quality"}, f"run-window topics in the legs: {moved}")
+
+
 if __name__ == "__main__":
     for t in (test_stage_a, test_stage_a_adapters, test_det, test_flip, test_runs_and_commands, test_load_legs,
-              test_report):
+              test_report, test_run_window_legs):
         t()
         print(f"ok {t.__name__}")
     print("all gate_ltp checks passed")

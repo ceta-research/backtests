@@ -177,6 +177,26 @@ def add_common_args(parser):
                         help="Use same-day close for entry (legacy biased behavior)")
 
 
+def _iso_date(s):
+    """'latest', or the date a YYYY-MM-DD string names."""
+    import datetime
+    try:
+        return s if s == "latest" else datetime.date.fromisoformat(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{s!r} is not latest or a YYYY-MM-DD date")
+
+
+def add_end_date_arg(parser):
+    """--end-date latest|YYYY-MM-DD and --end-year YYYY, for topics on the run window
+    (data_utils.RunWindow.from_args, METHODOLOGY.md "Run Window")."""
+    g = parser.add_mutually_exclusive_group()
+    g.add_argument("--end-date", type=_iso_date, default="latest",
+                   help="End the run on this date's close, or on the latest close every leg has (default latest)")
+    g.add_argument("--end-year", type=int, default=None,
+                   help="End the grid in this year with no partial period, as before the run window "
+                        "(reproduces a published window, such as 2025)")
+
+
 def resolve_exchanges(args, default_exchanges=None, default_name="US_MAJOR"):
     """Parse exchange arguments and return (exchange_list, universe_name).
 

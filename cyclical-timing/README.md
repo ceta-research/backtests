@@ -42,15 +42,17 @@ When invested, select top 30 by ROE (return on equity) among stocks with positiv
 
 Run from the repository root. `--exit-method` defaults to `ltp` (last-traded-price exits). The listing rules apply automatically on XETRA, SIX and LSE runs; there is no flag for them.
 
+A run goes to the latest close every market in it traded, with the last period partial (METHODOLOGY.md, "Run Window"). The committed files are the published 2001-2025 window, and `--end-year 2025` rebuilds them. A rerun for new figures gives every market one `--end-date` (`scripts/data_end.py --legs-file scripts/gate_legs/wave1.json --topic cyclical-timing` prints the common date), so the comparison file holds one window: `rebuild_comparison.py` refuses markets that end on different dates.
+
 ```bash
 # All 16 markets: writes returns_<market>.json for each and exchange_comparison.json
-python3 cyclical-timing/backtest.py --global --output cyclical-timing/results/exchange_comparison.json
+python3 cyclical-timing/backtest.py --global --end-year 2025 --output cyclical-timing/results/exchange_comparison.json
 
 # One market: rewrites only that market's returns file
-python3 cyclical-timing/backtest.py --exchange NYSE,NASDAQ,AMEX --output cyclical-timing/results/returns_NYSE_NASDAQ_AMEX.json
-python3 cyclical-timing/backtest.py --exchange XETRA --output cyclical-timing/results/returns_XETRA.json   # Germany-domiciled only
-python3 cyclical-timing/backtest.py --exchange SIX   --output cyclical-timing/results/returns_SIX.json     # Switzerland-domiciled only
-python3 cyclical-timing/backtest.py --exchange LSE   --output cyclical-timing/results/returns_LSE.json     # pence (GBp) lines only
+python3 cyclical-timing/backtest.py --end-year 2025 --exchange NYSE,NASDAQ,AMEX --output cyclical-timing/results/returns_NYSE_NASDAQ_AMEX.json
+python3 cyclical-timing/backtest.py --end-year 2025 --exchange XETRA --output cyclical-timing/results/returns_XETRA.json   # Germany-domiciled only
+python3 cyclical-timing/backtest.py --end-year 2025 --exchange SIX   --output cyclical-timing/results/returns_SIX.json     # Switzerland-domiciled only
+python3 cyclical-timing/backtest.py --end-year 2025 --exchange LSE   --output cyclical-timing/results/returns_LSE.json     # pence (GBp) lines only
 
 # Old exit rule (drops holdings with no exit price), or drop results with LTP beside them.
 # drop doesn't reproduce the pre-rerun numbers: the listing rules and dedup changed selection too.
@@ -67,7 +69,7 @@ python3 cyclical-timing/screen.py --preset us
 python3 cyclical-timing/generate_charts.py
 ```
 
-The other markets use the same pattern with `--exchange NSE`, `TSX`, `SHZ,SHH`, `HKSE`, `JPX`, `KSC`, `ASX`, `TAI,TWO`, `STO`, `SAO`, `JNB` or `SAU`. Use `--exchange` rather than `--preset` to match the committed files. Five presets write a different universe name from the committed one (`us` writes US_MAJOR, `canada` Canada, `china` China, `taiwan` Taiwan and `southafrica` JSE), and `--preset canada` also adds TSXV.
+The other markets use the same pattern (with `--end-year 2025` for the committed window) with `--exchange NSE`, `TSX`, `SHZ,SHH`, `HKSE`, `JPX`, `KSC`, `ASX`, `TAI,TWO`, `STO`, `SAO`, `JNB` or `SAU`. Use `--exchange`, not `--preset`, to match the committed files. Five presets write a different universe name from the committed one (`us` writes US_MAJOR, `canada` Canada, `china` China, `taiwan` Taiwan and `southafrica` JSE), and `--preset canada` also adds TSXV.
 
 `screen.py` doesn't apply the listing rules or the same-ISIN dedup, so on XETRA, SIX and LSE it can list lines the backtest excludes.
 

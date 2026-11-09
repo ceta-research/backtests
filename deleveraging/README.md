@@ -118,12 +118,14 @@ On the 13 ranked markets, 10 had a positive excess in June and 8 have one now, T
 
 Run from the repository root. `--exit-method` defaults to `ltp`. The listing rules need no flag: they apply whenever XETRA, SIX or LSE is run as its own market.
 
+A run goes to the latest close every market in it traded, with the last quarter partial (METHODOLOGY.md, "Run Window"). The committed files are the published January 2000 to October 2025 window, and `--end-year 2025` rebuilds them. A rerun for new figures gives every market one `--end-date` (`scripts/data_end.py --legs-file scripts/gate_legs/wave2.json --topic deleveraging` prints the common date), so the comparison file holds one window: `rebuild_comparison.py` refuses markets that end on different dates.
+
 ```bash
-# US (default universe: NYSE + NASDAQ + AMEX)
+# US (default universe: NYSE + NASDAQ + AMEX), to the latest close
 python3 deleveraging/backtest.py --verbose
 
 # One market, written to the committed results file
-python3 deleveraging/backtest.py --preset germany --output deleveraging/results/returns_XETRA.json
+python3 deleveraging/backtest.py --end-year 2025 --preset germany --output deleveraging/results/returns_XETRA.json
 
 # After any market is rerun, rebuild the combined file the charts read, then check it
 python3 scripts/rebuild_comparison.py deleveraging
@@ -139,7 +141,7 @@ python3 deleveraging/backtest.py --preset uk --exit-method drop
 python3 deleveraging/backtest.py --preset thailand --data-checks uncapped
 ```
 
-The committed files were made one market at a time, each with `--preset <name> --output deleveraging/results/<file>`:
+The committed files were made one market at a time, each with `--preset <name> --output deleveraging/results/<file>` (now with `--end-year 2025`):
 
 | Market | `--preset` | Exchanges | Output file | Listing rule |
 |--------|------------|-----------|-------------|--------------|

@@ -24,7 +24,8 @@ per-exchange files are not named returns_<KEY>.json.
 
 A per-exchange file that does not parse stops the run (exit 1, nothing written), and so
 does one whose key differs only by case from a key of the combined file: returns_nse.json
-for the NSE node, a case-only rename that did not take on a case-insensitive disk.
+for the NSE node, a case-only rename that did not take on a case-insensitive disk. So do
+legs that end on different dates (a run-window file's end_date, or a typed end year).
 
 --check exits non-zero if the combined file disagrees with the per-exchange files,
 which makes it usable as a pre-publish gate. It takes the same --drop, --keep or --only
@@ -151,6 +152,11 @@ def main(argv=None):
                  for k in args.only if k not in old]
     blockers += [f"{k}: {files[k]} holds an ERROR entry"
                  for k in (args.only or new) if "error" in per.get(k, {})]
+    # A run-window file (METHODOLOGY.md "Run Window") names its end_date: one comparison, one end date.
+    ends = {k: v.get("end_date") for k, v in new.items() if isinstance(v, dict) and "error" not in v}
+    if any(ends.values()) and len(set(ends.values())) > 1:
+        blockers.append("the legs end on different dates (" + ", ".join(f"{k} {e or 'a typed end year'}"
+                        for k, e in ends.items()) + "): rerun every market with one --end-date")
 
     problems = []
     for key, prev in old.items():

@@ -1,25 +1,25 @@
 {
  "_note": "Stage B wave 1: every market leg each topic publishes, mirroring what its --global loop (or run_all_exchanges.py) runs: same exchange lists (exceptions in each _source), same --exchange/--preset form, so a leg's JSON is the per-market file the global run writes. Leg names are the topic's own labels. pairs = the stage A gate pairs (published CAGR path, LTP block path). See scripts/LTP_GATE.md.",
  "cyclical-timing": {
-  "_source": "backtest.py --global presets_to_run (saudi added for stage B)",
+  "_source": "backtest.py --global presets_to_run (saudi added for stage B). --end-year 2025: the published window, since the topic moved to the run window",
   "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
   "legs": {
-   "us": ["--exchange", "NYSE,NASDAQ,AMEX"],
-   "india": ["--exchange", "NSE"],
-   "germany": ["--exchange", "XETRA"],
-   "uk": ["--exchange", "LSE"],
-   "canada": ["--exchange", "TSX"],
-   "china": ["--exchange", "SHZ,SHH"],
-   "hongkong": ["--exchange", "HKSE"],
-   "japan": ["--exchange", "JPX"],
-   "korea": ["--exchange", "KSC"],
-   "australia": ["--exchange", "ASX"],
-   "taiwan": ["--exchange", "TAI,TWO"],
-   "sweden": ["--exchange", "STO"],
-   "switzerland": ["--exchange", "SIX"],
-   "brazil": ["--exchange", "SAO"],
-   "southafrica": ["--exchange", "JNB"],
-   "saudi": ["--exchange", "SAU"]
+   "us": ["--end-year", "2025", "--exchange", "NYSE,NASDAQ,AMEX"],
+   "india": ["--end-year", "2025", "--exchange", "NSE"],
+   "germany": ["--end-year", "2025", "--exchange", "XETRA"],
+   "uk": ["--end-year", "2025", "--exchange", "LSE"],
+   "canada": ["--end-year", "2025", "--exchange", "TSX"],
+   "china": ["--end-year", "2025", "--exchange", "SHZ,SHH"],
+   "hongkong": ["--end-year", "2025", "--exchange", "HKSE"],
+   "japan": ["--end-year", "2025", "--exchange", "JPX"],
+   "korea": ["--end-year", "2025", "--exchange", "KSC"],
+   "australia": ["--end-year", "2025", "--exchange", "ASX"],
+   "taiwan": ["--end-year", "2025", "--exchange", "TAI,TWO"],
+   "sweden": ["--end-year", "2025", "--exchange", "STO"],
+   "switzerland": ["--end-year", "2025", "--exchange", "SIX"],
+   "brazil": ["--end-year", "2025", "--exchange", "SAO"],
+   "southafrica": ["--end-year", "2025", "--exchange", "JNB"],
+   "saudi": ["--end-year", "2025", "--exchange", "SAU"]
   }
  },
  "asset-growth": {

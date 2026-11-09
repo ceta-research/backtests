@@ -93,6 +93,16 @@ are notes. The stage A flat list `[{topic, leg_args, pairs, leg?}]` also loads (
 the last leg arg). `pairs` lists each published book as `{published_cagr_path, ltp_block_path}`,
 dotted paths into the results JSON.
 
+A topic on the run window (METHODOLOGY.md, "Run Window": cyclical-timing, deleveraging and
+defensive-quality so far) runs to the latest close unless told otherwise, and an unpinned run writes
+the time of its check, so its gate runs are pinned. Every one of its legs carries `--end-date <date>` or
+`--end-year <year>`, before the exchange args. `scripts/test_gate_ltp.py` checks that. In the wave files
+those three topics' legs carry `--end-year 2025`, which reproduces their committed results. A rerun for new
+figures uses its own legs file with `--end-date <date>`: `scripts/data_end.py --legs-file <file> --topic
+<topic>` prints the date every leg traded. Save its output in the gate's out-dir, since a pinned file's
+`data_end` keys are null. Stage-a, det and flip all compare pinned runs, and they're made the same day:
+a pin fixes the prices, not the vendor's later restatements.
+
 wave1 holds every market leg of cyclical-timing (16), asset-growth (16), fcf-conversion (16),
 cash-conversion (15) and graham-net-net (8), 71 legs. Each mirrors what the topic's own multi-market
 runner does, so a leg's JSON is the per-market file the global run writes:
