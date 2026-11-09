@@ -14,7 +14,7 @@ Ceta Research's reproducible quantitative strategy backtests (MIT). Each topic f
 - `scripts/`: offline tests, the LTP gate, results scanners, one-off fixers. See `scripts/CLAUDE.md`.
 - `nse_arena/`: the intraday NSE strategy package. See `nse_arena/CLAUDE.md`.
 - `examples/`: `code_execution_example.py` and `projects_example.py`.
-- `METHODOLOGY.md` (127 KB, the canonical methodology) and `DATA_QUALITY_ISSUES.md` (165 KB): grep for the heading and read that section only.
+- `METHODOLOGY.md` (127 KB, the canonical methodology) and `DATA_QUALITY_ISSUES.md` (169 KB): grep for the heading and read that section only.
 - `RESULTS_PROVENANCE.md` in beat-streaks, stock-split and upgrade-cluster: read it before quoting a number from that topic's `results/`.
 
 Topic `backtest.py` and `screen.py` add the repo root to `sys.path` themselves. Run them from the root:
