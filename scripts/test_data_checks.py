@@ -2262,15 +2262,20 @@ def holdings_full_failures(topic, src, tmp):
 
 
 AG_SWITCH, AG_GAPPY, AG_SER = "A10.BK", "A11.BK", "A12.BK"   # USD from FY2010; odd FYs missing; a 'Ser' name
-# asset growth's universe-rule lines: name, isFund. GUD.AX is on ur-2's hand list only, JUP.L on its keep list.
-AG_RULES = {"GUD.AX": ("GUD Holdings Ltd", False), "JUP.L": ("Jupiter Fund Management Plc", True)}
+# asset growth's universe-rule lines: name, isFund, ISIN. GUD.AX is on ur-2's hand list only, JUP.L on its keep
+# list. AG_BR_ORD and AG_BR_PREF are one SAO company; the ordinary line has no bars, so the preferred stands in.
+AG_BR_ORD, AG_BR_PREF = "AGBR3.SA", "AGBR4.SA"
+AG_RULES = {"GUD.AX": ("GUD Holdings Ltd", False, "TH5000000000"),
+            "JUP.L": ("Jupiter Fund Management Plc", True, "TH5001000000"),
+            AG_BR_ORD: ("AG Brasil SA", False, "BRAGBRACNOR0"), AG_BR_PREF: ("AG Brasil SA", False, "BRAGBRACNPR7")}
 
 
 def asset_growth_source():
     """synthetic_source() as an asset-growth leg: OPM 20% and FY balance sheets in THB growing 5% a year, except
     AG_SWITCH (in USD from FY2010: a currency switch at 2011-07-01), AG_GAPPY (odd FYs missing: never paired) and
     AG_RULES' lines (0% growth, so each would rank first). Under ur-2 GUD.AX must leave every book while JUP.L
-    (fund-flagged) and AG_SER ('Ser Capital PCL', which ur-1's name terms remove) stay."""
+    (fund-flagged) and AG_SER ('Ser Capital PCL', which ur-1's name terms remove) stay, and AG_BR_PREF holds
+    its company's slot as a class twin."""
     src = synthetic_source()
     rule_columns(src)
     src.execute("ALTER TABLE profile ADD COLUMN isAdr BOOLEAN")
@@ -2279,16 +2284,17 @@ def asset_growth_source():
     src.execute("UPDATE financial_ratios SET operatingProfitMargin = 0.2")
     src.execute("CREATE TABLE balance_sheet(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch BIGINT,"
                 " totalAssets DOUBLE, reportedCurrency VARCHAR)")
-    for i, (s, (name, fund)) in enumerate(AG_RULES.items()):
+    for i, (s, (name, fund, isin)) in enumerate(AG_RULES.items()):
         src.execute("INSERT INTO profile (symbol, exchange, country, isin, sector, marketCap, isActivelyTrading,"
                     " currency, companyName, isFund, isEtf) VALUES (?, 'SET', 'TH', ?, 'Industrials', 6e10, TRUE,"
-                    " 'THB', ?, ?, FALSE)", [s, f"TH5{i:03d}000000", name, fund])
+                    " 'THB', ?, ?, FALSE)", [s, isin, name, fund])
         for y in range(1998, 2025):
             fy = date(y, 12, 31)
             src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, ?, 1.0, 0.2)", [s, fy.isoformat(), ep(fy)])
             src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, ?)",
                         [s, fy.isoformat(), ep(fy), 6e10 + 1e7 * i])
-        window_bars(src, s)
+        if s != AG_BR_ORD:
+            window_bars(src, s)
     for (s,) in src.execute("SELECT DISTINCT symbol FROM profile ORDER BY 1").fetchall():
         for y in range(1998, 2025):
             if s == AG_GAPPY and y % 2:
@@ -2303,7 +2309,8 @@ def asset_growth_source():
 def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
     """asset-growth's universe rules ur-2 and prior-year guard end to end on asset_growth_source(): both blocks
     follow data_checks in order, equal across exit methods (universe_rules in the uncapped arm too); the sent
-    profile query carries ur-2's CASE, not ur-1's; GUD.AX leaves every book while JUP.L and AG_SER stay; the guard
+    profile query carries ur-2's CASE, not ur-1's; GUD.AX leaves every book while JUP.L and AG_SER stay; AG_BR_PREF
+    stands in for AG_BR_ORD in every invested book and class_stand_ins lists it at each; the guard
     counts AG_SWITCH at 2011-07-01 and AG_GAPPY at every odd-year rebalance, neither held then; each priced period
     lists its unpriced names. mod: the topic module to run (a mutant), tag names its files apart."""
     f = []
@@ -2318,9 +2325,6 @@ def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
         f.append("universe_rules differs across exit methods or in the uncapped arm")
     if (ub["version"], ub["ordinary_shares"]["rules"]) != ("ur-2", du.ORDINARY_RULES_V2) or "dividend_yield" in ub:
         f.append(f"universe_rules header {ub['version']} {list(ub)}")
-    cs = ub.get("class_stand_ins") or {}
-    if (cs.get("rule"), cs.get("lines_keyed"), cs.get("picked"), cs.get("by_period")) != (du.CLASS_TWIN_RULE, 0, 0, []):
-        f.append(f"class_stand_ins on a leg with no SAO lines: {cs}")
     rem = [(r["symbol"], r["reason"], r["name"]) for r in ub["ordinary_shares"]["removed"]]
     if rem != [("GUD.AX", "known", AG_RULES["GUD.AX"][0])] or ub["ordinary_shares"]["by_reason"] != {"known": 1}:
         f.append(f"removed {rem}")
@@ -2339,6 +2343,13 @@ def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
                  f"{AG_SER} missing at {sorted(invested - kept)}")
     if held_at(AG_SWITCH) != invested - {"2011-07-01"}:
         f.append(f"{AG_SWITCH} held at {sorted(held_at(AG_SWITCH))}: out at 2011-07-01 only")
+    cs = ub.get("class_stand_ins") or {}
+    want_cs = (du.CLASS_TWIN_RULE, 1, len(invested),
+               [{"rebalance_date": d, "symbols": [AG_BR_PREF]} for d in sorted(invested)])
+    if (cs.get("rule"), cs.get("lines_keyed"), cs.get("picked"), cs.get("by_period")) != want_cs or \
+            held_at(AG_BR_PREF) != invested or held_at(AG_BR_ORD):
+        f.append(f"class_stand_ins {cs.get('lines_keyed')} keyed, {cs.get('picked')} picked; {AG_BR_PREF} held at "
+                 f"{len(held_at(AG_BR_PREF))} of {len(invested)}, {AG_BR_ORD} at {len(held_at(AG_BR_ORD))}")
     g = drop["prior_year_guard"]
     if any(r[0]["prior_year_guard"] != g for r in runs.values()):
         f.append("prior_year_guard differs across exit methods")

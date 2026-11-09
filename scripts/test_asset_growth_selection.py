@@ -283,7 +283,8 @@ def ranking_mutant_failures():
     import data_utils
     orig = data_utils._twin_ranked_sql
     if TWIN_TERM not in orig("SELECT 'X' AS symbol", D, 1, 1.0):
-        return ["shared ranking mutant: anchor not found"]
+        print("test_asset_growth_selection: FAIL (shared ranking mutant anchor not found)")
+        sys.exit(1)
     try:
         data_utils._twin_ranked_sql = lambda *a, **k: orig(*a, **k).replace(TWIN_TERM, "")
         return brazil_failures(load(SRC))

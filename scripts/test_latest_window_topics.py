@@ -309,10 +309,9 @@ def cash_failures(topic, mod_of, src, tmp, tag=""):
             f.append(f"{topic} {name}: partial row {last.get('partial')} {last.get('fraction')} {last['stocks_held']}")
         if name == "cash.buyable" and (last.get("exits_lost") or 0) < 1:
             f.append(f"{topic} {name}: exits_lost {last.get('exits_lost')}: T's end-date window not read")
-        if topic in UNPRICED_TOPICS and ("entry_unpriced" not in last or (last["entry_unpriced"] is None) !=
-                                         (name == "cash.screen") or name == "cash.buyable" and
-                                         not isinstance(last["entry_unpriced"], list)):
-            f.append(f"{topic} {name}: entry_unpriced {last.get('entry_unpriced', 'missing')!r}")
+        want = None if name == "cash.screen" else ["DLST.BK"]   # delisted in 2018: no entry price
+        if topic in UNPRICED_TOPICS and last.get("entry_unpriced", "missing") != want:
+            f.append(f"{topic} {name}: entry_unpriced {last.get('entry_unpriced', 'missing')!r}, want {want!r}")
     return f
 
 
