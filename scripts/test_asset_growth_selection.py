@@ -174,8 +174,9 @@ BRAZIL = {
     "BRBB3.SA": year(FY19, px=None), "BRBB4.SA": year(FY19),                                    # a stand-in
     "BRCC3.SA": year(FY19, px=None), "BRCC4.SA": year(FY19), "BRCC11.SA": year(FY19),          # two siblings
     "BREE3.SA": year(FY19, px=None), "BREE4.SA": year(FY19, px=None),                           # neither priced
+    "BRFF3.SA": year(FY19), "BRFF11.SA": year(FY19),   # a priced unit sorts before its priced ordinary line
 }
-BRAZIL_BOOK = {"BRAA3.SA", "BRBB4.SA", "BRCC11.SA", "BREE3.SA"}
+BRAZIL_BOOK = {"BRAA3.SA", "BRBB4.SA", "BRCC11.SA", "BREE3.SA", "BRFF3.SA"}
 BRAZIL_STAND_INS = [{"rebalance_date": D.isoformat(), "symbols": ["BRBB4.SA", "BRCC11.SA"]}]
 
 
@@ -271,6 +272,23 @@ def brazil_failures(mod):
         if stand != BRAZIL_STAND_INS:
             out.append(f"Brazil stand-ins ({label}): {stand}, want {BRAZIL_STAND_INS}")
     return out
+
+
+TWIN_TERM = "OR COALESCE(_i.class_twin, FALSE) "
+
+
+def ranking_mutant_failures():
+    """data_utils' shared twin ranking with its class_twin term dropped must fail brazil_failures: a priced unit
+    would take its priced ordinary line's slot."""
+    import data_utils
+    orig = data_utils._twin_ranked_sql
+    if TWIN_TERM not in orig("SELECT 'X' AS symbol", D, 1, 1.0):
+        return ["shared ranking mutant: anchor not found"]
+    try:
+        data_utils._twin_ranked_sql = lambda *a, **k: orig(*a, **k).replace(TWIN_TERM, "")
+        return brazil_failures(load(SRC))
+    finally:
+        data_utils._twin_ranked_sql = orig
 
 
 # Sweep: one company per month-end fiscal calendar, FY2009-FY2021 rows growing 5% a year, screened at every
@@ -384,6 +402,9 @@ def main():
         print("test_asset_growth_selection: FAIL")
         for f in base:
             print("  ", f)
+        sys.exit(1)
+    if not ranking_mutant_failures():
+        print("test_asset_growth_selection: FAIL (the shared ranking's class_twin term can go unnoticed)")
         sys.exit(1)
     survived, broken = [], []
     for name, edits in MUTANTS.items():

@@ -175,7 +175,7 @@ Use `--exchange` as shown. `--preset canada` adds TSXV and `--preset taiwan` add
 | File | Purpose |
 |------|---------|
 | `backtest.py` | Historical backtest, from July 2000 to the latest close or to a typed end year |
-| `screen.py` | Current stock screen. Growth reads the FY balance sheets with the backtest's row windows and currency test; ROE, ROA, margin and size read TTM rows. It keeps ordinary shares only (`ur-2`), but not the listing rules, the dedup or the data checks. It also excludes the Asset Management, Shell Companies and Closed-End Fund industries, which the backtest doesn't |
+| `screen.py` | Current stock screen. Growth reads the FY balance sheets with the backtest's row windows and currency test; ROE, ROA, margin and size read TTM rows. It runs `ur-2`'s removals, but not the listing rules, the dedup, the class-twin stand-ins or the data checks, so on SAO it can list a company's ordinary line beside its preferred line (PETR3.SA and PETR4.SA). It also excludes the Asset Management, Shell Companies and Closed-End Fund industries, which the backtest doesn't |
 | `generate_charts.py` | Charts from `results/exchange_comparison.json` |
 | `README.md` | This file |
 | `results/` | `returns_<market>.json` per market and `exchange_comparison.json` |

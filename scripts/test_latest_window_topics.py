@@ -48,6 +48,7 @@ from gate_ltp import check_stage_a, first_diff   # noqa: E402
 
 TOPICS = ("defensive-quality", "cyclical-timing", "deleveraging", "asset-growth")
 FREQ = {"deleveraging": "quarterly"}
+UNPRICED_TOPICS = ("defensive-quality", "asset-growth")   # cash rows carry entry_unpriced: None, or the list
 END, TODAY = date(2026, 11, 6), date(2026, 11, 9)
 HALT, ZEROV = "A03.BK", "A04.BK"   # stops trading after 2026-10-30 (back on 11-09); no volume on END
 LEGS = {"SET": (["SET"], "^SET.BK")}
@@ -308,6 +309,10 @@ def cash_failures(topic, mod_of, src, tmp, tag=""):
             f.append(f"{topic} {name}: partial row {last.get('partial')} {last.get('fraction')} {last['stocks_held']}")
         if name == "cash.buyable" and (last.get("exits_lost") or 0) < 1:
             f.append(f"{topic} {name}: exits_lost {last.get('exits_lost')}: T's end-date window not read")
+        if topic in UNPRICED_TOPICS and ("entry_unpriced" not in last or (last["entry_unpriced"] is None) !=
+                                         (name == "cash.screen") or name == "cash.buyable" and
+                                         not isinstance(last["entry_unpriced"], list)):
+            f.append(f"{topic} {name}: entry_unpriced {last.get('entry_unpriced', 'missing')!r}")
     return f
 
 

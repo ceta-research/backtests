@@ -9,7 +9,8 @@ Signal: Asset growth -20% to +10%, ROE > 8%, ROA > 5%, OPM > 10%, MCap > local-c
 Growth: the current FY balance sheet (period end in (T-410, T-45] days, as are the key-metrics and ratios
         rows) against the same company's prior FY, 300-430 days before it in the same reporting currency.
 Universe: ordinary shares only (data_utils universe rules ur-2, METHODOLOGY.md): preferreds, notes, units,
-        funds, US ADRs, US trusts and LPs and Brazil's non-ordinary classes are out before the screen.
+        funds, US ADRs and US trusts and LPs are out before the screen; on SAO a company holds one line, a
+        preferred or unit line standing in when the ordinary line has no entry price.
 Portfolio: Top 30 by lowest asset growth, equal weight. Cash if < 10 qualify.
 Rebalancing: Annual (July), from 2000 to the latest close (METHODOLOGY.md, "Run Window"); the published
         window is 2000-2025 (--end-year 2025). Data checks dc-1 in place of a return cap.
