@@ -576,7 +576,9 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
-    output.update({"years": win.years(valid, periods_per_year), **win.fields(valid, periods_per_year, partial_year),
+    output.update({"years": win.years(valid, periods_per_year),
+                   **win.fields(valid, periods_per_year, partial_year,
+                                win.priced_to(con, benchmark_symbol, valid, offset_days)),
                    "listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both
     if ltp_block:

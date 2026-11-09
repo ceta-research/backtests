@@ -33,7 +33,8 @@ OUT_DIR = os.path.join(REPO, "results", "ltp_gate")   # gitignored (results/)
 MACHINE_LIMIT = 2   # backtests on this machine at once, ours or anyone else's
 PAT = r"^[^ ]*[Pp]ython[0-9.]*( -[^ ]+)* [^ ]*backtest\.py"
 CHECKS = ("stage-a", "det", "flip")
-VOLATILE = ()   # keys stripped before the det/flip compare; no gated backtest.py writes a run-time field
+VOLATILE = ()   # keys stripped before the det/flip compare. A run-window topic writes a run-time field
+                # (data_end_checked_at) only on an unpinned run, and its legs pin --end-date or --end-year
 TRANSIENT = re.compile(r"magic bytes|Rate limited|timed out|failed \((429|5\d\d)\)|File still preparing"
                        r"|ConnectionError|ConnectionResetError|RemoteDisconnected|ReadTimeout|IncompleteRead")
 lock = threading.Lock()

@@ -364,6 +364,21 @@ def errored_per_exchange_file(mod):
         t.refused(*argv, says="B: returns_B.json holds an ERROR entry")
 
 
+def legs_end_on_one_date(mod):
+    """Run-window files (end_date) rebuild only when every leg ends on the same date: a leg from another
+    rerun date, or one with a typed end year, stops the rebuild and --check."""
+    same = {f"returns_{k}.json": node(k, c, end_date="2026-11-06") for k, c in (("A", 1.0), ("B", 2.0))}
+    t = Topic(mod, "some-topic", same)
+    t.passes()
+    t.passes("--check", says="OK: 2 exchanges agree")
+    for b, says in (("2026-11-13", "A 2026-11-06, B 2026-11-13"), (None, "A 2026-11-06, B a typed end year")):
+        files = dict(same)
+        files["returns_B.json"] = node("B", 2.0, **({"end_date": b} if b else {}))
+        t = Topic(mod, "some-topic", files, {"A": files["returns_A.json"], "B": files["returns_B.json"]})
+        for argv in ((), ("--check",)):
+            t.refused(*argv, says=says)
+
+
 CHECKS = [default_naming, rebuild_keeps_key_order, adapter_dogs_of_dow, dogs_run_all_node_disagrees,
           adapter_fcf_yield, one_key_in_two_files, file_without_a_key, unreadable_per_exchange_file,
           key_differs_only_by_case, adapter_graham_number,
@@ -371,7 +386,7 @@ CHECKS = [default_naming, rebuild_keeps_key_order, adapter_dogs_of_dow, dogs_run
           only_refuses_a_reserialized_file, only_needs_a_node_and_a_file, flags_are_alternatives,
           check_only_is_scoped, drop, check_agrees, check_field_below_cagr, check_field_in_one_side_only,
           check_list_field, check_value_type, check_error_node, check_node_without_file,
-          check_file_without_node, errored_per_exchange_file]
+          check_file_without_node, errored_per_exchange_file, legs_end_on_one_date]
 
 
 def failures(src):
@@ -435,6 +450,10 @@ MUTANTS = {
     "--only accepted with --keep or --drop": (
         "    if sum(map(bool, (args.drop, args.keep, args.only))) > 1:", "    if False:"),
     "an errored per-exchange file is written": ('if "error" in per.get(k, {})]', "if False]"),
+    "legs on different end dates taken": ("if any(ends.values()) and len(set(ends.values())) > 1:", "if False:"),
+    "a typed end year beside a run-window leg taken": (
+        "if any(ends.values()) and len(set(ends.values())) > 1:",
+        "if any(ends.values()) and len(set(ends.values()) - {None}) > 1:"),
     # --check
     "--check compares CAGR only": (
         "            d = first_diff(prev, new[key])\n",

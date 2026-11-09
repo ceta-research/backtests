@@ -190,6 +190,33 @@ All backtests support four rebalancing frequencies via the `--frequency` CLI fla
 
 **Sensitivity testing:** Each strategy reports results at all supported frequencies to demonstrate the impact of rebalancing choice. Turnover and transaction cost drag are reported separately for transparency.
 
+### Run Window
+
+A topic on the run window runs to the latest data: defensive-quality, cyclical-timing and deleveraging so far. Every other topic still ends its grid in a typed year. The code is `data_utils.RunWindow`, and the CLI flags come from `cli_utils.add_end_date_arg`.
+
+- **End date.** A run ends on the latest day before the run (UTC) that every market in it traded. A market traded on a day when its benchmark has a bar and each of its exchanges traded at least half its usual count of lines: the lines with volume above zero, against their median over the previous 21 days. FMP writes holiday rows with copied prices and no volume, and a day still loading has too few lines.
+  - The run day never counts. A market still trading already has a bar for that day before its close.
+  - Every market of a multi-market run ends on the same date. A single-market run can end on a special session, such as NSE's Diwali Muhurat trading on a Sunday.
+  - `--end-date YYYY-MM-DD` pins the date, and the run fails when that isn't such a day for every market. `scripts/data_end.py` prints each market's latest such day and the common one.
+- **Grid.** Rebalance dates run from the start year through the last date whose execution day (the date plus the next-day offset) is on or before the end date. That date is a rebalance held to the end date when the end date is at least 7 days after it. Otherwise it's the exit of an ordinary full period, so a run never ends on a stub of a few days.
+- **The partial period.** Its exit is the close on the end date, for the stocks and the benchmark, with no next-day offset and no later bar. A holding with no bar that day takes the usual missing-exit path, its last traded price under `ltp`. Costs are the full round trip, as if the book were sold at that close. Its fraction is its calendar days from the execution day to the end date over the full period's days, rounded to 6 decimals, and the metrics use that rounded value.
+- **Metrics.** Some figures include the partial period:
+  - Total return, CAGR, maximum drawdown and its duration, Calmar and excess CAGR. CAGR's years are the full periods plus the fraction, over the periods per year.
+  - Volatility, Sortino, VaR, CVaR, the best and worst period, the share of negative periods, the longest losing streak, skewness and kurtosis use full periods only. So do win rate, tracking error, information ratio, the capture ratios and beta. Returns over spans of different lengths don't share one standard deviation.
+  - Sharpe is the CAGR less the risk-free rate, over the full-period volatility. Alpha uses the CAGRs and the full-period beta.
+  - A run with no partial period gives the same figures as before.
+- **Year by year.** `annual_returns` holds full years only. The final year, when it's short of a full year, is `partial_year`, with its dates and its share of a year. Counts of years use full years.
+- **Results keys.** A run on the run window adds these to each market's results:
+  - `end_date`, `end_date_requested` (`latest` or the pinned date), and `priced_to`, the close the last measured exit uses.
+  - `data_end` and `data_end_by_market`, the markets' latest days, with `data_end_checked_at`. All three are null on a pinned run.
+  - `full_periods`, `span_years` (the CAGR's years), `partial_period` and `partial_year`.
+  - On every `period_data` row, `partial`, and on the partial row its `fraction`.
+- **Published windows.** `--end-year YYYY` rebuilds a window the old way: a grid that ends in that year, no partial period and none of the keys above. The moved topics' published results reproduce with `--end-year 2025`.
+- **Known edges.**
+  - The end date's price window holds one bar. Data check T's closed-day test can't run there, and a line that prints with no volume on the end date takes the missing-exit path.
+  - A market shut for the whole stub books a zero return, less costs, for it.
+  - A pinned rerun reproduces a run on the same data snapshot only. The vendor's later restatements (new splits, delistings, filings) can still change it, so a gate's runs are made the same day.
+
 ---
 
 ## Portfolio Construction
@@ -342,7 +369,7 @@ All ETFs verified available in Ceta Research `historical_price_full` table (veri
 
 ## Metrics Suite
 
-Every backtest computes a comprehensive set of performance, risk, and comparative metrics. Results are organized into two tiers.
+Every backtest computes a comprehensive set of performance, risk, and comparative metrics. Results are organized into two tiers. A run with a partial final period splits them between all periods and full periods: see [Run Window](#run-window).
 
 ### Tier 1: Core Metrics (Always Computed)
 

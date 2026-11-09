@@ -90,10 +90,11 @@ def warehouse(**kw):
 
 def build_warehouse(us_last=date(2026, 11, 5), us_thin=date(2026, 11, 6), spy_last=date(2026, 11, 6),
                     in_last=date(2026, 11, 6), nsei_last=date(2026, 11, 4), in_closed=(), us_holiday=(),
-                    nyse_out=()):
+                    nyse_out=(), in_sunday=None):
     """US: 40 lines (20 NYSE, 20 NASDAQ) trading on weekdays to us_last, 10 more on us_thin (half-loaded).
-    IN: 30 lines to in_last, none on in_closed. us_holiday: every US line has a row with no volume.
-    nyse_out: days the NYSE lines miss (NASDAQ trades). Benchmarks end on their own dates."""
+    IN: 30 lines to in_last, none on in_closed, and a session on the Sunday in_sunday (NSE's Muhurat).
+    us_holiday: every US line has a row with no volume. nyse_out: days the NYSE lines miss (NASDAQ
+    trades). Benchmarks end on their own dates."""
     src = duckdb.connect()
     src.execute("CREATE TABLE profile(symbol VARCHAR, exchange VARCHAR)")
     src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date VARCHAR, dateEpoch BIGINT, adjClose DOUBLE,"
@@ -112,8 +113,10 @@ def build_warehouse(us_last=date(2026, 11, 5), us_thin=date(2026, 11, 6), spy_la
         s = f"I{i:02d}.NS"
         prof.append((s, "NSE"))
         rows += [(s, d, 1000.0) for d in weekdays(START, in_last) if d not in in_closed]
+        rows += [(s, in_sunday, 1000.0)] if in_sunday else []
     rows += [("SPY", d, 1e6) for d in weekdays(START, spy_last)]
     rows += [("^NSEI", d, 0.0) for d in weekdays(START, nsei_last) if d not in in_closed]   # an index: no volume
+    rows += [("^NSEI", in_sunday, 0.0)] if in_sunday else []
     prof += [("SPY", "AMEX"), ("^NSEI", "INDEX")]
     src.executemany("INSERT INTO profile VALUES (?, ?)", prof)
     src.executemany("INSERT INTO stock_eod VALUES (?, ?, ?, 100.0, 100.0, ?)",
@@ -175,6 +178,15 @@ def finder_failures(du):
     except ValueError as e:
         if "IN" not in str(e):
             f.append(f"the failure doesn't name the leg: {e}")
+    # a special Sunday session (NSE's Muhurat): an India-only run ends on it, a run with the US doesn't
+    sunday = {"in_sunday": date(2026, 11, 8), "nsei_last": date(2026, 11, 6), "us_last": date(2026, 11, 6),
+              "us_thin": None}
+    win, _, _ = latest({"IN": IN}, **sunday)
+    if win.end_date != date(2026, 11, 8):
+        f.append(f"India alone: end_date {win.end_date}, want its Sunday session 2026-11-08")
+    win, _, _ = latest(**sunday)
+    if (win.end_date, win.data_end_by_market["IN"]) != (date(2026, 11, 6), "2026-11-08"):
+        f.append(f"India with the US: end_date {win.end_date}, want Friday 2026-11-06")
     # the run day itself never counts: a market still trading has a bar for it before its close
     win, _, _ = latest({"US": US}, us_last=TODAY, spy_last=TODAY, us_thin=None)
     if win.data_end_by_market["US"] != "2026-11-06":
@@ -283,7 +295,37 @@ def pricing_failures(du):
         f.append(f"benchmark return to end_date {r}, want 0.05")
     if du.get_benchmark_return(con, "SPY", date(2026, 7, 1), date(2026, 11, 6), offset_days=1) is not None:
         f.append("get_benchmark_return without exit_offset_days changed (want today's: no bar after 11-07)")
+    f += benchmark_identity_failures(du)
     return f
+
+
+def benchmark_identity_failures(du):
+    """get_benchmark_return with exit_offset_days unset gives the base ref's result on random windows."""
+    import random
+    import subprocess
+    ref = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT, capture_output=True, text=True)
+    src = subprocess.run(["git", "show", f"{ref.stdout.strip()}:data_utils.py"], cwd=ROOT, capture_output=True,
+                         text=True)
+    if ref.returncode or src.returncode:
+        return ["no base data_utils.py (merge base with origin/main)"]
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "du_base_rw.py")
+        with open(path, "w") as fh:
+            fh.write(src.stdout)
+        base = load(path, "du_base_rw")
+    rng = random.Random(682)
+    con = duckdb.connect()
+    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
+    days = [date(2020, 1, 1) + timedelta(days=i) for i in range(400) if rng.random() < 0.6]
+    con.executemany("INSERT INTO prices_cache VALUES ('B', ?, ?)", [(ep(d), rng.uniform(50, 150)) for d in days])
+    for _ in range(300):
+        a = date(2020, 1, 1) + timedelta(days=rng.randrange(380))
+        b = a + timedelta(days=rng.randrange(1, 120))
+        off, win = rng.choice((0, 1)), rng.choice((0, 3, 10))
+        if du.get_benchmark_return(con, "B", a, b, offset_days=off, window_days=win) != \
+                base.get_benchmark_return(con, "B", a, b, offset_days=off, window_days=win):
+            return [f"get_benchmark_return({a}, {b}, offset {off}, window {win}) differs from the base"]
+    return []
 
 
 # ---------------------------------------------------------------- 5 legacy
@@ -333,8 +375,15 @@ def rows_failures(du):
         pass
     py = {"year": 2026, "start": "2026-07-01", "end": "2026-11-06", "periods": 1, "year_fraction": 0.347945,
           "portfolio": 0.032149, "benchmark": 0.051, "excess": 0.032149 - 0.051}
-    got = win.fields(rows, 1, py)
-    want = {"end_date_requested": "2026-11-06", "end_date": "2026-11-06", "data_end": None,
+    # priced_to: the benchmark's bar for the last measured exit
+    con = duckdb.connect()
+    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
+    con.executemany("INSERT INTO prices_cache VALUES ('SPY', ?, 100.0)",
+                    [(ep(d),) for d in (date(2026, 7, 3), date(2026, 11, 6))])   # no bar on Thursday 07-02
+    if win.priced_to(con, "SPY", rows, 1) != "2026-11-06":
+        f.append(f"priced_to with the partial period measured: {win.priced_to(con, 'SPY', rows, 1)}")
+    got = win.fields(rows, 1, py, win.priced_to(con, "SPY", rows, 1))
+    want = {"end_date_requested": "2026-11-06", "end_date": "2026-11-06", "priced_to": "2026-11-06", "data_end": None,
             "data_end_by_market": None, "data_end_checked_at": None, "full_periods": 26,
             "span_years": 26.347945,
             "partial_period": {"rebalance_date": "2026-07-01", "entry_day": "2026-07-02",
@@ -354,6 +403,11 @@ def rows_failures(du):
     got = win.fields(rows, 1, None)
     if got["partial_period"] is not None or got["full_periods"] != 26 or any(r["partial"] for r in rows):
         f.append(f"stub under 7 days: {got['partial_period']} {got['full_periods']}")
+    # the stub: the last exit is the 2026-07-01 grid date, priced on the next bar (07-03 here), not the grid date
+    if win.priced_to(con, "SPY", rows, 1) != "2026-07-03":
+        f.append(f"priced_to in the stub case: {win.priced_to(con, 'SPY', rows, 1)}, want the bar 2026-07-03")
+    if du.RunWindow.typed(2025).priced_to(con, "SPY", rows, 1) is not None:
+        f.append("a legacy window gives a priced_to")
     return f
 
 
@@ -397,6 +451,8 @@ MUTANTS = [
     ("full periods count the partial one", "\"full_periods\": sum(1 for f in fr if f == 1)", "\"full_periods\": len(fr)"),
     ("an unmarked row taken", "if any(\"partial\" not in r for r in rows):", "if False:"),
     ("an unmeasured partial period described", "if any(r[\"partial\"] for r in valid):", "if self.partial_exit is not None:"),
+    ("priced_to the last exit date", "return utc_date(bar[benchmark_symbol][1]).isoformat() if benchmark_symbol in bar else None",
+     "return valid[-1][\"exit_date\"]"),
 ]
 
 

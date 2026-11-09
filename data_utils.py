@@ -1333,9 +1333,19 @@ class RunWindow:
         from metrics import span_years
         return round(span_years(self.fractions(valid) or [1.0] * len(valid), periods_per_year), 1)
 
-    def fields(self, valid, periods_per_year, partial_year):
+    def priced_to(self, con, benchmark_symbol, valid, offset_days):
+        """The date of the close the last measured exit uses: the benchmark's exit bar of the last measured
+        row. That's end_date when the partial period is measured, and the bar after the last grid date
+        when the stub was under END_DATE_MIN_STUB_DAYS. None on a legacy window."""
+        if self.legacy or not valid:
+            return None
+        x = date.fromisoformat(valid[-1]["exit_date"])
+        bar = get_prices(con, [benchmark_symbol], x, offset_days=self.exit_offset(x, offset_days), with_epochs=True)
+        return utc_date(bar[benchmark_symbol][1]).isoformat() if benchmark_symbol in bar else None
+
+    def fields(self, valid, periods_per_year, partial_year, priced_to=None):
         """The run window's results keys for a leg (METHODOLOGY.md, "Run window"); {} on a legacy window.
-        valid: the measured rows; partial_year: annual()'s second value."""
+        valid: the measured rows; partial_year: annual()'s second value; priced_to: priced_to()'s value."""
         if self.legacy:
             return {}
         self._gridded()
@@ -1354,7 +1364,7 @@ class RunWindow:
             py = {k: partial_year[k] for k in ("year", "start", "end", "periods", "year_fraction")}
             py.update({"portfolio": pct(partial_year["portfolio"]), "spy": pct(partial_year["benchmark"]),
                        "excess": pct(partial_year["excess"])})
-        return {"end_date_requested": self.requested, "end_date": self.end_date.isoformat(),
+        return {"end_date_requested": self.requested, "end_date": self.end_date.isoformat(), "priced_to": priced_to,
                 "data_end": self.data_end, "data_end_by_market": self.data_end_by_market,
                 "data_end_checked_at": self.checked_at,
                 "full_periods": sum(1 for f in fr if f == 1), "span_years": round(span_years(fr, periods_per_year), 6),
