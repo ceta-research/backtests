@@ -66,13 +66,6 @@ def check(cond, what):
     return cond
 
 
-def base_ref():
-    r = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT, capture_output=True, text=True)
-    if r.returncode:
-        raise SystemExit("FAIL: no merge base with origin/main; pass --base REF")
-    return r.stdout.strip()
-
-
 # ---------------------------------------------------------------- 1 bytes
 
 RUNNER = r'''
@@ -171,21 +164,21 @@ def sources():
     return {"defensive-quality": extend(tdc.defensive_source()), "cyclical-timing": synthetic, "deleveraging": synthetic}
 
 
+_WINDOWS = {}   # one window per fixture and kind: run_single copies it (for_leg) before grid() changes it
+
+
 def window(src, kind):
-    client = tdc.FakeClient(src)
-    with contextlib.redirect_stderr(io.StringIO()):
-        if kind == "pin":
-            return du.RunWindow.pinned(client, LEGS, END, today=TODAY)
-        return du.RunWindow.latest(client, LEGS, today=TODAY)
+    key = (id(src), kind)
+    if key not in _WINDOWS:
+        client = tdc.FakeClient(src)
+        with contextlib.redirect_stderr(io.StringIO()):
+            _WINDOWS[key] = (du.RunWindow.pinned(client, LEGS, END, today=TODAY) if kind == "pin"
+                             else du.RunWindow.latest(client, LEGS, today=TODAY))
+    return _WINDOWS[key]
 
 
 def run(mod, topic, src, run_mode, win, tmp, name, full=True):
-    out = os.path.join(tmp, f"{topic}.{name}.json")
-    with contextlib.redirect_stdout(io.StringIO()):
-        mod.run_single(tdc.FakeClient(src), ["SET"], "SET", FREQ.get(topic, "annual"), True, 0.02, False, out,
-                       offset_days=1, exit_method=run_mode, data_checks="on", full_holdings=full, win=win)
-    with open(out) as fh:
-        return json.load(fh)
+    return tdc.run_topic(topic, src, run_mode, "on", tmp, full_holdings=full, win=win, tag=f".{name}", mod=mod)[0]
 
 
 def bench_close(src, d):
@@ -247,10 +240,14 @@ def leg_failures(topic, r, src):
 
 
 def window_failures(topic, mod_of, src, tmp, tag="", full_check=True):
-    """mod_of(): a fresh topic module. The pinned runs' checks, and (full_check) latest, main() and cash."""
+    """mod_of(): a fresh topic module. The pinned runs' checks, and (full_check) latest, main() and cash.
+    Without full_check (a mutant) it stops at the ltp run's first failure."""
     f = []
-    runs = {m: run(mod_of(), topic, src, m, window(src, "pin"), tmp, f"pin.{m}{tag}") for m in ("drop", "ltp", "both")}
+    runs = {"ltp": run(mod_of(), topic, src, "ltp", window(src, "pin"), tmp, f"pin.ltp{tag}")}
     f += leg_failures(topic, runs["ltp"], src)
+    if f and not full_check:
+        return f
+    runs.update({m: run(mod_of(), topic, src, m, window(src, "pin"), tmp, f"pin.{m}{tag}") for m in ("drop", "both")})
     held = {h["symbol"] for h in runs["drop"]["period_data"][-1].get("holdings_full") or []}
     if held & {HALT, ZEROV}:
         f.append(f"{topic}: drop books {sorted(held & {HALT, ZEROV})} in the partial period")
@@ -319,9 +316,7 @@ MUTANTS = [   # (name, old text, new text) in defensive-quality's script: each m
     ("data checks read the next day", "held=True,\n                  exit_offset_days=x_off)", "held=True)"),
     ("CAGR over the period count", "risk_free_rate=risk_free_rate, fractions=fractions)",
      "risk_free_rate=risk_free_rate)"),
-    ("keys not written", "                   **win.fields(valid, periods_per_year, partial_year,\n"
-                         "                                win.priced_to(con, benchmark_symbol, valid, offset_days)),\n",
-     ""),
+    ("keys not written", "**win.fields(con, benchmark_symbol, valid, periods_per_year, partial_year, offset_days),", ""),
 ]
 
 
@@ -357,7 +352,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default=None)
     a = ap.parse_args()
-    ref = a.base or base_ref()
+    ref = a.base or tdc.merge_base()
     print(f"base {ref[:12]}")
     with tempfile.TemporaryDirectory() as tmp:
         print("1 BYTES")

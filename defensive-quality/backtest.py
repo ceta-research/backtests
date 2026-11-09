@@ -45,7 +45,7 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import (query_parquet, get_prices, RunWindow, filter_returns,
+from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year, filter_returns,
                         entry_buyable, entry_usable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations, utc_epoch,
@@ -549,15 +549,13 @@ def build_output(metrics, annual, valid, results, universe_name, frequency,
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, verbose, output_path=None, offset_days=1, exit_method="drop",
-               data_checks="on", full_holdings=False, win=None):
+               data_checks="on", full_holdings=False, *, win):
     """Run backtest for a single exchange set. Returns output dict or None.
 
     data_checks: "on" (data checks dc-1), or "uncapped" (no check and no cap: attribution only). The
     universe rules ur-1 apply in both. full_holdings: every invested period row also lists each booked
     name (holdings_full). win: the run's data_utils.RunWindow (main builds it from --end-date or
-    --end-year; required)."""
-    if win is None:
-        raise TypeError("run_single needs win: a data_utils.RunWindow (--end-date or --end-year)")
+    --end-year)."""
     win = win.for_leg(universe_name)
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
     dc = DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)
@@ -642,7 +640,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
         bench_col = benchmark_name[:10]
         print(f"\n  {'Year':<8} {'DefQuality':>12} {bench_col:>10} {'Excess':>10}")
         print("  " + "-" * 44)
-        for ar in annual + ([{**partial_year, "year": f"{partial_year['year']}p"}] if partial_year else []):
+        for ar in with_partial_year(annual, partial_year):
             print(f"  {ar['year']:<8} {ar['portfolio']*100:>11.1f}%"
                   f" {ar['benchmark']*100:>9.1f}% {ar['excess']*100:>+9.1f}%")
 
@@ -651,9 +649,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
-    output.update({"years": win.years(valid, periods_per_year),
-                   **win.fields(valid, periods_per_year, partial_year,
-                                win.priced_to(con, benchmark_symbol, valid, offset_days)),
+    output.update({**win.fields(con, benchmark_symbol, valid, periods_per_year, partial_year, offset_days),
                    "listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both
     output["universe_rules"] = ub        # equal in drop, ltp and both (uncapped, yield drops read the raw-cap floor)
@@ -729,8 +725,7 @@ def main():
         offset_days = 0 if args.no_next_day else 1
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
         # one end date for every leg: the latest day every leg traded, or the pin
-        win = RunWindow.from_args(args, cr, {"_".join(ex): (ex, get_local_benchmark(ex)[0])
-                                             for _, ex in presets_to_run})
+        win = RunWindow.from_args(args, cr, {"_".join(ex): ex for _, ex in presets_to_run})
 
         for preset_name, preset_exchanges in presets_to_run:
             uni_name = "_".join(preset_exchanges)
@@ -806,7 +801,7 @@ def main():
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     offset_days = 0 if args.no_next_day else 1
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
-    win = RunWindow.from_args(args, cr, {universe_name: (exchanges, get_local_benchmark(exchanges)[0])})
+    win = RunWindow.from_args(args, cr, {universe_name: exchanges})
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, args.verbose, args.output, offset_days=offset_days,
                exit_method=args.exit_method, data_checks=args.data_checks, full_holdings=args.full_holdings,

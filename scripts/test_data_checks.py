@@ -1633,16 +1633,26 @@ def f_mutant_cfg():
 
 # ---------------------------------------------------------------- shared code against BASE
 
-def load_base(tmp, ref):
+def merge_base():
+    """The merge base of HEAD with origin/main: the run-window tests' default base ref."""
+    r = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT, capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit("FAIL: no merge base with origin/main; fetch it or pass --base REF")
+    return r.stdout.strip()
+
+
+def load_base(tmp, ref, name="data_utils.py"):
+    """(module, source) of a root module (data_utils.py by default) at ref, loaded from tmp."""
     try:
-        src = subprocess.run(["git", "show", f"{ref}:data_utils.py"], cwd=ROOT, capture_output=True, text=True,
+        src = subprocess.run(["git", "show", f"{ref}:{name}"], cwd=ROOT, capture_output=True, text=True,
                              check=True).stdout
     except subprocess.CalledProcessError as e:
-        raise SystemExit(f"FAIL: cannot read data_utils.py at {ref} ({e.stderr.strip()}); fetch the full history")
-    path = os.path.join(tmp, "du_base_for_identity.py")
+        raise SystemExit(f"FAIL: cannot read {name} at {ref} ({e.stderr.strip()}); fetch the full history")
+    mod_name = f"{name[:-3]}_base_for_identity"
+    path = os.path.join(tmp, mod_name + ".py")
     with open(path, "w") as fh:
         fh.write(src)
-    spec = importlib.util.spec_from_file_location("du_base_for_identity", path)
+    spec = importlib.util.spec_from_file_location(mod_name, path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod, src
@@ -2151,10 +2161,11 @@ def defensive_source():
     return src
 
 
-def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=None, tag=""):
+def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=None, tag="", mod=None):
     """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both). win: the
-    run window (default the fixture's 2000-2025 grid, --end-year 2025); tag names the output file apart."""
-    mod = load_topic(topic)
+    run window (default the fixture's 2000-2025 grid, --end-year 2025); tag names the output file apart;
+    mod: the topic module to run (default a fresh load of the topic's script)."""
+    mod = mod or load_topic(topic)
     out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}{'.full' if full_holdings else ''}{tag}.json")
     client = FakeClient(src)
     freq = "quarterly" if topic == "deleveraging" else "annual"

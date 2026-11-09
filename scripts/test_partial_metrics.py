@@ -24,12 +24,13 @@ import importlib.util
 import math
 import os
 import random
-import subprocess
 import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+from test_data_checks import load_base, merge_base   # noqa: E402
 
 FAIL = []
 
@@ -46,25 +47,6 @@ def load(path, name):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
-
-
-def base_ref():
-    r = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT, capture_output=True, text=True)
-    if r.returncode:
-        raise SystemExit("FAIL: no merge base with origin/main; pass --base REF")
-    return r.stdout.strip()
-
-
-def load_base(tmp, ref):
-    try:
-        src = subprocess.run(["git", "show", f"{ref}:metrics.py"], cwd=ROOT, capture_output=True, text=True,
-                             check=True).stdout
-    except subprocess.CalledProcessError as e:
-        raise SystemExit(f"FAIL: cannot read metrics.py at {ref} ({e.stderr.strip()})")
-    path = os.path.join(tmp, "metrics_base.py")
-    with open(path, "w") as fh:
-        fh.write(src)
-    return load(path, "metrics_base")
 
 
 def series(rng, n):
@@ -300,9 +282,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default=None)
     a = ap.parse_args()
-    ref = a.base or base_ref()
+    ref = a.base or merge_base()
     with tempfile.TemporaryDirectory() as tmp:
-        base = load_base(tmp, ref)
+        base = load_base(tmp, ref, "metrics.py")[0]
         import metrics as m
         print(f"base {ref[:12]}")
         for x in run_all(m, base):

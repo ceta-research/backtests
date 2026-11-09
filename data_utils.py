@@ -1123,48 +1123,56 @@ def generate_rebalance_dates(start_year, end_year, frequency, months=None):
 END_DATE_MIN_STUB_DAYS = 7    # a shorter final stub isn't held: the last grid date is a full period's exit
 END_DATE_LAG_WARN_DAYS = 5    # a leg whose latest close is further behind the latest leg's warns
 DATA_END_LOOKBACK_DAYS = 21
-DATA_END_MIN_COVERAGE = 0.5   # a good day: each exchange traded at least this share of its median line count
+# A good day: each exchange traded at least this share of its median line count (the ratio of data
+# check T's closed-day rule, DATA_CHECKS_V1, kept apart so the run window doesn't move with dc versions).
+DATA_END_MIN_COVERAGE = 0.5
 
 
-def good_days(client, legs, until, lookback=DATA_END_LOOKBACK_DAYS):
-    """{leg: {"YYYY-MM-DD": coverage}}: each leg's good days in the lookback days to `until`.
+def window_legs(exchanges_by_leg):
+    """{universe: (exchanges, benchmark symbol)}: a run's legs as RunWindow takes them."""
+    return {u: (exs, get_local_benchmark(exs)[0]) for u, exs in exchanges_by_leg.items()}
+
+
+def good_days(client, legs, until, lookback=DATA_END_LOOKBACK_DAYS, ratios=None):
+    """{leg: {"YYYY-MM-DD", ...}}: each leg's good days in the lookback days to `until`.
 
     legs is {name: (exchanges, benchmark_symbol)}. A good day has a bar of the leg's benchmark, and on it
     every exchange of the leg (one with rows in the lookback) traded at least DATA_END_MIN_COVERAGE of its
     median daily count of traded lines (stock_eod rows with volume > 0, as data check T counts them): FMP
     writes holiday rows with copied prices and no volume, and a day still loading has too few lines.
-    coverage is the day's lowest exchange ratio. Two queries for the whole run."""
-    ratios, bench_days = traded_ratios(client, legs, until, lookback)
-    return {name: {d: round(min(r.get(d, 0.0) for r in ratios[name].values()), 3)
-                   for d in sorted(bench_days[name])
+    ratios: traded_ratios' value for the same days, when the caller has it; else one query."""
+    ratios, bench_days = ratios or traded_ratios(client, legs, until, lookback)
+    return {name: {d for d in bench_days[name]
                    if ratios[name] and all(r.get(d, 0.0) >= DATA_END_MIN_COVERAGE for r in ratios[name].values())}
             for name in legs}
 
 
 def traded_ratios(client, legs, until, lookback=DATA_END_LOOKBACK_DAYS):
     """({leg: {exchange: {"YYYY-MM-DD": traded lines / median}}}, {leg: benchmark bar days}) over the
-    lookback days to `until`, for good_days and scripts/data_end.py. An exchange with no rows is left out."""
+    lookback days to `until`, for good_days and scripts/data_end.py, in one query. An exchange with no rows
+    is left out."""
     import statistics
-    since = (until - timedelta(days=lookback)).isoformat()
+    since, until = (until - timedelta(days=lookback)).isoformat(), until.isoformat()
     exchanges = sorted({e for exs, _ in legs.values() for e in exs})
-    counts = client.query(f"""
-        SELECT p.exchange, e.date AS d, COUNT(DISTINCT e.symbol) FILTER (WHERE e.volume > 0) AS n
+    rows = client.query(f"""
+        SELECT 'lines' AS kind, p.exchange AS name, e.date AS d,
+               COUNT(DISTINCT e.symbol) FILTER (WHERE e.volume > 0) AS n
         FROM stock_eod e
         JOIN (SELECT DISTINCT symbol, exchange FROM profile WHERE exchange IN ({_sql_list(exchanges)})) p
           ON p.symbol = e.symbol
-        WHERE e.date >= '{since}' AND e.date <= '{until.isoformat()}'
-        GROUP BY 1, 2
-    """, timeout=300) or []
-    bars = client.query(f"""
-        SELECT DISTINCT symbol, date AS d FROM stock_eod
+        WHERE e.date >= '{since}' AND e.date <= '{until}'
+        GROUP BY 1, 2, 3
+        UNION ALL
+        SELECT DISTINCT 'benchmark', symbol, date, NULL FROM stock_eod
         WHERE symbol IN ({_sql_list(sorted({b for _, b in legs.values()}))})
-          AND date >= '{since}' AND date <= '{until.isoformat()}' AND adjClose > 0
+          AND date >= '{since}' AND date <= '{until}' AND adjClose > 0
     """, timeout=300) or []
     per_ex, bench_days = {}, {}
-    for r in counts:
-        per_ex.setdefault(r["exchange"], {})[str(r["d"])[:10]] = int(r["n"] or 0)
-    for r in bars:
-        bench_days.setdefault(r["symbol"], set()).add(str(r["d"])[:10])
+    for r in rows:
+        if r["kind"] == "lines":
+            per_ex.setdefault(r["name"], {})[str(r["d"])[:10]] = int(r["n"] or 0)
+        else:
+            bench_days.setdefault(r["name"], set()).add(str(r["d"])[:10])
     ratios = {}
     for name, (exs, _) in legs.items():
         ratios[name] = {}
@@ -1183,29 +1191,35 @@ class RunWindow:
     leg traded (--end-date). typed(): a typed end year (--end-year), as before the run window existed:
     today's grid, today's exits and no new results key. A topic builds one window per run (every leg of a
     --global run shares it) and per leg: for_leg(), grid() before the loop, exit_offset() at each exit,
-    mark() on the rows after it, then fractions(), annual(), years() and fields() for the results."""
+    mark() on the rows after it, then fractions(), annual() and fields() for the results."""
 
-    def __init__(self, end_date=None, requested=None, data_end_by_market=None, checked_at=None,
-                 end_year=None, data_end=None, legacy=False):
-        self.end_date, self.requested, self.end_year, self.legacy = end_date, requested, end_year, legacy
-        self.data_end_by_market, self.checked_at, self.data_end = data_end_by_market, checked_at, data_end
-        self.partial_exit = self.last_rebalance = None
+    def __init__(self, end_date=None, requested=None, data_end_by_market=None, checked_at=None, end_year=None):
+        self.end_date, self.requested, self.end_year = end_date, requested, end_year
+        self.data_end_by_market, self.checked_at = data_end_by_market, checked_at
+        self.data_end = self.partial_exit = self.last_rebalance = None
         self.offset_days = self.period_days = None
         self._grid_done = False
 
+    @property
+    def legacy(self):
+        """A typed end year, as before the run window: no end date."""
+        return self.end_date is None
+
     @classmethod
-    def latest(cls, client, legs, today=None, stream=None):
+    def latest(cls, client, legs, today=None, stream=None, ratios=None):
         """end_date: the latest day before the run (UTC) that is a good day (good_days) for every leg: a
         market still trading already has a bar for the run day, before its close. Each leg's data_end is
-        its own latest good day; a leg more than END_DATE_LAG_WARN_DAYS behind the latest one warns."""
+        its own latest good day; a leg more than END_DATE_LAG_WARN_DAYS behind the latest one warns.
+        ratios: traded_ratios' value up to the day before the run, when the caller has it."""
         import sys
         from datetime import datetime, timezone
-        good = good_days(client, legs, (today or datetime.now(timezone.utc).date()) - timedelta(days=1))
+        good = good_days(client, legs, (today or datetime.now(timezone.utc).date()) - timedelta(days=1),
+                         ratios=ratios)
         empty = sorted(n for n, g in good.items() if not g)
         if empty:
             raise ValueError(f"no good day in the last {DATA_END_LOOKBACK_DAYS} days for {', '.join(empty)}")
         by = {n: max(g) for n, g in good.items()}
-        common = set.intersection(*(set(g) for g in good.values()))
+        common = set.intersection(*good.values())
         if not common:
             raise ValueError(f"no day in the last {DATA_END_LOOKBACK_DAYS} days is a good day for every leg")
         end, newest = max(common), max(by.values())
@@ -1239,21 +1253,27 @@ class RunWindow:
     def typed(cls, end_year=None):
         """A legacy window: grid() ends in end_year as generate_rebalance_dates does. Without end_year it
         only prices exits and writes rows as before (a topic loop's default)."""
-        return cls(end_year=end_year, legacy=True)
+        return cls(end_year=end_year)
 
     @classmethod
-    def from_args(cls, args, client, legs):
-        """From add_end_date_arg's flags: --end-year, else --end-date (a date, or latest)."""
+    def from_args(cls, args, client, exchanges_by_leg):
+        """From add_end_date_arg's flags (--end-year, else --end-date: a date, or latest), for the run's legs
+        as {universe: exchanges}."""
         if getattr(args, "end_year", None) is not None:
             return cls.typed(args.end_year)
+        legs = window_legs(exchanges_by_leg)
         if args.end_date != "latest":
-            return cls.pinned(client, legs, date.fromisoformat(args.end_date))
+            return cls.pinned(client, legs, args.end_date)
         return cls.latest(client, legs)
 
     def for_leg(self, name):
         """This window for one leg: its own data_end, and a grid of its own."""
-        return RunWindow(self.end_date, self.requested, self.data_end_by_market, self.checked_at, self.end_year,
-                         (self.data_end_by_market or {}).get(name), self.legacy)
+        import copy
+        w = copy.copy(self)
+        w.data_end = (self.data_end_by_market or {}).get(name)
+        w.partial_exit = w.last_rebalance = w.offset_days = w.period_days = None
+        w._grid_done = False
+        return w
 
     def grid(self, start_year, frequency, months=None, offset_days=1):
         """Rebalance dates, the final exit last, so `for i in range(len(dates) - 1)` loops run as before.
@@ -1332,11 +1352,6 @@ class RunWindow:
             return compute_annual_returns(*args, periods_per_year), None
         return annual_with_partial(*args, [r["exit_date"] for r in valid], self.fractions(valid), periods_per_year)
 
-    def years(self, valid, periods_per_year):
-        """The results' `years`, 1 dp: the span (span_years) of the measured rows."""
-        from metrics import span_years
-        return round(span_years(self.fractions(valid) or [1.0] * len(valid), periods_per_year), 1)
-
     def priced_to(self, con, benchmark_symbol, valid, offset_days):
         """The date of the close the last measured exit uses: the benchmark's exit bar of the last measured
         row. That's end_date when the partial period is measured, and the bar after the last grid date
@@ -1347,14 +1362,16 @@ class RunWindow:
         bar = get_prices(con, [benchmark_symbol], x, offset_days=self.exit_offset(x, offset_days), with_epochs=True)
         return utc_date(bar[benchmark_symbol][1]).isoformat() if benchmark_symbol in bar else None
 
-    def fields(self, valid, periods_per_year, partial_year, priced_to=None):
-        """The run window's results keys for a leg (METHODOLOGY.md, "Run Window"); {} on a legacy window.
-        valid: the measured rows; partial_year: annual()'s second value; priced_to: priced_to()'s value."""
+    def fields(self, con, benchmark_symbol, valid, periods_per_year, partial_year, offset_days):
+        """The run window's results keys for a leg (METHODOLOGY.md, "Run Window"), `years` (1 dp: the span)
+        among them; {} on a legacy window, whose `years` build_output already wrote. valid: the measured
+        rows; partial_year: annual()'s second value; con, benchmark_symbol and offset_days for priced_to."""
         if self.legacy:
             return {}
         self._gridded()
         from metrics import span_years
         fr = self.fractions(valid)
+        span = span_years(fr, periods_per_year)
         pct = lambda v: round(v * 100, 2)
         part = None
         if any(r["partial"] for r in valid):   # the partial period, when it's measured
@@ -1367,11 +1384,17 @@ class RunWindow:
             py = {k: partial_year[k] for k in ("year", "start", "end", "periods", "year_fraction")}
             py.update({"portfolio": pct(partial_year["portfolio"]), "spy": pct(partial_year["benchmark"]),
                        "excess": pct(partial_year["excess"])})
-        return {"end_date_requested": self.requested, "end_date": self.end_date.isoformat(), "priced_to": priced_to,
+        return {"years": round(span, 1), "end_date_requested": self.requested, "end_date": self.end_date.isoformat(),
+                "priced_to": self.priced_to(con, benchmark_symbol, valid, offset_days),
                 "data_end": self.data_end, "data_end_by_market": self.data_end_by_market,
                 "data_end_checked_at": self.checked_at,
-                "full_periods": sum(1 for f in fr if f == 1), "span_years": round(span_years(fr, periods_per_year), 6),
+                "full_periods": sum(1 for f in fr if f == 1), "span_years": round(span, 6),
                 "partial_period": part, "partial_year": py}
+
+
+def with_partial_year(annual, partial_year):
+    """annual (compute_annual_returns' rows) plus partial_year labelled '<year>p', for a printed table."""
+    return annual + ([{**partial_year, "year": f"{partial_year['year']}p"}] if partial_year else [])
 
 
 def get_benchmark_tickers(exchanges, factor_type=None):

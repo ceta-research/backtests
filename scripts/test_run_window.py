@@ -25,14 +25,17 @@ import contextlib
 import importlib.util
 import io
 import os
+import random
 import sys
 import tempfile
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 import duckdb
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+from test_data_checks import FakeClient, ep, load_base, merge_base, weekdays   # noqa: E402
 
 FAIL = []
 TODAY = date(2026, 11, 9)   # a Monday
@@ -44,33 +47,6 @@ def check(cond, what):
         FAIL.append(what)
         print(f"  FAIL {what}")
     return cond
-
-
-def ep(d):
-    return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp())
-
-
-def weekdays(a, b):
-    d = a
-    while d <= b:
-        if d.weekday() < 5:
-            yield d
-        d += timedelta(days=1)
-
-
-class FakeClient:
-    """Runs the SQL on an in-memory warehouse, as the API would; refuses a ';'."""
-
-    def __init__(self, src):
-        self.src, self.sqls = src, []
-
-    def query(self, sql, format="json", **_kw):
-        self.sqls.append(sql)
-        if ";" in sql:
-            raise AssertionError("a ';' in SQL sent to the API")
-        cur = self.src.execute(sql)
-        cols = [c[0] for c in cur.description]
-        return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
 US = (["NYSE", "NASDAQ"], "SPY")
@@ -151,8 +127,8 @@ def finder_failures(du):
         f.append(f"requested {win.requested!r}, checked_at {win.checked_at!r}")
     if "WARNING" in err:
         f.append(f"a 1-day spread warned: {err.strip()}")
-    if len(client.sqls) != 2:
-        f.append(f"{len(client.sqls)} queries for the whole run, want 2")
+    if len(client.sqls) != 1:
+        f.append(f"{len(client.sqls)} queries for the whole run, want 1")
     # a holiday of zero-volume rows with a benchmark bar is not a good day
     win, _, _ = latest(us_holiday={date(2026, 11, 5)}, us_thin=None)
     if win.data_end_by_market["US"] != "2026-11-04":
@@ -299,31 +275,27 @@ def pricing_failures(du):
     return f
 
 
+_BASE_BENCH = {}   # the base ref's answers, worked out once for the check and every mutant
+
+
 def benchmark_identity_failures(du):
     """get_benchmark_return with exit_offset_days unset gives the base ref's result on random windows."""
-    import random
-    import subprocess
-    ref = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT, capture_output=True, text=True)
-    src = subprocess.run(["git", "show", f"{ref.stdout.strip()}:data_utils.py"], cwd=ROOT, capture_output=True,
-                         text=True)
-    if ref.returncode or src.returncode:
-        return ["no base data_utils.py (merge base with origin/main)"]
-    with tempfile.TemporaryDirectory() as tmp:
-        path = os.path.join(tmp, "du_base_rw.py")
-        with open(path, "w") as fh:
-            fh.write(src.stdout)
-        base = load(path, "du_base_rw")
-    rng = random.Random(682)
-    con = duckdb.connect()
-    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
-    days = [date(2020, 1, 1) + timedelta(days=i) for i in range(400) if rng.random() < 0.6]
-    con.executemany("INSERT INTO prices_cache VALUES ('B', ?, ?)", [(ep(d), rng.uniform(50, 150)) for d in days])
-    for _ in range(300):
-        a = date(2020, 1, 1) + timedelta(days=rng.randrange(380))
-        b = a + timedelta(days=rng.randrange(1, 120))
-        off, win = rng.choice((0, 1)), rng.choice((0, 3, 10))
-        if du.get_benchmark_return(con, "B", a, b, offset_days=off, window_days=win) != \
-                base.get_benchmark_return(con, "B", a, b, offset_days=off, window_days=win):
+    if not _BASE_BENCH:
+        rng = random.Random(682)
+        con = duckdb.connect()
+        con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
+        days = [date(2020, 1, 1) + timedelta(days=i) for i in range(400) if rng.random() < 0.6]
+        con.executemany("INSERT INTO prices_cache VALUES ('B', ?, ?)", [(ep(d), rng.uniform(50, 150)) for d in days])
+        cases = []
+        for _ in range(300):
+            a = date(2020, 1, 1) + timedelta(days=rng.randrange(380))
+            cases.append((a, a + timedelta(days=rng.randrange(1, 120)), rng.choice((0, 1)), rng.choice((0, 3, 10))))
+        with tempfile.TemporaryDirectory() as tmp:
+            base = load_base(tmp, merge_base())[0]
+        _BASE_BENCH.update(con=con, cases=[(c, base.get_benchmark_return(con, "B", c[0], c[1], offset_days=c[2],
+                                                                         window_days=c[3])) for c in cases])
+    for (a, b, off, win), want in _BASE_BENCH["cases"]:
+        if du.get_benchmark_return(_BASE_BENCH["con"], "B", a, b, offset_days=off, window_days=win) != want:
             return [f"get_benchmark_return({a}, {b}, offset {off}, window {win}) differs from the base"]
     return []
 
@@ -343,7 +315,7 @@ def legacy_failures(du):
             f.append(f"legacy {freq}: fetch windows changed")
         rows = [{"rebalance_date": a.isoformat(), "exit_date": b.isoformat()} for a, b in zip(dates, dates[1:])]
         if win.mark(rows) != [{"rebalance_date": a.isoformat(), "exit_date": b.isoformat()}
-                              for a, b in zip(dates, dates[1:])] or win.fields(rows, 1, None) != {} \
+                              for a, b in zip(dates, dates[1:])] or win.fields(None, "SPY", rows, 1, None, 1) != {} \
                 or win.fractions(rows) is not None:
             f.append(f"legacy {freq}: adds keys")
     return f
@@ -355,7 +327,7 @@ def rows_failures(du):
     f = []
     win = at(du, date(2026, 11, 6))
     try:
-        win.fields([], 1, None)
+        win.fields(None, "SPY", [], 1, None, 1)
         f.append("fields() before grid() did not fail")
     except RuntimeError:
         pass
@@ -382,8 +354,9 @@ def rows_failures(du):
                     [(ep(d),) for d in (date(2026, 7, 3), date(2026, 11, 6))])   # no bar on Thursday 07-02
     if win.priced_to(con, "SPY", rows, 1) != "2026-11-06":
         f.append(f"priced_to with the partial period measured: {win.priced_to(con, 'SPY', rows, 1)}")
-    got = win.fields(rows, 1, py, win.priced_to(con, "SPY", rows, 1))
-    want = {"end_date_requested": "2026-11-06", "end_date": "2026-11-06", "priced_to": "2026-11-06", "data_end": None,
+    got = win.fields(con, "SPY", rows, 1, py, 1)
+    want = {"years": 26.3, "end_date_requested": "2026-11-06", "end_date": "2026-11-06", "priced_to": "2026-11-06",
+            "data_end": None,
             "data_end_by_market": None, "data_end_checked_at": None, "full_periods": 26,
             "span_years": 26.347945,
             "partial_period": {"rebalance_date": "2026-07-01", "entry_day": "2026-07-02",
@@ -393,14 +366,14 @@ def rows_failures(du):
     if got != want:
         f.append("fields " + str({k: (got.get(k), want[k]) for k in want if got.get(k) != want[k]}))
     # the partial period unmeasured (its benchmark can't price it): no partial_period, every measured period full
-    got = win.fields(rows[:-1], 1, None)
+    got = win.fields(con, "SPY", rows[:-1], 1, None, 1)
     if (got["full_periods"], got["span_years"], got["partial_year"], got["partial_period"]) != (26, 26.0, None, None):
         f.append(f"unmeasured partial period: {got['full_periods']} {got['span_years']} {got['partial_period']}")
     # no partial period: every row full
     win = at(du, date(2026, 7, 5))
     dates = win.grid(2000, "annual", months=[7], offset_days=1)
     rows = win.mark([{"rebalance_date": a.isoformat(), "exit_date": b.isoformat()} for a, b in zip(dates, dates[1:])])
-    got = win.fields(rows, 1, None)
+    got = win.fields(con, "SPY", rows, 1, None, 1)
     if got["partial_period"] is not None or got["full_periods"] != 26 or any(r["partial"] for r in rows):
         f.append(f"stub under 7 days: {got['partial_period']} {got['full_periods']}")
     # the stub: the last exit is the 2026-07-01 grid date, priced on the next bar (07-03 here), not the grid date
@@ -423,13 +396,12 @@ MUTANTS = [
     ("one exchange of the leg enough",
      "if ratios[name] and all(r.get(d, 0.0) >= DATA_END_MIN_COVERAGE for r in ratios[name].values())}",
      "if ratios[name] and any(r.get(d, 0.0) >= DATA_END_MIN_COVERAGE for r in ratios[name].values())}"),
-    ("benchmark rule off", "for d in sorted(bench_days[name])",
-     "for d in sorted({d for r in ratios[name].values() for d in r})"),
+    ("benchmark rule off", "{d for d in bench_days[name]", "{d for d in {x for r in ratios[name].values() for x in r}"),
     ("the earliest data_end, not a day every leg traded", "end, newest = max(common), max(by.values())",
      "end, newest = min(by.values()), max(by.values())"),
     ("no lag warning", "date.fromisoformat(d)).days > END_DATE_LAG_WARN_DAYS)", "date.fromisoformat(d)).days > 99)"),
-    ("the run day counts", "(today or datetime.now(timezone.utc).date()) - timedelta(days=1))",
-     "(today or datetime.now(timezone.utc).date()))"),
+    ("the run day counts", "(today or datetime.now(timezone.utc).date()) - timedelta(days=1),",
+     "(today or datetime.now(timezone.utc).date()),"),
     ("a pin on the run day", "        if end_date >= (today or datetime.now(timezone.utc).date()):",
      "        if False:"),
     ("a pin unchecked", "        if bad:\n            raise ValueError(f\"--end-date",

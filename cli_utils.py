@@ -178,9 +178,10 @@ def add_common_args(parser):
 
 
 def _iso_date(s):
+    """'latest', or the date a YYYY-MM-DD string names."""
     import datetime
     try:
-        return datetime.date.fromisoformat(s).isoformat() if s != "latest" else s
+        return s if s == "latest" else datetime.date.fromisoformat(s)
     except ValueError:
         raise argparse.ArgumentTypeError(f"{s!r} is not latest or a YYYY-MM-DD date")
 

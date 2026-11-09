@@ -32,7 +32,7 @@ Checks and tools for the topic backtests: 34 offline tests, the LTP exit-method 
 ## Fixers and live runners
 
 - `rebuild_comparison.py <topic>` rebuilds `<topic>/results/exchange_comparison.json` from its per-market files, so it writes tracked results. `--keep`, `--drop` and `--only` shape it; the same line with `--check` added writes nothing and exits 1 on any disagreement. It refuses markets that end on different dates.
-- `data_end.py <exchanges>...` or `--legs-file <file> --topic <topic>` prints each leg's latest traded day and the run window's end date, the date a run-window topic's rerun pins with `--end-date` (needs `CR_API_KEY`, four queries).
+- `data_end.py <exchanges>...` or `--legs-file <file> --topic <topic>` prints each leg's latest traded day and the run window's end date, the date a run-window topic's rerun pins with `--end-date` (needs `CR_API_KEY`, one query).
 - `patch_chart_benchmarks.py`, `patch_chart_titles.py` and `patch_chart_footers.py` rewrite `generate_charts.py` files. Each is a dry run unless given `--apply`.
 - `copy_charts_to_content.py` copies charts into the published posts' content: dry run by default, `<topic> --apply` for one topic, `--apply --all` for every topic.
 - `batch_rerun_diff.py`, `price_dedup_fix.py` and `detect_listing_dups.py` run live backtests or screens and need `CR_API_KEY`. `batch_rerun_diff.py` writes the tracked `data_quality_diff_report.csv`; the other two write gitignored `.jsonl` reports here.
