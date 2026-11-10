@@ -7,14 +7,14 @@ Ceta Research's reproducible quantitative strategy backtests (MIT). Each topic f
 ## Layout
 
 - `cr_client.py`: the API client `CetaResearch`, with Data Explorer SQL (`query()`, formats json, csv, parquet), Code Execution (`execute_code()`) and Projects (`create_project()`, `upsert_file()`, `run_project()`). The README's "API surface" table lists the main methods; `cr_client.py` holds the rest and the endpoint paths.
-- `data_utils.py` (161 KB, search it): data loading, prices, rebalance dates and the run window (`RunWindow`), benchmarks, `DEFAULT_EXIT_METHOD`, `LtpExits` and the data checks (`DataChecks`).
-- `metrics.py` (`compute_metrics`, stdlib only), `costs.py` (transaction costs), `cli_utils.py` (shared flags, `EXCHANGE_PRESETS`, `save_results`), `cloud_runner.py` (`--cloud` through the Projects API), `chart_utils.py` (chart benchmark helpers).
+- `data_utils.py` (175 KB, search it): data loading, prices, rebalance dates and the run window (`RunWindow`), benchmarks, `DEFAULT_EXIT_METHOD`, `LtpExits`, the data checks (`DataChecks`) and the universe rules (`UniverseRules`: ur-1 for defensive-quality, ur-2 for asset-growth).
+- `metrics.py` (`compute_metrics`, stdlib only), `costs.py` (transaction costs), `cli_utils.py` (shared flags, `EXCHANGE_PRESETS`, `save_results`), `cloud_runner.py` (`--cloud` through the Projects API), `chart_utils.py` (chart benchmark helpers, and the partial-year helpers that read a run-window topic's window from its results).
 - `pairs_universe.py`: the per-year universe and pair exits of pairs-fundamentals, pairs-zscore and pairs-multi-pair.
 - `<topic>/` (95 folders): `backtest.py`, `screen.py`, `generate_charts.py`, `README.md` and `results/`. Only 41 track a `charts/` and 8 have a `run_all_exchanges.py`. Gaps: gap-up-scalp and trending-value hold only `backtest.py`; etf-overlap and pairs-screening have no `backtest.py`; etf-crowding and etf-underowned have no `screen.py`; etf-overlap has no `generate_charts.py`; pairs-cointegration has no `results/`; rd-efficiency has no README.
 - `scripts/`: offline tests, the LTP gate, results scanners, one-off fixers. See `scripts/CLAUDE.md`.
 - `nse_arena/`: the intraday NSE strategy package. See `nse_arena/CLAUDE.md`.
 - `examples/`: `code_execution_example.py` and `projects_example.py`.
-- `METHODOLOGY.md` (127 KB, the canonical methodology) and `DATA_QUALITY_ISSUES.md` (169 KB): grep for the heading and read that section only.
+- `METHODOLOGY.md` (135 KB, the canonical methodology) and `DATA_QUALITY_ISSUES.md` (180 KB): grep for the heading and read that section only.
 - `RESULTS_PROVENANCE.md` in beat-streaks, stock-split and upgrade-cluster: read it before quoting a number from that topic's `results/`.
 
 Topic `backtest.py` and `screen.py` add the repo root to `sys.path` themselves. Run them from the root:
@@ -27,7 +27,7 @@ python3 qarp/generate_charts.py                   # offline: reads qarp/results/
 
 - Local mode is the default: fetch through the API, load into an in-memory DuckDB, compute on this machine.
 - 84 of the 93 `backtest.py` and 62 of the 91 `screen.py` take the shared flags from `cli_utils.add_common_args`: `--exchange BSE,NSE`, `--preset <EXCHANGE_PRESETS key>`, `--global`, `--api-key`, `--base-url`, `--output`, `--verbose`, `--risk-free-rate`, `--frequency`, `--no-costs`, `--no-next-day`. The rest define their own flags.
-- defensive-quality, cyclical-timing and deleveraging run on the run window (METHODOLOGY.md, "Run Window"): `cli_utils.add_end_date_arg` adds `--end-date latest|YYYY-MM-DD` (default `latest`) and `--end-year YYYY`. Every other topic ends its grid in a typed year until its code moves to the run window.
+- defensive-quality, cyclical-timing, deleveraging and asset-growth run on the run window (METHODOLOGY.md, "Run Window"): `cli_utils.add_end_date_arg` adds `--end-date latest|YYYY-MM-DD` (default `latest`) and `--end-year YYYY`. Every other topic ends its grid in a typed year until its code moves to the run window.
 - `--exit-method drop|ltp|both` comes from `data_utils.add_exit_method_arg` (78 topics). The CLI default lives only in `data_utils.DEFAULT_EXIT_METHOD` (`ltp`). `run_backtest` signatures still default to `drop`, so a caller passes the resolved method.
 
 ## Setup from a fresh clone
@@ -52,7 +52,7 @@ export CR_API_KEY=...    # every backtest, screen and nse_arena run needs it; th
 There is no CI, Makefile or pre-commit hook: nothing runs on a pull request. Run these from the root before you push; neither needs a key or the network.
 
 ```bash
-for t in scripts/test_*.py; do .venv/bin/python "$t" > /dev/null 2>&1 || echo "FAIL $t"; done   # 34 offline tests, about 20 minutes
+for t in scripts/test_*.py; do .venv/bin/python "$t" > /dev/null 2>&1 || echo "FAIL $t"; done   # 36 offline tests, about 20 minutes
 .venv/bin/python scripts/verify_floor_guard.py                                                   # static gates over every topic
 ```
 
@@ -77,7 +77,7 @@ Two known failures: `test_domicile_dedup.py` on DuckDB 2.0, and gate 6 of `verif
 
 - `results/` and `charts/` are in `.gitignore` but tracked (force-added), and published numbers depend on them. Superseded files are kept on purpose (see a `RESULTS_PROVENANCE.md`). Never `git add -A`, `git clean`, or `git rm --cached` there. Add a results file by path with `git add -f`.
 - A run overwrites the tracked results or chart files it writes. Check `git status` after every run.
-- A run-window topic's default run (`--end-date latest`), written over its `results/`, replaces the published window. `--end-year 2025` reproduces the committed files, and the topic READMEs' results-writing commands carry it. For a rerun with new figures, see the topic's README and `scripts/CLAUDE.md` (`data_end.py`).
+- A run-window topic's default run (`--end-date latest`), written over its `results/`, replaces the published window. `--end-year 2025` reproduces the committed files of defensive-quality, cyclical-timing and deleveraging, and their READMEs' results-writing commands carry it. asset-growth's README says which run its committed files come from. For a rerun with new figures, see the topic's README and `scripts/CLAUDE.md` (`data_end.py`).
 - `--output` resolves against the current directory. Topic docstrings show `python3 <topic>/backtest.py ... --output results/<file>`, which from the root writes to an untracked root `results/`, while `generate_charts.py` reads `<topic>/results/`. Pass `--output <topic>/results/<file>`.
 - `README.md` is stale in places: its strategy table and tree list 3 of the 95 topics, the tree lists `ts_client.py` (gone), and it says requirements are requests and duckdb only.
 - `--cloud` is not on every script, and where it is the wiring differs by topic: `cloud_runner.run_backtest_cloud`, `cloud_runner.run_screen_cloud`, `CetaResearch.execute_code`, or nothing (a few screens accept the flag and ignore it). `run_backtest_cloud` uploads topic files only for the four topics in `cloud_runner.STRATEGY_FILES` (qarp, piotroski, low-pe, asset-growth). Read the code path before relying on `--cloud` anywhere else.
@@ -85,4 +85,4 @@ Two known failures: `test_domicile_dedup.py` on DuckDB 2.0, and gate 6 of `verif
 - `cloud_runner` writes the caller's API key into the uploaded `_run.py` or `_run_screen.py` wrapper.
 - `cr_client` sends its Code Execution and Projects writes through the `_*_with_csrf` helpers, which fetch a token from `GET /auth/csrf-token`. A new write call to those APIs uses the same helpers.
 - Ceta Research (`CR_*`, `CetaResearch`) is the primary name. `TS_*` names and the `ts-backtests-<topic>` cloud project names are Trading Studio backward-compat leftovers.
-- Data checks (`data_utils.DataChecks`) are on only in cyclical-timing, deleveraging and defensive-quality. Gate 15 of `scripts/verify_floor_guard.py` holds that list and fails a use anywhere else.
+- Data checks (`data_utils.DataChecks`) are on only in cyclical-timing, deleveraging, defensive-quality and asset-growth. Gate 15 of `scripts/verify_floor_guard.py` holds that list and fails a use anywhere else.
