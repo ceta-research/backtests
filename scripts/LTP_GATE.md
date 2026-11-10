@@ -98,9 +98,8 @@ defensive-quality and asset-growth so far) runs to the latest close unless told 
 unpinned run writes the time of its check, so its gate runs are pinned. Every one of its legs carries
 `--end-date <date>` or `--end-year <year>`, before the exchange args. `scripts/test_gate_ltp.py` checks
 that. In the wave files those four topics' legs carry `--end-year 2025`. For the first three that
-reproduces their committed results. asset-growth's committed files are its October 2026 run, made
-before its data checks, universe rules and prior-year guard, so its wave 1 legs run the current code
-on the published window and don't reproduce them. A rerun for new
+reproduces their committed results. asset-growth's committed files run to 2026-11-09: its wave 1 legs
+stop at July 2025, and its README's per-market commands carry `--end-date 2026-11-09`. A rerun for new
 figures uses its own legs file with `--end-date <date>`: `scripts/data_end.py --legs-file <file> --topic
 <topic>` prints the date every leg traded. Save its output in the gate's out-dir, since a pinned file's
 `data_end` keys are null. Stage-a, det and flip all compare pinned runs, and they're made the same day:

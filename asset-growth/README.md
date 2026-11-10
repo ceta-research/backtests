@@ -34,54 +34,85 @@ Each results file counts the lines step 2 leaves out among those that pass the o
 
 ## Parameters
 
-- **Rebalancing:** Annual, on July 1, executed at the next available close, from July 2000 to the latest close every market in the run traded, with the last year partial (METHODOLOGY.md, "Run Window"). `--end-year 2025` gives the published window, 25 periods from July 2000 to July 2025.
+- **Rebalancing:** Annual, on July 1, executed at the next available close, from July 2000 to the latest close every market in the run traded, with the last year partial (METHODOLOGY.md, "Run Window"). The published results run to 2026-11-09 (`--end-date 2026-11-09`): 26 full years and a partial year from July 2026. `--end-year 2025` stops at July 2025, 25 full years.
 - **Min stocks:** 10 (holds cash if fewer qualify, or if fewer than 10 have a usable entry price). A cash year earns 0%. The floor is checked at entry only. Under `--exit-method drop`, a name with no exit price is left out of that year's average and not replaced, so an invested year can hold fewer than 10.
 - **Max stocks:** 30
 - **Weighting:** Equal weight
-- **Data checks:** No return cap. The data checks (`dc-1`, [METHODOLOGY.md](../METHODOLOGY.md#data-checks)) move holiday rows, zero-volume rows of lines that traded, stale lines with no volume, a thin share class's bar off its sibling's scale and non-positive prices out of each price window, hold a Thai NVDR line and its ordinary line once, test the market-cap floor on a cap checked against later reverse splits, and flag adjustment-factor steps, splits and every return above +100% or below -50% for review. The October 2026 results below were made before them, with a 200% cap on a single stock's annual return. The cap left a capped name out of that year's average without replacing it: Brazil's 2007 book had 10 buyable names and averaged 9.
+- **Data checks:** No return cap. The data checks (`dc-1`, [METHODOLOGY.md](../METHODOLOGY.md#data-checks)) move holiday rows, zero-volume rows of lines that traded, stale lines with no volume, a thin share class's bar off its sibling's scale and non-positive prices out of each price window, hold a Thai NVDR line and its ordinary line once, test the market-cap floor on a cap checked against later reverse splits, and flag adjustment-factor steps, splits and every return above +100% or below -50% for review (`data_checks.large_moves` lists them, and `ltp.large_moves` those of exits at the last traded price).
 - **Transaction costs:** Size-tiered, one-way: 0.1% above $10B market cap, 0.3% for $2-10B, 0.5% below $2B, charged on entry and on exit (0.2% to 1.0% round trip). The tier thresholds are in US dollars and market caps aren't converted, so on NSE, JPX and KSC, where the market-cap floor is at least 10 billion local units (₹10B, ¥50B, ₩250B), every holding pays the 0.1% tier.
 - **Data lag:** 45 days after the fiscal year end (point-in-time). A fiscal year that ended 410 days or more before the rebalance isn't used.
 - **Exits:** A holding with no price in the 10-day window after the exit date exits at its last traded price (`--exit-method ltp`, the default).
-- **Listing rules:** XETRA holds Germany-domiciled companies only, SIX Switzerland-domiciled companies only, and LSE pence-quoted (GBp) lines only. On every market, a security listed under more than one ticker (same ISIN) is held once. Share classes have their own ISINs, so a company's two classes can both be held. The October 2026 books, made before the universe rules, also held preference lines beside their ordinary lines: Germany's held both lines of at least one of Henkel (HEN.DE, HEN3.DE), Fuchs (FPE.DE, FPE3.DE), Sartorius, Biotest or BMW in 17 of its 18 invested years, and Brazil's held COCE5.SA and COCE6.SA together in five.
+- **Listing rules:** XETRA holds Germany-domiciled companies only, SIX Switzerland-domiciled companies only, and LSE pence-quoted (GBp) lines only. On every market, a security listed under more than one ticker (same ISIN) is held once. Share classes have their own ISINs, so a company's two classes can both be held, except on SAO, where a company holds one line (Signal).
 - **Benchmark:** Each market's own index, in local currency. The US is measured against SPY. Saudi Arabia has no local index configured and is measured against the S&P 500 in USD. China (SHZ + SHH) is measured against the SSE Composite.
 - **Risk-free rate (Sharpe):** Fixed per market, from `REGIONAL_RISK_FREE_RATES` in `cli_utils.py` (2.0% US, 6.5% India, 0.1% Japan, 10.5% Brazil).
 
-## Results (October 2026 run, July 2000 to July 2025)
+## Results (July 2000 to 9 November 2026)
 
-These are the October 2026 run's results. They were made before the data checks, the universe rules and the prior-year guard, so the current code doesn't reproduce them, and a rerun on it will replace them.
+Every market runs to 2026-11-09 (`--end-date 2026-11-09`): 26 full years from the July 2000 rebalance and a partial year from 2026-07-01, 130 days or 36% of a year. CAGR, max drawdown and excess count the partial year. Sharpe divides by the full years' volatility (METHODOLOGY.md, "Run Window"). Each file's `partial_year` holds the partial year's returns.
 
-The strategy beat its own market's index in 12 of 15 markets. Germany, Australia and Thailand trailed. Saudi Arabia is left out of the count because its benchmark is the S&P 500 in USD; it trailed that by 5.19pp.
+The strategy beat its own market's index in 10 of 15 markets. Brazil, Korea, Thailand, Germany and Australia trailed. Saudi Arabia is left out of the count because its benchmark is the S&P 500 in USD; it trailed that by 6.06pp.
 
 | Market | Benchmark | CAGR | Benchmark CAGR | Excess (pp) | Sharpe | Max DD | Cash years | Avg stocks |
 |--------|-----------|------|----------------|-------------|--------|--------|------------|------------|
-| India (NSE) | Sensex | 13.42% | 12.06% | +1.37 | 0.286 | -20.43% | 5 (2000-2004) | 22.4 |
-| US (NYSE + NASDAQ + AMEX) | S&P 500 (SPY) | 12.97% | 7.85% | +5.12 | 0.691 | -29.07% | 0 | 25.9 |
-| UK (LSE) | FTSE 100 | 9.38% | 1.23% | +8.15 | 0.333 | -21.88% | 1 (2001) | 20.6 |
-| Brazil (SAO) | Bovespa | 8.73% | 8.70% | +0.03 | -0.124 | -15.78% | 7 (2000-2006) | 13.9 |
-| Canada (TSX) | TSX Composite | 8.36% | 3.95% | +4.41 | 0.375 | -31.51% | 3 (2000, 2002-2003) | 24.0 |
-| Japan (JPX) | Nikkei 225 | 7.34% | 3.31% | +4.03 | 0.389 | -27.17% | 5 (2000-2004) | 28.2 |
-| Hong Kong (HKSE) | Hang Seng | 6.08% | 1.64% | +4.44 | 0.165 | -26.63% | 2 (2000, 2002) | 19.3 |
-| Sweden (STO) | OMX Stockholm 30 | 5.88% | 2.55% | +3.32 | 0.241 | -36.52% | 7 (2000-2004, 2006, 2009) | 20.2 |
-| Taiwan (TAI) | TAIEX | 5.72% | 4.09% | +1.64 | 0.404 | -10.94% | 8 (2000-2007) | 28.4 |
-| Korea (KSC) | KOSPI | 5.57% | 5.35% | +0.21 | 0.193 | -22.01% | 10 (2000-2009) | 23.8 |
-| Switzerland (SIX) | SMI | 5.51% | 1.74% | +3.77 | 0.314 | -35.82% | 5 (2000-2004) | 20.8 |
-| China (SHZ + SHH) | SSE Composite | 5.25% | 2.43% | +2.82 | 0.084 | -64.17% | 0 | 19.9 |
-| Thailand (SET) | SET Index | 3.49% | 5.13% | -1.64 | 0.059 | -32.71% | 5 (2000-2004) | 22.1 |
-| Germany (XETRA) | DAX | 2.69% | 5.04% | -2.35 | 0.039 | -48.37% | 7 (2000-2006) | 20.7 |
-| Saudi Arabia (SAU) | S&P 500 (USD) | 2.67% | 7.85% | -5.19 | -0.053 | -38.96% | 9 (2000-2008) | 23.1 |
-| Australia (ASX) | ASX 200 | 2.17% | 3.89% | -1.72 | -0.101 | -44.51% | 7 (2000-2006) | 21.8 |
+| US (NYSE + NASDAQ + AMEX) | S&P 500 (SPY) | 14.24% | 8.23% | +6.01 | 0.695 | -35.51% | 0 | 26.6 |
+| India (NSE) | Sensex | 12.56% | 11.28% | +1.28 | 0.238 | -20.43% | 5 (2000-2004) | 23.2 |
+| Hong Kong (HKSE) | Hang Seng | 10.32% | 1.59% | +8.72 | 0.334 | -31.43% | 2 (2000, 2002) | 20.0 |
+| UK (LSE) | FTSE 100 | 10.11% | 1.96% | +8.15 | 0.347 | -28.28% | 1 (2001) | 21.1 |
+| Canada (TSX) | TSX Composite | 9.79% | 4.95% | +4.83 | 0.445 | -32.53% | 3 (2000, 2002-2003) | 24.5 |
+| Japan (JPX) | Nikkei 225 | 7.91% | 4.68% | +3.24 | 0.426 | -27.17% | 5 (2000-2004) | 28.2 |
+| Taiwan (TAI) | TAIEX | 7.07% | 6.31% | +0.75 | 0.417 | -10.94% | 8 (2000-2007) | 28.5 |
+| Sweden (STO) | OMX Stockholm 30 | 6.74% | 3.48% | +3.26 | 0.283 | -36.52% | 7 (2000-2004, 2006, 2009) | 21.1 |
+| Korea (KSC) | KOSPI | 6.40% | 7.04% | -0.64 | 0.215 | -22.33% | 10 (2000-2009) | 21.6 |
+| China (SHZ + SHH) | SSE Composite | 5.95% | 2.53% | +3.43 | 0.099 | -64.21% | 0 | 20.4 |
+| Brazil (SAO) | Bovespa | 5.91% | 9.12% | -3.21 | -0.429 | -12.04% | 12 (2000-2007, 2011, 2013, 2016, 2021) | 16.9 |
+| Switzerland (SIX) | SMI | 5.55% | 2.50% | +3.04 | 0.306 | -36.28% | 5 (2000-2004) | 20.9 |
+| Thailand (SET) | SET Index | 4.39% | 5.97% | -1.58 | 0.110 | -33.93% | 6 (2000-2005) | 22.5 |
+| Germany (XETRA) | DAX | 2.95% | 5.19% | -2.25 | 0.055 | -48.61% | 7 (2000-2006) | 20.0 |
+| Saudi Arabia (SAU) | S&P 500 (USD) | 2.17% | 8.23% | -6.06 | -0.071 | -38.96% | 9 (2000-2008) | 23.8 |
+| Australia (ASX) | ASX 200 | 2.06% | 3.88% | -1.82 | -0.112 | -44.78% | 7 (2000-2006) | 21.9 |
 
-Returns are in local currency, after costs. Excess is computed from unrounded CAGRs, so it can differ by 0.01 from the difference of the two rounded columns. Cash years are labelled by their July rebalance.
+Returns are in local currency, after costs. Excess is computed from unrounded CAGRs, so it can differ by 0.01 from the difference of the two rounded columns. Cash years count the 26 full years and are labelled by their July rebalance; every market was invested in the partial year.
 
-- **US:** 12.97% a year against 7.85% for SPY, with a Sharpe of 0.691 against 0.352, a max drawdown of -29.07% against -38.01%, and no cash years.
-- **Thin leads:** Brazil beats the Bovespa by 0.03pp with a lower Sharpe (-0.124 against -0.075), and Korea beats the KOSPI by 0.21pp, invested only from the 2010 rebalance.
+- **US:** 14.24% a year against 8.23% for SPY, with a Sharpe of 0.695 against 0.379, a max drawdown of -35.51% against -38.01%, and no cash years.
+- **Behind:** Korea trails the KOSPI by 0.64pp, invested only from the 2010 rebalance. Over the 2025 year the KOSPI rose 148.7% and the book 19.1%. Brazil trails the Bovespa by 3.21pp, invested in 14 of the 26 full years. In 41 of its holdings a preferred or unit line stood in for an unpriced ordinary line; `universe_rules.class_stand_ins` lists all 58 the screens picked, cash years included.
 - **Dividends in benchmarks:** the portfolio's returns include dividends (`adjClose`). Four markets are measured against a series that does too: the US and Saudi Arabia against SPY, Germany against the DAX, Brazil against the Bovespa. The other twelve are measured against price indices, so their excess is overstated by roughly the index's dividend yield. See METHODOLOGY.md (Benchmark Limitations).
-- **Cash years:** a year is in cash when fewer than 10 names pass the screen, or fewer than 10 of those have a usable entry price. Every cash year is a 2009 or earlier rebalance. The US and China were invested in all 25 years.
-- **Sharpe:** Brazil's is negative at an 8.73% CAGR because its risk-free rate is 10.5%.
+- **Cash years:** a year is in cash when fewer than 10 names pass the screen, or fewer than 10 of those have a usable entry price. Every cash year is a 2009 or earlier rebalance except Brazil's 2011, 2013, 2016 and 2021. The US and China were invested in all 26 full years.
+- **Sharpe:** Brazil's is negative at a 5.91% CAGR because its risk-free rate is 10.5%.
+
+## Rerun November 2026
+
+These results replace the October 2026 files. The screen's filters didn't change; four things around them did:
+
+- **Data checks in place of the 200% cap.** A holding's return above +200% used to be dropped from its year's average. It's now kept, and the data checks remove the errors (METHODOLOGY.md, Data Checks). 35 held returns above +200% are kept across the 16 files. 30 are in the 2000-2024 rebalances: Hong Kong 6, China 5, the US 4, India 3, Korea 2, the UK 2, Sweden 2, Saudi Arabia 2, and Canada, Switzerland, Taiwan and Thailand 1 each. The other 5 are in the 2025 year: Taiwan 2, Hong Kong, Japan and Korea 1 each.
+- **Ordinary shares only** (universe rules `ur-2`, Signal). Preferreds, notes, units, funds, US ADRs, US royalty trusts and LPs, BDRs and the hand-listed second lines leave the books, and on SAO a company holds one line.
+- **The prior-year guard.** Asset growth compares the company's own previous fiscal year, 300 to 430 days earlier, in the same reporting currency (Signal).
+- **The run window.** Every market runs to 2026-11-09, so the 2025 rebalance is a full year and a partial year from July 2026 follows.
+
+What moved, for each market whose excess moved more than half a point. "Code" is the change on the same 25 years (the 2000-2024 rebalances); "Window" is what the 2025 year and the partial year add.
+
+| Market | October 2026 | Same 25 years | To 2026-11-09 | Code | Window |
+|--------|--------------|---------------|---------------|------|--------|
+| Hong Kong | +4.44 | +7.96 | +8.72 | +3.52 | +0.76 |
+| US | +5.12 | +6.50 | +6.01 | +1.38 | -0.49 |
+| China (SHZ + SHH) | +2.82 | +3.56 | +3.43 | +0.74 | -0.13 |
+| Brazil | +0.03 | -2.69 | -3.21 | -2.72 | -0.52 |
+| Korea | +0.21 | +1.12 | -0.64 | +0.91 | -1.76 |
+| Taiwan | +1.64 | +1.92 | +0.75 | +0.28 | -1.17 |
+| Saudi Arabia | -5.19 | -4.77 | -6.06 | +0.42 | -1.29 |
+| Japan | +4.03 | +4.16 | +3.24 | +0.13 | -0.92 |
+| Switzerland | +3.77 | +3.66 | +3.04 | -0.11 | -0.62 |
+
+- **Hong Kong** gains mostly on the code: the returns above +200% the cap had dropped (0027.HK in 2010, 1230.HK in 2012, 8005.HK in 2014, 3306.HK in 2017, 0336.HK in 2020, 1428.HK in 2024), and the US companies' pilot-programme lines are out. In the 2025 year the book rose 28.2% while the Hang Seng fell 4.8%.
+- **The US** gains on AppLovin, iHeartMedia and Quidel, each above +200%, with the ADRs, royalty trusts and LPs out. In the 2025 year the book rose 6.8% and SPY 20.4%.
+- **China** gains on five returns above +200%.
+- **Brazil** goes from a tie to 3.21pp behind. With one line per company, 2007, 2011, 2013, 2016 and 2021 had 8 or 9 buyable lines, where the second lines had made 10 to 14, and they sit in cash. In 2016 Arezzo now counts once: AZZA3.SA's bars before 2024-08-27 copy ARZZ3.SA's (Signal).
+- **Korea** goes from a near tie to 0.64pp behind. The code adds 0.91pp: the preferreds and the five KOSDAQ duplicates are out, and names from below the cut take their slots. The 2025 year takes 1.76pp: the KOSPI rose 148.7% and the book 19.1%.
+- **Taiwan, Saudi Arabia, Japan and Switzerland** move on the 2025 year: TAIEX rose 107.0% against the book's 49.0%, SPY 20.4% against Saudi's -4.9%, the Nikkei 72.9% against 22.3%, the SMI 19.7% against 5.4%.
+- Canada, India, the UK, Sweden, Germany, Australia and Thailand moved by 0.42pp or less. Korea and Brazil now trail, so 10 of 15 markets beat their index, against 12.
 
 ## Rerun October 2026
 
-These results were rerun with three changes, described in METHODOLOGY.md (Universe Construction, and Limitations: Survivorship Bias):
+The October 2026 files, which the November rerun replaced, came from three changes, described in METHODOLOGY.md (Universe Construction, and Limitations: Survivorship Bias):
 
 - **Last-traded-price exits.** A holding with no price after the exit date now exits at its last traded price instead of being dropped from the period. 26 holdings in 11 markets exited this way; each results file lists them under its `ltp` key.
 - **Listing rules.** XETRA holds Germany-domiciled companies only, SIX Switzerland-domiciled companies only, and LSE pence-quoted lines only.
@@ -98,17 +129,17 @@ The listing rules drive the large moves:
 
 Run from the repository root. `--exit-method` defaults to `ltp`. The listing rules need no flag: they apply whenever XETRA, SIX or LSE is run as its own market, as in the table below. A mixed leg such as `--exchange XETRA,LSE` or `--exchange LSE,NYSE` gets no listing rule.
 
-A run goes to the latest close every market in it traded, with the last year partial (METHODOLOGY.md, "Run Window"). `--end-year 2025` gives the published July 2000 to July 2025 window. The committed files are the October 2026 run's, made before the data checks, the universe rules and the prior-year guard, so no command here reproduces them. A rerun for new figures gives every market one `--end-date` (`scripts/data_end.py --legs-file scripts/gate_legs/wave1.json --topic asset-growth` prints the common date), so the comparison file holds one window: `rebuild_comparison.py` refuses markets that end on different dates.
+A run goes to the latest close every market in it traded, with the last year partial (METHODOLOGY.md, "Run Window"). The committed files are the runs pinned to `--end-date 2026-11-09`, and the same pin rebuilds them; it fixes the prices, not the vendor's later restatements. `--end-year 2025` stops at July 2025. A rerun for new figures gives every market one `--end-date` (`scripts/data_end.py --legs-file scripts/gate_legs/wave1.json --topic asset-growth` prints the common date), so the comparison file holds one window: `rebuild_comparison.py` refuses markets that end on different dates.
 
 ```bash
 # US (default universe: NYSE + NASDAQ + AMEX), to the latest close
 python3 asset-growth/backtest.py --verbose
 
 # One market on the published window, written to its results file
-python3 asset-growth/backtest.py --end-year 2025 --exchange XETRA --output asset-growth/results/returns_XETRA.json
+python3 asset-growth/backtest.py --end-date 2026-11-09 --exchange XETRA --output asset-growth/results/returns_XETRA.json
 
-# One market to a pinned end date (the date data_end.py prints)
-python3 asset-growth/backtest.py --end-date YYYY-MM-DD --exchange XETRA --output asset-growth/results/returns_XETRA.json
+# One market to July 2025
+python3 asset-growth/backtest.py --end-year 2025 --exchange XETRA
 
 # All 16 markets on one end date, plus exchange_comparison.json
 python3 asset-growth/backtest.py --global --end-date YYYY-MM-DD --output asset-growth/results/exchange_comparison.json --verbose
@@ -157,7 +188,9 @@ Use `--exchange` as shown. `--preset canada` adds TSXV and `--preset taiwan` add
 - Survivorship, the 45-day lag from the fiscal year end and a size floor read in the reporting currency apply here as in the other rerun topics: METHODOLOGY.md (Limitations) and DATA_QUALITY_ISSUES.md.
 - **The ordinary-shares rule is a list of patterns plus a hand list and a keep list**, and it reads today's profile. A trust or LP that later converted carries its corporate name back, so the trust rule can't see Texas Pacific Land Trust's 2010 and 2011 line-years (a corporation since 2021). SATS's profile names the Strive preferred that took the ticker in 2026, so EchoStar's 2022 line is removed too. No rule sees KTH, NSS or plain-ticker notes such as TANNL, KKRS, DHCNL, OPINL, NYMTL, WHLRL and ADAMH.
 - **Second lines of one company.** Renamed or legacy lines the hand list doesn't hold can put one company in a book twice: 76ID.L beside ROR.L, BC88.L, NTCO3.SA, ABG.AX, SHA.DE, 9512.SR and 9511.SR. Two Stockholm `-PREF` lines that no pattern reads, CORE-PREF.ST and SDIP-PREF.ST, stay too. KOSDAQ companies whose only history before 2026 is a KSC line stay in the Korea leg (013030, 073490, 085370.KS). Share classes have their own ISINs, so both can be held, and Avg stocks counts lines, not companies.
-- **BCE's three TSX lines** carry one set of financials. BCE-PY.TO is BCE's common price series through 2025 and prints a preferred's price in 2026, when BCE.TO's bars start, so a run past July 2025 that holds BCE isn't handled yet. DATA_QUALITY_ISSUES.md (Asset growth's data fixes) has this and the entries above.
+- **PTNM's stale tail** (US, 2025 book). Pitanium listed in May 2025. Its bars repeat one close, 10.39, on the same monthly volume from November 2025 to February 2026, then show no volume until its delisting on 2026-07-16. Its exit reads that series at the last traded bar, 2026-02-09: +18.6% from the 8.76 entry. The data checks don't catch it, because the repeated bars carry volume. At a 0% return the US CAGR would read 14.21%, at a total loss 14.06%: at most 0.18pp of its +6.01pp lead.
+- **013030.KS's 2024 exit.** The KSC feed for this KOSDAQ company stops on 2024-08-14, with a delisting row that day, so its July 2024 holding exits at that bar (26,900 against 26,300 at entry), not at the July 2025 close.
+- **BCE's three TSX lines** carry one set of financials. BCE-PY.TO is BCE's common price series through 2025 and prints a preferred's price in 2026, when BCE.TO's bars start. The published books hold BCE-PY.TO up to the 2020 rebalance and no BCE line after it, so the 2026 prices don't reach them. A later run that holds BCE past July 2025 isn't handled yet. DATA_QUALITY_ISSUES.md (Asset growth's data fixes) has this and the entries above.
 - **Unpriced names.** A screened name with no usable entry price takes its top-30 slot and isn't replaced; each period's `entry_unpriced` lists them.
 - The entry floor of 1.00 is in local units: one Hong Kong dollar, one penny on the LSE, one baht.
 
