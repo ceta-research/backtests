@@ -26,8 +26,8 @@ Gates:
  15 DATACHECKS  only DATA_CHECKS_TOPICS use the data checks (twin_key=, traded_only=,
                a None cap by keyword or position, a non-number MAX_SINGLE_RETURN, the new
                data_utils names), each of them has
-               dropped MAX_SINGLE_RETURN only with check M at every market-cap floor, passes cfg=
-               to LtpExits, and
+               dropped MAX_SINGLE_RETURN only with check M at every market-cap floor, passes its
+               DataChecks cfg (cfg=dc.cfg) to LtpExits, and
                their committed results hold no data_checks block but mode "on"
 
 Usage:  python scripts/verify_floor_guard.py
@@ -738,9 +738,10 @@ def dc_wiring(tree, n_floors):
     for fn in ("load_cap_check", "clean_price_cache", "mark_nvdr_twins"):
         if not any(_callee(c) == fn for c in calls):
             out.append((0, f"never calls {fn}"))
-    for c in calls:   # dc-2's rule S reaches LTP fills only through cfg
-        if _callee(c) == "LtpExits" and not any(k.arg == "cfg" for k in c.keywords):
-            out.append((c.lineno, "LtpExits without cfg=: its fills would stay on dc-1"))
+    for c in calls:   # dc-2's rule S reaches LTP fills only through the topic's DataChecks cfg
+        v = next((k.value for k in c.keywords if k.arg == "cfg"), None)
+        if _callee(c) == "LtpExits" and not (isinstance(v, ast.Attribute) and v.attr == "cfg"):
+            out.append((c.lineno, "LtpExits without cfg=dc.cfg: its fills would not follow the topic's data checks"))
     runs = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run_single"]
     for fn in ("fetch_data_via_api", "run_backtest"):
         inner = [c for r in runs for c in ast.walk(r) if isinstance(c, ast.Call) and _callee(c) == fn]

@@ -2765,7 +2765,8 @@ def gate15_failures():
                    "a floor on the raw cap": src.replace('sql("km.cap_used > ?")', 'sql("km.marketCap > ?")', 1),
                    "M not loaded": src.replace("load_cap_check(client", "print(client", 1),
                    "dc dropped": src.replace("exit_method=exit_method, dc=dc)", "exit_method=exit_method)", 1),
-                   "LtpExits without cfg": src.replace("end_date=win.end_date, cfg=dc.cfg)", "end_date=win.end_date)", 1)}
+                   "LtpExits without cfg": src.replace("end_date=win.end_date, cfg=dc.cfg)", "end_date=win.end_date)", 1),
+                   "LtpExits on a fixed cfg": src.replace("cfg=dc.cfg)", "cfg=DATA_CHECKS_V1)", 1)}
         for label, m in mutants.items():
             check(m != src, f"gate 15 mutant {label} found nothing to change in {t}")
             if not dc_wiring(ast.parse(m), n):
