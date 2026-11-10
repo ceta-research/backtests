@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Offline tests for data checks dc-1 (no network, no backtest leg).
+"""Offline tests for data checks dc-1 and dc-2 (no network, no backtest leg).
+
+dc-2's check S (stale repeats): in T's windows a run of 4 identical traded rows loses rows 2-4 while
+runs of 3, a new volume or a new close each day, a run split across two windows and the benchmark
+stay, PTNM's copies between zero-volume rows go after rule (2), and a run from the window's first
+day moves the next-day entry bar; on LTP fills PTNM's shape lands on its last real trade, a 4th copy
+after the exit date doesn't count, copies alone after entry take the missing exit, and local=True
+raises; dc-1 moves nothing for S and writes no S key; six source mutants of the rule each fail.
 
 T (traded bars), N (NVDR twins), M (market-cap check), F (factor flags, detection only) and L
 (large-move list) on crafted rows shaped like the measured cases (EASTW-R.BK, TRUE.BK 2006, the
@@ -72,7 +79,7 @@ import data_utils as du   # noqa: E402
 from data_utils import (DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr_twins,  # noqa: E402
                         isin_dedup_sql, nvdr_twins_sql, apply_cap_rule, cap_check_sql, empty_cap_check,
                         filter_returns, get_prices, get_benchmark_return, remove_price_oscillations,
-                        utc_epoch as ep, CAP_INPUTS_DDL)
+                        utc_epoch as ep, utc_date, CAP_INPUTS_DDL)
 from gate_ltp import check_stage_a, has_ltp_keys, strip_ltp, first_diff   # noqa: E402
 import scan_results_invariant as sri   # noqa: E402
 from verify_floor_guard import dc_wiring, dc_uses, dc_results_problem, DATA_CHECKS_TOPICS   # noqa: E402
@@ -1994,6 +2001,195 @@ def ltp_basis_failures():
     return f
 
 
+# ---------------------------------------------------------------- S: stale repeats (dc-2)
+
+S_D, S_X = date(2025, 7, 1), date(2026, 7, 1)
+
+
+def s_window_rows():
+    """Window rows for rule S, rebalance dates S_D and S_X (windows S_D to S_D + 11 days):
+    RUN4 four identical traded rows from S_D, then trading; RUN3 three; GAPPY (PTNM's shape) a traded bar
+    copied three times between zero-volume rows; VOL (the same close, a new volume each day) and CLS (the
+    same volume, a new close each day); DUP a run of four dates whose second date holds two identical rows,
+    and DUP3 three dates with one doubled; SPLIT two identical rows in each of the two windows; SPY, the
+    benchmark, a run of six."""
+    days = list(weekdays(S_D, S_D + timedelta(days=11)))   # 07-01 .. 07-11, nine weekdays
+    rows = []
+    for i, d in enumerate(days):
+        rows.append(("RUN4", d, 10.0, 10.0, 500.0) if i < 4 else ("RUN4", d, 10.5 + i, 10.5 + i, 600.0 + i))
+        rows.append(("RUN3", d, 20.0, 20.0, 500.0) if i < 3 else ("RUN3", d, 21.0 + i, 21.0 + i, 600.0 + i))
+        rows.append(("GAPPY", d, 10.39, 10.39, 1490634.0 if i in (0, 2, 4, 6) else 0.0))
+        rows.append(("VOL", d, 30.0, 30.0, 100.0 + i))
+        rows.append(("CLS", d, 40.0 + i, 40.0 + i, 100.0))
+        rows.append(("SPY", d, 600.0, 600.0, 9e6) if i < 6 else ("SPY", d, 601.0 + i, 601.0 + i, 9e6 + i))
+        if i < 4:
+            rows += [("DUP", d, 5.0, 5.0, 300.0)] * (2 if i == 1 else 1)
+        if i < 3:
+            rows += [("DUP3", d, 6.0, 6.0, 300.0)] * (2 if i == 1 else 1)
+        if i < 2:
+            rows.append(("SPLIT", d, 7.0, 7.0, 400.0))
+    for i, d in enumerate(weekdays(S_X, S_X + timedelta(days=11))):
+        rows += [(s, d, 11.0 + i, 11.0 + i, 700.0 + i) for s in ("RUN4", "RUN3", "VOL", "CLS")]
+        if i < 2:
+            rows.append(("SPLIT", d, 7.0, 7.0, 400.0))
+    return rows
+
+
+def s_window_failures(m=du):
+    """Rule S in check T's windows. Under dc-2: RUN4 loses its rows 2-4 (reason stale_repeat), so its
+    next-day entry bar moves to the first row after the run (an entry_bar event); GAPPY loses its
+    zero-volume rows to rule 2 and its copies 2-4 to S; DUP loses both rows of its second date and its
+    third and fourth; nothing else moves (RUN3, VOL, CLS, DUP3, SPLIT across two windows, the benchmark).
+    Under dc-1 nothing moves for S and the stats carry no stale_repeat key."""
+    days = list(weekdays(S_D, S_D + timedelta(days=11)))
+    want = {("RUN4", d) for d in days[1:4]} | {("GAPPY", d) for d in (days[2], days[4], days[6])} | \
+        {("DUP", d) for d in days[1:4]}
+    f = []
+    for cfg in (m.DATA_CHECKS_V2, m.DATA_CHECKS_V1):
+        con = cache(s_window_rows())
+        stats = m.clean_price_cache(con, ["'SPY'"], [S_D, S_X], cfg=cfg)
+        got = {(s, utc_date(e)) for s, e in con.execute(
+            "SELECT symbol, trade_epoch FROM prices_dropped WHERE reason = 'stale_repeat'").fetchall()}
+        n = con.execute("SELECT COUNT(*) FROM prices_dropped WHERE reason = 'stale_repeat'").fetchone()[0]
+        if cfg is m.DATA_CHECKS_V1:
+            if got or "stale_repeat" in stats["rows_moved"]:
+                f.append(f"dc-1 moved {sorted(got)} for S, rows_moved {stats['rows_moved']}")
+            continue
+        if got != want:
+            f.append(f"dc-2 moved {sorted(got - want)} it must keep and kept {sorted(want - got)}")
+        if stats["rows_moved"].get("stale_repeat") != n or n != 10:   # DUP's second date is two rows
+            f.append(f"rows_moved.stale_repeat {stats['rows_moved'].get('stale_repeat')}, {n} rows dropped, want 10")
+        if con.execute("SELECT COUNT(*) FROM prices_dropped WHERE symbol = 'GAPPY' AND reason = 'zero_volume'"
+                       ).fetchone()[0] != 5:   # its odd-numbered weekdays
+            f.append("GAPPY's zero-volume rows did not go to rule 2 first")
+        dc = m.DataChecks("on", cfg)
+        e = get_prices(con, ["RUN4"], S_D, offset_days=1).get("RUN4")
+        x = get_prices(con, ["RUN4"], S_X, offset_days=1).get("RUN4")
+        dc.prices(con, S_D, S_X, [("RUN4", e, x, 1e10)], 1, 1.0, held=False)
+        ev = [v for v in dc.events if v["symbol"] == "RUN4"]
+        if not (e == 10.5 + 4 and len(ev) == 1 and ev[0]["check"] == "entry_bar"
+                and ev[0]["first_bar"]["reason"] == "stale_repeat" and ev[0]["used_bar"]["date"] == days[4].isoformat()):
+            f.append(f"RUN4 entry {e}, events {ev}: want the entry on {days[4]} and one entry_bar event")
+    return f
+
+
+def s_ptnm_src():
+    """PTNM's shape (stock_eod 2025-06 to 2026-07, NASDAQ): trading to 2025-10-03 (12.12 then 10.39 on
+    1,490,634 shares), then 10.39 on zero volume every weekday to 2026-07-07, with the 2025-10-03 bar
+    printed again on 2025-11-25, 2025-12-09, 2026-01-30 and 2026-02-10; the last two at epochs just before
+    midnight UTC (23:56:40 and 23:50:00 the day before), as stock_eod carries them. Delisted 2026-07-16.
+    Plus X (a run of 3 copies to the exit date and a 4th after it) and Y (its entry bar copied three times,
+    no other trade)."""
+    src = duckdb.connect()
+    src.execute("CREATE TABLE delisted_companies(symbol VARCHAR, delistedDate DATE)")
+    src.execute("INSERT INTO delisted_companies VALUES ('PTNM', '2026-07-16')")
+    src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date VARCHAR, dateEpoch BIGINT, adjClose DOUBLE, close DOUBLE,"
+                " volume DOUBLE)")
+    copies = {date(2025, 11, 25): 0, date(2025, 12, 9): 0, date(2026, 1, 30): -200, date(2026, 2, 10): -600}
+    rows = []
+    trading = list(weekdays(date(2025, 6, 2), date(2025, 10, 2)))
+    for k, d in enumerate(trading):
+        px = 12.12 if d == trading[-1] else round(8.0 + 0.03 * k, 2)
+        rows.append(("PTNM", d, ep(d), px, px, 500000.0 + k))
+    rows.append(("PTNM", date(2025, 10, 3), ep(date(2025, 10, 3)), 10.39, 10.39, 1490634.0))
+    for d in weekdays(date(2025, 10, 6), date(2026, 7, 7)):
+        rows.append(("PTNM", d, ep(d) + copies.get(d, 0), 10.39, 10.39, 1490634.0 if d in copies else 0.0))
+    for k, d in enumerate(weekdays(date(2025, 6, 2), date(2026, 7, 31))):
+        traded = d <= date(2025, 9, 1)
+        copy = d in (date(2025, 9, 2), date(2025, 10, 1), date(2026, 6, 1), date(2026, 7, 10))
+        rows.append(("X", d, ep(d), round(30.0 + 0.01 * k, 2) if traded else 33.0,
+                     round(30.0 + 0.01 * k, 2) if traded else 33.0, 1000.0 + k if traded else 777.0 if copy else 0.0))
+        rows.append(("Y", d, ep(d), 15.0, 15.0, 333.0 if d in (date(2025, 7, 2), date(2025, 8, 1), date(2025, 9, 2),
+                                                              date(2025, 10, 1)) else 0.0))
+    src.executemany("INSERT INTO stock_eod VALUES (?, ?, ?, ?, ?, ?)",
+                    [(s, d.isoformat(), e, a, c, v) for s, d, e, a, c, v in rows])
+    return src
+
+
+def s_ltp_failures(m=du):
+    """Rule S on LTP fills (traded_only, remote). PTNM bought 2025-07-02 at 8.76 and held to 2026-07-01:
+    under dc-1 its fill reads the last copy, 2026-02-09 (by epoch) at 10.39, as asset growth's committed US
+    file does; under dc-2 the four copies go and the fill lands on its last real trade, 2025-10-03 at 10.39,
+    with stale_rows_moved 4. X's 4th copy falls after the exit date, so its run to the exit date is three
+    rows and its fill stays on its last copy. Y's only trades after its entry bar are copies of it: under
+    dc-2 they go and Y takes the missing-exit path. dc-2 with local=True raises."""
+    con = duckdb.connect()
+    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE, volume DOUBLE)")
+    ent = {"PTNM": 8.03, "X": 30.01, "Y": 15.0}
+    for s, px in ent.items():
+        con.execute("INSERT INTO prices_cache VALUES (?, ?, ?, ?, 1000)", [s, ep(date(2025, 7, 2)), px, px])
+    f = []
+    for cfg in (m.DATA_CHECKS_V1, m.DATA_CHECKS_V2):
+        ltp = m.LtpExits(LtpClient(s_ptnm_src()), con, traded_only=True, cfg=cfg)
+        got = ltp.fill(["PTNM", "X", "Y"], ent, {}, S_D, S_X, offset_days=1, min_entry_price=1.0)
+        bars = {x["symbol"]: x["last_bar"] for x in ltp.fills}
+        p = ltp.provenance()
+        if cfg is m.DATA_CHECKS_V1:
+            want, want_bars = {"PTNM": 10.39, "X": 33.0, "Y": 15.0}, {"PTNM": "2026-02-09", "X": "2026-06-01",
+                                                                     "Y": "2025-10-01"}
+            if "stale_rows_moved" in p:
+                f.append("dc-1 provenance carries stale_rows_moved")
+        else:
+            want, want_bars = {"PTNM": 10.39, "X": 33.0}, {"PTNM": "2025-10-03", "X": "2026-06-01"}
+            if p.get("stale_rows_moved") != 7:   # PTNM's 4 copies and Y's 3
+                f.append(f"dc-2 stale_rows_moved {p.get('stale_rows_moved')}, want 7")
+        if got != want or bars != want_bars:
+            f.append(f"{cfg['version']}: fills {got} on {bars}, want {want} on {want_bars}")
+    try:
+        m.LtpExits(LtpClient(s_ptnm_src()), con, local=True, traded_only=True, cfg=m.DATA_CHECKS_V2)
+        f.append("dc-2 with local=True did not raise: the local path doesn't apply rule S")
+    except ValueError:
+        pass
+    return f
+
+
+def s_block_failures(m=du):
+    """dc-2's results block: version dc-2, rule S in its rules, rows_moved.stale_repeat counted (0 before any
+    clean, in both modes); a dc-1 block keeps its three rows_moved keys and no rule S."""
+    f = []
+    for mode in m.DataChecks.MODES:
+        b2, b1 = m.DataChecks(mode, m.DATA_CHECKS_V2).block(), m.DataChecks(mode, m.DATA_CHECKS_V1).block()
+        if (b2["version"], b2["counts"]["rows_moved"].get("stale_repeat"), "stale_repeat" in b2["rules"]) != \
+                ("dc-2", 0, True):
+            f.append(f"{mode} dc-2 block: {b2['version']} {b2['counts']['rows_moved']}")
+        if set(b1["counts"]["rows_moved"]) != {"closed_day", "zero_volume", "nonpositive_price"} or \
+                "stale_repeat" in b1["rules"]:
+            f.append(f"{mode} dc-1 block gained rule S: {b1['counts']['rows_moved']}")
+    if {k: v for k, v in m.DATA_CHECKS_V2.items() if k not in ("version", "stale_repeat")} != \
+            {k: v for k, v in m.DATA_CHECKS_V1.items() if k != "version"}:
+        f.append("dc-2 differs from dc-1 outside rule S")
+    return f
+
+
+S_MUTANTS = {
+    "min_run >= to >": ("WHERE n >= {int(min_run)}", "WHERE n > {int(min_run)}"),
+    "the close term dropped": ("close = LAG(close) OVER w AND ", ""),
+    "the volume term dropped": (" AND volume = LAG(volume) OVER w", ""),
+    "the last row kept, not the first": ("ORDER BY trade_epoch) AS i", "ORDER BY trade_epoch DESC) AS i"),
+    "the window dropped from T's partition": ("ws AS k", "0 AS k"),
+    "the exit-window bound dropped from LTP": ("WHERE p.trade_epoch < w.hi", "WHERE TRUE"),
+}
+
+
+def s_mutant_failures(tmp):
+    """Each S_MUTANTS edit of data_utils must fail one of rule S's checks."""
+    src = open(os.path.join(ROOT, "data_utils.py")).read()
+    f = []
+    for i, (label, (old, new)) in enumerate(S_MUTANTS.items()):
+        if src.count(old) != 1:
+            f.append(f"S mutant {label}: anchor found {src.count(old)} times")
+            continue
+        path = os.path.join(tmp, f"du_s_mutant_{i}.py")
+        with open(path, "w") as fh:
+            fh.write(src.replace(old, new, 1))
+        spec = importlib.util.spec_from_file_location(f"du_s_mutant_{i}", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        if not (s_window_failures(mod) or s_ltp_failures(mod)):
+            f.append(f"S mutant {label} passes every check")
+    return f
+
+
 # ---------------------------------------------------------------- every opted-in topic end to end
 
 def load_topic(topic):
@@ -2568,7 +2764,9 @@ def gate15_failures():
         mutants = {"cap restored": src.replace("max_single_return=None", "max_single_return=2.0", 1),
                    "a floor on the raw cap": src.replace('sql("km.cap_used > ?")', 'sql("km.marketCap > ?")', 1),
                    "M not loaded": src.replace("load_cap_check(client", "print(client", 1),
-                   "dc dropped": src.replace("exit_method=exit_method, dc=dc)", "exit_method=exit_method)", 1)}
+                   "dc dropped": src.replace("exit_method=exit_method, dc=dc)", "exit_method=exit_method)", 1),
+                   "LtpExits without cfg": src.replace("end_date=win.end_date, cfg=dc.cfg)", "end_date=win.end_date)", 1),
+                   "LtpExits on a fixed cfg": src.replace("cfg=dc.cfg)", "cfg=DATA_CHECKS_V1)", 1)}
         for label, m in mutants.items():
             check(m != src, f"gate 15 mutant {label} found nothing to change in {t}")
             if not dc_wiring(ast.parse(m), n):
@@ -2627,6 +2825,14 @@ def main():
     expect("T LTP traded_only (HALT keeps its fill)", ltp_traded_failures())
     expect("L on LTP fills", ltp_large_move_failures())
     expect("LTP fill on a flipping adjClose basis: RAM.BK repaired, 600875.SS kept", ltp_basis_failures())
+    # S (dc-2)
+    expect("S in T's windows: runs of 4 lose rows 2+, PTNM's shape, an entry bar moved; dc-1 moves none",
+           s_window_failures())
+    expect("S on LTP fills: PTNM lands on 2025-10-03, the exit-window bound, copies only take the missing exit",
+           s_ltp_failures())
+    expect("S results block: dc-2 counts rule S, dc-1 unchanged", s_block_failures())
+    with tempfile.TemporaryDirectory() as tmp:
+        expect("S mutants each fail a check", s_mutant_failures(tmp))
     # N
     expect("N twins", twin_failures())
     # M

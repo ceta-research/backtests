@@ -812,20 +812,26 @@ class LtpExits:
     must then carry close and volume. False sends the SQL and builds the temp table this class always did.
     traded_only=True also repairs a fill that lands on the other side of a feed whose adjClose basis
     flips row by row while its close runs smoothly (RAM.BK 2018-01: adjClose alternates between about
-    close / 5.35 and close x 0.855): DATA_CHECKS_V1["fill_basis"] decides it, the fill books entry price x
+    close / 5.35 and close x 0.855): cfg["fill_basis"] decides it, the fill books entry price x
     fill close / entry close, and keeps its adjClose as ltp_adj with basis "close" (close_basis_fills).
+    cfg (DATA_CHECKS_V1 when None) carries fill_basis and factor; with rule S (DATA_CHECKS_V2) a traded_only
+    fill also loses each stale repeat over its rows to the window end (stale_rows_moved), remote only.
     """
 
     # Remote cleaning context each side of the window; the filter's widest neighbour span is 20 days.
     CONTEXT_DAYS = 30
 
-    def __init__(self, client, con, local=False, verbose=False, traded_only=False, end_date=None):
+    def __init__(self, client, con, local=False, verbose=False, traded_only=False, end_date=None, cfg=None):
         """end_date: the run window's end (RunWindow.end_date). No bar after it is fetched, not even as
         cleaning context, so no later price reaches a fill. None: no cut."""
         self.client, self.con, self.local, self.verbose = client, con, local, verbose
         self.end_date = end_date
+        self.cfg = DATA_CHECKS_V1 if cfg is None else cfg
+        self.stale = traded_only and "stale_repeat" in self.cfg
+        if self.stale and local:
+            raise ValueError("LtpExits: rule S runs on the remote path only; pass local=False")
         self.traded_only, self.zero_volume_moved, self._bar_extra = traded_only, 0, {}
-        self.close_basis, self._flips = 0, {}
+        self.close_basis, self._flips, self.stale_moved = 0, {}, 0
         # One row per symbol (9,900 rows / 9,900 symbols, checked 2026-10-09).
         # Ordered so a symbol with two rows always keeps its latest delisting (the dict keeps the last row).
         rows = self._query("SELECT symbol, delistedDate FROM delisted_companies WHERE delistedDate IS NOT NULL"
@@ -963,6 +969,13 @@ class LtpExits:
                         "SELECT p.symbol FROM prices_cache p JOIN ltp_win w ON p.symbol = w.symbol"
                         " WHERE p.volume > 0 AND p.trade_epoch >= w.lo AND p.trade_epoch < w.hi)").fetchone()[0]
                     self._flips.update(self._basis_flips(tmp, remote))   # before the filter drops either basis
+                    if self.stale:   # rule S over each fill's rows to its window end, after the flips are counted
+                        tmp.execute("CREATE TABLE _stale AS " + stale_repeat_sql(
+                            "SELECT p.symbol, 0 AS k, p.trade_epoch, p.adjClose, p.close, p.volume FROM prices_cache p"
+                            " JOIN ltp_win w ON p.symbol = w.symbol WHERE p.trade_epoch < w.hi",
+                            self.cfg["stale_repeat"]["min_run"]))
+                        self.stale_moved += tmp.execute("DELETE FROM prices_cache WHERE (symbol, trade_epoch) IN"
+                                                        " (SELECT symbol, trade_epoch FROM _stale)").fetchone()[0]
                 else:
                     tmp.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE)")
                     tmp.executemany("INSERT INTO prices_cache VALUES (?, ?, ?)",
@@ -979,7 +992,7 @@ class LtpExits:
         if not bounds:
             return {}
         day_end = lambda d: utc_epoch(d + timedelta(days=1))
-        lb = math.log(DATA_CHECKS_V1["factor"]["band"][1])
+        lb = math.log(self.cfg["factor"]["band"][1])
         start = lambda lo: utc_epoch(lo + timedelta(days=1 - self.CONTEXT_DAYS))   # the fetched context start
         vals = ",".join("('{}', {}, {})".format(s.replace("'", "''"), start(lo), day_end(hi))
                         for s, (lo, hi, _, _) in bounds.items())
@@ -1000,7 +1013,7 @@ class LtpExits:
 
     def _close_basis(self, s, entry_epoch, entry_price, px, close):
         """The close-based exit price for a fill that fill_basis repairs, else None."""
-        if self._flips.get(s, 0) < DATA_CHECKS_V1["fill_basis"]["min_reversals"]:
+        if self._flips.get(s, 0) < self.cfg["fill_basis"]["min_reversals"]:
             return None
         if not (entry_price and entry_price > 0 and px and px > 0 and close and close > 0):
             return None
@@ -1010,7 +1023,7 @@ class LtpExits:
                                " ORDER BY close DESC NULLS LAST LIMIT 1", [s, entry_epoch, entry_price]).fetchone()
         if not (row and row[0] and row[0] > 0):
             return None
-        lo, hi = DATA_CHECKS_V1["factor"]["band"]
+        lo, hi = self.cfg["factor"]["band"]
         if lo <= (px / close) / (entry_price / row[0]) <= hi:
             return None
         return entry_price * close / row[0]
@@ -1081,6 +1094,7 @@ class LtpExits:
                 "filled_delisting_not_binding": sum(1 for f in self.fills if f["delisting_bound"] == "not_binding"),
                 **({"traded_only": True, "zero_volume_rows_moved": self.zero_volume_moved,
                     "close_basis_fills": self.close_basis} if self.traded_only else {}),
+                **({"stale_rows_moved": self.stale_moved} if self.stale else {}),
                 "fills": self.fills}
 
 
@@ -1682,7 +1696,9 @@ def validate_price_data(con, max_price_ratio=1000, verbose=True):
 #   M market cap    load_cap_check() and cap_used_sql() at every market-cap floor.
 #   F factor flags  DataChecks records stage-1 drift and split events; it changes no price.
 #   L large moves   DataChecks lists every kept window-bar holding with |ln(1+r)| >= ln 2.
-# All thresholds live in DATA_CHECKS_V1, which every results file carries.
+#   S stale repeats dc-2 only (DATA_CHECKS_V2): a run of identical traded rows keeps its first row, in
+#                   clean_price_cache() and in LtpExits(traded_only=True, cfg=...) fills.
+# All thresholds live in DATA_CHECKS_V1 (dc-1) or DATA_CHECKS_V2 (dc-2), which every results file carries.
 # ---------------------------------------------------------------------------
 
 DATA_CHECKS_V1 = {
@@ -1742,6 +1758,39 @@ DATA_CHECKS_V1 = {
     "large_move_log": math.log(2),
 }
 
+# dc-2: dc-1 plus rule S. A topic opts in at its rerun, so a topic published on dc-1 keeps its files.
+DATA_CHECKS_V2 = {**DATA_CHECKS_V1, "version": "dc-2", "stale_repeat": {
+    "min_run": 4,
+    "rule": ("in date order over one line's traded rows (volume > 0 and adjClose > 0, one row per date, zero-volume "
+             "rows skipped), a run is consecutive rows with the same close and the same volume; in a run of min_run "
+             "rows or more every row after the first is untraded (a feed printing its last real bar again, as "
+             "PTNM's halt from 2025-10-03 or a market's holiday): T moves those rows from each window after "
+             "nonpositive_price, and an LTP fill (traded_only) loses them over its rows to the exit window's end, "
+             "so it lands on the run's first row, the last real trade")}}
+
+
+def stale_repeat_sql(rows, min_run):
+    """Rule S (DATA_CHECKS_V2["stale_repeat"]) as SQL: (symbol, k, trade_epoch) of every traded row after the
+    first in a run of min_run or more. `rows` is SQL with symbol, k (the partition: T's window, or one per
+    fill), trade_epoch, adjClose, close and volume."""
+    return f"""
+        WITH one AS (
+            SELECT symbol, k, trade_epoch, close, volume FROM (
+                SELECT symbol, k, trade_epoch, close, volume,
+                       ROW_NUMBER() OVER (PARTITION BY symbol, k, trade_epoch
+                                          ORDER BY adjClose DESC, close DESC NULLS LAST, volume DESC) AS rn
+                FROM ({rows}) x WHERE volume > 0 AND adjClose > 0) y WHERE rn = 1),
+        brk AS (
+            SELECT *, CASE WHEN close = LAG(close) OVER w AND volume = LAG(volume) OVER w THEN 0 ELSE 1 END AS b
+            FROM one WINDOW w AS (PARTITION BY symbol, k ORDER BY trade_epoch)),
+        run AS (
+            SELECT *, SUM(b) OVER (PARTITION BY symbol, k ORDER BY trade_epoch ROWS UNBOUNDED PRECEDING) AS r
+            FROM brk),
+        pos AS (
+            SELECT *, COUNT(*) OVER (PARTITION BY symbol, k, r) AS n,
+                   ROW_NUMBER() OVER (PARTITION BY symbol, k, r ORDER BY trade_epoch) AS i FROM run)
+        SELECT symbol, k, trade_epoch FROM pos WHERE n >= {int(min_run)} AND i > 1"""
+
 
 def _sig(x, digits=6):
     """x to `digits` significant digits, None passing through (keeps results files readable)."""
@@ -1768,6 +1817,8 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
                            flat_no_volume: a suspended quote, or a stale one that steps once like
                            BC88.L's 95 then 70, is not buyable).
       3 nonpositive_price  rows with adjClose NULL or <= 0.
+     3b stale_repeat       only when cfg has rule S (dc-2): a (symbol, W)'s traded rows after the first in a run
+                           of stale_repeat.min_run or more with the same close and volume (stale_repeat_sql).
       4 sibling_gap        only with `siblings`, a table of (symbol, filing_epoch, market_cap) such
                            as cap_inputs: lines that share an identical FY cap in two FYs or more are
                            share classes of one company. Where steps 1 to 3 moved the bar a line's
@@ -1779,7 +1830,8 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
     bench_symbols may carry SQL quotes ("'SPY'"). Benchmark rows are never touched.
     Returns {rows_moved, symbol_windows_without_volume, flat_windows_moved, closed_day_test_skipped,
     closed_dates, sibling_gap_rows, sibling_gaps}. rows_moved.zero_volume counts the rows of both
-    rule-2 cases; sibling_gap rows are counted apart (sibling_gap_rows) and listed in sibling_gaps.
+    rule-2 cases, and rows_moved.stale_repeat (dc-2 only) step 3b's; sibling_gap rows are counted apart
+    (sibling_gap_rows) and listed in sibling_gaps.
     """
     bench = sorted({str(s).strip().strip("'") for s in bench_symbols})
     keep = ("p.symbol NOT IN (" + ", ".join("'" + s.replace("'", "''") + "'" for s in bench) + ")"
@@ -1855,6 +1907,12 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
                                  "flat_no_volume")
     tag()
     moved["nonpositive_price"] = move("r.adjClose IS NULL OR r.adjClose <= 0", "nonpositive_price")
+    if "stale_repeat" in cfg:   # dc-2's rule S, per window
+        tag()
+        con.execute("CREATE OR REPLACE TEMP TABLE _dc_stale AS " + stale_repeat_sql(
+            "SELECT symbol, ws AS k, trade_epoch, adjClose, close, volume FROM _dc_rows", cfg["stale_repeat"]["min_run"]))
+        moved["stale_repeat"] = move("(r.symbol, r.ws, r.trade_epoch) IN (SELECT symbol, k, trade_epoch FROM _dc_stale)",
+                                     "stale_repeat")
     gaps = []
     if siblings is not None:
         tag()
@@ -1862,7 +1920,7 @@ def clean_price_cache(con, bench_symbols, rebalance_dates, cfg=DATA_CHECKS_V1, t
         if gaps:
             con.executemany("INSERT INTO _dc_gap VALUES (?, ?)", [(g["symbol"], g["epoch"]) for g in gaps])
             move("(r.symbol, r.trade_epoch) IN (SELECT symbol, trade_epoch FROM _dc_gap)", "sibling_gap")
-    for t in ("_dc_win", "_dc_rows", "_dc_closed", "_dc_sw", "_dc_gap"):
+    for t in ("_dc_win", "_dc_rows", "_dc_closed", "_dc_sw", "_dc_stale", "_dc_gap"):
         con.execute(f"DROP TABLE IF EXISTS {t}")
     return {"rows_moved": moved, "symbol_windows_without_volume": int(no_volume), "flat_windows_moved": int(flat),
             "closed_day_test_skipped": len(skipped),
@@ -2354,7 +2412,8 @@ class DataChecks:
         if mode not in self.MODES:
             raise ValueError(f"data checks mode {mode!r} not in {self.MODES}")
         self.mode, self.cfg, self.on, self.full_holdings = mode, cfg, mode == "on", bool(full_holdings)
-        self.clean = {"rows_moved": {"closed_day": 0, "zero_volume": 0, "nonpositive_price": 0},
+        self.clean = {"rows_moved": {"closed_day": 0, "zero_volume": 0, "nonpositive_price": 0,
+                                     **({"stale_repeat": 0} if "stale_repeat" in cfg else {})},
                       "symbol_windows_without_volume": 0, "flat_windows_moved": 0, "closed_day_test_skipped": 0,
                       "closed_dates": [], "sibling_gap_rows": 0, "sibling_gaps": []}
         self.cap = {"cap_rows_checked": 0, "cap_rows_flagged": 0, "cap_unchecked": []}
