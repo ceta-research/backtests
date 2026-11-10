@@ -227,7 +227,7 @@ A topic on the run window runs to the latest data: defensive-quality, cyclical-t
   - `data_end` and `data_end_by_market`, the markets' latest days, with `data_end_checked_at`. All three are null on a pinned run.
   - `full_periods`, `span_years` (the CAGR's years), `partial_period` and `partial_year`.
   - On every `period_data` row, `partial`, and on the partial row its `fraction`.
-- **Published windows.** `--end-year YYYY` rebuilds a window the old way: a grid that ends in that year, no partial period and none of the keys above. defensive-quality's, cyclical-timing's and deleveraging's published results reproduce with `--end-year 2025`. asset-growth's committed files are its October 2026 run, made before its data checks, universe rules and prior-year guard, so `--end-year 2025` gives that window on the current code and doesn't reproduce them until its rerun replaces them.
+- **Published windows.** `--end-year YYYY` rebuilds a window the old way: a grid that ends in that year, no partial period and none of the keys above. defensive-quality's, cyclical-timing's and deleveraging's published results reproduce with `--end-year 2025`. asset-growth's published results run to 2026-11-09, with a partial final year, and `--end-date 2026-11-09` rebuilds them.
 - **Known edges.**
   - The end date's price window holds one bar. Data check T's closed-day test can't run there, and a line that prints with no volume on the end date takes the missing-exit path.
   - A market shut for the whole stub books a zero return, less costs, for it.

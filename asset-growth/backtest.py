@@ -14,7 +14,7 @@ Universe: ordinary shares only (data_utils universe rules ur-2, METHODOLOGY.md):
         history copies another line's enters on its first own day (ur-2 line_starts: AZZA3.SA, 2024-08-27).
 Portfolio: Top 30 by lowest asset growth, equal weight. Cash if < 10 qualify.
 Rebalancing: Annual (July), from 2000 to the latest close (METHODOLOGY.md, "Run Window"); the published
-        window is 2000-2025 (--end-year 2025). Data checks dc-1 in place of a return cap.
+        window runs to 2026-11-09 (--end-date 2026-11-09). Data checks dc-1 in place of a return cap.
 
 Academic reference: Cooper, Gulen & Schill (2008) "Asset Growth and the
 Cross-Section of Stock Returns", Journal of Finance 63(4), 1609-1651.
