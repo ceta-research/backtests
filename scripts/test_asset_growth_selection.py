@@ -186,6 +186,9 @@ AREZZO = {"ARZZ3.SA": year(FY19, curr=1000.5, isin="BRARZZACNOR3"),
           "AZZA3.SA": year(FY19, curr=1000.5, isin="BRAZZAACNOR9")}
 AREZZO_POST = {"AZZA3.SA": year(FY24, curr=1000.5, isin="BRAZZAACNOR9")}
 AZZA3_INELIG = {"AZZA3.SA": year(FY19, curr=1000.5, ineligible=True, isin="BRAZZAACNOR9")}   # check M's case
+# 30 qualify besides AZZA3.SA, which would rank first: left out, its slot goes to the 30th filler
+AREZZO_CROWD = {**{f"F{i:02d}": year(FY19, curr=900.0 + 5 * i) for i in range(30)},
+                "AZZA3.SA": year(FY19, curr=850.0, isin="BRAZZAACNOR9")}
 
 
 def db(companies, epoch_type="UINTEGER", on=D):
@@ -310,6 +313,11 @@ def arezzo_failures(mod):
     caps = [e["symbol"] for e in dc.events if e["check"] == "cap"]
     if caps:
         out.append(f"check M events for a line before its first own day: {caps}")
+    got, want = {s for s, _ in screen(mod, db(AREZZO_CROWD), D, ur=sao_rules(AREZZO_CROWD))}, set(AREZZO_CROWD) - {"AZZA3.SA"}
+    if got != want:
+        out.append(f"the left-out line's slot: missing {sorted(want - got)}, extra {sorted(got - want)}")
+    if mod._started("SELECT 1", []) != "SELECT 1":
+        out.append("the candidates SQL changes when no line is left out")
     return out
 
 
@@ -398,6 +406,9 @@ MUTANTS = {
     "stand-ins not recorded": [("ur.stand_ins([s for s, _ in picked], target_date)", "pass")],
     # ur-2's line_starts
     "no line starts": [("late = ur.not_started(target_date) if ur is not None else []", "late = []")],
+    "a line left out after the top-30 cut": [
+        ('candidates = _started(_candidates_sql("km.cap_used > ?"), late)', 'candidates = _candidates_sql("km.cap_used > ?")'),
+        ("picked = [(r[0], r[1]) for r in rows]", "picked = [(r[0], r[1]) for r in rows if r[0] not in late]")],
     "check M reads a line before its first own day": [
         ("_paired(_started(_candidates_sql(CAP_FAIL_TEST, events=True), late))",
          "_paired(_candidates_sql(CAP_FAIL_TEST, events=True))")],
