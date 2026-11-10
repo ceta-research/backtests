@@ -10,7 +10,8 @@ Growth: the current FY balance sheet (period end in (T-410, T-45] days, as are t
         rows) against the same company's prior FY, 300-430 days before it in the same reporting currency.
 Universe: ordinary shares only (data_utils universe rules ur-2, METHODOLOGY.md): preferreds, notes, units,
         funds, US ADRs and US trusts and LPs are out before the screen; on SAO a company holds one line, a
-        preferred or unit line standing in when the ordinary line has no entry price.
+        preferred or unit line standing in when the ordinary line has no entry price; a line whose earlier
+        history copies another line's enters on its first own day (ur-2 line_starts: AZZA3.SA, 2024-08-27).
 Portfolio: Top 30 by lowest asset growth, equal weight. Cash if < 10 qualify.
 Rebalancing: Annual (July), from 2000 to the latest close (METHODOLOGY.md, "Run Window"); the published
         window is 2000-2025 (--end-year 2025). Data checks dc-1 in place of a return cap.
@@ -316,6 +317,14 @@ def _candidates_sql(cap_test, events=False):
     """
 
 
+def _started(candidates_sql, late):
+    """The candidates without the lines a screen leaves out before their ur-2 line_starts day (unchanged if none)."""
+    if not late:
+        return candidates_sql
+    names = ", ".join("'" + s.replace("'", "''") + "'" for s in late)
+    return f"SELECT * FROM ({candidates_sql}) _s WHERE _s.symbol NOT IN ({names})"
+
+
 def _paired(candidates_sql, rule="IS NULL"):
     """The candidates the prior-year guard pairs ("IS NULL") or leaves unranked ("IS NOT NULL")."""
     return f"SELECT * FROM ({candidates_sql}) _g WHERE _g.prior_guard {rule}"
@@ -329,8 +338,9 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
     prior-year guard and the security dedup.
     dc (data_utils.DataChecks): when on, NVDR twins share a security (check N); it also records the
     screen's twin and market-cap events. ur-2's class twins share a security in every mode, so an SAO
-    company holds one line. ur: the leg's data_utils.UniverseRules (its removals act at the fetch; it
-    records the class twins each screen picks). guard (PriorYearGuard) records the unranked candidates.
+    company holds one line. ur: the leg's data_utils.UniverseRules (its removals act at the fetch, its
+    line_starts here; it records the class twins each screen picks). guard (PriorYearGuard) records the
+    unranked candidates.
     """
     # 45-day lag for point-in-time (July rebalance = filings through ~May 17)
     cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
@@ -339,7 +349,8 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
     # Prior FY is measured from each company's OWN current row, not from the rebalance date.
     prior_gap_min, prior_gap_max = PRIOR_FY_MIN_DAYS * 86400, PRIOR_FY_MAX_DAYS * 86400
 
-    candidates = _candidates_sql("km.cap_used > ?")
+    late = ur.not_started(target_date) if ur is not None else []
+    candidates = _started(_candidates_sql("km.cap_used > ?"), late)
     params = [cutoff_epoch, stale_epoch,       # bs_current
               prior_gap_min, prior_gap_max,   # bs_window
               cutoff_epoch, stale_epoch,       # km
@@ -363,8 +374,8 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
                                  params).fetchall(), target_date)
     if dc is not None:
         dc.twins(con, paired, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _ in picked])
-        dc.caps(con, _paired(_candidates_sql(CAP_FAIL_TEST, events=True)), params + [mktcap_min], target_date,
-                mktcap_min)
+        dc.caps(con, _paired(_started(_candidates_sql(CAP_FAIL_TEST, events=True), late)), params + [mktcap_min],
+                target_date, mktcap_min)
     return picked
 
 

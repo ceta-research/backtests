@@ -1590,7 +1590,8 @@ Before 2026, a year BCE screens in can also seat BCE.TO beside it with no entry 
 
 ### GUD.AX and AOV.AX, and other renamed or legacy lines
 
-**Status:** GUD.AX fixed in asset-growth (ur-2's hand list); the other lines are open.
+**Status:** GUD.AX and AZZA3.SA fixed in asset-growth (ur-2's hand list and line starts); the other
+lines are open.
 
 GUD Holdings was renamed Amotiv on 2024-06-18. AOV.AX, the new line, carries GUD's price history
 under a different ISIN, with the same close on every July bar from 1990 to 2024, so the same-ISIN
@@ -1599,10 +1600,16 @@ book held both lines in 2009, 2010 and 2024. In 2024 GUD.AX exited at its last b
 while AOV.AX sat in the same book: one company held twice, then exited early. ur-2 hand-lists
 GUD.AX.
 
+AZZA3.SA (Azzas 2154, from Arezzo's 2024 merger with Soma) repeats ARZZ3.SA's closes and volumes
+day for day up to 2024-08-26, ARZZ3.SA's last bar, under a different ISIN and with Arezzo's
+financial rows. Brazil's books held both lines in 2016, 2017 and 2019, and in 2016 the copy made the
+tenth buyable line, so a year that holds Arezzo once is a cash year. AZZA3.SA is today's live line,
+so ur-2 doesn't hand-list it: its line start, 2024-08-27, keeps it out of every earlier screen.
+
 The October books also held these renamed or legacy lines beside their company's main line, and
 they stay: 76ID.L beside ROR.L (Rotork) in 7 UK books, BC88.L beside CHG.L once, NTCO3.SA with
-NATU3.SA (one company under its old and new ticker, with identical July closes) in 2009, AZZA3.SA
-with ARZZ3.SA in 2016 and 2019, ABG.AX with ABP.AX twice, SHA.DE beside SHA0.DE twice, and two
+NATU3.SA (one company under its old and new ticker, with identical July closes) in 2009, ABG.AX
+with ABP.AX twice, SHA.DE beside SHA0.DE twice, and two
 Saudi lines with 95xx codes, likely the parallel market: 9512.SR beside 3092.SR three times and
 9511.SR beside 4323.SR once. The October Sweden book also held two `-PREF` lines that no
 pattern reads, CORE-PREF.ST and SDIP-PREF.ST, and they stay as well. Open: a hand-list entry each, or a test for two lines with one name and
