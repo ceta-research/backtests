@@ -12,9 +12,10 @@ never merge, a collapsed twin frees its top-N slot. Then each campaign topic (TO
 3) runs its real fetch_data_via_api + screen (screen_stocks; dogs-of-dow's screen_dogs) against
 a fake client on XETRA, SIX, STO, LSE and NYSE legs, run_backtest's offset_days is followed through
 the screen into the dedup, and the topics in SLOT_BOOK show the top-N cut running after it. The
-wave 3 screens need rows the shared fixture lacks (WAVE3_ROWS): each runs on its own copy, placed
-on the edge of its rule (52-week-high on exactly MIN_HISTORY_ROWS bars, dcf-discount at the yield
-cap), and one step outside no longer holds the leg's lines. Each check is re-run against mutants
+wave 3 screens and asset-growth need rows the shared fixture lacks (WAVE3_ROWS): each runs on its
+own copy, placed on the edge of its rule (52-week-high on exactly MIN_HISTORY_ROWS bars,
+dcf-discount at the yield cap, asset-growth's last two balance sheets in one currency), and one
+step outside no longer holds the leg's lines. Each check is re-run against mutants
 of the rule and must fail. Checks survive python -O.
 """
 import contextlib
@@ -514,15 +515,26 @@ def rows_52wh(src, bars=HISTORY_BARS):
                 [SLOT_NAMES[29], D - timedelta(days=bars // 2)])
 
 
+def leg_currency(src, table):
+    """`table` gains reportedCurrency: every line reports in its leg's currency."""
+    src.execute(f"ALTER TABLE {table} ADD COLUMN reportedCurrency VARCHAR")
+    for ex in (*LEGS, SLOT_LEG):
+        src.execute(f"UPDATE {table} SET reportedCurrency = ? WHERE symbol IN"
+                    " (SELECT symbol FROM profile WHERE exchange = ?)", [get_local_currency([ex]), ex])
+
+
+def rule_columns(src):
+    """The profile columns the universe rules read, all NULL: no line is removed."""
+    for col, typ in (("companyName", "VARCHAR"), ("cik", "VARCHAR"), ("isFund", "BOOLEAN"), ("isEtf", "BOOLEAN")):
+        src.execute(f"ALTER TABLE profile ADD COLUMN {col} {typ}")
+
+
 def rows_dcf(src, latest=YIELD_CAP):
     """Free cash flow yield `latest` on the newest filing and 60%, over the cap, on every earlier one. Every line
     reports in its leg's currency: the currency rule keeps the twin quoted in another one."""
     for col in ("isFund", "isEtf"):
         src.execute(f"ALTER TABLE profile ADD COLUMN {col} BOOLEAN DEFAULT FALSE")
-    src.execute("ALTER TABLE cash_flow_statement ADD COLUMN reportedCurrency VARCHAR")
-    for ex in (*LEGS, SLOT_LEG):
-        src.execute("UPDATE cash_flow_statement SET reportedCurrency = ? WHERE symbol IN"
-                    " (SELECT symbol FROM profile WHERE exchange = ?)", [get_local_currency([ex]), ex])
+    leg_currency(src, "cash_flow_statement")
     src.execute("UPDATE cash_flow_statement AS c SET freeCashFlow = k.marketCap * CASE WHEN c.date = ? THEN ?"
                 " ELSE 0.60 END FROM key_metrics AS k WHERE k.symbol = c.symbol AND k.date = c.date",
                 [FYS[-1], latest])
@@ -532,20 +544,30 @@ def rows_defensive(src, first="Utilities"):
     """Every line in a defensive sector (`first`), NOI1's second profile row in another: sector_map fans NOI1 out.
     Plus the columns the universe rules read (defensive-quality), none of which removes or drops a line here."""
     src.execute("UPDATE profile SET sector = CASE sector WHEN 'Energy' THEN 'Healthcare' ELSE ? END", [first])
-    for col, typ in (("companyName", "VARCHAR"), ("cik", "VARCHAR"), ("isFund", "BOOLEAN"), ("isEtf", "BOOLEAN")):
-        src.execute(f"ALTER TABLE profile ADD COLUMN {col} {typ}")
+    rule_columns(src)
     src.execute("ALTER TABLE financial_ratios ADD COLUMN reportedCurrency VARCHAR")
     for col, typ in (("netDividendsPaid", "DOUBLE"), ("reportedCurrency", "VARCHAR")):
         src.execute(f"ALTER TABLE cash_flow_statement ADD COLUMN {col} {typ}")
 
 
-# Wave 3: what a screen needs that the shared fixture lacks. Each topic runs on its own source_db() plus these rows.
-WAVE3_ROWS = {"52-week-high": rows_52wh, "dcf-discount": rows_dcf, "defensive-quality": rows_defensive}
+def rows_asset_growth(src, latest_ccy=None):
+    """The columns asset-growth's universe rules read, and balance sheets in the leg's currency, so each line's
+    newest filing pairs with the one before. latest_ccy: the newest filing reports in it instead (a switch)."""
+    rule_columns(src)
+    leg_currency(src, "balance_sheet")
+    if latest_ccy:
+        src.execute("UPDATE balance_sheet SET reportedCurrency = ? WHERE date = ?", [latest_ccy, FYS[-1]])
+
+
+# What a screen needs that the shared fixture lacks. Each topic runs on its own source_db() plus these rows.
+WAVE3_ROWS = {"52-week-high": rows_52wh, "dcf-discount": rows_dcf, "defensive-quality": rows_defensive,
+              "asset-growth": rows_asset_growth}
 # The same rows one step outside the topic's rule: the screen must stop holding the leg's lines.
 ROW_MUTANTS = {
     "52-week-high": ("a bar short", lambda src: rows_52wh(src, HISTORY_BARS - 1)),
     "dcf-discount": ("latest filing just over the yield cap", lambda src: rows_dcf(src, YIELD_CAP * (1 + 1e-9))),
     "defensive-quality": ("only NOI1's second row is defensive", lambda src: rows_defensive(src, "Industrials")),
+    "asset-growth": ("the newest filing in another currency", lambda src: rows_asset_growth(src, "JPY")),
 }
 
 

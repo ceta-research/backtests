@@ -283,7 +283,8 @@ def test_run_window_legs():
             pin = [i for i, x in enumerate(a) if x in ("--end-date", "--end-year")]
             check(pin and pin[0] + 2 < len(a), f"{name} {g['topic']} {g['leg']}: no --end-date/--end-year "
                                                f"before the exchange args: {a}")
-    check(moved == {"cyclical-timing", "deleveraging", "defensive-quality"}, f"run-window topics in the legs: {moved}")
+    check(moved == {"cyclical-timing", "deleveraging", "defensive-quality", "asset-growth"},
+          f"run-window topics in the legs: {moved}")
 
 
 if __name__ == "__main__":

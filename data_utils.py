@@ -1670,7 +1670,7 @@ def validate_price_data(con, max_price_ratio=1000, verbose=True):
 
 # ---------------------------------------------------------------------------
 # DATA CHECKS dc-1: data checks in place of the 200% single-return cap, for the topics that opt
-# in (deleveraging and cyclical-timing; gate 15 in scripts/verify_floor_guard.py holds the list).
+# in (gate 15's DATA_CHECKS_TOPICS in scripts/verify_floor_guard.py holds the list).
 # Every other topic calls none of this and keeps filter_returns' max_single_return=2.0.
 #
 #   T traded bars   clean_price_cache(): closed-day rows, zero-volume rows of lines that traded in
@@ -1958,6 +1958,7 @@ def mark_nvdr_twins(con, table="isin_map"):
     """
     con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS sec_key VARCHAR")
     con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS nvdr BOOLEAN")
+    con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS class_twin BOOLEAN")   # ur-2's twins (mark_class_twins)
     con.execute(f"""
         UPDATE {table} AS t SET sec_key = o.isin, nvdr = TRUE
         FROM (SELECT symbol, MIN(NULLIF(UPPER(TRIM(isin)), '')) AS isin FROM {table} GROUP BY symbol) o
@@ -1981,13 +1982,13 @@ def _twin_ranked_sql(candidates_sql, target_date, offset_days, min_entry_price, 
                 PARTITION BY COALESCE(_i.sec_key, _i.isin, _c.symbol)
                 ORDER BY CASE WHEN _px.adjClose > 0 AND _px.adjClose >= {float(min_entry_price)}
                               THEN 0 ELSE 1 END,
-                         CASE WHEN _i.nvdr THEN 1 ELSE 0 END,
+                         CASE WHEN COALESCE(_i.nvdr, FALSE) OR COALESCE(_i.class_twin, FALSE) THEN 1 ELSE 0 END,
                          CASE WHEN _i.live THEN 0 ELSE 1 END, CASE WHEN _i.home THEN 0 ELSE 1 END,
                          _c.symbol) AS _isin_rn
             FROM ({candidates_sql}) _c
             LEFT JOIN (SELECT symbol, MIN(NULLIF(UPPER(TRIM(isin)), '')) AS isin,
                               BOOL_OR(isActivelyTrading) AS live, BOOL_OR(home_ccy) AS home,
-                              MIN(sec_key) AS sec_key, BOOL_OR(nvdr) AS nvdr
+                              MIN(sec_key) AS sec_key, BOOL_OR(nvdr) AS nvdr, BOOL_OR(class_twin) AS class_twin
                        FROM {isin_table} GROUP BY symbol) _i ON _i.symbol = _c.symbol
             LEFT JOIN (SELECT symbol, adjClose FROM {prices_table}
                        WHERE trade_epoch >= {lo} AND trade_epoch <= {hi}
@@ -2723,11 +2724,15 @@ def _sql_list(values):
     return ", ".join("'" + str(v).replace("'", "''") + "'" for v in values)
 
 
-def non_ordinary_sql(p="p", profile="profile", known=NON_ORDINARY_KNOWN):
-    """A CASE over a profile row aliased `p`: the first ORDINARY_RULES reason the line is not a company's
-    ordinary share, else NULL. `profile` is the table the German sibling test reads; `known` replaces the
-    hand list (tests). Paste as `AND (<this>) IS NULL` to keep ordinary lines only (the share-link SQL)."""
-    whens = [f"WHEN COALESCE({p}.isFund, FALSE) OR COALESCE({p}.isEtf, FALSE) THEN 'fund_flag'"]
+def non_ordinary_sql(p="p", profile="profile", known=None, cfg=None):
+    """A CASE over a profile row aliased `p`: the first reason in cfg's rules (UNIVERSE_RULES_V1 when None,
+    or UNIVERSE_RULES_V2) the line is not a company's ordinary share, else NULL. `profile` is the table the
+    German and Brazil sibling tests read; `known` replaces cfg's hand list (tests). Paste as `AND (<this>) IS NULL` to
+    keep ordinary lines only (the share-link SQL)."""
+    cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
+    known = cfg["known"] if known is None else known
+    whens = [f"WHEN {p}.symbol IN ({_sql_list(s for s, _ in cfg['keep'])}) THEN NULL"] if cfg["keep"] else []
+    whens.append(f"WHEN COALESCE({p}.isFund, FALSE) OR COALESCE({p}.isEtf, FALSE) THEN 'fund_flag'")
     if known:
         whens.append(f"WHEN {p}.symbol IN ({_sql_list(s for s, _, _ in known)}) THEN 'known'")
     whens += [
@@ -2741,8 +2746,20 @@ def non_ordinary_sql(p="p", profile="profile", known=NON_ORDINARY_KNOWN):
         f" AND regexp_matches({p}.symbol, '-(P[A-Z]*|WTA?|WS|W|U|UN|R|RI)$') THEN 'us_suffix'",
         f"WHEN {p}.exchange = 'NASDAQ' AND regexp_full_match({p}.symbol, '[A-Z]{{4}}[PONMWRUZV]')"
         f" THEN 'nasdaq_fifth_letter'",
-        f"WHEN regexp_matches(COALESCE({p}.companyName, ''), '{NAME_TERMS}', 'i') THEN 'name_term'",
     ]
+    if cfg["v2"]:
+        us = _sql_list(US_EXCHANGES)
+        whens += [
+            f"WHEN {p}.exchange = 'SAO' AND NOT {_sao_ordinary_sql(p)}"
+            f" AND (COALESCE(SUBSTR(NULLIF(UPPER(TRIM({p}.isin)), ''), 9, 2) IN ('R0', 'F0'), FALSE)"
+            f" OR NOT EXISTS (SELECT 1 FROM {profile} _b WHERE _b.exchange = 'SAO'"
+            f" AND {_sao_issuer_sql('_b')} = {_sao_issuer_sql(p)} AND {_sao_ordinary_sql('_b')}))"
+            f" THEN 'brazil_class'",
+            f"WHEN {p}.exchange IN ({us}) AND COALESCE({p}.isAdr, FALSE) THEN 'us_adr'",
+            f"WHEN {p}.exchange IN ({us}) AND regexp_matches(COALESCE({p}.companyName, ''),"
+            f" '{US_TRUST_LP_TERMS}', 'i') THEN 'us_trust_lp'",
+        ]
+    whens.append(f"WHEN regexp_matches(COALESCE({p}.companyName, ''), '{cfg['name_terms']}', 'i') THEN 'name_term'")
     return "CASE " + " ".join(whens) + " END"
 
 
@@ -2780,11 +2797,26 @@ def cik_shared(rows):
 
 
 class UniverseRules:
-    """One leg's universe rules ur-1: the ordinary-shares removals and the yield drops, for the results
-    file's universe_rules block (screen inputs only: equal in drop, ltp and both)."""
+    """One leg's universe rules (cfg: UNIVERSE_RULES_V1 when None, or UNIVERSE_RULES_V2): the ordinary-shares
+    removals and, when cfg has the yield rule, the yield drops, for the results file's universe_rules block
+    (screen inputs only: equal in drop, ltp and both)."""
 
-    def __init__(self):
+    def __init__(self, cfg=None):
+        self.cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
         self.lines, self.removed, self.cik, self.drops = 0, [], [], []
+        self.class_twins, self.class_held = set(), {}
+
+    def mark_twins(self, con, universe="universe"):
+        """Key the cfg's class twins (mark_class_twins) among the `universe` table's lines; nothing outside ur-2."""
+        if self.cfg.get("class_twins"):
+            mark_class_twins(con, universe=universe)
+            self.class_twins = class_twin_symbols(con)
+
+    def stand_ins(self, picked, target_date):
+        """picked: one screen's book; the class twins in it each hold their company's slot."""
+        held = sorted(s for s in picked if s in self.class_twins)
+        if held:
+            self.class_held[target_date.isoformat()] = held
 
     def sector_rows(self, rows):
         """rows: the sector query's dicts (symbol, exchange, cik, companyName, non_ordinary). Returns the
@@ -2809,9 +2841,160 @@ class UniverseRules:
     def block(self):
         count = lambda items: dict(sorted(Counter(i["reason"] for i in items).items()))
         drops = sorted(self.drops, key=lambda d: (d["rebalance_date"], d["symbol"], d["fy"], d["reason"]))
-        return {"version": "ur-1",
-                "ordinary_shares": {"rules": ORDINARY_RULES, "lines": self.lines, "removed_count": len(self.removed),
-                                    "by_reason": count(self.removed), "removed": list(self.removed),
-                                    "cik_shared": list(self.cik)},
-                "dividend_yield": {"rules": YIELD_RULES, "dropped": len(drops), "by_reason": count(drops),
-                                   "drops": drops}}
+        out = {"version": self.cfg["version"],
+               "ordinary_shares": {"rules": self.cfg["ordinary"], "lines": self.lines,
+                                   "removed_count": len(self.removed), "by_reason": count(self.removed),
+                                   "removed": list(self.removed), "cik_shared": list(self.cik)}}
+        if self.cfg["dividend_yield"]:
+            out["dividend_yield"] = {"rules": YIELD_RULES, "dropped": len(drops), "by_reason": count(drops),
+                                     "drops": drops}
+        if self.cfg.get("class_twins"):
+            by_period = [{"rebalance_date": d, "symbols": s} for d, s in sorted(self.class_held.items())]
+            out["class_stand_ins"] = {"rule": CLASS_TWIN_RULE, "lines_keyed": len(self.class_twins),
+                                      "picked": sum(len(p["symbols"]) for p in by_period), "by_period": by_period}
+        return out
+
+
+# Universe rules ur-2, opt-in through cfg: ur-1 plus a keep list, Brazil, US ADRs, trusts and LPs, no yield rule.
+# Ordinary shares a pattern or flag misreads: (symbol, evidence).
+ORDINARY_KNOWN_V2 = (
+    ("JUP.L", "Jupiter Fund Management plc's ordinary share, an asset manager the profile flags isFund"),
+    ("1414.T", "SHO-BOND Holdings' ordinary share, the word bond is part of the company name"),
+    ("4764.TW", "Double Bond Chemical Industry's ordinary share, the word bond is part of the company name"),
+    ("ABE.AX", "Australian Bond Exchange Holdings' ordinary share, the word bond is part of the company name"),
+    ("5243.T", "Note Inc.'s ordinary share, the word note is the company name"),
+    ("NOTE.ST", "NOTE AB's ordinary share, the word note is the company name"),
+    ("SALE", "RetailMeNot's common stock, its profile name ends Series 1"),
+    ("PTRN", "Pattern Group's common stock, its profile name reads Series A Common Stock"),
+    ("MINDSPACE.NS", "Mindspace Business Parks REIT's listed units (REITs and their units stay)"),
+    ("348950.KS", "JR Global REIT's listed shares, JR is part of the name, not junior"),
+    ("BCE-PY.TO", "BCE's common price series to 2025 (July closes C$6.97 in 1996 to C$63.37 in 2022, 0.4 to 11 "
+                  "million shares a day), BCE.TO has bars only from 2026, when this line prints a preferred's price"),
+)
+NON_ORDINARY_KNOWN_V2 = NON_ORDINARY_KNOWN + (
+    ("AFGB", "notes", "American Financial Group notes from 2019-03, $25 par (median close 24.68, high 28.92), "
+                      "AFG is the common"),
+    ("AFGC", "notes", "American Financial Group notes from 2019-12, $25 par (median close 21.70, high 29.30), "
+                      "AFG is the common"),
+    ("AFGD", "notes", "American Financial Group notes from 2020-06, $25 par (median close 23.22, high 29.56), "
+                      "AFG is the common"),
+    ("AFGE", "notes", "American Financial Group notes from 2020-09, $25 par (median close 19.10, high 28.07), "
+                      "AFG is the common"),
+    ("MGR", "notes", "Affiliated Managers Group notes from 2019-03, $25 par (median close 23.86, high 28.49), "
+                     "AMG is the common"),
+    ("MGRB", "notes", "Affiliated Managers Group notes from 2020-09, $25 par (median close 18.84, high 26.98), "
+                      "AMG is the common"),
+    ("MGRD", "notes", "Affiliated Managers Group notes from 2021-07, $25 par (median close 16.51, high 25.21), "
+                      "AMG is the common"),
+    ("SCHP.SW", "certificate", "Schindler participation certificate (Partizipationsschein) on Schindler's "
+                               "financials, SCHN.SW is the registered share (bars only from 2026-04)"),
+    ("PBR-A", "preferred ADR", "Petrobras preferred-share ADR, PBR is the common ADR"),
+    ("AZN", "ADR", "AstraZeneca's US line, an ADR until its 2026 direct listing; the profile now carries the GB "
+                   "ordinary share's ISIN and doesn't flag isAdr"),
+    ("RDS-B", "ADR", "Royal Dutch Shell's class B ADR (ISIN US7802591070) to 2022, which the profile doesn't flag "
+                     "isAdr; SHEL, the flagged ADR, sits beside it"),
+    ("WIMI", "ADR", "WiMi Hologram Cloud's American depositary shares of a Cayman company, which the profile doesn't "
+                    "flag isAdr"),
+    ("JHX", "ADR", "James Hardie's US line, an ADR until its 2025 move to an NYSE primary listing; the profile now "
+                   "carries the Irish ordinary share's ISIN and doesn't flag isAdr"),
+    ("MAN3.DE", "preferred", "MAN SE preference shares 1998-07 to 2021-08 with no ISIN in the profile, so the German "
+                             "sibling test cannot see them, MAN.DE is the common"),
+    ("BASA.DE", "second line", "a second BASF line 2010-08 to 2021-03 at a quarter to a third of BAS.DE's price, no "
+                               "ISIN, median volume 864 against BAS.DE's 2.5 million"),
+    ("4332.HK", "pilot line", "Amgen's HKEX pilot-programme line from 2000-05-31 (US ISIN, not trading), AMGN is "
+                              "the share"),
+    ("4333.HK", "pilot line", "Cisco's HKEX pilot-programme line from 2000-05-31 (US ISIN): HKD closes 6.8 to 8.0 "
+                              "times CSCO's to 2009 (the peg is near 7.8), then 1.64 to 8.98, and +354% from July "
+                              "2016 against CSCO's +13%"),
+    ("4335.HK", "pilot line", "Intel's HKEX pilot-programme line from 2000-05-31 (US ISIN): HKD closes 3.7 to 24.3 "
+                              "times INTC's, and +220% from July 2017 against INTC's +54%"),
+    ("4336.HK", "pilot line", "Applied Materials' HKEX pilot-programme line from 2000-05-31 (US ISIN, not trading), "
+                              "AMAT is the share"),
+    ("4337.HK", "pilot line", "Starbucks' HKEX pilot-programme line from 2000-05-31 (US ISIN, not trading), SBUX is "
+                              "the share"),
+    ("4338.HK", "pilot line", "Microsoft's HKEX pilot-programme line from 2000-05-31 (US ISIN): HKD closes 5.2 to 5.5 "
+                              "times MSFT's in 2003-2009, then 1.05 to 7.21, and +731% from July 2017 against "
+                              "MSFT's +50%"),
+    ("029960.KS", "kosdaq duplicate", "Korea Environment Technology's KSC line, the same close as its KOSDAQ series "
+                                      "029960.KQ on 4,948 of 4,977 shared days, ends 2024-08-14"),
+    ("049070.KS", "kosdaq duplicate", "Intops' KSC line, the same close as its KOSDAQ series 049070.KQ on 5,576 of "
+                                      "5,646 shared days, ends 2024-08-16"),
+    ("064760.KS", "kosdaq duplicate", "Tokai Carbon Korea's KSC line, the same close as its KOSDAQ series 064760.KQ "
+                                      "on 5,190 of 5,208 shared days, ends 2024-08-16"),
+    ("069080.KS", "kosdaq duplicate", "Webzen's KSC line, the same close as its KOSDAQ series 069080.KQ on 5,049 of "
+                                      "5,065 shared days"),
+    ("265520.KS", "kosdaq duplicate", "Advanced Process Systems' KSC line, the same close as its KOSDAQ series "
+                                      "265520.KQ on 1,797 of 1,807 shared days, ends 2024-08-14"),
+    ("GUD.AX", "renamed line", "GUD Holdings' line, renamed Amotiv in 2024-06: AOV.AX carries the same July closes "
+                               "1990 to 2024 under its own ISIN, GUD.AX delisted 2024-06-27"),
+)
+NAME_TERMS_V2 = NAME_TERMS.replace(r"\bser\b", r"\bser$")
+US_TRUST_LP_TERMS = (r"\bL\.\s?P\.|\bLP\b|\blimited partnership\b|\b(royalty|oil|gas|energy|minerals?|petroleum) "
+                     r"trust\b|^mesabi trust$")
+ORDINARY_RULES_V2 = {
+    "rule": ("a line is removed when it is a different instrument from the company's ordinary share (preferred, "
+             "note, bond, unit, warrant, right, fund) or a second line at its own price on the same financials "
+             "that no security key collapses, and a book holds what its market's main index can hold: the S&P 500 "
+             "holds no ADRs, royalty trusts or LPs, the Ibovespa no BDRs; a `keep` line stays whatever a pattern "
+             "or flag says, and otherwise the first reason in `order` is recorded"),
+    # ur-1's reasons with the longer hand list, then the new ones ahead of name_term
+    "order": {**{k: v for k, v in ORDINARY_RULES["order"].items() if k != "name_term"},
+              "known": "NON_ORDINARY_KNOWN_V2, the hand list below",
+              "brazil_class": ("SAO line that isn't the ordinary share (ISIN class, characters 9-10, NO; with "
+                               "no ISIN, ticker class digit 3) and is a BDR (R0) or fund (F0), or a line of a "
+                               "company with no ordinary line (issuer: ISIN characters 3-6, else the ticker's "
+                               "first four)"),
+              "us_adr": "NYSE, NASDAQ or AMEX line the profile flags isAdr",
+              "us_trust_lp": f"NYSE, NASDAQ or AMEX line whose companyName matches, ignoring case: {US_TRUST_LP_TERMS}",
+              "name_term": f"companyName matches, ignoring case: {NAME_TERMS_V2}"},
+    "kept": ("Thai NVDRs (check N keys X-R.BK to X.BK), depositary receipts of ordinary shares outside NYSE, "
+             "NASDAQ, AMEX and SAO (TDRs, isAdr lines), share classes (BF-B, MKC-V, CENTA, the Swedish ser. B "
+             "lines), REITs and their units, trust units and LPs outside the US, SAO preferred and unit lines of "
+             "a company with an ordinary line (class twins: one slot, see class_stand_ins), and the `keep` lines "
+             "below"),
+    "known": [{"symbol": s, "kind": k, "evidence": e} for s, k, e in NON_ORDINARY_KNOWN_V2],
+    "keep": [{"symbol": s, "evidence": e} for s, e in ORDINARY_KNOWN_V2],
+}
+UNIVERSE_RULES_V1 = {"version": "ur-1", "ordinary": ORDINARY_RULES, "known": NON_ORDINARY_KNOWN,
+                     "name_terms": NAME_TERMS, "keep": (), "v2": False, "dividend_yield": True}
+UNIVERSE_RULES_V2 = {"version": "ur-2", "ordinary": ORDINARY_RULES_V2, "known": NON_ORDINARY_KNOWN_V2,
+                     "name_terms": NAME_TERMS_V2, "keep": ORDINARY_KNOWN_V2, "v2": True, "dividend_yield": False,
+                     "class_twins": True}
+CLASS_TWIN_RULE = ("an SAO preferred or unit line of a company with an ordinary line shares that line's security "
+                   "key, so the company holds one slot: the ordinary line when it has an entry price, else the "
+                   "first priced sibling, which stands in; by_period lists the stand-ins each screen picked, as "
+                   "check N's counts do, so a period the cash rule then holds in cash still lists its picks")
+
+
+def _sao_issuer_sql(t):
+    """An SAO line's company: ISIN characters 3-6, else the ticker's first four."""
+    return (f"(CASE WHEN NULLIF(TRIM({t}.isin), '') IS NOT NULL THEN SUBSTR(UPPER(TRIM({t}.isin)), 3, 4)"
+            f" ELSE SUBSTR({t}.symbol, 1, 4) END)")
+
+
+def _sao_ordinary_sql(t):
+    """An SAO line is the ordinary share: ISIN class (characters 9-10) NO, else a ticker class digit 3."""
+    return (f"(CASE WHEN NULLIF(TRIM({t}.isin), '') IS NOT NULL THEN SUBSTR(UPPER(TRIM({t}.isin)), 9, 2) = 'NO'"
+            f" ELSE regexp_full_match({t}.symbol, '[A-Z0-9]{{4}}3[A-Z]?[.]SA') END)")
+
+
+def mark_class_twins(con, table="isin_map", universe=None):
+    """ur-2's Brazil stand-in: key each SAO line that isn't its company's ordinary share to the ordinary line's
+    security (sec_key, flagged class_twin), as check N keys an NVDR, so isin_dedup_sql(twin_key=True) holds one
+    line per company: the ordinary line when it has an entry price, else the first priced sibling. `universe`
+    (a table of symbols) limits the keyed lines to the leg's kept ones. Adds the twin columns when check N
+    hasn't. Returns the number of lines keyed."""
+    for col, typ in (("sec_key", "VARCHAR"), ("nvdr", "BOOLEAN"), ("class_twin", "BOOLEAN")):
+        con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {typ}")
+    kept = f" AND t.symbol IN (SELECT symbol FROM {universe})" if universe else ""
+    con.execute(f"""
+        UPDATE {table} AS t SET sec_key = o.key, class_twin = TRUE
+        FROM (SELECT {_sao_issuer_sql('m')} AS issuer, MIN(COALESCE(NULLIF(UPPER(TRIM(m.isin)), ''), m.symbol)) AS key
+              FROM {table} m WHERE m.symbol LIKE '%.SA' AND {_sao_ordinary_sql('m')} GROUP BY 1) o
+        WHERE t.symbol LIKE '%.SA' AND NOT {_sao_ordinary_sql('t')} AND {_sao_issuer_sql('t')} = o.issuer{kept}""")
+    return len(class_twin_symbols(con, table))
+
+
+def class_twin_symbols(con, table="isin_map"):
+    """The symbols mark_class_twins keyed."""
+    return {r[0] for r in con.execute(f"SELECT symbol FROM {table} WHERE class_twin").fetchall()}

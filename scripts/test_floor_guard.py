@@ -114,7 +114,7 @@ SCREEN_FN = {           # topics whose screen function is not named screen_stock
 NO_RETURN_CAP = {"qarp", "low-pe",
                  # data checks dc-1 in place of the cap: filter_returns(max_single_return=None) keeps
                  # every return, so S5/S6b have no cap to trip (verify_floor_guard gate 15)
-                 "deleveraging", "cyclical-timing", "defensive-quality"}
+                 "deleveraging", "cyclical-timing", "defensive-quality", "asset-growth"}
 
 
 def load(topic):

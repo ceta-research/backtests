@@ -120,17 +120,90 @@ def benchmark_cumulative(data, exchange_key, initial=10000, period_end=False):
     if not annual:
         return [], []
     shift = 1 if period_end else 0
+    years = [annual[0]["year"] - 1 + shift] + [ar["year"] + shift for ar in annual]
+    return years, _compound(annual, "spy", initial)
+
+
+def _compound(rows, field, initial):
+    """[initial, then initial compounded through each row's field (percent)]."""
     values = [initial]
-    years = [annual[0]["year"] - 1 + shift]
-    for ar in annual:
-        values.append(values[-1] * (1 + ar.get("spy", 0) / 100))
-        years.append(ar["year"] + shift)
-    return years, values
+    for r in rows:
+        values.append(values[-1] * (1 + r.get(field, 0) / 100))
+    return values
 
 
 def benchmark_cagr(data, exchange_key):
     """Benchmark CAGR for an exchange, or None."""
     return ((data or {}).get(exchange_key) or {}).get("spy", {}).get("cagr")
+
+
+# ---------------------------------------------------------------------------
+# Run-window results (METHODOLOGY.md, "Run Window"); a file without end_date charts as before.
+# ---------------------------------------------------------------------------
+
+def window_end(entry):
+    """The close a run-window leg's last exit used (priced_to, else end_date), or None on a typed-year file."""
+    if not entry.get("end_date"):
+        return None
+    return entry.get("priced_to") or entry["end_date"]
+
+
+def window_text(entry, bars=False):
+    """A leg's window for titles and footers, read from its results.
+
+    '2000 to 2026-11-06' on a run-window file. A typed-year file gives its
+    window_label ('2000-2025'), or with bars=True its bars' years ('2000-2024').
+    """
+    annual = entry.get("annual_returns") or []
+    end = window_end(entry)
+    if end:
+        return f"{(entry.get('measured_start') or '')[:4]} to {end}"
+    if bars and annual:
+        return f"{annual[0]['year']}-{annual[-1]['year']}"
+    label = (entry.get("window_label") or "").split(" (")[0]
+    return label or (f"{annual[0]['year']}-{annual[-1]['year'] + 1}" if annual else "")
+
+
+def windows_text(data, keys):
+    """window_text over several legs, joined when they differ."""
+    return " / ".join(sorted({window_text(data[k]) for k in keys}))
+
+
+def growth_series(entry, field="portfolio", initial=10000):
+    """(xs, values): `initial` compounded through annual_returns[field] (percent), then partial_year's.
+
+    The axis is benchmark_cumulative(period_end=True)'s: `initial` at the first
+    period's start year, each full year's value at year + 1, and the partial
+    year's at its year plus its year_fraction.
+    """
+    annual = entry.get("annual_returns") or []
+    py = entry.get("partial_year")
+    if not annual and not py:
+        return [], []
+    xs = [annual[0]["year"] if annual else py["year"]] + [ar["year"] + 1 for ar in annual]
+    if py:
+        xs.append(py["year"] + py["year_fraction"])
+    return xs, _compound(annual + ([py] if py else []), field, initial)
+
+
+def annual_bars(entry, field="portfolio"):
+    """(labels, values) for a year-by-year chart: annual_returns, then partial_year as '<year> (partial)'."""
+    annual = entry.get("annual_returns") or []
+    labels, values = [ar["year"] for ar in annual], [ar[field] for ar in annual]
+    py = entry.get("partial_year")
+    if py:
+        labels.append(f"{py['year']} (partial)")
+        values.append(py[field])
+    return labels, values
+
+
+def partial_note(entry):
+    """A footer sentence on the partial year's dates, or '' when there is none."""
+    py = entry.get("partial_year")
+    if not py:
+        return ""
+    return (f"{py['year']} (partial): {py['start']} to {py['end']}, "
+            f"{py['year_fraction'] * 100:.0f}% of a year.")
 
 
 # ---------------------------------------------------------------------------
