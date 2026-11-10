@@ -2804,7 +2804,11 @@ class UniverseRules:
     def __init__(self, cfg=None):
         self.cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
         self.lines, self.removed, self.cik, self.drops = 0, [], [], []
-        self.class_twins, self.class_held = set(), {}
+        self.class_twins, self.class_held, self.starts = set(), {}, {}
+
+    def not_started(self, target_date):
+        """The leg's line_starts lines a screen on target_date leaves out: before its first own day."""
+        return sorted(s for s, (d, _) in self.starts.items() if target_date.isoformat() < d)
 
     def mark_twins(self, con, universe="universe"):
         """Key the cfg's class twins (mark_class_twins) among the `universe` table's lines; nothing outside ur-2."""
@@ -2829,6 +2833,8 @@ class UniverseRules:
         self.removed = [{"symbol": s, "reason": w, "name": n} for s, (w, n) in sorted(why.items())]
         kept = [r for r in rows if r["symbol"] not in why]
         self.cik = cik_shared(kept)
+        kept_symbols = {r["symbol"] for r in kept}
+        self.starts = {s: (d, e) for s, d, e in self.cfg.get("line_starts", ()) if s in kept_symbols}
         return kept
 
     def yield_drops(self, rows, target_date):
@@ -2852,6 +2858,9 @@ class UniverseRules:
             by_period = [{"rebalance_date": d, "symbols": s} for d, s in sorted(self.class_held.items())]
             out["class_stand_ins"] = {"rule": CLASS_TWIN_RULE, "lines_keyed": len(self.class_twins),
                                       "picked": sum(len(p["symbols"]) for p in by_period), "by_period": by_period}
+        if self.starts:   # only a leg that holds a listed line, so every other leg's block is unchanged
+            out["line_starts"] = {"rule": LINE_START_RULE, "lines": [
+                {"symbol": s, "first_day": d, "evidence": e} for s, (d, e) in sorted(self.starts.items())]}
         return out
 
 
@@ -2957,9 +2966,17 @@ ORDINARY_RULES_V2 = {
 }
 UNIVERSE_RULES_V1 = {"version": "ur-1", "ordinary": ORDINARY_RULES, "known": NON_ORDINARY_KNOWN,
                      "name_terms": NAME_TERMS, "keep": (), "v2": False, "dividend_yield": True}
+# (symbol, first own day, evidence): a line whose earlier bars and rows copy another line's history
+LINE_STARTS_V2 = (
+    ("AZZA3.SA", "2024-08-27", "Azzas 2154, from Arezzo's merger with Soma: its bars to 2024-08-26 repeat ARZZ3.SA's "
+                               "closes and volumes, and ARZZ3.SA's last bar is 2024-08-26"),
+)
+LINE_START_RULE = ("a listed line enters the universe on its first own day: before it, its bars and financial rows "
+                   "copy another line's history, so a screen before that day leaves it out and its slot goes to the "
+                   "next name")
 UNIVERSE_RULES_V2 = {"version": "ur-2", "ordinary": ORDINARY_RULES_V2, "known": NON_ORDINARY_KNOWN_V2,
                      "name_terms": NAME_TERMS_V2, "keep": ORDINARY_KNOWN_V2, "v2": True, "dividend_yield": False,
-                     "class_twins": True}
+                     "class_twins": True, "line_starts": LINE_STARTS_V2}
 CLASS_TWIN_RULE = ("an SAO preferred or unit line of a company with an ordinary line shares that line's security "
                    "key, so the company holds one slot: the ordinary line when it has an entry price, else the "
                    "first priced sibling, which stands in; by_period lists the stand-ins each screen picked, as "

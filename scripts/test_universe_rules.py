@@ -493,7 +493,7 @@ def v2_shape_failures():
         f.append("NAME_TERMS_V2 is not ur-1's with ser anchored at the end")
     v2 = du.UNIVERSE_RULES_V2
     want = {"version": "ur-2", "ordinary": r, "known": known, "name_terms": du.NAME_TERMS_V2, "keep": keep,
-            "v2": True, "dividend_yield": False, "class_twins": True}
+            "v2": True, "dividend_yield": False, "class_twins": True, "line_starts": du.LINE_STARTS_V2}
     if v2 != want or v2["ordinary"] is not r or v2["known"] is not known or v2["keep"] is not keep:
         f.append("UNIVERSE_RULES_V2 is not ur-2's objects")
     b = du.UniverseRules(v2).block()
@@ -569,6 +569,57 @@ def class_twin_failures():
     return f
 
 
+def line_start_failures(rules=du.UniverseRules):
+    """ur-2's line_starts: each entry is a line on neither hand list, with an ISO first day and evidence. A leg
+    that keeps the line leaves it out of screens before that day, not on it, and its block lists it; a leg
+    without the line, a leg that removed it, and ur-1 have no line_starts key and leave nothing out."""
+    f = []
+    starts = du.UNIVERSE_RULES_V2["line_starts"]
+    listed = {s for s, _, _ in du.NON_ORDINARY_KNOWN_V2} | {s for s, _ in du.ORDINARY_KNOWN_V2}
+    for s, d, e in starts:
+        if s in listed or not e or date.fromisoformat(d).isoformat() != d:
+            f.append(f"line_starts entry {s} {d}")
+    if du.UNIVERSE_RULES_V1.get("line_starts"):
+        f.append("ur-1 carries line_starts")
+    row = lambda s, why=None: {"symbol": s, "exchange": "SAO", "cik": None, "companyName": s, "non_ordinary": why}
+    ur = rules(du.UNIVERSE_RULES_V2)
+    ur.sector_rows([row("AZZA3.SA"), row("ARZZ3.SA")])
+    got = [ur.not_started(date(2024, 8, 26)), ur.not_started(date(2024, 8, 27)), ur.not_started(date(2016, 7, 1))]
+    if got != [["AZZA3.SA"], [], ["AZZA3.SA"]]:
+        f.append(f"not_started on 2024-08-26, 2024-08-27, 2016-07-01: {got}")
+    evidence = {s: e for s, _, e in starts}["AZZA3.SA"]
+    want = {"rule": du.LINE_START_RULE, "lines": [{"symbol": "AZZA3.SA", "first_day": "2024-08-27", "evidence": evidence}]}
+    if ur.block().get("line_starts") != want:
+        f.append(f"line_starts block {ur.block().get('line_starts')}")
+    for label, rows, cfg in (("a leg without the line", [row("PETR3.SA")], du.UNIVERSE_RULES_V2),
+                             ("a leg that removed it", [row("AZZA3.SA", "known")], du.UNIVERSE_RULES_V2),
+                             ("ur-1", [row("AZZA3.SA")], du.UNIVERSE_RULES_V1)):
+        u = rules(cfg)
+        u.sector_rows(rows)
+        if "line_starts" in u.block() or u.not_started(date(2016, 7, 1)):
+            f.append(f"{label}: line_starts {u.block().get('line_starts')}, left out {u.not_started(date(2016, 7, 1))}")
+    return f
+
+
+def line_start_mutants():
+    class OnTheDay(du.UniverseRules):
+        def not_started(self, target_date):
+            return sorted(s for s, (d, _) in self.starts.items() if target_date.isoformat() <= d)
+
+    class EveryLeg(du.UniverseRules):
+        def block(self):
+            return {"line_starts": {}, **super().block()}
+
+    class RemovedToo(du.UniverseRules):
+        def sector_rows(self, rows):
+            kept = super().sector_rows(rows)
+            self.starts = {s: (d, e) for s, d, e in self.cfg.get("line_starts", ()) if s in {r["symbol"] for r in rows}}
+            return kept
+
+    return {"left out on its first day too": OnTheDay, "a block on every leg": EveryLeg,
+            "a removed line still listed": RemovedToo}
+
+
 def main():
     ran = []
 
@@ -607,6 +658,9 @@ def main():
     expect("each CASE emits its rules' reasons in order; ur-2's keep list first", reason_failures())
     expect("ur-2 hand list, keep list, rules text and config", v2_shape_failures())
     expect("ur-2 class twins: keyed to the ordinary line, the rest untouched, stand-ins by date", class_twin_failures())
+    expect("ur-2 line_starts: out before the first own day, listed on its leg only", line_start_failures())
+    for label, cls in line_start_mutants().items():
+        expect_fail(f"ur-2 line_starts, {label}", line_start_failures(cls))
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_universe_rules: PASS ({len(ran)} checks)")
 

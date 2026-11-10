@@ -179,8 +179,16 @@ BRAZIL = {
 BRAZIL_BOOK = {"BRAA3.SA", "BRBB4.SA", "BRCC11.SA", "BREE3.SA", "BRFF3.SA"}
 BRAZIL_STAND_INS = [{"rebalance_date": D.isoformat(), "symbols": ["BRBB4.SA", "BRCC11.SA"]}]
 
+# ur-2's line_starts: AZZA3.SA's rows and bars before 2024-08-27 copy Arezzo's ARZZ3.SA, so a screen before that
+# day holds Arezzo once; from it AZZA3.SA ranks. Their ISINs differ, so without the cut both are held.
+D_POST, FY24 = date(2025, 7, 1), date(2024, 12, 31)
+AREZZO = {"ARZZ3.SA": year(FY19, curr=1000.5, isin="BRARZZACNOR3"),
+          "AZZA3.SA": year(FY19, curr=1000.5, isin="BRAZZAACNOR9")}
+AREZZO_POST = {"AZZA3.SA": year(FY24, curr=1000.5, isin="BRAZZAACNOR9")}
+AZZA3_INELIG = {"AZZA3.SA": year(FY19, curr=1000.5, ineligible=True, isin="BRAZZAACNOR9")}   # check M's case
 
-def db(companies, epoch_type="UINTEGER"):
+
+def db(companies, epoch_type="UINTEGER", on=D):
     """The caches screen_stocks reads. The warehouse's dateEpoch is unsigned 32-bit."""
     con = duckdb.connect()
     e = f"filing_epoch {epoch_type}, period VARCHAR"
@@ -207,7 +215,7 @@ def db(companies, epoch_type="UINTEGER"):
         if c["universe"]:
             con.execute("INSERT INTO universe VALUES (?)", [s])
         if c["px"]:
-            con.execute("INSERT INTO prices_cache VALUES (?, ?, ?, ?, 1e6)", [s, ep(D + timedelta(days=1)), c["px"], c["px"]])
+            con.execute("INSERT INTO prices_cache VALUES (?, ?, ?, ?, 1e6)", [s, ep(on + timedelta(days=1)), c["px"], c["px"]])
         con.execute("INSERT INTO isin_map VALUES (?, ?, TRUE, TRUE)", [s, c["isin"]])
     mark_nvdr_twins(con)     # the twin key's columns, as a data-checks run has them
     return con
@@ -274,6 +282,37 @@ def brazil_failures(mod):
     return out
 
 
+def sao_rules(companies):
+    """A leg's ur-2 rules after its profile rows: every fixture line kept, so line_starts reads them."""
+    ur = UniverseRules(UNIVERSE_RULES_V2)
+    ur.sector_rows([{"symbol": s, "exchange": "SAO", "cik": None, "companyName": s, "non_ordinary": None}
+                    for s in companies])
+    return ur
+
+
+def arezzo_failures(mod):
+    """Before AZZA3.SA's first own day a screen holds Arezzo once, as ARZZ3.SA, with data checks on and off,
+    and check M reads no event for the cut line; from that day AZZA3.SA ranks. The block lists the line."""
+    out = []
+    for label, dc in (("data checks off", None), ("data checks on", DataChecks("on"))):
+        ur = sao_rules(AREZZO)
+        got = {s for s, _ in screen(mod, db(AREZZO), D, dc=dc, ur=ur)}
+        if got != {"ARZZ3.SA"}:
+            out.append(f"Arezzo before 2024-08-27 ({label}): {sorted(got)}, want ['ARZZ3.SA']")
+        got = {s for s, _ in screen(mod, db(AREZZO_POST, on=D_POST), D_POST, dc=dc, ur=sao_rules(AREZZO_POST))}
+        if got != {"AZZA3.SA"}:
+            out.append(f"Arezzo after 2024-08-27 ({label}): {sorted(got)}, want ['AZZA3.SA']")
+    lines = [(r["symbol"], r["first_day"]) for r in ur.block().get("line_starts", {}).get("lines", [])]
+    if lines != [("AZZA3.SA", "2024-08-27")]:
+        out.append(f"line_starts block {lines}")
+    dc = DataChecks("on")
+    screen(mod, db(AZZA3_INELIG), D, dc=dc, ur=sao_rules(AZZA3_INELIG))
+    caps = [e["symbol"] for e in dc.events if e["check"] == "cap"]
+    if caps:
+        out.append(f"check M events for a line before its first own day: {caps}")
+    return out
+
+
 TWIN_TERM = "OR COALESCE(_i.class_twin, FALSE) "
 
 
@@ -332,7 +371,7 @@ def failures(src, epoch_types=("UINTEGER",)):
         mod = load(src)
         for t in epoch_types:   # the book first: it reads only what any version of the screen takes
             out += diff(f"book ({t})", screen(mod, db(COMPANIES, t), D), EXPECT)
-        return out + checked_failures(mod) + brazil_failures(mod) + sweep(mod)
+        return out + checked_failures(mod) + brazil_failures(mod) + arezzo_failures(mod) + sweep(mod)
     except Exception as e:  # reported as an error: main() does not count it as a caught mutant
         return out + [f"error: {type(e).__name__}: {e}"]
 
@@ -357,6 +396,11 @@ MUTANTS = {
     "class twins not keyed in the screen": [("twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get(\"class_twins\")))",
                                             "twin_key=dc is not None and dc.on)")],
     "stand-ins not recorded": [("ur.stand_ins([s for s, _ in picked], target_date)", "pass")],
+    # ur-2's line_starts
+    "no line starts": [("late = ur.not_started(target_date) if ur is not None else []", "late = []")],
+    "check M reads a line before its first own day": [
+        ("_paired(_started(_candidates_sql(CAP_FAIL_TEST, events=True), late))",
+         "_paired(_candidates_sql(CAP_FAIL_TEST, events=True))")],
     # the prior row
     "any earlier row (the old screen)": [(GAP_WHERE, "WHERE b.filing_epoch < c.curr_epoch AND ? IS NOT NULL"
                                                      " AND ? IS NOT NULL\n")],
