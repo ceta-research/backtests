@@ -1694,11 +1694,13 @@ def validate_price_data(con, max_price_ratio=1000, verbose=True):
 #                   LtpExits(traded_only=True) applies rule 2 to fills.
 #   N NVDR twins    mark_nvdr_twins() and isin_dedup_sql(twin_key=True).
 #   M market cap    load_cap_check() and cap_used_sql() at every market-cap floor.
-#   F factor flags  DataChecks records stage-1 drift and split events; it changes no price.
+#   F factor flags  DataChecks records stage-1 drift and split events; it changes no price. dc-3 adds a hand
+#                   list (FACTOR_HAND, DataChecks.hand): reviewed returns for the flags that move a leg.
 #   L large moves   DataChecks lists every kept window-bar holding with |ln(1+r)| >= ln 2.
 #   S stale repeats dc-2 only (DATA_CHECKS_V2): a run of identical traded rows keeps its first row, in
 #                   clean_price_cache() and in LtpExits(traded_only=True, cfg=...) fills.
-# All thresholds live in DATA_CHECKS_V1 (dc-1) or DATA_CHECKS_V2 (dc-2), which every results file carries.
+# All thresholds live in DATA_CHECKS_V1 (dc-1), DATA_CHECKS_V2 (dc-2) or DATA_CHECKS_V3 (dc-3), which every
+# results file carries.
 # ---------------------------------------------------------------------------
 
 DATA_CHECKS_V1 = {
@@ -1790,6 +1792,107 @@ def stale_repeat_sql(rows, min_run):
             SELECT *, COUNT(*) OVER (PARTITION BY symbol, k, r) AS n,
                    ROW_NUMBER() OVER (PARTITION BY symbol, k, r ORDER BY trade_epoch) AS i FROM run)
         SELECT symbol, k, trade_epoch FROM pos WHERE n >= {int(min_run)} AND i > 1"""
+
+
+# dc-3: dc-2 plus check F's hand list. Every band flag whose close-basis swap moves its leg's excess by
+# review_min_pp or more has an entry: (symbol, rebalance date, exit date, kind, booked return, range, the adjClose
+# return it was checked against, the topic/legs it was found in, evidence). Kinds: "rebuilt" books the rebuilt
+# return (traded close plus the cash paid, on the close's basis, reinvested at the ex-date close; a range books
+# its midpoint), "real" leaves the adjClose return, "kept" was reviewed and can't be rebuilt (adjClose stands).
+FACTOR_HAND = (
+    ("AKSO.OL", "2024-10-01", "2025-01-01", "real", None, None, 0.359462, ("deleveraging/OSL",),
+     "NOK 21 extraordinary dividend ex 2024-11-25 (41.7% of the close), the close falling 40.8% that day"),
+    ("DLAR.L", "2008-07-01", "2009-07-01", "rebuilt", None, (0.0157, 0.0538), 1.51701, ("asset-growth/LSE",),
+     "De La Rue's 2008 return of cash, 305p a share with a 25-for-39 consolidation that keeps the price level: "
+     "the close steps up when the new shares deal and adjClose books the cash on top; priced from the new "
+     "shares' first open and close with the cash and the ordinary dividends (asset-growth README, PR #35)"),
+    ("3003.SR", "2020-07-01", "2021-07-01", "rebuilt", 0.5891, None, 2.05322,
+     ("asset-growth/SAU", "cyclical-timing/SAU"),
+     "City Cement's 2020 capital cut cancelled one share in 3.85 at SAR 10 each; adjClose books SAR 10 on every "
+     "share and the close treats the cut as a reverse split; with the cash per share held and the ordinary "
+     "dividends (asset-growth README, PR #35)"),
+    ("ABG.JO", "2013-07-01", "2013-10-01", "rebuilt", 0.0100, None, -0.56947, ("deleveraging/JNB",),
+     "adjClose / close alternates between two bases (five steps of 0.85 in log, the up-steps on zero-volume rows); "
+     "close plus the 350c dividend ex 2013-09-09, the close falling 2.8% that day"),
+    ("KINV-B.ST", "2014-07-01", "2015-07-01", "rebuilt", -0.0499, None, 0.704348, ("asset-growth/STO",),
+     "the 2015-05-19 dividend row is about 20 times Kinnevik's real SEK 7 redemption on the same basis, the close "
+     "flat that day; the A line's return, whose factor moves by the real payout (asset-growth README, PR #35)"),
+    ("TSG.JO", "2011-10-01", "2012-01-01", "rebuilt", 0.0829, None, -0.395584, ("deleveraging/JNB",),
+     "two adjClose bases (five steps of 0.58 in log, up-steps on zero-volume rows); close plus the 20c dividend"),
+    ("KINV-B.ST", "2020-07-01", "2021-07-01", "rebuilt", 1.3151, None, 2.50489, ("asset-growth/STO",),
+     "the 2020-08-25 dividend row copies the 2014 one (the real event was a SEK 7 redemption); the A line's "
+     "return with the 2021 Zalando distribution in kind reinvested at its ex-date close (asset-growth README, "
+     "PR #35)"),
+    ("SCHB.OL", "2024-04-01", "2024-07-01", "real", None, None, 0.192835, ("deleveraging/OSL",),
+     "Schibsted's NOK 77.10 extraordinary dividend ex 2024-05-30, the close falling 19.7%"),
+    ("CRDA.L", "2005-07-01", "2006-07-01", "rebuilt", 0.2314, None, 1.03534, ("asset-growth/LSE",),
+     "two adjClose bases (steps of 0.52 in log, one on a zero-volume row); close plus the 4.6p and 9.5p dividends"),
+    ("0127.HK", "2016-07-01", "2017-07-01", "real", None, None, 0.243047, ("asset-growth/HKSE",),
+     "four special dividends (HK$2.10, 3.23, 2.00, 2.91), the close falling by each on its ex-date"),
+    ("SCHA.OL", "2024-04-01", "2024-07-01", "real", None, None, 0.179918, ("deleveraging/OSL",),
+     "Schibsted's NOK 77.10 extraordinary dividend ex 2024-05-30, the close falling 16.8%"),
+    ("1428.HK", "2024-07-01", "2025-07-01", "real", None, None, 4.80272, ("asset-growth/HKSE",),
+     "HK$0.33 dividend ex 2024-08-21 (18.0% of the close), the close falling 19.1%"),
+    ("CRDA.L", "2006-07-01", "2007-07-01", "rebuilt", 0.4581, None, -0.120111, ("cyclical-timing/LSE",),
+     "the 2005 holding's two adjClose bases switching back (0.50 in log); close plus the 4.9p and 10.2p dividends"),
+    ("LIGT3.SA", "2008-07-01", "2009-07-01", "rebuilt", 0.8803, None, 1.10997, ("asset-growth/SAO",),
+     "the 2009-03-19 factor step implies a 17.8% payout against a R$1.945 (7.6%) dividend, the close falling "
+     "9.5% that day; close plus the dividend"),
+    ("ETP", "2014-07-01", "2015-07-01", "rebuilt", -0.0191, None, -0.749416, ("cyclical-timing/NYSE_NASDAQ_AMEX",),
+     "two adjClose bases (flips of about 1.4 in log) and dividend rows of another security (monthly 0.07); close "
+     "plus Energy Transfer Partners' own quarterly distributions from its 8-Ks: $0.955 ex 2014-07-31, $0.975 ex "
+     "2014-10-30, $0.995 ex 2015-02-04, $1.015 ex 2015-05-06"),
+    ("ELM.L", "2001-07-01", "2001-10-01", "rebuilt", -0.4316, None, -0.0123491, ("deleveraging/LSE",),
+     "two adjClose bases (0.553 in log, 25 times in three months); the close falls from 63.6 to 51.7 and to 36 "
+     "after September 11, with no cash paid"),
+    ("600997.SS", "2006-01-01", "2006-04-01", "rebuilt", 0.1111, None, 0.548673, ("deleveraging/SHZ_SHH",),
+     "halted 2005-12-19 to 2006-01-11 for the share-structure reform; 2006-01-12, the entry bar, already trades "
+     "after the bonus (close 2.99 to 2.61) but its adjClose sits on the pre-reform basis, so adjClose credits "
+     "the bonus to a holder who bought after it; close return, no cash paid"),
+    ("SDF.DE", "2002-07-01", "2003-07-01", "rebuilt", -0.0937, None, 0.0858896, ("cyclical-timing/XETRA",),
+     "two adjClose bases (0.565 in log); close plus the EUR 1 dividend of 2003-05-08 on the close's basis (0.237)"),
+    ("PETR3.SA", "2022-07-01", "2023-07-01", "real", None, None, 0.684798, ("asset-growth/SAO",),
+     "four Petrobras dividends (17.3%, 11.1%, 10.0%, 5.2% of the close), the close falling by each"),
+    ("RAM.BK", "2017-10-01", "2018-01-01", "rebuilt", 0.0130, None, -0.778537, ("deleveraging/SET",),
+     "two adjClose bases (1.52 in log, about 30 steps on zero- or thin-volume rows); close plus the THB 8 "
+     "dividend on the close's basis (0.08)"),
+    ("1919.HK", "2022-07-01", "2023-07-01", "real", None, None, 0.0597015, ("cyclical-timing/HKSE",),
+     "COSCO Shipping special dividends (22.5%, 17.6% of the close), the close falling by each"),
+    ("000423.SZ", "2006-07-01", "2007-07-01", "real", None, None, 3.87437, ("defensive-quality/SHZ_SHH",),
+     "halted 2007-05-15 to 06-01 for the share-structure reform, which gave holders 4 bonus shares per 10; the "
+     "close is unadjusted across it: 1.4 x 28.20 against 12.47 is +217%, as adjClose's +220%"),
+    ("1171.HK", "2023-07-01", "2024-07-01", "rebuilt", 0.3732, None, 0.470845, ("cyclical-timing/HKSE",),
+     "HK$4.6734 per H share with 5 bonus shares per 10 (ex 2023-07-05) and HK$1.6352 with 3 per 10 (ex "
+     "2024-06-26), per the HKEX notices; the close is adjusted for both bonuses, but the factor over-applies "
+     "both payouts; close plus HK$2.3966 and 1.2579 on the close's basis"),
+)
+FACTOR_HAND_RULE = ("each band flag whose close-basis swap moves its leg's excess by review_min_pp or more is "
+                    "reviewed by hand and listed by holding span (symbol, rebalance date, exit date): rebuilt (book "
+                    "the traded close plus the cash paid, on the close's basis, reinvested at the ex-date close; a "
+                    "range books its midpoint), real (the adjClose return stands) or kept (reviewed, can't be "
+                    "rebuilt: adjClose stands); an entry applies only while its holding's adjClose return is within "
+                    "log_tolerance of the one it was checked against (ln(1 + r)), else the holding books adjClose "
+                    "and is listed as hand_stale; flags under review_min_pp, and flags on LTP fills, book adjClose")
+
+
+def _hand_entries(rows):
+    out = []
+    for s, reb, ex, kind, booked, rng, radj, found, ev in rows:
+        if kind == "rebuilt" and booked is None:
+            booked = round((rng[0] + rng[1]) / 2, 6)
+        out.append({"symbol": s, "rebalance_date": reb, "exit_date": ex, "kind": kind, "booked": booked,
+                    "range": list(rng) if rng else None, "return_adj": radj, "found_in": list(found), "evidence": ev})
+    return out
+
+
+def _hand_config(rows):
+    import hashlib
+    entries = _hand_entries(rows)
+    return {"rule": FACTOR_HAND_RULE, "review_min_pp": 0.1, "log_tolerance": 0.005, "entries": entries,
+            "entries_sha256": hashlib.sha256(json.dumps(entries, sort_keys=True).encode()).hexdigest()}
+
+
+DATA_CHECKS_V3 = {**DATA_CHECKS_V2, "version": "dc-3", "factor_hand": _hand_config(FACTOR_HAND)}
 
 
 def _sig(x, digits=6):
@@ -2393,7 +2496,7 @@ def _event_key(e):
 
 
 class DataChecks:
-    """One leg's data checks dc-1: collects what T, N, M, F and L did, for the results file.
+    """One leg's data checks (dc-1, dc-2 or dc-3 by cfg): collects what T, N, M, F and L did, for the results file.
 
     mode "on" runs every check. mode "uncapped" runs none: it exists for the same-day attribution
     arm, issues no query and leaves every count at 0. Both modes book with max_single_return=None.
@@ -2417,6 +2520,9 @@ class DataChecks:
                       "symbol_windows_without_volume": 0, "flat_windows_moved": 0, "closed_day_test_skipped": 0,
                       "closed_dates": [], "sibling_gap_rows": 0, "sibling_gaps": []}
         self.cap = {"cap_rows_checked": 0, "cap_rows_flagged": 0, "cap_unchecked": []}
+        hand = cfg.get("factor_hand")
+        self._hand = {(e["symbol"], e["rebalance_date"], e["exit_date"]): e for e in hand["entries"]} if hand else None
+        self._hand_pending, self._hand_booked = {}, {}
         self.twins_linked = self.factor_checked = 0
         self.events, self.large_moves, self.periods = [], [], {}
 
@@ -2529,6 +2635,42 @@ class DataChecks:
             out.setdefault(s, []).append({"date": utc_date(e).isoformat(), "numerator": num, "denominator": den})
         return out
 
+    def hand(self, clean, entry_date, exit_date, filled=(), record=True):
+        """Check F's hand list (dc-3) on filter_returns' (symbol, raw return, mcap) list, before costs: a listed
+        holding of this span books its entry's return when the entry is "rebuilt", and every match logs a
+        `hand` event (the booked return, the adjClose return beside it); a match whose adjClose return is more
+        than log_tolerance from the listed one logs `hand_stale` and books as given. Names in `filled` (an LTP
+        fill's exit) are left alone. The events wait for prices(): a held period commits them, a cash one drops
+        them; record=False (the second book of --exit-method both) logs nothing. Without the list, or in the
+        uncapped mode, returns `clean` itself."""
+        if self._hand is None or not self.on:
+            return clean
+        tol = self.cfg["factor_hand"]["log_tolerance"]
+        span = (entry_date.isoformat(), exit_date.isoformat())
+        out, pend = [], []
+        for s, ret, mc in clean:
+            e = self._hand.get((s, *span)) if s not in filled else None
+            if e is None:
+                out.append((s, ret, mc))
+                continue
+            near = ret > -1 and e["return_adj"] > -1 and abs(math.log1p(ret) - math.log1p(e["return_adj"])) <= tol
+            booked = e["booked"] if near and e["kind"] == "rebuilt" else ret
+            pend.append((s, "hand" if near else "hand_stale",
+                         {"kind": e["kind"], "booked": _sig(booked), "return_adj": _sig(ret),
+                          "listed_return_adj": e["return_adj"], "range": e["range"]}, ret))
+            out.append((s, booked, mc))
+        if record:
+            self._hand_pending[span[0]] = pend
+        return out
+
+    def _commit_hand(self, entry_date, held):
+        """prices()'s first step: the period's waiting hand events go to the events when it is held."""
+        pend = self._hand_pending.pop(entry_date.isoformat(), [])
+        for s, check, fields, ret in pend if held else []:
+            self._event(entry_date, s, check, **fields)
+            if check == "hand" and fields["kind"] == "rebuilt":
+                self._hand_booked[(entry_date.isoformat(), s)] = round(ret, 6)   # holdings_full's rounding
+
     def prices(self, con, entry_date, exit_date, symbol_data, offset_days, min_entry_price, held=True,
                exit_offset_days=None):
         """Checks on one priced period's window bars: T's bar events, then for a held book L and F.
@@ -2539,6 +2681,7 @@ class DataChecks:
         records: a holding is flagged when its stage-1 drift (adjClose / close at the exit bar over the
         same at the entry bar) leaves the band, a split of ratio split_min or more falls in (entry bar,
         exit bar], or it is on L."""
+        self._commit_hand(entry_date, held)
         p = self._period(entry_date)
         p.update(entry_bars_moved=0, exit_bars_moved=0, entries_lost=0, exits_lost=0, factor_flags=0)
         if not self.on:
@@ -2652,6 +2795,9 @@ class DataChecks:
                 raise AssertionError(f"holdings_full: entry bar of {s} on {entry_date} reads {e}, book {ep}")
             out.append({"symbol": s, "entry_bar": e["date"], "entry_price": ep, "exit_bar": bar, "exit_price": xp,
                         "exit": src, "return": round(ret, 6)})
+            adj = self._hand_booked.get((entry_date.isoformat(), s))
+            if adj is not None:   # a dc-3 rebuilt holding: the booked return, its adjClose return beside it
+                out[-1]["return_adj"] = adj
         return {"holdings_full": out}
 
     def row(self, d, screened=True, priced=True, signal=False):
@@ -2683,6 +2829,10 @@ class DataChecks:
             "factor_checked": self.factor_checked, "factor_flags": n("factor_flag"),
             "large_moves": len(self.large_moves),
         }
+        if self._hand is not None:   # dc-3 only, so a dc-1 or dc-2 block stays as it was
+            kinds = Counter(e["kind"] for e in ev if e["check"] == "hand")
+            counts.update({f"hand_{k}": kinds.get(k, 0) for k in ("rebuilt", "real", "kept")},
+                          hand_stale=n("hand_stale"))
         return {"version": self.cfg["version"], "mode": self.mode, "max_single_return": None,
                 "rules": {k: v for k, v in self.cfg.items() if k != "version"}, "counts": counts,
                 "closed_dates": list(self.clean["closed_dates"]), "events": ev,
@@ -2698,7 +2848,9 @@ class DataChecks:
                 f"{c['exits_lost']}, twins "
                 f"{c['twins_collapsed']} ({c['nvdr_stand_ins']} stand-ins), cap rows flagged {c['cap_rows_flagged']}, "
                 f"cap excluded {c['cap_excluded']} + signal {c['signal_cap_excluded']}, factor flags "
-                f"{c['factor_flags']}, large moves {c['large_moves']}")
+                f"{c['factor_flags']}, large moves {c['large_moves']}"
+                + (f", hand list rebuilt {c['hand_rebuilt']} real {c['hand_real']} kept {c['hand_kept']} "
+                   f"stale {c['hand_stale']}" if "hand_stale" in c else ""))
 
 
 # ---------------------------------------------------------------------------

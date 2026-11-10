@@ -32,6 +32,7 @@ Checks and tools for the topic backtests: 36 offline tests, the LTP exit-method 
 - Its gate 6 (SCOPE) fails a branch that changes any file outside `*/backtest.py`, `*/generate_charts.py`, `scripts/`, rerun results and its `SCOPE_ALLOW` set. A change to any CLAUDE.md outside `scripts/`, the root README or most topic READMEs fails it.
 - Gate 6 diffs against a local `main` branch (`git diff main...HEAD`). Without one it checks only the working tree and passes on committed changes. Either way it counts untracked files that `.gitignore` doesn't cover, such as a new `.venv/` (the root Setup excludes it).
 - `scan_results_invariant.py`: impossible period counts across the committed results. Reads every topic's `results/`, writes nothing.
+- `factor_review.py RESULTS.json...`: the band factor flags that move their leg by 0.1pp or more and aren't on data checks dc-3's hand list (`data_utils.FACTOR_HAND`). Run it at a data-checks topic's onboarding and at every rerun, review each flag it lists, add the entry, and rerun the leg. Gate 15 imports it and refuses a committed dc-3 file it faults. Offline, writes nothing.
 - `check_pairs_results.py FILE.json|TOPIC ...`: a pairs results file before it is published. `--self-test` runs offline.
 - `benchmark_yield_audit.py`: which published "beat the local benchmark" claims survive a dividend adjustment. Reads the committed results and prints a report (`--json` for JSON).
 

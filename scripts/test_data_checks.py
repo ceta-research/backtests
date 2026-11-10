@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Offline tests for data checks dc-1 and dc-2 (no network, no backtest leg).
+"""Offline tests for data checks dc-1, dc-2 and dc-3 (no network, no backtest leg).
+
+dc-3's hand list for check F (section H): on real rows, a rebuilt holding (KINV-B.ST 2014) books its entry, a
+real one (AKSO.OL 2024-10) keeps adjClose, a range (DLAR.L 2008) books its midpoint, a return moved past the
+tolerance is hand_stale, and a quarterly span, a filled name, the uncapped mode, record=False and a cash period
+add nothing; the list agrees with the committed results; factor_review finds the 24 flags at 0.1pp or more with
+their recorded effects and nothing left against the list; gate 15 refuses a dc-3 file with an unreviewed flag, a
+stale entry, an unbooked entry or a CAGR that doesn't reproduce; each of the four topics books a listed holding
+end to end in drop, ltp and both; and source mutants of data_utils, factor_review and two topics each fail.
 
 dc-2's check S (stale repeats): in T's windows a run of 4 identical traded rows loses rows 2-4 while
 runs of 3, a new volume or a new close each day, a run split across two windows and the benchmark
@@ -58,6 +66,7 @@ import argparse
 import ast
 import contextlib
 import copy
+import glob
 import importlib.util
 import io
 import json
@@ -2439,8 +2448,9 @@ def holdings_full_failures(topic, src, tmp):
             break
         n_named += len(names) - len(shown)
         for h in hf:
-            if set(h) != {"symbol", "entry_bar", "entry_price", "exit_bar", "exit_price", "exit", "return"} or \
-                    abs(h["return"] - round(h["exit_price"] / h["entry_price"] - 1, 6)) > 1e-9 or \
+            # dc-3: a rebuilt holding books its hand return, its adjClose return beside it as return_adj
+            if set(h) - {"return_adj"} != {"symbol", "entry_bar", "entry_price", "exit_bar", "exit_price", "exit", "return"} or \
+                    abs(h.get("return_adj", h["return"]) - round(h["exit_price"] / h["entry_price"] - 1, 6)) > 1e-9 or \
                     not h["entry_bar"] < h["exit_bar"] or h["exit"] not in ("window", "last_traded"):
                 f.append(f"{topic} {r['rebalance_date']}: bad item {h}")
             if h["exit"] == "last_traded":
@@ -2755,6 +2765,352 @@ def defensive_rules_failures(src, tmp):
 
 # ---------------------------------------------------------------- gate 15 must fail
 
+# ---------------------------------------------------------------- H: F's hand list (dc-3)
+
+# Real rows: (rebalance date, exit date, adjClose at the entry bar, adjClose at the exit bar) from stock_eod
+HAND_ROWS = {"KINV-B.ST": (date(2014, 7, 1), date(2015, 7, 1), 3.45, 5.88),      # bars 2014-07-02, 2015-07-02
+             "AKSO.OL": (date(2024, 10, 1), date(2025, 1, 1), 21.56, 29.31),     # bars 2024-10-02, 2025-01-02
+             "DLAR.L": (date(2008, 7, 1), date(2009, 7, 1), 192.861, 485.433)}   # bars 2008-07-02, 2009-07-02
+# Each band flag that moves its leg's excess by 0.1pp or more on a close-basis swap, at the committed results
+REVIEW_EFFECTS = {
+    ("asset-growth", "HKSE", "0127.HK", "2016-07-01"): -0.1375,
+    ("asset-growth", "HKSE", "1428.HK", "2024-07-01"): -0.1251,
+    ("asset-growth", "LSE", "CRDA.L", "2005-07-01"): -0.1376,
+    ("asset-growth", "LSE", "DLAR.L", "2008-07-01"): -0.2798,
+    ("asset-growth", "SAO", "LIGT3.SA", "2008-07-01"): -0.1203,
+    ("asset-growth", "SAO", "PETR3.SA", "2022-07-01"): -0.1101,
+    ("asset-growth", "SAU", "3003.SR", "2020-07-01"): -0.2252,
+    ("asset-growth", "STO", "KINV-B.ST", "2014-07-01"): -0.1759,
+    ("asset-growth", "STO", "KINV-B.ST", "2020-07-01"): -0.1497,
+    ("cyclical-timing", "HKSE", "1171.HK", "2023-07-01"): -0.1033,
+    ("cyclical-timing", "HKSE", "1919.HK", "2022-07-01"): -0.1080,
+    ("cyclical-timing", "LSE", "CRDA.L", "2006-07-01"): 0.1212,
+    ("cyclical-timing", "NYSE_NASDAQ_AMEX", "ETP", "2014-07-01"): 0.1176,
+    ("cyclical-timing", "SAU", "3003.SR", "2020-07-01"): -0.2119,
+    ("cyclical-timing", "XETRA", "SDF.DE", "2002-07-01"): -0.1119,
+    ("defensive-quality", "SHZ_SHH", "000423.SZ", "2006-07-01"): -0.1043,
+    ("deleveraging", "JNB", "ABG.JO", "2013-07-01"): 0.2185,
+    ("deleveraging", "JNB", "TSG.JO", "2011-10-01"): 0.1568,
+    ("deleveraging", "LSE", "ELM.L", "2001-07-01"): -0.1172,
+    ("deleveraging", "OSL", "AKSO.OL", "2024-10-01"): -0.3520,
+    ("deleveraging", "OSL", "SCHA.OL", "2024-04-01"): -0.1348,
+    ("deleveraging", "OSL", "SCHB.OL", "2024-04-01"): -0.1404,
+    ("deleveraging", "SET", "RAM.BK", "2017-10-01"): 0.1083,
+    ("deleveraging", "SHZ_SHH", "600997.SS", "2006-01-01"): -0.1126,
+}
+
+
+def hand_unit_failures(m=du):
+    """DataChecks.hand on real rows: KINV-B.ST 2014 (rebuilt: books -0.0499, the hand event carries its adjClose
+    return 0.704348), AKSO.OL 2024-10 (real: its return stands, logged), DLAR.L 2008 (a range: books its midpoint);
+    a return moved past log_tolerance logs hand_stale and books as given, one within it applies; a quarterly span
+    from the same date, a filled name and the uncapped mode match nothing; dc-1 and dc-2 return the list itself;
+    record=False logs nothing; a cash period drops its events; the dc-3 block counts each kind, dc-1's has none."""
+    f = []
+    v3 = m.DATA_CHECKS_V3
+    ret = lambda s: HAND_ROWS[s][3] / HAND_ROWS[s][2] - 1
+
+    def run(dc, s, r=None, x=None, filled=(), record=True):
+        d, x0, _, _ = HAND_ROWS[s]
+        return dc.hand([(s, ret(s) if r is None else r, 1e9), ("OTHER", 0.1, 1e9)], d, x or x0, filled=filled,
+                       record=record)
+
+    def logged(dc, s, held=True):
+        dc._commit_hand(HAND_ROWS[s][0], held)
+        return [e for e in dc.events if e["check"].startswith("hand")]
+
+    dc = m.DataChecks("on", v3)
+    out, ev = run(dc, "KINV-B.ST"), logged(dc, "KINV-B.ST")
+    if out != [("KINV-B.ST", -0.0499, 1e9), ("OTHER", 0.1, 1e9)] or len(ev) != 1 or \
+            (ev[0]["check"], ev[0]["kind"], ev[0]["booked"], ev[0]["return_adj"]) != ("hand", "rebuilt", -0.0499, 0.704348):
+        f.append(f"rebuilt KINV-B.ST 2014: {out} {ev}")
+    dc = m.DataChecks("on", v3)
+    out, ev = run(dc, "AKSO.OL"), logged(dc, "AKSO.OL")
+    if out[0][1] != ret("AKSO.OL") or [(e["check"], e["kind"], e["booked"]) for e in ev] != [("hand", "real", 0.359462)]:
+        f.append(f"real AKSO.OL 2024-10: {out} {ev}")
+    dc = m.DataChecks("on", v3)
+    out, ev = run(dc, "DLAR.L"), logged(dc, "DLAR.L")
+    if out[0][1] != 0.03475 or [e["range"] for e in ev] != [[0.0157, 0.0538]]:
+        f.append(f"range DLAR.L 2008: {out} {ev}")
+    for shift, applied in ((0.004, True), (0.01, False)):
+        dc = m.DataChecks("on", v3)
+        r = (1 + ret("KINV-B.ST")) * math.exp(shift) - 1
+        out, ev = run(dc, "KINV-B.ST", r=r), logged(dc, "KINV-B.ST")
+        want = ("hand", -0.0499) if applied else ("hand_stale", r)
+        if (ev[0]["check"], out[0][1]) != want:
+            f.append(f"KINV-B.ST with its return moved by {shift} in log: {ev[0]['check']}, booked {out[0][1]}")
+    for label, dc, kw in (("a quarterly span from the same date", m.DataChecks("on", v3), {"x": date(2014, 10, 1)}),
+                          ("a filled name", m.DataChecks("on", v3), {"filled": {"KINV-B.ST"}}),
+                          ("the uncapped mode", m.DataChecks("uncapped", v3), {})):
+        out, ev = run(dc, "KINV-B.ST", **kw), logged(dc, "KINV-B.ST")
+        if out[0][1] != ret("KINV-B.ST") or ev:
+            f.append(f"{label} matched: {out} {ev}")
+    for cfg in (m.DATA_CHECKS_V1, m.DATA_CHECKS_V2):
+        clean = [("KINV-B.ST", ret("KINV-B.ST"), 1e9)]
+        dc = m.DataChecks("on", cfg)
+        if dc.hand(clean, *HAND_ROWS["KINV-B.ST"][:2]) is not clean or "hand_stale" in dc.block()["counts"]:
+            f.append(f"{cfg['version']} does something with the hand list")
+    dc = m.DataChecks("on", v3)
+    run(dc, "KINV-B.ST")
+    run(dc, "KINV-B.ST", filled={"KINV-B.ST"}, record=False)
+    if [e["check"] for e in logged(dc, "KINV-B.ST")] != ["hand"]:
+        f.append("record=False replaced the period's events")
+    dc = m.DataChecks("on", v3)
+    run(dc, "KINV-B.ST")
+    if logged(dc, "KINV-B.ST", held=False) or dc._hand_booked:
+        f.append("a cash period kept its hand events")
+    dc = m.DataChecks("on", v3)
+    for s in HAND_ROWS:
+        run(dc, s)
+        logged(dc, s)
+    c = dc.block()["counts"]
+    if (c["hand_rebuilt"], c["hand_real"], c["hand_kept"], c["hand_stale"]) != (2, 1, 0, 0) or \
+            dc.block()["rules"]["factor_hand"]["entries_sha256"] != v3["factor_hand"]["entries_sha256"]:
+        f.append(f"dc-3 block counts {c}")
+    return f
+
+
+def hand_list_failures():
+    """The list against the committed results: each entry's span, in each leg it was found in, is a band
+    factor_flag with the entry's adjClose return and exit date; spans are unique; kinds, booked values and
+    ranges are well formed; every entry carries evidence."""
+    f = []
+    entries = du.DATA_CHECKS_V3["factor_hand"]["entries"]
+    spans = [(e["symbol"], e["rebalance_date"], e["exit_date"]) for e in entries]
+    if len(set(spans)) != len(spans):
+        f.append("a span is listed twice")
+    for e in entries:
+        ok = e["kind"] in ("rebuilt", "real", "kept") and len(e["evidence"]) > 40 and e["found_in"] and \
+            ((e["booked"] is not None) == (e["kind"] == "rebuilt")) and \
+            (e["range"] is None or e["range"][0] <= e["booked"] <= e["range"][1])
+        if not ok:
+            f.append(f"malformed entry {e['symbol']} {e['rebalance_date']}")
+        for where in e["found_in"]:
+            topic, leg = where.split("/")
+            res = json.load(open(os.path.join(ROOT, topic, "results", f"returns_{leg}.json")))
+            ev = [x for x in res["data_checks"]["events"] if x["check"] == "factor_flag" and "band" in x["reasons"]
+                  and (x["symbol"], x["rebalance_date"]) == (e["symbol"], e["rebalance_date"])]
+            exit_ = {r["rebalance_date"]: r["exit_date"] for r in res["period_data"]}.get(e["rebalance_date"])
+            if len(ev) != 1 or exit_ != e["exit_date"] or abs(ev[0]["r_adj"] - e["return_adj"]) > 1e-6:
+                f.append(f"{e['symbol']} {e['rebalance_date']} in {where}: {ev} exit {exit_}")
+    return f
+
+
+def review_failures():
+    """factor_review on the four topics' committed results: every leg reproduces; the effects of the listed flags
+    match REVIEW_EFFECTS to 1e-4 and no other band flag reaches 0.1pp; against the hand list, nothing is left."""
+    import factor_review as fr
+    f, seen = [], set()
+    entries = du.DATA_CHECKS_V3["factor_hand"]["entries"]
+    for t in DATA_CHECKS_TOPICS:
+        for p in sorted(glob.glob(os.path.join(ROOT, t, "results", "returns_*.json"))):
+            leg = os.path.basename(p)[8:-5]
+            res = json.load(open(p))
+            if not fr.reproduces(res):
+                f.append(f"{t}/{leg} doesn't reproduce")
+            for (s, r, _), _, eff in fr.effects(res):
+                k = (t, leg, s, r)
+                if k in REVIEW_EFFECTS:
+                    seen.add(k)
+                    if abs(eff - REVIEW_EFFECTS[k]) > 1e-4:
+                        f.append(f"{k}: effect {eff:.4f}, recorded {REVIEW_EFFECTS[k]}")
+                elif abs(eff) >= 0.1:
+                    f.append(f"{k}: effect {eff:.4f}, not recorded")
+            if fr.unreviewed(res, entries, 0.1):
+                f.append(f"{t}/{leg} unreviewed: {fr.unreviewed(res, entries, 0.1)}")
+    if seen != set(REVIEW_EFFECTS):
+        f.append(f"recorded flags not found: {sorted(set(REVIEW_EFFECTS) - seen)}")
+    return f
+
+
+def dc3_file(res, drop_listed=(), drop_hand=(), stale=False, cagr_shift=0.0, min_pp=None):
+    """A committed results file as if run on dc-3 with the hand list: each listed span it holds books its entry,
+    with its hand event; drop_listed leaves spans out of the file's list, drop_hand leaves their hand events out,
+    stale adds a hand_stale event, cagr_shift moves the stated CAGR, min_pp sets the file's review threshold."""
+    import factor_review as fr
+    res = copy.deepcopy(res)
+    v3 = du.DATA_CHECKS_V3
+    fh = copy.deepcopy(v3["factor_hand"])
+    fh["entries"] = [e for e in fh["entries"] if (e["symbol"], e["rebalance_date"]) not in drop_listed]
+    if min_pp is not None:
+        fh["review_min_pp"] = min_pp
+    dcb = res["data_checks"]
+    dcb["version"], dcb["rules"]["factor_hand"] = "dc-3", fh
+    rows = {r["rebalance_date"]: r for r in res["period_data"]}
+    for e in v3["factor_hand"]["entries"]:
+        flag = next((x for x in dcb["events"] if x["check"] == "factor_flag" and
+                     (x["symbol"], x["rebalance_date"]) == (e["symbol"], e["rebalance_date"])), None)
+        if flag is None or rows[e["rebalance_date"]]["exit_date"] != e["exit_date"]:
+            continue
+        booked = e["booked"] if e["kind"] == "rebuilt" else flag["r_adj"]
+        row = rows[e["rebalance_date"]]
+        row["portfolio_return"] = round(row["portfolio_return"] + (booked - flag["r_adj"]) / row["stocks_held"], 6)
+        if (e["symbol"], e["rebalance_date"]) not in drop_hand:
+            dcb["events"].append({"rebalance_date": e["rebalance_date"], "symbol": e["symbol"], "check": "hand",
+                                  "side": None, "kind": e["kind"], "booked": du._sig(booked),
+                                  "return_adj": flag["r_adj"], "listed_return_adj": e["return_adj"],
+                                  "range": e["range"]})
+    if stale:
+        dcb["events"].append({"rebalance_date": "2010-07-01", "symbol": "X", "check": "hand_stale", "side": None})
+    valid = fr._rows(res)
+    c, x = fr._cagr_excess(res, valid, [r["portfolio_return"] for r in valid])
+    res["portfolio"]["cagr"], res["comparison"]["excess_cagr"] = round(c + cagr_shift, 2), round(x, 2)
+    return res
+
+
+def gate_dc3_failures(fr=None):
+    """factor_review.problems (gate 15) on asset growth Sweden's committed file made dc-3: as booked, none; KINV-B
+    2014 off the file's list is unreviewed; a hand_stale event, KINV-B 2020's hand event missing, or a CAGR that
+    doesn't reproduce each fail; at a threshold equal to an unlisted flag's effect, that flag is unreviewed;
+    a dc-1 or dc-2 file has none."""
+    import factor_review
+    fr = fr or factor_review
+    f = []
+    sto = json.load(open(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json")))
+    k14, k20 = ("KINV-B.ST", "2014-07-01"), ("KINV-B.ST", "2020-07-01")
+    if fr.problems(dc3_file(sto)) or fr.problems(sto):
+        f.append(f"as booked: {fr.problems(dc3_file(sto))} {fr.problems(sto)}")
+    for label, kw, want in (("KINV-B 2014 off the file's list", {"drop_listed": (k14,)}, "unreviewed band flag KINV-B.ST 2014"),
+                            ("a hand_stale event", {"stale": True}, "hand_stale"),
+                            ("KINV-B 2020's hand event missing", {"drop_hand": (k20,)}, "KINV-B.ST 2020-07-01 not booked"),
+                            ("a CAGR that doesn't reproduce", {"cagr_shift": 0.05}, "don't reproduce")):
+        probs = fr.problems(dc3_file(sto, **kw))
+        if not any(want in p for p in probs):
+            f.append(f"{label}: {probs}")
+    unlisted = max((t for t in fr.effects(dc3_file(sto)) if t[0][0] != "KINV-B.ST"), key=lambda t: abs(t[2]))
+    probs = fr.problems(dc3_file(sto, min_pp=abs(unlisted[2])))
+    if not any(f"unreviewed band flag {unlisted[0][0]} {unlisted[0][1]}" in p for p in probs):
+        f.append(f"at a threshold of {abs(unlisted[2])}, {unlisted[0]} isn't unreviewed: {probs}")
+    return f
+
+
+def hand_topic_failures(topic, src, tmp, mod_src=None):
+    """A topic on a test dc-3 (dc-1 plus a hand list rebuilding one held name of the synthetic leg), in drop,
+    ltp, both and ltp with full holdings: that period's portfolio_return (and portfolio_return_ltp under both)
+    moves by (booked minus raw) over the names held, costs unchanged; one hand event; the data_checks block is
+    the same across exit methods and stage-a passes; holdings_full shows the booked return with return_adj
+    beside it; factor_review finds nothing. mod_src: the topic source to run (a mutant)."""
+    import factor_review as fr
+
+    def load():
+        if mod_src is None:
+            return load_topic(topic)
+        path = os.path.join(tmp, f"hand_mutant_{topic.replace('-', '_')}.py")
+        with open(path, "w") as fh:
+            fh.write(mod_src)
+        spec = importlib.util.spec_from_file_location(f"hand_mutant_{topic.replace('-', '_')}", path)
+        mod = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, ROOT)
+        spec.loader.exec_module(mod)
+        return mod
+
+    f = []
+    base, _ = run_topic(topic, src, "ltp", "on", tmp, full_holdings=True, tag=".hand0")
+    row, h = next((r, x) for r in base["period_data"] if r["stocks_held"] for x in r["holdings_full"]
+                  if x["exit"] == "window")
+    raw = h["return"]
+    rows = ((h["symbol"], row["rebalance_date"], row["exit_date"], "rebuilt", round(raw + 0.5, 6), None, raw, ("test",),
+             "a synthetic holding rebuilt 0.5 higher, for the end-to-end test"),)
+    cfg = {**du.DATA_CHECKS_V1, "version": "dc-3", "factor_hand": du._hand_config(rows)}
+    runs = {}
+    for m, full in (("drop", False), ("ltp", False), ("both", False), ("ltp", True)):
+        mod = load()
+        mod.DATA_CHECKS = cfg
+        runs[(m, full)], _ = run_topic(topic, src, m, "on", tmp, full_holdings=full, tag=f".hand.{m}{full}", mod=mod)
+    want = round(row["portfolio_return"] + (round(raw + 0.5, 6) - raw) / row["stocks_held"], 6)
+    for (m, full), res in runs.items():
+        r = next(x for x in res["period_data"] if x["rebalance_date"] == row["rebalance_date"])
+        if abs(r["portfolio_return"] - want) > 2e-6:
+            f.append(f"{topic} {m}: {row['rebalance_date']} books {r['portfolio_return']}, want {want}")
+        hand = [e for e in res["data_checks"]["events"] if e["check"] == "hand"]
+        if [(e["symbol"], e["rebalance_date"], e["booked"]) for e in hand] != \
+                [(h["symbol"], row["rebalance_date"], du._sig(round(raw + 0.5, 6)))]:
+            f.append(f"{topic} {m}: hand events {hand}")
+        if fr.problems(res, code=cfg["factor_hand"]):
+            f.append(f"{topic} {m}: factor_review {fr.problems(res, code=cfg['factor_hand'])}")
+    both = runs[("both", False)]
+    rb = next(x for x in both["period_data"] if x["rebalance_date"] == row["rebalance_date"])
+    rl = next(x for x in runs[("ltp", False)]["period_data"] if x["rebalance_date"] == row["rebalance_date"])
+    if abs(rb.get("portfolio_return_ltp", 0) - rl["portfolio_return"]) > 2e-6:
+        f.append(f"{topic} both: portfolio_return_ltp {rb.get('portfolio_return_ltp')} against ltp's {rl['portfolio_return']}")
+    if not (runs[("drop", False)]["data_checks"] == both["data_checks"] == runs[("ltp", False)]["data_checks"]):
+        f.append(f"{topic}: data_checks differs across exit methods under dc-3")
+    g = {"topic": topic, "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}]}
+    _, probs = check_stage_a(g, both, runs[("drop", False)], runs[("ltp", False)], with_ltp=True)
+    f += [f"{topic} dc-3 stage-a: {p}" for p in probs]
+    item = next(x for x in next(r for r in runs[("ltp", True)]["period_data"]
+                                if r["rebalance_date"] == row["rebalance_date"])["holdings_full"]
+                if x["symbol"] == h["symbol"])
+    if (item.get("return"), item.get("return_adj")) != (round(raw + 0.5, 6), raw):
+        f.append(f"{topic}: holdings_full item {item}")
+    return f
+
+
+HAND_DU_MUTANTS = {
+    "the tolerance test removed": ('abs(math.log1p(ret) - math.log1p(e["return_adj"])) <= tol', "True"),
+    "the exit date dropped from the key": ("self._hand.get((s, *span))",
+                                           "next((v for k, v in self._hand.items() if k[:2] == (s, span[0])), None)"),
+    "a range's low end booked": ("booked = round((rng[0] + rng[1]) / 2, 6)", "booked = rng[0]"),
+    "real treated as rebuilt": ('booked = e["booked"] if near and e["kind"] == "rebuilt" else ret',
+                                'booked = e["booked"] if near and e["kind"] != "kept" else ret'),
+    "record=False ignored": ("        if record:\n            self._hand_pending", "        if True:\n            self._hand_pending"),
+    "filled names matched": ("e = self._hand.get((s, *span)) if s not in filled else None",
+                             "e = self._hand.get((s, *span))"),
+    "the uncapped mode matched": ("if self._hand is None or not self.on:", "if self._hand is None:"),
+    "a cash period's events kept": ("for s, check, fields, ret in pend if held else []:",
+                                    "for s, check, fields, ret in pend:"),
+}
+HAND_FR_MUTANTS = {
+    "the threshold > not >=": ("if abs(eff) >= min_pp and span not in listed", "if abs(eff) > min_pp and span not in listed"),
+    "the review reads the code's list": ('unreviewed(res, fh["entries"], fh["review_min_pp"])',
+                                         'unreviewed(res, code["entries"], fh["review_min_pp"])'),
+}
+HAND_TOPIC_MUTANTS = {
+    "the hand list applied after costs": (
+        "asset-growth",
+        "            clean = dc.hand(clean, entry_date, exit_date, filled=ltp_fill, record=record)   # dc-3's hand list\n"
+        "            return clean, [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in clean]",
+        "            clean = dc.hand([(s, apply_costs(rr, tiered_cost(mc)) if use_costs else rr, mc) for s, rr, mc in clean],"
+        " entry_date, exit_date, filled=ltp_fill, record=record)\n"
+        "            return clean, [rr for _, rr, mc in clean]"),
+    "the both-branch's hand list skipped": (
+        "cyclical-timing",
+        "            c_ltp = dc.hand(c_ltp, entry_date, exit_date, filled=ltp_fill, record=False)\n", ""),
+}
+
+
+def hand_mutant_failures(tmp, srcs):
+    """Each HAND_*_MUTANTS edit must fail one of the hand list's checks."""
+    f = []
+    for name, muts, check in (("data_utils.py", HAND_DU_MUTANTS, hand_unit_failures),
+                              (os.path.join("scripts", "factor_review.py"), HAND_FR_MUTANTS, gate_dc3_failures)):
+        src = open(os.path.join(ROOT, name)).read()
+        for i, (label, (old, new)) in enumerate(muts.items()):
+            if src.count(old) != 1:
+                f.append(f"hand mutant {label}: anchor found {src.count(old)} times")
+                continue
+            path = os.path.join(tmp, f"hand_mutant_{i}_{os.path.basename(name)}")
+            with open(path, "w") as fh:
+                fh.write(src.replace(old, new, 1))
+            spec = importlib.util.spec_from_file_location(f"hand_mutant_{i}_{os.path.basename(name)[:-3]}", path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            try:
+                caught = bool(check(mod))
+            except Exception:   # a mutant that crashes the check is caught too
+                caught = True
+            if not caught:
+                f.append(f"hand mutant {label} passes every check")
+    for label, (topic, old, new) in HAND_TOPIC_MUTANTS.items():
+        src = open(os.path.join(ROOT, topic, "backtest.py")).read()
+        if src.count(old) != 1:
+            f.append(f"hand mutant {label}: anchor found {src.count(old)} times")
+            continue
+        if not hand_topic_failures(topic, srcs.get(topic, srcs[None]), tmp, mod_src=src.replace(old, new, 1)):
+            f.append(f"hand mutant {label} passes every check")
+    return f
+
+
 def gate15_failures():
     f = []
     for t, n in DATA_CHECKS_TOPICS.items():
@@ -2766,7 +3122,8 @@ def gate15_failures():
                    "M not loaded": src.replace("load_cap_check(client", "print(client", 1),
                    "dc dropped": src.replace("exit_method=exit_method, dc=dc)", "exit_method=exit_method)", 1),
                    "LtpExits without cfg": src.replace("end_date=win.end_date, cfg=dc.cfg)", "end_date=win.end_date)", 1),
-                   "LtpExits on a fixed cfg": src.replace("cfg=dc.cfg)", "cfg=DATA_CHECKS_V1)", 1)}
+                   "LtpExits on a fixed cfg": src.replace("cfg=dc.cfg)", "cfg=DATA_CHECKS_V1)", 1),
+                   "the hand list skipped once": src.replace("dc.hand(", "dc.hanx(", 1)}
         for label, m in mutants.items():
             check(m != src, f"gate 15 mutant {label} found nothing to change in {t}")
             if not dc_wiring(ast.parse(m), n):
@@ -2831,6 +3188,13 @@ def main():
     expect("S on LTP fills: PTNM lands on 2025-10-03, the exit-window bound, copies only take the missing exit",
            s_ltp_failures())
     expect("S results block: dc-2 counts rule S, dc-1 unchanged", s_block_failures())
+    # H (dc-3)
+    expect("H hand list on real rows: rebuilt, real, a range, stale, spans, fills, uncapped, record, cash, block",
+           hand_unit_failures())
+    expect("H hand list agrees with the committed results", hand_list_failures())
+    expect("H review: the 24 effects, nothing else at 0.1pp, nothing left against the list", review_failures())
+    expect("H gate 15 on a dc-3 file: unreviewed, stale, unbooked entry, unreproduced, threshold",
+           gate_dc3_failures())
     with tempfile.TemporaryDirectory() as tmp:
         expect("S mutants each fail a check", s_mutant_failures(tmp))
     # N
@@ -2894,6 +3258,9 @@ def main():
         ur1.UNIVERSE_RULES = du.UNIVERSE_RULES_V1
         expect_fail("asset-growth on ur-1's rules (GUD.AX held, JUP.L and A12.BK removed)",
                     asset_growth_rules_failures(srcs["asset-growth"], tmp, mod=ur1, tag=".ur1"))
+        for t in DATA_CHECKS_TOPICS:
+            expect(f"H {t} on a dc-3 hand list end to end", hand_topic_failures(t, srcs.get(t, src), tmp))
+        expect("H mutants each fail a check", hand_mutant_failures(tmp, {None: src, **srcs}))
     expect("gate 15 on the real topics and mutants", gate15_failures())
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_data_checks: PASS ({len(ran)} checks)")
