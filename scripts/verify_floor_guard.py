@@ -26,7 +26,8 @@ Gates:
  15 DATACHECKS  only DATA_CHECKS_TOPICS use the data checks (twin_key=, traded_only=,
                a None cap by keyword or position, a non-number MAX_SINGLE_RETURN, the new
                data_utils names), each of them has
-               dropped MAX_SINGLE_RETURN only with check M at every market-cap floor, and
+               dropped MAX_SINGLE_RETURN only with check M at every market-cap floor, passes cfg=
+               to LtpExits, and
                their committed results hold no data_checks block but mode "on"
 
 Usage:  python scripts/verify_floor_guard.py
@@ -653,14 +654,14 @@ def forward_hits(tree):
 
 
 # ---------------------------------------------------------------------------
-# Data checks dc-1 (gate 15). They replace filter_returns' 200% return cap one topic at a time,
+# Data checks dc-1 and dc-2 (gate 15). They replace filter_returns' 200% return cap one topic at a time,
 # each at its own rerun: a topic opts in by joining DATA_CHECKS_TOPICS with its number of
 # market-cap floors. The cap may go only where check M reads every floor (cap_used): without M an
 # inflated market cap lets a name into the book whose return only the cap used to drop (SOS, ZEST).
 DATA_CHECKS_TOPICS = {"deleveraging": 1, "cyclical-timing": 2, "defensive-quality": 1, "asset-growth": 1}
-DC_NAMES = ("DATA_CHECKS_V1", "DataChecks", "clean_price_cache", "mark_nvdr_twins", "load_cap_check",
-            "load_splits", "empty_cap_check", "cap_used_sql", "CAP_FAIL_TEST", "nvdr_twins_sql",
-            "apply_cap_rule", "cap_check_sql")
+DC_NAMES = ("DATA_CHECKS_V1", "DATA_CHECKS_V2", "DataChecks", "clean_price_cache", "mark_nvdr_twins",
+            "load_cap_check", "load_splits", "empty_cap_check", "cap_used_sql", "CAP_FAIL_TEST", "nvdr_twins_sql",
+            "apply_cap_rule", "cap_check_sql", "stale_repeat_sql")
 DC_KWARGS = ("twin_key", "traded_only")
 RAW_FLOOR = re.compile(r"\bmarketCap\s*>\s*\?")
 USED_FLOOR = re.compile(r"\bcap_used\s*>\s*\?")
@@ -737,6 +738,9 @@ def dc_wiring(tree, n_floors):
     for fn in ("load_cap_check", "clean_price_cache", "mark_nvdr_twins"):
         if not any(_callee(c) == fn for c in calls):
             out.append((0, f"never calls {fn}"))
+    for c in calls:   # dc-2's rule S reaches LTP fills only through cfg
+        if _callee(c) == "LtpExits" and not any(k.arg == "cfg" for k in c.keywords):
+            out.append((c.lineno, "LtpExits without cfg=: its fills would stay on dc-1"))
     runs = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run_single"]
     for fn in ("fetch_data_via_api", "run_backtest"):
         inner = [c for r in runs for c in ast.walk(r) if isinstance(c, ast.Call) and _callee(c) == fn]
