@@ -3,7 +3,10 @@
 Asset Growth Anomaly - Current Stock Screen
 
 Screens for stocks with low total asset growth, high quality metrics.
-Uses TTM (trailing twelve months) data for current screening.
+Uses TTM (trailing twelve months) data for current screening. Growth reads the FY balance sheets as the
+backtest does: the current FY row has a period end in (today-410, today-45] days, and the prior FY row is
+the latest 300-430 days before it in the same reporting currency. Ordinary shares only (data_utils
+universe rules ur-2).
 
 Usage:
     python3 asset-growth/screen.py
@@ -16,10 +19,14 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold, EXCHANGE_PRESETS
+from data_utils import non_ordinary_sql, utc_epoch
+from backtest import (FILING_LAG_DAYS, CURRENT_ROW_MAX_DAYS, PRIOR_FY_MIN_DAYS, PRIOR_FY_MAX_DAYS,
+                      UNIVERSE_RULES)
 
 # Signal parameters (match backtest.py)
 ASSET_GROWTH_MAX = 0.10
@@ -31,26 +38,39 @@ OPM_MIN = 0.10
 MAX_STOCKS = 30
 
 
-def run_screen(client, exchanges, mktcap_min, verbose=False):
-    """Run live screen using TTM data. Returns list of dicts."""
+def run_screen(client, exchanges, mktcap_min, verbose=False, today=None):
+    """Run live screen using TTM data. Returns list of dicts. today: the screen date (default today, UTC)."""
     if exchanges:
         ex_filter = ", ".join(f"'{e}'" for e in exchanges)
         exchange_filter = f"AND p.exchange IN ({ex_filter})"
     else:
         exchange_filter = ""
+    today = today or datetime.now(timezone.utc).date()
+    cutoff_epoch = utc_epoch(today - timedelta(days=FILING_LAG_DAYS))
+    stale_epoch = utc_epoch(today - timedelta(days=CURRENT_ROW_MAX_DAYS))
+    gap_min, gap_max = PRIOR_FY_MIN_DAYS * 86400, PRIOR_FY_MAX_DAYS * 86400
 
     sql = f"""
-        WITH bs_current AS (
-            SELECT symbol, totalAssets, dateEpoch as filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY dateEpoch DESC) AS rn
+        WITH fy AS (
+            SELECT symbol, totalAssets, CAST(dateEpoch AS BIGINT) AS filing_epoch, reportedCurrency
             FROM balance_sheet
             WHERE period = 'FY' AND totalAssets IS NOT NULL AND totalAssets > 0
         ),
+        bs_current AS (
+            SELECT symbol, totalAssets, filing_epoch, reportedCurrency,
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, totalAssets DESC NULLS LAST,
+                    reportedCurrency DESC NULLS LAST) AS rn
+            FROM fy
+            WHERE filing_epoch <= {cutoff_epoch} AND filing_epoch > {stale_epoch}
+        ),
         bs_prior AS (
-            SELECT symbol, totalAssets AS totalAssets_prior, dateEpoch as filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY dateEpoch DESC) AS rn
-            FROM balance_sheet
-            WHERE period = 'FY' AND totalAssets IS NOT NULL AND totalAssets > 0
+            SELECT f.symbol, f.totalAssets AS totalAssets_prior,
+                ROW_NUMBER() OVER (PARTITION BY f.symbol ORDER BY f.filing_epoch DESC, f.totalAssets DESC NULLS LAST,
+                    f.reportedCurrency DESC NULLS LAST) AS rn
+            FROM fy f
+            JOIN bs_current c ON c.symbol = f.symbol AND c.rn = 1
+            WHERE f.filing_epoch <= c.filing_epoch - {gap_min} AND f.filing_epoch >= c.filing_epoch - {gap_max}
+              AND f.reportedCurrency IS NOT DISTINCT FROM c.reportedCurrency
         ),
         growth AS (
             SELECT bc.symbol,
@@ -58,7 +78,7 @@ def run_screen(client, exchanges, mktcap_min, verbose=False):
                 bp.totalAssets_prior AS prior_assets,
                 (bc.totalAssets - bp.totalAssets_prior) / bp.totalAssets_prior AS asset_growth
             FROM bs_current bc
-            JOIN bs_prior bp ON bc.symbol = bp.symbol AND bp.rn = 2
+            JOIN bs_prior bp ON bc.symbol = bp.symbol AND bp.rn = 1
             WHERE bc.rn = 1
               AND bp.totalAssets_prior > 0
         )
@@ -82,6 +102,7 @@ def run_screen(client, exchanges, mktcap_min, verbose=False):
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Asset Management%')
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Shell Companies%')
           AND (p.industry IS NULL OR p.industry NOT LIKE 'Closed-End Fund%')
+          AND ({non_ordinary_sql("p", cfg=UNIVERSE_RULES)}) IS NULL
           {exchange_filter}
         ORDER BY g.asset_growth ASC
         LIMIT {MAX_STOCKS}

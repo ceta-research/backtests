@@ -93,11 +93,14 @@ are notes. The stage A flat list `[{topic, leg_args, pairs, leg?}]` also loads (
 the last leg arg). `pairs` lists each published book as `{published_cagr_path, ltp_block_path}`,
 dotted paths into the results JSON.
 
-A topic on the run window (METHODOLOGY.md, "Run Window": cyclical-timing, deleveraging and
-defensive-quality so far) runs to the latest close unless told otherwise, and an unpinned run writes
-the time of its check, so its gate runs are pinned. Every one of its legs carries `--end-date <date>` or
-`--end-year <year>`, before the exchange args. `scripts/test_gate_ltp.py` checks that. In the wave files
-those three topics' legs carry `--end-year 2025`, which reproduces their committed results. A rerun for new
+A topic on the run window (METHODOLOGY.md, "Run Window": cyclical-timing, deleveraging,
+defensive-quality and asset-growth so far) runs to the latest close unless told otherwise, and an
+unpinned run writes the time of its check, so its gate runs are pinned. Every one of its legs carries
+`--end-date <date>` or `--end-year <year>`, before the exchange args. `scripts/test_gate_ltp.py` checks
+that. In the wave files those four topics' legs carry `--end-year 2025`. For the first three that
+reproduces their committed results. asset-growth's committed files are its October 2026 run, made
+before its data checks, universe rules and prior-year guard, so its wave 1 legs run the current code
+on the published window and don't reproduce them. A rerun for new
 figures uses its own legs file with `--end-date <date>`: `scripts/data_end.py --legs-file <file> --topic
 <topic>` prints the date every leg traded. Save its output in the gate's out-dir, since a pinned file's
 `data_end` keys are null. Stage-a, det and flip all compare pinned runs, and they're made the same day:
@@ -109,8 +112,9 @@ runner does, so a leg's JSON is the per-market file the global run writes:
 
 - cyclical-timing, asset-growth, fcf-conversion: the `--global` `presets_to_run` list, as
   `--exchange <comma list>` (taiwan is `TAI,TWO` in cyclical-timing, `TAI` in the other two).
-  asset-growth and fcf-conversion leave out singapore: their `"SGX"` matches no rows, the run writes
-  no file, and nothing is published for it (`EXCHANGE_PRESETS` singapore is `SES`).
+  fcf-conversion leaves out singapore: its `"SGX"` matches no rows, the run writes no file, and
+  nothing is published for it (`EXCHANGE_PRESETS` singapore is `SES`). asset-growth's `--global` has
+  no singapore entry any more, so its 16 legs are the whole list.
 - cash-conversion: `GLOBAL_PRESETS`, as `--preset <name>` (its global loop reads `EXCHANGE_PRESETS`,
   so canada is TSX+TSXV and singapore is SES), minus france: France has almost no CCC data, the run
   writes an error file and nothing is published.

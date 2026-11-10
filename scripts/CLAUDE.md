@@ -1,6 +1,6 @@
 # scripts/
 
-Checks and tools for the topic backtests: 34 offline tests, the LTP exit-method gate, results scanners and one-off fixers. Nothing outside `scripts/` imports from here. Run every command from the repo root with the root venv (see the root CLAUDE.md).
+Checks and tools for the topic backtests: 36 offline tests, the LTP exit-method gate, results scanners and one-off fixers. Nothing outside `scripts/` imports from here. Run every command from the repo root with the root venv (see the root CLAUDE.md).
 
 ## Before you change anything
 
@@ -11,12 +11,12 @@ Checks and tools for the topic backtests: 34 offline tests, the LTP exit-method 
 ## Offline tests (`test_*.py`)
 
 - Standalone files, no test framework: `python3 scripts/test_<name>.py`. Each exits non-zero on a failure.
-- None needs a key or the network: 31 ran with sockets blocked and none tried to connect. The three run-window tests (`test_partial_metrics.py`, `test_run_window.py`, `test_latest_window_topics.py`) came later and use fake clients and local `git` only.
-- Most load a topic's real `backtest.py` source and run it on made-up warehouse rows (a fake client, often an in-memory DuckDB). 26 of them also apply mutants (a text replacement on an anchor string of the code or doc under test) and require each to fail a check. A change to that code can move an anchor: fix the test's anchor in the same change.
+- None needs a key or the network: 31 ran with sockets blocked and none tried to connect. The three run-window tests (`test_partial_metrics.py`, `test_run_window.py`, `test_latest_window_topics.py`) and asset-growth's two (`test_asset_growth_selection.py`, `test_chart_partial_year.py`) came later and use fake clients, in-memory DuckDB and local `git` only.
+- Most load a topic's real `backtest.py` source and run it on made-up warehouse rows (a fake client, often an in-memory DuckDB). 28 of them also apply mutants (a text replacement on an anchor string of the code or doc under test) and require each to fail a check. A change to that code can move an anchor: fix the test's anchor in the same change.
 - Each test's docstring says what it covers. `test_pairs_*.py` cover `pairs_universe.py` and the three pairs topics; `test_wave3_install.py` checks the wave 3 install block of `LTP_GATE.md` as written.
-- Options: the tests that read `sys.argv[1]` take an optional repo root; `test_data_checks.py --base REF`; `test_partial_metrics.py` and `test_latest_window_topics.py --base REF` (default: the merge base with `origin/main`, so they need it fetched); `test_floor_guard.py --topic <topic> --verbose`; `test_build_output_synthetic.py -v`.
+- Options: the tests that read `sys.argv[1]` take an optional repo root; `test_data_checks.py --base REF`; `test_partial_metrics.py`, `test_latest_window_topics.py` and `test_chart_partial_year.py --base REF` (default: the merge base with `origin/main`, so they need it fetched); `test_floor_guard.py --topic <topic> --verbose`; `test_build_output_synthetic.py -v`.
 - `test_period_accounting.py` and `test_wave3_install.py` read tracked `<topic>/results/` files, so a checkout without them fails these two.
-- `test_data_checks.py` runs `git show e1ecb7c:data_utils.py`: it needs the full history, not a shallow clone.
+- `test_data_checks.py` runs `git show e1ecb7c:data_utils.py`, `test_universe_rules.py` runs `git show 9b72870:data_utils.py`, and `test_chart_partial_year.py` reads asset-growth's results at `9d706a5`: they need the full history, not a shallow clone. `test_universe_rules.py` also reads defensive-quality's tracked `results/`.
 - `test_domicile_dedup.py` fails on DuckDB 2.0.0, which `requirements.txt` installs today: one mutant puts `uuid()` in a `PARTITION BY`, which 2.0 rejects at bind time. It passes after `.venv/bin/pip install "duckdb<2"` (1.5.6), but `test_pairs_zscore.py` ran about 4 times slower there.
 - Slowest on 3.12.4 with DuckDB 2.0.0: `test_pairs_fundamentals.py` and `test_pairs_multi_pair.py` (about 5 minutes each), then `test_dogs_size.py` and `test_pairs_zscore.py` (under 3 minutes each). Run one test, not the loop, while iterating.
 

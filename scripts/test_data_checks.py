@@ -31,10 +31,11 @@ chain read against the kept records), while 071970.KS's 1:20s, 129 days apart, c
 server SQL runs on UINTEGER epochs with a split record at epoch 0; and an LTP fill on the other side
 of a flipping adjClose basis books the close's move (RAM.BK 2018-01), while 600875.SS 2006-01, a
 single step, a step and back (one reversal), a 10% alternation under the flip threshold and a
-same-basis fill keep theirs. Then both
-opted-in topics run end to end on a synthetic SET leg through a fake client, in drop, ltp, both and
+same-basis fill keep theirs. Then every
+opted-in topic runs end to end on a synthetic SET leg through a fake client, in drop, ltp, both and
 uncapped modes, and the results pass the LTP gate's stage-a comparison and the results scanners,
-with and without --full-holdings.
+with and without --full-holdings; defensive-quality's universe rules and asset growth's (ur-2, which
+the topic run on ur-1's rules must fail) and its prior-year guard are checked there too.
 
 Shared code: against the base commit (BASE, the last one before data checks), isin_dedup_sql
 (twin_key=False) returns the same SQL, LtpExits(traded_only=False) sends the same SQL and builds
@@ -602,19 +603,40 @@ def def_cap_con(with_check=True):
     return mod, con
 
 
+def ag_cap_con(with_check=True):
+    """asset growth's screen inputs, the same 14 names in its universe, FY2019's total assets 5% over FY2018's."""
+    mod = load_topic("asset-growth")
+    _, con = delev_cap_con(with_check)
+    con.execute("ALTER TABLE metrics_cache ADD COLUMN returnOnAssets DOUBLE")
+    con.execute("UPDATE metrics_cache SET returnOnAssets = 0.1")
+    con.execute("ALTER TABLE ratios_cache ADD COLUMN operatingProfitMargin DOUBLE")
+    con.execute("UPDATE ratios_cache SET operatingProfitMargin = 0.2")
+    con.execute("CREATE TABLE balance_cache(symbol VARCHAR, totalAssets DOUBLE, filing_epoch BIGINT, period VARCHAR,"
+                " reportedCurrency VARCHAR)")
+    con.execute("INSERT INTO balance_cache SELECT symbol, CASE WHEN filing_epoch = ? THEN 1050.0 ELSE 1000.0 END,"
+                " filing_epoch, 'FY', 'USD' FROM ratios_cache", [ep(date(2019, 12, 31))])
+    con.execute("CREATE TABLE universe(symbol VARCHAR)")
+    con.execute("INSERT INTO universe SELECT DISTINCT symbol FROM ratios_cache")
+    con.execute("UPDATE prices_cache SET trade_epoch = ?", [ep(date(2020, 7, 2))])
+    return mod, con
+
+
 def cap_screen_failures(with_check=True):
     """Check M at every floor: SOS (cap / 50 = 100M) and ZEST (ineligible) leave deleveraging's screen,
-    cyclical-timing's signal and its screen, and defensive-quality's screen. With cap_check empty they pass:
-    the mutant."""
+    cyclical-timing's signal and its screen, defensive-quality's screen and asset growth's. With cap_check
+    empty they pass: the mutant."""
     f = []
-    mod, con = delev_cap_con(with_check)
-    dc = DataChecks("on")
-    got = {s for s, _ in mod.screen_stocks(con, date(2020, 4, 1), 1e9, offset_days=1, dc=dc)}
-    if got & {"SOS", "ZEST"} or len(got) != 12:
-        f.append(f"deleveraging screen holds {sorted(got)}")
-    caps = sorted((e["symbol"], e["rule"]) for e in dc.events if e["check"] == "cap")
-    if caps != [("SOS", "cap_over_k"), ("ZEST", "cap_over_pf")]:
-        f.append(f"deleveraging cap events {caps}")
+    for label, con_of, d in (("deleveraging", delev_cap_con, date(2020, 4, 1)),
+                             ("defensive", def_cap_con, date(2020, 7, 1)),
+                             ("asset growth", ag_cap_con, date(2020, 7, 1))):
+        mod, con = con_of(with_check)
+        dc = DataChecks("on")
+        got = {r[0] for r in mod.screen_stocks(con, d, 1e9, offset_days=1, dc=dc)}
+        if got & {"SOS", "ZEST"} or len(got) != 12:
+            f.append(f"{label} screen holds {sorted(got)}")
+        caps = sorted((e["symbol"], e["rule"]) for e in dc.events if e["check"] == "cap")
+        if caps != [("SOS", "cap_over_k"), ("ZEST", "cap_over_pf")]:
+            f.append(f"{label} cap events {caps}")
     mod, con = cyc_cap_con(with_check)
     dc = DataChecks("on")
     _, _, n_sig = mod.compute_expansion_signal(con, date(2020, 7, 1), 1e9, dc=dc)
@@ -626,14 +648,6 @@ def cap_screen_failures(with_check=True):
     kinds = sorted((e["check"], e["symbol"]) for e in dc.events if e["check"] in ("cap", "signal_cap"))
     if kinds != [("cap", "SOS"), ("cap", "ZEST"), ("signal_cap", "SOS"), ("signal_cap", "ZEST")]:
         f.append(f"cyclical cap events {kinds}")
-    mod, con = def_cap_con(with_check)
-    dc = DataChecks("on")
-    got = {s for s, _, _ in mod.screen_stocks(con, date(2020, 7, 1), 1e9, offset_days=1, dc=dc)}
-    if got & {"SOS", "ZEST"} or len(got) != 12:
-        f.append(f"defensive screen holds {sorted(got)}")
-    caps = sorted((e["symbol"], e["rule"]) for e in dc.events if e["check"] == "cap")
-    if caps != [("SOS", "cap_over_k"), ("ZEST", "cap_over_pf")]:
-        f.append(f"defensive cap events {caps}")
     return f
 
 
@@ -1980,7 +1994,7 @@ def ltp_basis_failures():
     return f
 
 
-# ---------------------------------------------------------------- both topics end to end
+# ---------------------------------------------------------------- every opted-in topic end to end
 
 def load_topic(topic):
     spec = importlib.util.spec_from_file_location("dc_" + topic.replace("-", "_"),
@@ -2119,15 +2133,30 @@ DEF_RULES = {
 }
 
 
+def rule_columns(src):
+    """The profile columns the universe rules read: each line named by its symbol, no fund flag."""
+    for col, typ in (("companyName", "VARCHAR"), ("cik", "VARCHAR"), ("isFund", "BOOLEAN"), ("isEtf", "BOOLEAN")):
+        src.execute(f"ALTER TABLE profile ADD COLUMN {col} {typ}")
+    src.execute("UPDATE profile SET companyName = symbol, isFund = FALSE, isEtf = FALSE")
+
+
+def window_bars(src, s):
+    """A line's bars in every quarterly rebalance window, with no volume on the leg's closed days."""
+    for d in du.generate_rebalance_dates(2000, 2025, "quarterly"):
+        for day in weekdays(d, d + timedelta(days=11)):
+            p = price(s, day)
+            src.execute("INSERT INTO stock_eod VALUES (?, ?, ?, ?, ?, ?)",
+                        [s, day.isoformat(), ep(day), p, p, 0.0 if day in CLOSED else 1e5])
+
+
 def defensive_source():
     """synthetic_source() as a defensive leg: every line in Utilities with D/E 1.0, OPM 20%, a vendor yield
     (fillers 5% down to 4.05%, the special lines 6%) and dividends paid that agree with it, reported in THB.
     Plus DEF_RULES' lines, ranked above the rest so each would be held: all but OK.BK (netDividendsPaid only,
     commonDividendsPaid 0) must leave every book."""
     src = synthetic_source()
-    for col, typ in (("companyName", "VARCHAR"), ("cik", "VARCHAR"), ("isFund", "BOOLEAN"), ("isEtf", "BOOLEAN")):
-        src.execute(f"ALTER TABLE profile ADD COLUMN {col} {typ}")
-    src.execute("UPDATE profile SET sector = 'Utilities', companyName = symbol, isFund = FALSE, isEtf = FALSE")
+    rule_columns(src)
+    src.execute("UPDATE profile SET sector = 'Utilities'")
     for col, typ in (("operatingProfitMargin", "DOUBLE"), ("dividendYield", "DOUBLE"), ("reportedCurrency", "VARCHAR")):
         src.execute(f"ALTER TABLE financial_ratios ADD COLUMN {col} {typ}")
     src.execute("UPDATE financial_ratios SET debtToEquityRatio = 1.0, operatingProfitMargin = 0.2, reportedCurrency = 'THB',"
@@ -2153,11 +2182,7 @@ def defensive_source():
                 cf = fy - timedelta(days=opt.get("cf_days", 0))
                 src.execute("INSERT INTO cash_flow_statement VALUES (?, 'FY', ?, ?, ?, ?, 'THB')",
                             [s, cf.isoformat(), ep(cf), 0.0 if s == "OK.BK" else -py * cap, -py * cap])
-        for d in du.generate_rebalance_dates(2000, 2025, "quarterly"):
-            for day in weekdays(d, d + timedelta(days=11)):
-                p = price(s, day)
-                src.execute("INSERT INTO stock_eod VALUES (?, ?, ?, ?, ?, ?)",
-                            [s, day.isoformat(), ep(day), p, p, 0.0 if day in CLOSED else 1e5])
+        window_bars(src, s)
     return src
 
 
@@ -2233,6 +2258,113 @@ def holdings_full_failures(topic, src, tmp):
         f.append(f"{topic}: the synthetic books never pass the 10-name holdings string: the case tests nothing")
     if any(h["exit"] != "window" for r in runs["drop"]["period_data"] for h in r.get("holdings_full", [])):
         f.append(f"{topic}: a drop run lists an LTP exit")
+    return f
+
+
+AG_SWITCH, AG_GAPPY, AG_SER = "A10.BK", "A11.BK", "A12.BK"   # USD from FY2010; odd FYs missing; a 'Ser' name
+# asset growth's universe-rule lines: name, isFund, ISIN. GUD.AX is on ur-2's hand list only, JUP.L on its keep
+# list. AG_BR_ORD and AG_BR_PREF are one SAO company; the ordinary line has no bars, so the preferred stands in.
+AG_BR_ORD, AG_BR_PREF = "AGBR3.SA", "AGBR4.SA"
+AG_RULES = {"GUD.AX": ("GUD Holdings Ltd", False, "TH5000000000"),
+            "JUP.L": ("Jupiter Fund Management Plc", True, "TH5001000000"),
+            AG_BR_ORD: ("AG Brasil SA", False, "BRAGBRACNOR0"), AG_BR_PREF: ("AG Brasil SA", False, "BRAGBRACNPR7")}
+
+
+def asset_growth_source():
+    """synthetic_source() as an asset-growth leg: OPM 20% and FY balance sheets in THB growing 5% a year, except
+    AG_SWITCH (in USD from FY2010: a currency switch at 2011-07-01), AG_GAPPY (odd FYs missing: never paired) and
+    AG_RULES' lines (0% growth, so each would rank first). Under ur-2 GUD.AX must leave every book while JUP.L
+    (fund-flagged) and AG_SER ('Ser Capital PCL', which ur-1's name terms remove) stay, and AG_BR_PREF holds
+    its company's slot as a class twin."""
+    src = synthetic_source()
+    rule_columns(src)
+    src.execute("ALTER TABLE profile ADD COLUMN isAdr BOOLEAN")
+    src.execute("UPDATE profile SET companyName = 'Ser Capital PCL' WHERE symbol = ?", [AG_SER])
+    src.execute("ALTER TABLE financial_ratios ADD COLUMN operatingProfitMargin DOUBLE")
+    src.execute("UPDATE financial_ratios SET operatingProfitMargin = 0.2")
+    src.execute("CREATE TABLE balance_sheet(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch BIGINT,"
+                " totalAssets DOUBLE, reportedCurrency VARCHAR)")
+    for i, (s, (name, fund, isin)) in enumerate(AG_RULES.items()):
+        src.execute("INSERT INTO profile (symbol, exchange, country, isin, sector, marketCap, isActivelyTrading,"
+                    " currency, companyName, isFund, isEtf) VALUES (?, 'SET', 'TH', ?, 'Industrials', 6e10, TRUE,"
+                    " 'THB', ?, ?, FALSE)", [s, isin, name, fund])
+        for y in range(1998, 2025):
+            fy = date(y, 12, 31)
+            src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, ?, 1.0, 0.2)", [s, fy.isoformat(), ep(fy)])
+            src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, ?)",
+                        [s, fy.isoformat(), ep(fy), 6e10 + 1e7 * i])
+        if s != AG_BR_ORD:
+            window_bars(src, s)
+    for (s,) in src.execute("SELECT DISTINCT symbol FROM profile ORDER BY 1").fetchall():
+        for y in range(1998, 2025):
+            if s == AG_GAPPY and y % 2:
+                continue
+            fy = date(y, 12, 31)
+            src.execute("INSERT INTO balance_sheet VALUES (?, 'FY', ?, ?, ?, ?)",
+                        [s, fy.isoformat(), ep(fy), 1000.0 * (1.0 if s in AG_RULES else 1.05 ** (y - 1998)),
+                         "USD" if s == AG_SWITCH and y >= 2010 else "THB"])
+    return src
+
+
+def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
+    """asset-growth's universe rules ur-2 and prior-year guard end to end on asset_growth_source(): both blocks
+    follow data_checks in order, equal across exit methods (universe_rules in the uncapped arm too); the sent
+    profile query carries ur-2's CASE, not ur-1's; GUD.AX leaves every book while JUP.L and AG_SER stay; AG_BR_PREF
+    stands in for AG_BR_ORD in every invested book and class_stand_ins lists it at each; the guard
+    counts AG_SWITCH at 2011-07-01 and AG_GAPPY at every odd-year rebalance, neither held then; each priced period
+    lists its unpriced names. mod: the topic module to run (a mutant), tag names its files apart."""
+    f = []
+    runs = {m: run_topic("asset-growth", src, m, "on", tmp, tag=tag, mod=mod) for m in ("drop", "ltp", "both")}
+    (drop, sqls), unc = runs["drop"], run_topic("asset-growth", src, "ltp", "uncapped", tmp, tag=tag, mod=mod)[0]
+    keys = list(drop)
+    tail = ["data_checks", "universe_rules", "prior_year_guard"]
+    if "data_checks" not in keys or keys[keys.index("data_checks"):keys.index("data_checks") + 3] != tail:
+        return [f"universe_rules and prior_year_guard sit right after data_checks: {keys}"]
+    ub = drop["universe_rules"]
+    if any(r[0]["universe_rules"] != ub for r in runs.values()) or unc["universe_rules"] != ub:
+        f.append("universe_rules differs across exit methods or in the uncapped arm")
+    if (ub["version"], ub["ordinary_shares"]["rules"]) != ("ur-2", du.ORDINARY_RULES_V2) or "dividend_yield" in ub:
+        f.append(f"universe_rules header {ub['version']} {list(ub)}")
+    rem = [(r["symbol"], r["reason"], r["name"]) for r in ub["ordinary_shares"]["removed"]]
+    if rem != [("GUD.AX", "known", AG_RULES["GUD.AX"][0])] or ub["ordinary_shares"]["by_reason"] != {"known": 1}:
+        f.append(f"removed {rem}")
+    if not any(du.non_ordinary_sql("p", cfg=du.UNIVERSE_RULES_V2) in s for s in sqls) or \
+            any(du.non_ordinary_sql("p") in s for s in sqls):
+        f.append("the profile query carries ur-2's CASE, not ur-1's")
+    rows = drop["period_data"]
+    dates = [r["rebalance_date"] for r in rows]
+    if max(r["screened"] for r in rows) >= 30:
+        f.append("a screen fills the top 30: the book checks below could miss a name")
+    held_at = lambda s: {r["rebalance_date"] for r in rows if s in r["holdings"].split(",")}
+    invested = {r["rebalance_date"] for r in rows if r["stocks_held"]}
+    kept = held_at("JUP.L") & held_at(AG_SER)
+    if held_at("GUD.AX") or held_at(AG_GAPPY) or not invested <= kept:
+        f.append(f"held: GUD.AX {sorted(held_at('GUD.AX'))}, {AG_GAPPY} {sorted(held_at(AG_GAPPY))}, JUP.L and "
+                 f"{AG_SER} missing at {sorted(invested - kept)}")
+    if held_at(AG_SWITCH) != invested - {"2011-07-01"}:
+        f.append(f"{AG_SWITCH} held at {sorted(held_at(AG_SWITCH))}: out at 2011-07-01 only")
+    cs = ub.get("class_stand_ins") or {}
+    want_cs = (du.CLASS_TWIN_RULE, 1, len(invested),
+               [{"rebalance_date": d, "symbols": [AG_BR_PREF]} for d in sorted(invested)])
+    if (cs.get("rule"), cs.get("lines_keyed"), cs.get("picked"), cs.get("by_period")) != want_cs or \
+            held_at(AG_BR_PREF) != invested or held_at(AG_BR_ORD):
+        f.append(f"class_stand_ins {cs.get('lines_keyed')} keyed, {cs.get('picked')} picked; {AG_BR_PREF} held at "
+                 f"{len(held_at(AG_BR_PREF))} of {len(invested)}, {AG_BR_ORD} at {len(held_at(AG_BR_ORD))}")
+    g = drop["prior_year_guard"]
+    if any(r[0]["prior_year_guard"] != g for r in runs.values()):
+        f.append("prior_year_guard differs across exit methods")
+    want = [{"rebalance_date": d, "currency_switch": int(d == "2011-07-01"), "no_prior_in_window": int(d[:4]) % 2}
+            for d in dates]
+    if list(g) != ["rule", "dropped", "by_reason", "by_period"] or g["by_period"] != want or \
+            g["by_reason"] != {"currency_switch": 1, "no_prior_in_window": 12} or g["dropped"] != 13:
+        f.append(f"prior_year_guard {g['by_reason']} {[p for p in g['by_period'] if p not in want][:3]}")
+    for r in rows:
+        if r["stocks_held"] and len(r.get("entry_unpriced") or []) != r["screened"] - r["entry_buyable"]:
+            f.append(f"{r['rebalance_date']}: entry_unpriced {r.get('entry_unpriced')}")
+            break
+    dl = {r["rebalance_date"] for r in rows if "DLST.BK" in (r.get("entry_unpriced") or [])}
+    if dl != {d for d in dates if d >= "2018-07-01"}:
+        f.append(f"DLST.BK unpriced at {sorted(dl)}, want every rebalance from 2018-07-01")
     return f
 
 
@@ -2543,13 +2675,19 @@ def main():
                                ("LtpExits(traded_only=False) identity", ltp_identity_failures(base))):
             expect(name, failures + ([stale] if failures else []))
     # every opted-in topic end to end, and gate 15
-    srcs = {"defensive-quality": defensive_source()}
+    srcs = {"defensive-quality": defensive_source(), "asset-growth": asset_growth_source()}
     src = synthetic_source()
     with tempfile.TemporaryDirectory() as tmp:
         for t in DATA_CHECKS_TOPICS:
             expect(f"{t} end to end", topic_failures(t, srcs.get(t, src), tmp))
             expect(f"{t} full holdings", holdings_full_failures(t, srcs.get(t, src), tmp))
         expect("defensive-quality universe rules end to end", defensive_rules_failures(srcs["defensive-quality"], tmp))
+        expect("asset-growth universe rules ur-2 and prior-year guard end to end",
+               asset_growth_rules_failures(srcs["asset-growth"], tmp))
+        ur1 = load_topic("asset-growth")
+        ur1.UNIVERSE_RULES = du.UNIVERSE_RULES_V1
+        expect_fail("asset-growth on ur-1's rules (GUD.AX held, JUP.L and A12.BK removed)",
+                    asset_growth_rules_failures(srcs["asset-growth"], tmp, mod=ur1, tag=".ur1"))
     expect("gate 15 on the real topics and mutants", gate15_failures())
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_data_checks: PASS ({len(ran)} checks)")
