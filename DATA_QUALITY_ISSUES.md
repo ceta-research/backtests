@@ -1496,8 +1496,8 @@ hold NVDR lines beside their ordinary lines until their own reruns.
 ## Lines that aren't ordinary shares, and yields across two currencies (defensive-quality, 2026-11)
 
 **Status:** fixed for defensive-quality by its universe rules (METHODOLOGY.md, Universe Rules) in
-its November 2026 rerun. asset-growth's code removes them under universe rules ur-2 (see "Asset
-growth's data fixes" below), and its committed results predate that. Every other topic still holds
+its November 2026 rerun, and for asset-growth by universe rules ur-2 in its November 2026 rerun (see
+"Asset growth's data fixes" below). Every other topic still holds
 these lines.
 
 defensive-quality ranks by the vendor's dividend yield, so anything carrying a company's yield
@@ -1675,7 +1675,7 @@ another name isn't covered.
 ### The prior-year pair
 
 **Status:** fixed in asset-growth by its prior-year guard (METHODOLOGY.md, Filing and Selection
-Rules); its committed results predate it.
+Rules); its November 2026 results apply it.
 
 The old screen paired each company's latest fiscal-year balance row on or before the 45-day cutoff
 with its latest row at least 410 days before the rebalance date, with no lower bound and no
