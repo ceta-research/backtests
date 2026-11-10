@@ -812,7 +812,7 @@ class LtpExits:
     must then carry close and volume. False sends the SQL and builds the temp table this class always did.
     traded_only=True also repairs a fill that lands on the other side of a feed whose adjClose basis
     flips row by row while its close runs smoothly (RAM.BK 2018-01: adjClose alternates between about
-    close / 5.35 and close x 0.855): DATA_CHECKS_V1["fill_basis"] decides it, the fill books entry price x
+    close / 5.35 and close x 0.855): cfg["fill_basis"] decides it, the fill books entry price x
     fill close / entry close, and keeps its adjClose as ltp_adj with basis "close" (close_basis_fills).
     cfg (DATA_CHECKS_V1 when None) carries fill_basis and factor; with rule S (DATA_CHECKS_V2) a traded_only
     fill also loses each stale repeat over its rows to the window end (stale_rows_moved), remote only.
