@@ -38,7 +38,7 @@ Each results file counts the lines step 2 leaves out among those that pass the o
 - **Min stocks:** 10 (holds cash if fewer qualify, or if fewer than 10 have a usable entry price). A cash year earns 0%. The floor is checked at entry only. Under `--exit-method drop`, a name with no exit price is left out of that year's average and not replaced, so an invested year can hold fewer than 10.
 - **Max stocks:** 30
 - **Weighting:** Equal weight
-- **Data checks:** No return cap. The data checks (`dc-1`, [METHODOLOGY.md](../METHODOLOGY.md#data-checks)) move holiday rows, zero-volume rows of lines that traded, stale lines with no volume, a thin share class's bar off its sibling's scale and non-positive prices out of each price window, hold a Thai NVDR line and its ordinary line once, test the market-cap floor on a cap checked against later reverse splits, and flag adjustment-factor steps, splits and every return above +100% or below -50% for review (`data_checks.large_moves` lists them).
+- **Data checks:** No return cap. The data checks (`dc-1`, [METHODOLOGY.md](../METHODOLOGY.md#data-checks)) move holiday rows, zero-volume rows of lines that traded, stale lines with no volume, a thin share class's bar off its sibling's scale and non-positive prices out of each price window, hold a Thai NVDR line and its ordinary line once, test the market-cap floor on a cap checked against later reverse splits, and flag adjustment-factor steps, splits and every return above +100% or below -50% for review (`data_checks.large_moves` lists them, and `ltp.large_moves` those of exits at the last traded price).
 - **Transaction costs:** Size-tiered, one-way: 0.1% above $10B market cap, 0.3% for $2-10B, 0.5% below $2B, charged on entry and on exit (0.2% to 1.0% round trip). The tier thresholds are in US dollars and market caps aren't converted, so on NSE, JPX and KSC, where the market-cap floor is at least 10 billion local units (₹10B, ¥50B, ₩250B), every holding pays the 0.1% tier.
 - **Data lag:** 45 days after the fiscal year end (point-in-time). A fiscal year that ended 410 days or more before the rebalance isn't used.
 - **Exits:** A holding with no price in the 10-day window after the exit date exits at its last traded price (`--exit-method ltp`, the default).
@@ -74,7 +74,7 @@ The strategy beat its own market's index in 10 of 15 markets. Brazil, Korea, Tha
 Returns are in local currency, after costs. Excess is computed from unrounded CAGRs, so it can differ by 0.01 from the difference of the two rounded columns. Cash years count the 26 full years and are labelled by their July rebalance; every market was invested in the partial year.
 
 - **US:** 14.24% a year against 8.23% for SPY, with a Sharpe of 0.695 against 0.379, a max drawdown of -35.51% against -38.01%, and no cash years.
-- **Behind:** Korea trails the KOSPI by 0.64pp, invested only from the 2010 rebalance. Over the 2025 year the KOSPI rose 148.7% and the book 19.1%. Brazil trails the Bovespa by 3.21pp, invested in 14 of the 26 full years. In 58 of its holdings a preferred or unit line stood in for an unpriced ordinary line (`universe_rules.class_stand_ins`).
+- **Behind:** Korea trails the KOSPI by 0.64pp, invested only from the 2010 rebalance. Over the 2025 year the KOSPI rose 148.7% and the book 19.1%. Brazil trails the Bovespa by 3.21pp, invested in 14 of the 26 full years. In 41 of its holdings a preferred or unit line stood in for an unpriced ordinary line; `universe_rules.class_stand_ins` lists all 58 the screens picked, cash years included.
 - **Dividends in benchmarks:** the portfolio's returns include dividends (`adjClose`). Four markets are measured against a series that does too: the US and Saudi Arabia against SPY, Germany against the DAX, Brazil against the Bovespa. The other twelve are measured against price indices, so their excess is overstated by roughly the index's dividend yield. See METHODOLOGY.md (Benchmark Limitations).
 - **Cash years:** a year is in cash when fewer than 10 names pass the screen, or fewer than 10 of those have a usable entry price. Every cash year is a 2009 or earlier rebalance except Brazil's 2011, 2013, 2016 and 2021. The US and China were invested in all 26 full years.
 - **Sharpe:** Brazil's is negative at a 5.91% CAGR because its risk-free rate is 10.5%.
@@ -83,7 +83,7 @@ Returns are in local currency, after costs. Excess is computed from unrounded CA
 
 These results replace the October 2026 files. The screen's filters didn't change; four things around them did:
 
-- **Data checks in place of the 200% cap.** A holding's return above +200% used to be dropped from its year's average. It's now kept, and the data checks remove the errors (METHODOLOGY.md, Data Checks). 34 held returns above +200% are kept across the 16 files. 29 are in the 2000-2024 rebalances: Hong Kong 6, the US 4, China 4, India 3, Korea 2, the UK 2, Sweden 2, Saudi Arabia 2, and Canada, Switzerland, Taiwan and Thailand 1 each. The other 5 are in the 2025 year: Taiwan 2, Hong Kong, Japan and Korea 1 each.
+- **Data checks in place of the 200% cap.** A holding's return above +200% used to be dropped from its year's average. It's now kept, and the data checks remove the errors (METHODOLOGY.md, Data Checks). 35 held returns above +200% are kept across the 16 files. 30 are in the 2000-2024 rebalances: Hong Kong 6, China 5, the US 4, India 3, Korea 2, the UK 2, Sweden 2, Saudi Arabia 2, and Canada, Switzerland, Taiwan and Thailand 1 each. The other 5 are in the 2025 year: Taiwan 2, Hong Kong, Japan and Korea 1 each.
 - **Ordinary shares only** (universe rules `ur-2`, Signal). Preferreds, notes, units, funds, US ADRs, US royalty trusts and LPs, BDRs and the hand-listed second lines leave the books, and on SAO a company holds one line.
 - **The prior-year guard.** Asset growth compares the company's own previous fiscal year, 300 to 430 days earlier, in the same reporting currency (Signal).
 - **The run window.** Every market runs to 2026-11-09, so the 2025 rebalance is a full year and a partial year from July 2026 follows.
@@ -98,13 +98,13 @@ What moved, for each market whose excess moved more than half a point. "Code" is
 | Brazil | +0.03 | -2.69 | -3.21 | -2.72 | -0.52 |
 | Korea | +0.21 | +1.12 | -0.64 | +0.91 | -1.76 |
 | Taiwan | +1.64 | +1.92 | +0.75 | +0.28 | -1.17 |
-| Saudi Arabia | -5.19 | -4.77 | -6.06 | +0.41 | -1.29 |
-| Japan | +4.03 | +4.16 | +3.24 | +0.12 | -0.92 |
+| Saudi Arabia | -5.19 | -4.77 | -6.06 | +0.42 | -1.29 |
+| Japan | +4.03 | +4.16 | +3.24 | +0.13 | -0.92 |
 | Switzerland | +3.77 | +3.66 | +3.04 | -0.11 | -0.62 |
 
 - **Hong Kong** gains mostly on the code: the returns above +200% the cap had dropped (0027.HK in 2010, 1230.HK in 2012, 8005.HK in 2014, 3306.HK in 2017, 0336.HK in 2020, 1428.HK in 2024), and the US companies' pilot-programme lines are out. In the 2025 year the book rose 28.2% while the Hang Seng fell 4.8%.
 - **The US** gains on AppLovin, iHeartMedia and Quidel, each above +200%, with the ADRs, royalty trusts and LPs out. In the 2025 year the book rose 6.8% and SPY 20.4%.
-- **China** gains on four returns above +200%.
+- **China** gains on five returns above +200%.
 - **Brazil** goes from a tie to 3.21pp behind. With one line per company, 2007, 2011, 2013, 2016 and 2021 had 8 or 9 buyable lines, where the second lines had made 10 to 14, and they sit in cash. In 2016 Arezzo now counts once: AZZA3.SA's bars before 2024-08-27 copy ARZZ3.SA's (Signal).
 - **Korea** goes from a near tie to 0.64pp behind. The code adds 0.91pp: the preferreds and the five KOSDAQ duplicates are out, and names from below the cut take their slots. The 2025 year takes 1.76pp: the KOSPI rose 148.7% and the book 19.1%.
 - **Taiwan, Saudi Arabia, Japan and Switzerland** move on the 2025 year: TAIEX rose 107.0% against the book's 49.0%, SPY 20.4% against Saudi's -4.9%, the Nikkei 72.9% against 22.3%, the SMI 19.7% against 5.4%.

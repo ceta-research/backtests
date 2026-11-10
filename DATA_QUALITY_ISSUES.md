@@ -221,7 +221,7 @@ Added 2026-03-03. `filter_returns()` in `data_utils.py` provides reusable price 
 
 Used by: asset-growth. Should be adopted by all future strategies. Existing strategies (qarp, low-pe, interest-coverage) can be retrofitted.
 
-Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller. asset-growth's committed results predate the change: they still come from the 2.0 cap.
+Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
 
 ### How to check a new exchange
 Before adding an exchange to a backtest, run these checks:
@@ -1216,8 +1216,8 @@ still hold every listed line; read them with the measurements earlier in this se
 
 **Status:** in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks), and both
 topics' committed results were rerun with it in October 2026; defensive-quality joined in November
-2026 (see "Lines that aren't ordinary shares" below). asset-growth's code joined in November 2026
-too; its committed results are still the October run's, with the cap. The other topics keep their existing cap
+2026 (see "Lines that aren't ordinary shares" below), and asset-growth with its November 2026
+rerun. The other topics keep their existing cap
 (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their own rerun.
 
 The 200% single-return cap drops a holding only when its return is high. Reading every holding
@@ -1537,10 +1537,10 @@ reports a new plain-named second line. Other topics keep these lines until a sha
 
 ## Asset growth's data fixes (2026-11)
 
-**Status:** asset-growth's code carries universe rules ur-2, the prior-year guard and the data
-checks (METHODOLOGY.md, Universe Rules, Filing and Selection Rules and Data Checks). Its committed
-results are the October 2026 run's and predate all three. The counts below are of those committed
-books, 7,064 held line-years over 16 legs, and each entry says what is fixed and what stays open.
+**Status:** asset-growth's code and its November 2026 results carry universe rules ur-2, the
+prior-year guard and the data checks (METHODOLOGY.md, Universe Rules, Filing and Selection Rules and
+Data Checks). The counts below are of the October 2026 books, made before all three, 7,064 held
+line-years over 16 legs, and each entry says what is fixed and what stays open.
 
 ### KSC lines that duplicate KOSDAQ series
 
@@ -1586,7 +1586,8 @@ keeps BCE-PY.TO on its keep list and removes BCE-PA.TO. The keep list reads no d
 stay open. A run past July 2025 that holds BCE from the 2025 rebalance books it on BCE-PY.TO from
 31.04 to 21.09, a fake -32%, and from 2026 BCE.TO and BCE-PY.TO can both screen on the same rows.
 Before 2026, a year BCE screens in can also seat BCE.TO beside it with no entry price
-(`entry_unpriced`). Whether BCE screens at the 2025 or 2026 rebalance isn't measured yet.
+(`entry_unpriced`). The November 2026 TSX books hold BCE-PY.TO up to the 2020 rebalance and no BCE
+line in 2025 or 2026, so neither case reaches them.
 
 ### GUD.AX and AOV.AX, and other renamed or legacy lines
 
