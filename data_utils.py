@@ -1826,7 +1826,8 @@ FACTOR_HAND = (
     ("SCHB.OL", "2024-04-01", "2024-07-01", "real", None, None, 0.192835, ("deleveraging/OSL",),
      "Schibsted's NOK 77.10 extraordinary dividend ex 2024-05-30, the close falling 19.7%"),
     ("CRDA.L", "2005-07-01", "2006-07-01", "rebuilt", 0.2314, None, 1.03534, ("asset-growth/LSE",),
-     "two adjClose bases (steps of 0.52 in log, one on a zero-volume row); close plus the 4.6p and 9.5p dividends"),
+     "two adjClose bases (five steps of about 0.52 in log, two of the up-steps on zero-volume rows); close plus "
+     "the 4.6p and 9.5p dividends"),
     ("0127.HK", "2016-07-01", "2017-07-01", "real", None, None, 0.243047, ("asset-growth/HKSE",),
      "four special dividends (HK$2.10, 3.23, 2.00, 2.91), the close falling by each on its ex-date"),
     ("SCHA.OL", "2024-04-01", "2024-07-01", "real", None, None, 0.179918, ("deleveraging/OSL",),

@@ -1778,7 +1778,7 @@ def main():
     print(f"15 DATACHECKS {len(stray15)} uses outside {sorted(DATA_CHECKS_TOPICS)}; "
           f"{len(DATA_CHECKS_TOPICS) - len({t for t, _, _ in wiring15})}/{len(DATA_CHECKS_TOPICS)} opted-in "
           f"topics fully wired ({sum(used15.values())} uses); {n_res15} committed results carry a data_checks "
-          f"block, {len(results15)} not mode on")
+          f"block, {len(results15)} with a problem (not mode on, or a hand-list fault)")
     for b in stray15:
         print("    NOT OPTED IN:", b)
     for b in wiring15:

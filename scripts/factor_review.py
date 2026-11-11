@@ -70,16 +70,16 @@ def unreviewed(res, entries, min_pp):
 
 
 def problems(res, code=DATA_CHECKS_V3["factor_hand"]):
-    """Why a committed dc-3 file can't stand, [] when it can (and for any other version):
+    """Why a committed file run with a hand list (dc-3) can't stand, [] when it can (and for a file without one):
     the leg doesn't reproduce; a band flag at review_min_pp or more isn't on the file's own list; a hand_stale
-    event; or an entry of the code's list whose span the file holds has no matching hand event (so adding an
-    entry forces the leg's rerun)."""
+    event; an entry of the code's list whose span the file holds has no matching hand event (so adding an entry
+    forces the leg's rerun); or a hand event whose span the code's list no longer holds (so does removing one)."""
     dcb = res.get("data_checks") or {}
-    if dcb.get("version") != "dc-3":
+    fh = (dcb.get("rules") or {}).get("factor_hand")
+    if fh is None:
         return []
     if not reproduces(res):
         return ["the leg's CAGR and excess don't reproduce from period_data"]
-    fh = dcb["rules"]["factor_hand"]
     out = [f"unreviewed band flag {s} {r} (excess {eff:+.3f}pp)"
            for (s, r, _), eff in unreviewed(res, fh["entries"], fh["review_min_pp"])]
     out += [f"hand_stale {e['symbol']} {e['rebalance_date']}" for e in dcb["events"] if e["check"] == "hand_stale"]
@@ -94,6 +94,9 @@ def problems(res, code=DATA_CHECKS_V3["factor_hand"]):
         h = hands.get(k)
         if h is None or h["kind"] != c["kind"] or (c["kind"] == "rebuilt" and h["booked"] != _sig(c["booked"])):
             out.append(f"hand list entry {c['symbol']} {c['rebalance_date']} not booked as listed: rerun the leg")
+    listed = {(c["symbol"], c["rebalance_date"]) for c in code["entries"]}
+    out += [f"hand event {s} {r} has no entry on the list any more: rerun the leg"
+            for s, r in sorted(set(hands) - listed)]
     return out
 
 

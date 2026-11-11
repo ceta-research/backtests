@@ -2837,8 +2837,16 @@ def hand_unit_failures(m=du):
         r = (1 + ret("KINV-B.ST")) * math.exp(shift) - 1
         out, ev = run(dc, "KINV-B.ST", r=r), logged(dc, "KINV-B.ST")
         want = ("hand", -0.0499) if applied else ("hand_stale", r)
-        if (ev[0]["check"], out[0][1]) != want:
-            f.append(f"KINV-B.ST with its return moved by {shift} in log: {ev[0]['check']}, booked {out[0][1]}")
+        if (ev[0]["check"], out[0][1]) != want or dc.block()["counts"]["hand_stale"] != (0 if applied else 1):
+            f.append(f"KINV-B.ST with its return moved by {shift} in log: {ev[0]['check']}, booked {out[0][1]}, "
+                     f"counts {dc.block()['counts']}")
+    kept = (("KINV-B.ST", "2014-07-01", "2015-07-01", "kept", None, None, 0.704348, ("test",),
+             "a kept entry for the test: reviewed, can't be rebuilt, adjClose stands"),)
+    dc = m.DataChecks("on", {**v3, "factor_hand": m._hand_config(kept)})
+    out, ev = run(dc, "KINV-B.ST"), logged(dc, "KINV-B.ST")
+    if out[0][1] != ret("KINV-B.ST") or [(e["check"], e["kind"]) for e in ev] != [("hand", "kept")] or \
+            dc.block()["counts"]["hand_kept"] != 1:
+        f.append(f"kept KINV-B.ST 2014: {out} {ev}")
     for label, dc, kw in (("a quarterly span from the same date", m.DataChecks("on", v3), {"x": date(2014, 10, 1)}),
                           ("a filled name", m.DataChecks("on", v3), {"filled": {"KINV-B.ST"}}),
                           ("the uncapped mode", m.DataChecks("uncapped", v3), {})):
@@ -2977,6 +2985,17 @@ def gate_dc3_failures(fr=None):
         probs = fr.problems(dc3_file(sto, **kw))
         if not any(want in p for p in probs):
             f.append(f"{label}: {probs}")
+    trimmed = dict(du.DATA_CHECKS_V3["factor_hand"], entries=[e for e in du.DATA_CHECKS_V3["factor_hand"]["entries"]
+                                                              if (e["symbol"], e["rebalance_date"]) != k20])
+    if not any("KINV-B.ST 2020-07-01 has no entry on the list any more" in p
+               for p in fr.problems(dc3_file(sto), code=trimmed)):
+        f.append(f"an entry taken off the list: {fr.problems(dc3_file(sto), code=trimmed)}")
+    noversion = dc3_file(sto)
+    noversion["data_checks"]["version"] = "dc-4"
+    if not fr.problems(dict(noversion, data_checks=dict(noversion["data_checks"], events=noversion["data_checks"]["events"]
+                                                         + [{"rebalance_date": "2010-07-01", "symbol": "X",
+                                                             "check": "hand_stale", "side": None}]))):
+        f.append("a later version carrying the hand list isn't reviewed")
     unlisted = max((t for t in fr.effects(dc3_file(sto)) if t[0][0] != "KINV-B.ST"), key=lambda t: abs(t[2]))
     probs = fr.problems(dc3_file(sto, min_pp=abs(unlisted[2])))
     if not any(f"unreviewed band flag {unlisted[0][0]} {unlisted[0][1]}" in p for p in probs):
@@ -3053,6 +3072,9 @@ HAND_DU_MUTANTS = {
     "a range's low end booked": ("booked = round((rng[0] + rng[1]) / 2, 6)", "booked = rng[0]"),
     "real treated as rebuilt": ('booked = e["booked"] if near and e["kind"] == "rebuilt" else ret',
                                 'booked = e["booked"] if near and e["kind"] != "kept" else ret'),
+    "kept treated as rebuilt": ('booked = e["booked"] if near and e["kind"] == "rebuilt" else ret',
+                                'booked = e["booked"] if near and e["kind"] != "real" else ret'),
+    "the stale count dropped": ('hand_stale=n("hand_stale"))', "hand_stale=0)"),
     "record=False ignored": ("        if record:\n            self._hand_pending", "        if True:\n            self._hand_pending"),
     "filled names matched": ("e = self._hand.get((s, *span)) if s not in filled else None",
                              "e = self._hand.get((s, *span))"),
@@ -3064,6 +3086,9 @@ HAND_FR_MUTANTS = {
     "the threshold > not >=": ("if abs(eff) >= min_pp and span not in listed", "if abs(eff) > min_pp and span not in listed"),
     "the review reads the code's list": ('unreviewed(res, fh["entries"], fh["review_min_pp"])',
                                          'unreviewed(res, code["entries"], fh["review_min_pp"])'),
+    "an entry taken off the list passes": ("for s, r in sorted(set(hands) - listed)]", "for s, r in []]"),
+    "the review keyed on the version name": ('fh = (dcb.get("rules") or {}).get("factor_hand")\n    if fh is None:',
+                                             'fh = (dcb.get("rules") or {}).get("factor_hand")\n    if dcb.get("version") != "dc-3":'),
 }
 HAND_TOPIC_MUTANTS = {
     "the hand list applied after costs": (
@@ -3145,11 +3170,14 @@ def gate15_failures():
     # the floor-guard harness's no-cap exemption is the data-checks list plus the two topics that never had a cap
     if NO_RETURN_CAP - {"qarp", "low-pe"} != set(DATA_CHECKS_TOPICS):
         f.append(f"test_floor_guard NO_RETURN_CAP {sorted(NO_RETURN_CAP)} is not qarp, low-pe and DATA_CHECKS_TOPICS")
-    # only a mode-on block may sit in a committed results file
+    # only a mode-on block may sit in a committed results file, and on dc-3 one with no hand-list fault
+    sto = json.load(open(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json")))
     for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
-                     ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True)):
+                     ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True),
+                     (dc3_file(sto), False), (dc3_file(sto, stale=True), True)):
         if bool(dc_results_problem(res)) != bad:
-            f.append(f"dc_results_problem({res}) {dc_results_problem(res)}")
+            label = res if len(json.dumps(res)) < 200 else f"Sweden's file on dc-3, bad={bad}"
+            f.append(f"dc_results_problem({label}) {dc_results_problem(res)}")
     return f
 
 
