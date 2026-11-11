@@ -2,7 +2,7 @@
 """The topics on the run window, end to end on test_data_checks.py's synthetic SET leg.
 
   1 BYTES    each topic already on the run window at the base (defensive-quality, cyclical-timing,
-             deleveraging), at the base ref and at HEAD with --end-year 2025, writes the same results
+             deleveraging, asset-growth), at the base ref and at HEAD with --end-year 2025, writes the same results
              files, byte for byte: drop, ltp, both and ltp with full holdings through run_single, and ltp
              through main() (--exchange SET, CetaResearch patched to the fake client). The base runs
              in a subprocess on its own tree (its .py files archived to a temp dir) and its own
@@ -82,7 +82,7 @@ for m in (data_utils, metrics, tdc):
 head = hasattr(data_utils, "RunWindow")
 synthetic = tdc.synthetic_source()
 for topic, src in (("defensive-quality", tdc.defensive_source()), ("cyclical-timing", synthetic),
-                   ("deleveraging", synthetic)):
+                   ("deleveraging", synthetic), ("asset-growth", tdc.asset_growth_source())):
     for run_mode, full in (("drop", False), ("ltp", False), ("both", False), ("ltp", True)):
         tdc.run_topic(topic, src, run_mode, "on", out, full_holdings=full)
     mod = tdc.load_topic(topic)
@@ -118,7 +118,7 @@ def bytes_failures(ref, tmp):
         if p.returncode:
             return [f"the {side} runs failed: {log[-2000:]}"]
     names = sorted(os.listdir(outs["base"]))
-    if names != sorted(os.listdir(outs["head"])) or len(names) != 15:
+    if names != sorted(os.listdir(outs["head"])) or len(names) != 20:
         return [f"files differ: base {names}, head {sorted(os.listdir(outs['head']))}"]
     for n in names:
         a, b = (open(os.path.join(outs[s], n), "rb").read() for s in ("base", "head"))

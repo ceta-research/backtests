@@ -436,12 +436,13 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                     if ltp and entry_buyable(symbol_data, min_entry_price=MIN_ENTRY_PRICE) >= MIN_STOCKS else {})
         exit_ltp = {**exit_prices, **ltp_fill}
 
-        def book(xmap, verbose=verbose):
+        def book(xmap, verbose=verbose, record=True):
             # symbol_data with the exit slot taken from xmap
             clean, skipped = filter_returns([(sym, ep, xmap.get(sym), mcap) for sym, ep, _, mcap in symbol_data],
                                             min_entry_price=MIN_ENTRY_PRICE,
                                             max_single_return=None,   # no return cap (data checks dc-1)
                                             verbose=verbose)
+            clean = dc.hand(clean, entry_date, exit_date, filled=ltp_fill, record=record)   # dc-3's hand list
             return clean, [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in clean]
 
         booked = exit_ltp if exit_method == "ltp" else exit_prices
@@ -506,7 +507,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                entry_date, exit_date, offset_days, ltp, exit_offset_days=x_off),
         })
         if exit_method == "both":
-            c_ltp, r_ltp = book(exit_ltp, verbose=False)
+            c_ltp, r_ltp = book(exit_ltp, verbose=False, record=False)
             results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
                                 "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
 

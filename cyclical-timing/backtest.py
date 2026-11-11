@@ -436,6 +436,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                                         min_entry_price=MIN_ENTRY_PRICE,
                                         max_single_return=None,
                                         verbose=verbose)
+        clean = dc.hand(clean, entry_date, exit_date, filled=ltp_fill)   # dc-3's hand list
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
         # Screening can pass 30 names while only a handful of them have a usable
@@ -512,6 +513,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         if exit_method == "both":
             c_ltp, _ = filter_returns(book(exit_ltp), min_entry_price=MIN_ENTRY_PRICE,
                                       max_single_return=None)
+            c_ltp = dc.hand(c_ltp, entry_date, exit_date, filled=ltp_fill, record=False)
             r_ltp = [apply_costs(rr, tiered_cost(mc)) if use_costs else rr for _, rr, mc in c_ltp]
             results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
                                 "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})

@@ -27,8 +27,9 @@ Gates:
                a None cap by keyword or position, a non-number MAX_SINGLE_RETURN, the new
                data_utils names), each of them has
                dropped MAX_SINGLE_RETURN only with check M at every market-cap floor, passes its
-               DataChecks cfg (cfg=dc.cfg) to LtpExits, and
-               their committed results hold no data_checks block but mode "on"
+               DataChecks cfg (cfg=dc.cfg) to LtpExits, calls dc.hand after each filter_returns, and
+               their committed results hold no data_checks block but mode "on" (on dc-3, also no
+               unreviewed factor flag or stale hand entry: scripts/factor_review.py)
 
 Usage:  python scripts/verify_floor_guard.py
 """
@@ -39,6 +40,9 @@ import py_compile
 import re
 import subprocess
 import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import factor_review   # noqa: E402  (gate 15 on dc-3 results)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FLOOR_NAMES = ("MIN_STOCKS", "MIN_PORTFOLIO_STOCKS")
@@ -659,9 +663,9 @@ def forward_hits(tree):
 # market-cap floors. The cap may go only where check M reads every floor (cap_used): without M an
 # inflated market cap lets a name into the book whose return only the cap used to drop (SOS, ZEST).
 DATA_CHECKS_TOPICS = {"deleveraging": 1, "cyclical-timing": 2, "defensive-quality": 1, "asset-growth": 1}
-DC_NAMES = ("DATA_CHECKS_V1", "DATA_CHECKS_V2", "DataChecks", "clean_price_cache", "mark_nvdr_twins",
-            "load_cap_check", "load_splits", "empty_cap_check", "cap_used_sql", "CAP_FAIL_TEST", "nvdr_twins_sql",
-            "apply_cap_rule", "cap_check_sql", "stale_repeat_sql")
+DC_NAMES = ("DATA_CHECKS_V1", "DATA_CHECKS_V2", "DATA_CHECKS_V3", "FACTOR_HAND", "DataChecks", "clean_price_cache",
+            "mark_nvdr_twins", "load_cap_check", "load_splits", "empty_cap_check", "cap_used_sql", "CAP_FAIL_TEST",
+            "nvdr_twins_sql", "apply_cap_rule", "cap_check_sql", "stale_repeat_sql")
 DC_KWARGS = ("twin_key", "traded_only")
 RAW_FLOOR = re.compile(r"\bmarketCap\s*>\s*\?")
 USED_FLOOR = re.compile(r"\bcap_used\s*>\s*\?")
@@ -705,7 +709,10 @@ def dc_results_problem(res):
         return None
     b = res["data_checks"]
     mode = b.get("mode") if isinstance(b, dict) else None
-    return None if mode == "on" else f"data_checks mode {mode!r}: only mode 'on' is published"
+    if mode != "on":
+        return f"data_checks mode {mode!r}: only mode 'on' is published"
+    probs = factor_review.problems(res)   # dc-3: every material factor flag reviewed, none stale
+    return "; ".join(probs[:3]) + (f" (+{len(probs) - 3} more)" if len(probs) > 3 else "") if probs else None
 
 
 def _sql_strings(tree):
@@ -742,6 +749,11 @@ def dc_wiring(tree, n_floors):
         v = next((k.value for k in c.keywords if k.arg == "cfg"), None)
         if _callee(c) == "LtpExits" and not (isinstance(v, ast.Attribute) and v.attr == "cfg"):
             out.append((c.lineno, "LtpExits without cfg=dc.cfg: its fills would not follow the topic's data checks"))
+    books = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run_backtest"]
+    n_fr, n_hand = (sum(1 for b in books for c in ast.walk(b) if isinstance(c, ast.Call) and _callee(c) == fn)
+                    for fn in ("filter_returns", "hand"))
+    if n_fr != n_hand:   # dc-3's hand list books after each filter_returns, the both-branch's included
+        out.append((0, f"{n_hand} dc.hand call(s) for {n_fr} filter_returns call(s) in run_backtest"))
     runs = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run_single"]
     for fn in ("fetch_data_via_api", "run_backtest"):
         inner = [c for r in runs for c in ast.walk(r) if isinstance(c, ast.Call) and _callee(c) == fn]
@@ -1766,7 +1778,7 @@ def main():
     print(f"15 DATACHECKS {len(stray15)} uses outside {sorted(DATA_CHECKS_TOPICS)}; "
           f"{len(DATA_CHECKS_TOPICS) - len({t for t, _, _ in wiring15})}/{len(DATA_CHECKS_TOPICS)} opted-in "
           f"topics fully wired ({sum(used15.values())} uses); {n_res15} committed results carry a data_checks "
-          f"block, {len(results15)} not mode on")
+          f"block, {len(results15)} with a problem (not mode on, or a hand-list fault)")
     for b in stray15:
         print("    NOT OPTED IN:", b)
     for b in wiring15:
@@ -1783,6 +1795,7 @@ def main():
             "def screen(con):\n    return con.execute(f'SELECT 1 FROM km WHERE {x} AND km.cap_used > ?')\n"
             "def run_backtest(con, dc=None):\n"
             "    clean, _ = filter_returns(d, min_entry_price=1.0, max_single_return=None)\n"
+            "    clean = dc.hand(clean, e, x)\n"
             "def run_single(cr, data_checks='on'):\n    dc = DataChecks(data_checks)\n"
             "    con = fetch_data_via_api(cr, e, d, dc=dc)\n    run_backtest(con, dc=dc)\n")
     p15 = {
@@ -1793,6 +1806,7 @@ def main():
         "a floor short": ok15.replace("km.cap_used > ?", "km.x > ?"),
         "M never loaded": ok15.replace("    load_cap_check(c, con, s, 1, dc.cfg)\n", ""),
         "run_single drops dc": ok15.replace("run_backtest(con, dc=dc)", "run_backtest(con)"),
+        "the hand list skipped": ok15.replace("    clean = dc.hand(clean, e, x)\n", ""),
     }
     for label, src in p15.items():
         if not dc_wiring(ast.parse(src), 1):
