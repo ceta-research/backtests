@@ -2990,6 +2990,12 @@ def gate_dc3_failures(fr=None):
     if not any("KINV-B.ST 2020-07-01 has no entry on the list any more" in p
                for p in fr.problems(dc3_file(sto), code=trimmed)):
         f.append(f"an entry taken off the list: {fr.problems(dc3_file(sto), code=trimmed)}")
+    moved = dict(trimmed, entries=trimmed["entries"] + [dict(e, exit_date="2021-10-01") for e in
+                                                        du.DATA_CHECKS_V3["factor_hand"]["entries"]
+                                                        if (e["symbol"], e["rebalance_date"]) == k20])
+    if not any("KINV-B.ST 2020-07-01 has no entry on the list any more" in p
+               for p in fr.problems(dc3_file(sto), code=moved)):
+        f.append(f"an entry whose exit date moved: {fr.problems(dc3_file(sto), code=moved)}")
     noversion = dc3_file(sto)
     noversion["data_checks"]["version"] = "dc-4"
     if not fr.problems(dict(noversion, data_checks=dict(noversion["data_checks"], events=noversion["data_checks"]["events"]
@@ -3086,7 +3092,10 @@ HAND_FR_MUTANTS = {
     "the threshold > not >=": ("if abs(eff) >= min_pp and span not in listed", "if abs(eff) > min_pp and span not in listed"),
     "the review reads the code's list": ('unreviewed(res, fh["entries"], fh["review_min_pp"])',
                                          'unreviewed(res, code["entries"], fh["review_min_pp"])'),
-    "an entry taken off the list passes": ("for s, r in sorted(set(hands) - listed)]", "for s, r in []]"),
+    "an entry taken off the list passes": ("for s, r in sorted(hands) if (s, r, exits.get(r)) not in listed]",
+                                           "for s, r in []]"),
+    "the removal check ignores the exit date": ("if (s, r, exits.get(r)) not in listed]",
+                                                "if (s, r) not in {k[:2] for k in listed}]"),
     "the review keyed on the version name": ('fh = (dcb.get("rules") or {}).get("factor_hand")\n    if fh is None:',
                                              'fh = (dcb.get("rules") or {}).get("factor_hand")\n    if dcb.get("version") != "dc-3":'),
 }

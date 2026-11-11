@@ -94,9 +94,9 @@ def problems(res, code=DATA_CHECKS_V3["factor_hand"]):
         h = hands.get(k)
         if h is None or h["kind"] != c["kind"] or (c["kind"] == "rebuilt" and h["booked"] != _sig(c["booked"])):
             out.append(f"hand list entry {c['symbol']} {c['rebalance_date']} not booked as listed: rerun the leg")
-    listed = {(c["symbol"], c["rebalance_date"]) for c in code["entries"]}
+    listed = _keys(code["entries"])   # the full span, as the check above
     out += [f"hand event {s} {r} has no entry on the list any more: rerun the leg"
-            for s, r in sorted(set(hands) - listed)]
+            for s, r in sorted(hands) if (s, r, exits.get(r)) not in listed]
     return out
 
 
