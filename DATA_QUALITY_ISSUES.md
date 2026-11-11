@@ -1616,6 +1616,12 @@ Saudi lines with 95xx codes, likely the parallel market: 9512.SR beside 3092.SR 
 pattern reads, CORE-PREF.ST and SDIP-PREF.ST, and they stay as well. Open: a hand-list entry each, or a test for two lines with one name and
 identical closes.
 
+The November books hold two more such pairs, each new line carrying the old one's prices under a new
+ISIN: L1G.AX beside PTM.AX (Platinum Asset Management, L1 Group since its October 2025 merger with L1
+Capital) in seven Australia books, and MATR.TO beside SCL.TO (Shawcor, trading as Mattr since June
+2023) in four Canada books. asset-growth/README.md's known limits give each leg, Brazil's included,
+with the copy taken out. Open: a line start each, as AZZA3.SA's.
+
 ### Brazil's ordinary lines without prices before 2026
 
 **Status:** handled in asset-growth by ur-2's class stand-ins; open as a warehouse gap.
