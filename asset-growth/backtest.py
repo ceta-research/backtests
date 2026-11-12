@@ -52,7 +52,7 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
                         load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
-                        UniverseRules, non_ordinary_sql, UNIVERSE_RULES_V2)
+                        UniverseRules, non_ordinary_sql, UNIVERSE_RULES_V2, RowGuard, started_sql as _started)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -230,7 +230,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
 PRIOR_GUARD_REASONS = ("currency_switch", "no_prior_in_window")
 
 
-class PriorYearGuard:
+class PriorYearGuard(RowGuard):
     """One leg's prior-year guard record: per rebalance date, the screen's candidates left unranked because
     no prior FY row pairs with the current one (screen inputs only: equal in drop, ltp and both)."""
 
@@ -242,18 +242,7 @@ class PriorYearGuard:
             "in the universe that pass the ROE, ROA, margin and market-cap tests")
 
     def __init__(self):
-        self.periods = {}
-
-    def record(self, rows, target_date):
-        """rows: (symbol, reason) of one screen's unranked candidates."""
-        self.periods[target_date.isoformat()] = {k: sum(1 for _, why in rows if why == k)
-                                                 for k in PRIOR_GUARD_REASONS}
-
-    def block(self):
-        by_period = [{"rebalance_date": d, **n} for d, n in sorted(self.periods.items())]
-        by_reason = {k: sum(p[k] for p in by_period) for k in PRIOR_GUARD_REASONS}
-        return {"rule": self.RULE, "dropped": sum(by_reason.values()), "by_reason": by_reason,
-                "by_period": by_period}
+        super().__init__(self.RULE, PRIOR_GUARD_REASONS)
 
 
 def _candidates_sql(cap_test, events=False):
@@ -315,14 +304,6 @@ def _candidates_sql(cap_test, events=False):
           AND fr.operatingProfitMargin > ?
           AND {cap_test}
     """
-
-
-def _started(candidates_sql, late):
-    """The candidates without the lines a screen leaves out before their ur-2 line_starts day (unchanged if none)."""
-    if not late:
-        return candidates_sql
-    names = ", ".join("'" + s.replace("'", "''") + "'" for s in late)
-    return f"SELECT * FROM ({candidates_sql}) _s WHERE _s.symbol NOT IN ({names})"
 
 
 def _paired(candidates_sql, rule="IS NULL"):

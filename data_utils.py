@@ -2938,7 +2938,7 @@ def _sql_list(values):
 
 def non_ordinary_sql(p="p", profile="profile", known=None, cfg=None):
     """A CASE over a profile row aliased `p`: the first reason in cfg's rules (UNIVERSE_RULES_V1 when None,
-    or UNIVERSE_RULES_V2) the line is not a company's ordinary share, else NULL. `profile` is the table the
+    or UNIVERSE_RULES_V2 or V3) the line is not a company's ordinary share, else NULL. `profile` is the table the
     German and Brazil sibling tests read; `known` replaces cfg's hand list (tests). Paste as `AND (<this>) IS NULL` to
     keep ordinary lines only (the share-link SQL)."""
     cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
@@ -3009,7 +3009,7 @@ def cik_shared(rows):
 
 
 class UniverseRules:
-    """One leg's universe rules (cfg: UNIVERSE_RULES_V1 when None, or UNIVERSE_RULES_V2): the ordinary-shares
+    """One leg's universe rules (cfg: UNIVERSE_RULES_V1 when None, or UNIVERSE_RULES_V2 or V3): the ordinary-shares
     removals and, when cfg has the yield rule, the yield drops, for the results file's universe_rules block
     (screen inputs only: equal in drop, ltp and both)."""
 
@@ -3194,6 +3194,54 @@ CLASS_TWIN_RULE = ("an SAO preferred or unit line of a company with an ordinary 
                    "first priced sibling, which stands in; by_period lists the stand-ins each screen picked, as "
                    "check N's counts do, so a period the cash rule then holds in cash still lists its picks")
 
+# Universe rules ur-3, opt-in through cfg: ur-2 with more hand-list lines (receipts listed abroad among them) and
+# more line starts. ur-2 stays as its results files ran it.
+NON_ORDINARY_KNOWN_V3 = NON_ORDINARY_KNOWN_V2 + (
+    ("FITBP", "preferred", "Fifth Third Bancorp's preferred depositary shares on NYSE beside FITB, sharing FITB's "
+                           "issuer code (316773) in its ISIN"),
+    ("76ID.L", "preferred", "Rotork's cumulative preference line beside ROR.L, with its own ISIN and price path"),
+    ("SANB.L", "preferred", "Santander UK's preference line, with no listed ordinary share"),
+    ("SDIP-PREF.ST", "preferred", "Sdiptech's preference line beside SDIP-B.ST, the B share"),
+    *((s, "notes", "ANZ capital notes, prices near a 100 face value beside ANZ.AX, the share")
+      for s in ("AN3PH.AX", "AN3PI.AX", "AN3PJ.AX")),
+    ("CBAPK.AX", "notes", "CommBank PERLS, prices near a 100 face value beside CBA.AX, the share"),
+    ("6288.HK", "depositary receipt", "Fast Retailing's Hong Kong depositary receipts on the Tokyo share, a US ISIN "
+                                      "on a Japanese company"),
+    ("ARION-SDB.ST", "depositary receipt", "Arion banki's Swedish depository receipts on the Icelandic share"),
+    ("NTCO3.SA", "renamed line", "Natura &Co Holding's line: it copies NATU3.SA's history (the same close on "
+                                 "5,225 of 5,238 shared days) and ends 2025-07-24 while NATU3.SA trades on"),
+    ("9512.SR", "second line", "Riyadh Cement's second line beside 3092.SR, the same close on 574 of 577 shared "
+                               "days, ends 2023-11-29"),
+    ("JP", "ADR", "Jupai Holdings, a Cayman company whose NYSE line was American depositary shares, six ordinary "
+                  "shares each, per its Form 20-F; the profile doesn't flag isAdr"),
+)
+LINE_STARTS_V3 = LINE_STARTS_V2 + (
+    ("L1G.AX", "2025-10-04", "L1 Group: its bars to 2025-10-03 repeat PTM.AX's (Platinum Investment Management) "
+                             "closes and volumes, and PTM.AX's last bar is 2025-10-03"),
+    ("MATR.TO", "2023-06-07", "Mattr, Shawcor renamed: its bars to 2023-06-06 carry SCL.TO's volumes, and SCL.TO's "
+                              "last bar is 2023-06-06"),
+    ("TKO", "2023-09-12", "TKO Group Holdings, from WWE's merger with UFC: its bars to 2023-09-11 repeat WWE's "
+                          "closes, and WWE's last bar is 2023-09-11"),
+    ("AXIA6.SA", "2025-12-05", "AXIA Energia, Eletrobras renamed: its bars to 2025-12-04 repeat ELET6.SA's closes "
+                               "and volumes, and ELET6.SA's last bar is 2025-12-04"),
+    ("AXIA3.SA", "2025-12-05", "AXIA Energia's ordinary line from the same rename: its FY rows copy Eletrobras's "
+                               "from 2006, while its bars start in 2026"),
+)
+ORDINARY_RULES_V3 = {
+    "rule": ORDINARY_RULES_V2["rule"],
+    "order": {**ORDINARY_RULES_V2["order"], "known": "NON_ORDINARY_KNOWN_V3, the hand list below"},
+    "kept": ("Thai NVDRs (check N keys X-R.BK to X.BK), depositary receipts of ordinary shares outside NYSE, "
+             "NASDAQ, AMEX and SAO (TDRs, isAdr lines) until a book holds one (the receipts on the `known` list "
+             "below leave), ordinary shares listed first elsewhere (disclosed), share classes (BF-B, MKC-V, CENTA, "
+             "the Swedish ser. B lines), REITs and their units, trust units and LPs outside the US, SAO preferred "
+             "and unit lines of a company with an ordinary line (class twins: one slot, see class_stand_ins), and "
+             "the `keep` lines below"),
+    "known": [{"symbol": s, "kind": k, "evidence": e} for s, k, e in NON_ORDINARY_KNOWN_V3],
+    "keep": ORDINARY_RULES_V2["keep"],
+}
+UNIVERSE_RULES_V3 = {**UNIVERSE_RULES_V2, "version": "ur-3", "ordinary": ORDINARY_RULES_V3,
+                     "known": NON_ORDINARY_KNOWN_V3, "line_starts": LINE_STARTS_V3}
+
 
 def _sao_issuer_sql(t):
     """An SAO line's company: ISIN characters 3-6, else the ticker's first four."""
@@ -3227,3 +3275,34 @@ def mark_class_twins(con, table="isin_map", universe=None):
 def class_twin_symbols(con, table="isin_map"):
     """The symbols mark_class_twins keyed."""
     return {r[0] for r in con.execute(f"SELECT symbol FROM {table} WHERE class_twin").fetchall()}
+
+
+# ---------------------------------------------------------------------------
+# Screen helpers shared by the topics' screen_stocks.
+
+def started_sql(candidates_sql, late):
+    """candidates_sql without the lines in late (UniverseRules.not_started on the screen date); unchanged when
+    late is empty."""
+    if not late:
+        return candidates_sql
+    return f"SELECT * FROM ({candidates_sql}) _s WHERE _s.symbol NOT IN ({_sql_list(late)})"
+
+
+class RowGuard:
+    """One leg's record of a screen guard: per rebalance date, how many candidates each reason left unranked
+    (screen inputs only, so equal in drop, ltp and both). rule: the guard's text for the block; reasons: its
+    reason names in block order (a row with another reason isn't counted). A date screened again replaces its
+    count."""
+
+    def __init__(self, rule, reasons):
+        self.rule, self.reasons, self.periods = rule, tuple(reasons), {}
+
+    def record(self, rows, target_date):
+        """rows: (symbol, reason) of one screen's unranked candidates."""
+        self.periods[target_date.isoformat()] = {k: sum(1 for _, why in rows if why == k) for k in self.reasons}
+
+    def block(self):
+        by_period = [{"rebalance_date": d, **n} for d, n in sorted(self.periods.items())]
+        by_reason = {k: sum(p[k] for p in by_period) for k in self.reasons}
+        return {"rule": self.rule, "dropped": sum(by_reason.values()), "by_reason": by_reason,
+                "by_period": by_period}
