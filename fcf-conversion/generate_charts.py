@@ -6,6 +6,9 @@ Reads results JSON files and produces:
   - Cumulative growth chart (strategy vs benchmark)
   - Annual returns bar chart (strategy vs benchmark)
 
+A run-window file's partial final year is the last point and the last, hatched bar, and its titles carry the
+window the file records. A typed-year file charts as before.
+
 Usage:
     python3 fcf-conversion/generate_charts.py
     python3 fcf-conversion/generate_charts.py --results-dir fcf-conversion/results
@@ -14,7 +17,9 @@ Usage:
 import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import benchmark_label, benchmark_legend, is_usd_benchmark_proxy, localize_money_title, money, money_axis_label, money_formatter
+from chart_utils import (annual_bars, benchmark_label, benchmark_legend, growth_series, is_usd_benchmark_proxy,
+                         localize_money_title, money, money_axis_label, money_formatter, partial_note, window_end,
+                         window_text, windows_text)
 import json
 import os
 import sys
@@ -66,22 +71,26 @@ def load_results(results_dir):
     return results
 
 
-def cumulative_growth_chart(annual_returns, exchange, out_path, bench="S&P 500"):
-    """Cumulative growth of $10,000."""
-    years = [ar["year"] for ar in annual_returns]
-    port_vals = [10000]
-    spy_vals = [10000]
+def leg_window(entry, bars=False):
+    """', <window>' for a run-window leg's titles; '' for a typed-year file, whose titles stay as they were."""
+    return f", {window_text(entry, bars=bars)}" if window_end(entry) else ""
 
-    for ar in annual_returns:
-        port_vals.append(port_vals[-1] * (1 + ar["portfolio"] / 100))
-        spy_vals.append(spy_vals[-1] * (1 + ar["spy"] / 100))
+
+def run_window(results, keys):
+    """' (<window>)' for a comparison title when one of these legs is on the run window, else ''."""
+    return f" ({windows_text(results, keys)})" if any(window_end(results[k]) for k in keys) else ""
+
+
+def cumulative_growth_chart(entry, exchange, out_path, bench="S&P 500"):
+    """Cumulative growth of $10,000, each value at its period's end, a partial final year last."""
+    x, port_vals = growth_series(entry, "portfolio")
+    spy_vals = growth_series(entry, "spy")[1]
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    x = [years[0]] + [y + 1 for y in years]  # year = period start; plot each value at its end
     ax.plot(x, port_vals, color=STRATEGY_COLOR, linewidth=2, label="FCF Conversion Quality")
     ax.plot(x, spy_vals, color=BENCHMARK_COLOR, linewidth=2, label=bench)
 
-    ax.set_title(localize_money_title(f"Cumulative Growth of $10,000 ({exchange})", exchange),
+    ax.set_title(localize_money_title(f"Cumulative Growth of $10,000 ({exchange}{leg_window(entry)})", exchange),
                  fontsize=14, fontweight="bold")
     ax.set_xlabel("Year")
     ax.set_ylabel(money_axis_label(exchange))
@@ -94,28 +103,34 @@ def cumulative_growth_chart(annual_returns, exchange, out_path, bench="S&P 500")
     print(f"  Saved: {out_path}")
 
 
-def annual_returns_chart(annual_returns, exchange, out_path, bench="S&P 500"):
-    """Annual returns bar chart."""
-    years = [ar["year"] for ar in annual_returns]
-    port = [ar["portfolio"] for ar in annual_returns]
-    spy = [ar["spy"] for ar in annual_returns]
+def annual_returns_chart(entry, exchange, out_path, bench="S&P 500"):
+    """Annual returns bar chart; a partial final year is the last, hatched bar."""
+    years, port = annual_bars(entry, "portfolio")
+    spy = annual_bars(entry, "spy")[1]
 
     fig, ax = plt.subplots(figsize=(12, 6))
     width = 0.35
     x_pos = range(len(years))
 
-    ax.bar([p - width / 2 for p in x_pos], port, width, color=STRATEGY_COLOR,
-           label="FCF Conversion Quality", alpha=0.85)
-    ax.bar([p + width / 2 for p in x_pos], spy, width, color=BENCHMARK_COLOR,
-           label=bench, alpha=0.85)
+    groups = [ax.bar([p - width / 2 for p in x_pos], port, width, color=STRATEGY_COLOR,
+                     label="FCF Conversion Quality", alpha=0.85),
+              ax.bar([p + width / 2 for p in x_pos], spy, width, color=BENCHMARK_COLOR,
+                     label=bench, alpha=0.85)]
+    if entry.get("partial_year"):
+        for g in groups:
+            g[-1].set_hatch("//")
+            g[-1].set_edgecolor("#2c3e50")
 
-    ax.set_title(f"Annual Returns ({exchange})", fontsize=14, fontweight="bold")
+    ax.set_title(f"Annual Returns ({exchange}{leg_window(entry, bars=True)})", fontsize=14, fontweight="bold")
     ax.set_xlabel("Year")
     ax.set_ylabel("Return (%)")
     ax.set_xticks(list(x_pos))
     ax.set_xticklabels(years, rotation=45, ha="right", fontsize=9)
     ax.axhline(y=0, color="black", linewidth=0.5)
     ax.legend(loc="upper left")
+    note = partial_note(entry)
+    if note:
+        fig.text(0.5, -0.04, note, ha="center", fontsize=8, color="#7f8c8d")
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=200, bbox_inches="tight")
@@ -159,7 +174,7 @@ def comparison_cagr_chart(results, out_path):
     ax.invert_yaxis()
     ax.set_xlabel("CAGR (%, local currency)")
     ax.set_xlim(right=max(max(cagrs), max(benches)) + 7)
-    ax.set_title("FCF Conversion Quality: CAGR vs Own Benchmark by Exchange (2000-2025)",
+    ax.set_title(f"FCF Conversion Quality: CAGR vs Own Benchmark by Exchange ({windows_text(results, exchanges)})",
                  fontsize=14, fontweight="bold")
     ax.legend(handles=[
         Patch(color="#27ae60", alpha=0.85, label="Beat its own benchmark"),
@@ -215,7 +230,8 @@ def comparison_drawdown_chart(results, out_path):
     ax.set_yticks(range(len(exchanges)))
     ax.set_yticklabels(exchanges)
     ax.set_xlabel("Max Drawdown (%)")
-    ax.set_title("FCF Conversion Quality: Max Drawdown by Exchange", fontsize=14, fontweight="bold")
+    ax.set_title(f"FCF Conversion Quality: Max Drawdown by Exchange{run_window(results, exchanges)}",
+                 fontsize=14, fontweight="bold")
     ax.axvline(x=0, color="black", linewidth=0.5)
 
     fig.tight_layout()
@@ -244,7 +260,6 @@ def main():
         if "error" in data or not data.get("annual_returns"):
             continue
 
-        annual = data["annual_returns"]
         # local index, or "S&P 500, USD" where the series is the US one (SAU has no local index)
         bench = benchmark_legend(results, exchange)
 
@@ -259,9 +274,9 @@ def main():
         elif exchange in ("TAI",):
             region = "taiwan"
 
-        cumulative_growth_chart(annual, exchange,
+        cumulative_growth_chart(data, exchange,
                                  os.path.join(args.output_dir, f"1_{region}_cumulative_growth.png"), bench)
-        annual_returns_chart(annual, exchange,
+        annual_returns_chart(data, exchange,
                               os.path.join(args.output_dir, f"2_{region}_annual_returns.png"), bench)
 
     # Comparison charts (if multiple exchanges)

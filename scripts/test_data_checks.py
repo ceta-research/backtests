@@ -2574,6 +2574,36 @@ def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
     return f
 
 
+def vary(src):
+    """Per-day volume on the fixture's flat traded bars: a bar of volume 1e5 gets 1e5 plus 1 to 7 by its date, so
+    no two neighbouring bars of a line repeat their close and volume, and dc-2's rule S moves none. Closes, zero
+    volumes and every other volume stay. A second call changes only the bars added since (the run window's)."""
+    src.execute("UPDATE stock_eod SET volume = 1e5 + 1 + (dateEpoch // 86400) % 7 WHERE volume = 1e5")
+    return src
+
+
+def fcf_source():
+    """synthetic_source() as an fcf-conversion leg, its bars through vary(): ur-3's profile columns, OPM 20%,
+    reportedCurrency THB on the income rows and on fcf's own cash-flow rows, whose free cash flow is net income
+    times a ratio distinct per line (2.0 down by 0.02 a line), so every line, the special names included, passes
+    the screen with an income row that pairs and ranks apart."""
+    src = synthetic_source()
+    rule_columns(src)
+    src.execute("ALTER TABLE profile ADD COLUMN isAdr BOOLEAN")
+    src.execute("UPDATE profile SET isAdr = FALSE")
+    src.execute("ALTER TABLE financial_ratios ADD COLUMN operatingProfitMargin DOUBLE")
+    src.execute("UPDATE financial_ratios SET operatingProfitMargin = 0.2")
+    src.execute("ALTER TABLE income_statement ADD COLUMN reportedCurrency VARCHAR")
+    src.execute("UPDATE income_statement SET reportedCurrency = 'THB'")
+    src.execute("CREATE TABLE cash_flow_statement(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch UINTEGER,"
+                " freeCashFlow DOUBLE, reportedCurrency VARCHAR)")
+    conv = {s: 2.0 - 0.02 * i for i, s in enumerate(FILLERS + SPECIAL)}
+    src.executemany("INSERT INTO cash_flow_statement VALUES (?, 'FY', ?, ?, ?, 'THB')",
+                    [(s, d, e, ni * conv[s]) for s, d, e, ni in
+                     src.execute("SELECT symbol, date, dateEpoch, netIncome FROM income_statement").fetchall()])
+    return vary(src)
+
+
 def topic_failures(topic, src, tmp):
     f = []
     runs = {m: run_topic(topic, src, m, "on", tmp) for m in ("drop", "ltp", "both")}
