@@ -23,9 +23,11 @@ ur-2 is opt-in. Each new reason has a mutant.
 ur-2 is frozen at FROZEN_V2 as ur-1 is at FROZEN: its config JSON, its SQL, an exercised block, and the
 rules block of every committed asset-growth results file. ur-3 (cfg=UNIVERSE_RULES_V3) is ur-2 plus the
 lines PROFILE_V3 holds (real profile rows: each new line reads known under ur-3 and None under ur-1 and
-ur-2, the lines beside them stay) and the new line starts, each out of a screen before its first own day.
-started_sql (the line-start filter), RowGuard (a screen guard's record) and guarded_sql (a guard's paired or
-unranked candidates) are checked here too, with asset growth and fcf-conversion running data_utils' copies.
+ur-2, the lines beside them stay), the new line starts, each out of a screen before its first own day, and
+the line ends (COG, CLR), each out of a screen after its last own day; ur-2 and ur-1 have no line ends.
+started_sql (the line-start and line-end filter), RowGuard (a screen guard's record) and guarded_sql (a guard's
+paired or unranked candidates) are checked here too, with asset growth and fcf-conversion running data_utils'
+copies.
 
 Usage: python scripts/test_universe_rules.py
 """
@@ -690,7 +692,7 @@ def ur2_freeze_failures(frozen, m=du):
 
 
 def ur2_freeze_mutants():
-    """ur-2 grown in place: one line start, one hand-list entry."""
+    """ur-2 grown in place: one line start, one hand-list entry, ur-3's line ends."""
     starts = du.LINE_STARTS_V2 + (("XMUT3.SA", "2025-01-02", "a line start the frozen list never held"),)
     extra = ("XMUT", "notes", "a line the frozen hand list never held")
     known = du.NON_ORDINARY_KNOWN_V2 + (extra,)
@@ -702,6 +704,7 @@ def ur2_freeze_mutants():
         "an entry appended to NON_ORDINARY_KNOWN_V2": du_with(
             NON_ORDINARY_KNOWN_V2=known, ORDINARY_RULES_V2=rules,
             UNIVERSE_RULES_V2=dict(du.UNIVERSE_RULES_V2, ordinary=rules, known=known)),
+        "ur-3's line ends on ur-2": du_with(UNIVERSE_RULES_V2=dict(du.UNIVERSE_RULES_V2, line_ends=du.LINE_ENDS_V3)),
     }
 
 
@@ -775,7 +778,7 @@ def v3_failures(m=du):
 
 def v3_shape_failures(m=du):
     """ur-3 is ur-2's hand list plus NEW_KNOWN_V3, ur-2's keep list, name terms and rules, its own version,
-    order entry and kept text, and v2 on."""
+    order entry and kept text, and v2 on, with line_ends after ur-2's keys."""
     f = []
     known, n2, keep = m.NON_ORDINARY_KNOWN_V3, len(m.NON_ORDINARY_KNOWN_V2), m.ORDINARY_KNOWN_V2
     if known[:n2] != m.NON_ORDINARY_KNOWN_V2:
@@ -800,14 +803,16 @@ def v3_shape_failures(m=du):
         f.append(f"ur-3's kept text {kept!r}")
     if r["known"] != [{"symbol": s, "kind": k, "evidence": e} for s, k, e in known] or r["keep"] != r2["keep"]:
         f.append("ORDINARY_RULES_V3's lists are not its hand list and ur-2's keep list")
-    if re.search(r"#\d", json.dumps(r)) or re.search(r"#\d", json.dumps(m.LINE_STARTS_V3)):
-        f.append("ur-3's rules text or line starts cite an issue or decision number")
+    ends = getattr(m, "LINE_ENDS_V3", None)
+    if any(re.search(r"#\d", json.dumps(x)) for x in (r, m.LINE_STARTS_V3, ends)):
+        f.append("ur-3's rules text, line starts or line ends cite an issue or decision number")
     v3, v2 = m.UNIVERSE_RULES_V3, m.UNIVERSE_RULES_V2
     want = {"version": "ur-3", "ordinary": r, "known": known, "name_terms": m.NAME_TERMS_V2, "keep": keep,
-            "v2": True, "dividend_yield": False, "class_twins": True, "line_starts": m.LINE_STARTS_V3}
-    if v3 != want or list(v3) != list(v2) or v3["ordinary"] is not r or v3["known"] is not known or \
-            v3["keep"] is not keep or v3["line_starts"] is not m.LINE_STARTS_V3:
-        f.append("UNIVERSE_RULES_V3 is not ur-3's objects in ur-2's keys")
+            "v2": True, "dividend_yield": False, "class_twins": True, "line_starts": m.LINE_STARTS_V3,
+            "line_ends": ends}
+    if v3 != want or list(v3) != list(v2) + ["line_ends"] or v3["ordinary"] is not r or v3["known"] is not known or \
+            v3["keep"] is not keep or v3["line_starts"] is not m.LINE_STARTS_V3 or v3.get("line_ends") is not ends:
+        f.append("UNIVERSE_RULES_V3 is not ur-3's objects in ur-2's keys and line_ends")
     b = m.UniverseRules(v3).block()
     if list(b) != ["version", "ordinary_shares", "class_stand_ins"] or b["version"] != "ur-3" or \
             b["ordinary_shares"]["rules"] is not r:
@@ -854,23 +859,103 @@ def v3_line_start_failures(m=du):
     return f
 
 
+NEW_ENDS_V3 = {"COG": "2021-10-01", "CLR": "2022-11-22"}
+
+
+def v3_line_end_failures(m=du, rules=None):
+    """ur-3's line_ends: NEW_ENDS_V3, each on neither list and no line start, with an ISO day and evidence that
+    cites no issue number. A leg that keeps both and CTRA (Coterra, which carries COG's company on) leaves each
+    out of a screen the day after its last own day, not on it or before, never CTRA, and lists them; a leg
+    without the lines, a leg that removed them, ur-2 and ur-1 write no line_ends key and leave nothing out."""
+    rules = m.UniverseRules if rules is None else rules
+    if not hasattr(rules, "ended"):
+        return ["UniverseRules has no ended()"]
+    f = []
+    v3 = m.UNIVERSE_RULES_V3
+    ends = v3.get("line_ends", ())
+    if {s: d for s, d, _ in ends} != NEW_ENDS_V3 or len(ends) != len(NEW_ENDS_V3):
+        f.append(f"ur-3's line ends {[e[:2] for e in ends]}")
+    listed = {s for s, _, _ in v3["known"]} | {s for s, _ in v3["keep"]} | {s for s, _, _ in v3["line_starts"]}
+    for s, d, e in ends:
+        if s in listed or not e.strip() or re.search(r"#\d", e) or date.fromisoformat(d).isoformat() != d:
+            f.append(f"line_ends entry {s} {d}")
+    row = lambda s, why=None: {"symbol": s, "exchange": "NYSE", "cik": None, "companyName": s, "non_ordinary": why}
+    leg = [row(s) for s in ("CLR", "COG", "CTRA")]
+    ur = rules(v3)
+    ur.sector_rows(leg)
+    for s, d, _ in ends:
+        day = date.fromisoformat(d)
+        before, on, after = (ur.ended(day + timedelta(days=k)) for k in (-1, 0, 1))
+        if s in before or s in on or s not in after:
+            f.append(f"{s}: left out the day before {d}: {s in before}, on it: {s in on}, the day after: {s in after}")
+    late, early = ur.ended(date(2026, 7, 1)), ur.ended(date(2000, 7, 1))
+    if late != sorted(NEW_ENDS_V3) or early:
+        f.append(f"left out of a 2026 screen: {late}, of a 2000 one: {early}")
+    want = {"rule": getattr(m, "LINE_END_RULE", None),
+            "lines": [{"symbol": s, "last_day": d, "evidence": e} for s, d, e in sorted(ends)]}
+    b = ur.block()
+    if b.get("line_ends") != want or "line_starts" in b:
+        f.append(f"ur-3 line_ends block {b.get('line_ends')}, line_starts {b.get('line_starts')}")
+    for label, rows, cfg in (("a leg without the lines", [row("CTRA")], v3),
+                             ("a leg that removed them", [row("CLR", "known"), row("COG", "known"), row("CTRA")], v3),
+                             ("ur-2", leg, m.UNIVERSE_RULES_V2), ("ur-1", leg, m.UNIVERSE_RULES_V1)):
+        u = rules(cfg)
+        u.sector_rows(rows)
+        if "line_ends" in u.block() or u.ended(date(2026, 7, 1)):
+            f.append(f"{label}: line_ends {u.block().get('line_ends')}, left out {u.ended(date(2026, 7, 1))}")
+    return f
+
+
+def line_end_mutants():
+    class OnTheDay(du.UniverseRules):
+        def ended(self, target_date):
+            return sorted(s for s, (d, _) in self.ends.items() if d <= target_date.isoformat())
+
+    class Reversed(du.UniverseRules):
+        def ended(self, target_date):
+            return sorted(s for s, (d, _) in self.ends.items() if d > target_date.isoformat())
+
+    class EveryLeg(du.UniverseRules):
+        def block(self):
+            return {"line_ends": {}, **super().block()}
+
+    class NoBlock(du.UniverseRules):
+        def block(self):
+            return {k: v for k, v in super().block().items() if k != "line_ends"}
+
+    class RemovedToo(du.UniverseRules):
+        def sector_rows(self, rows):
+            kept = super().sector_rows(rows)
+            self.ends = {s: (d, e) for s, d, e in self.cfg.get("line_ends", ()) if s in {r["symbol"] for r in rows}}
+            return kept
+
+    return {"left out on its last day too": OnTheDay, "left out before its last day, not after": Reversed,
+            "a block on every leg": EveryLeg, "no block": NoBlock, "a removed line still listed": RemovedToo}
+
+
 def v3_mutants():
     """name: (data_utils with ur-3 changed, the checks each of which must fail)."""
     v3, drop = du.UNIVERSE_RULES_V3, "6288.HK"
     known = tuple(e for e in du.NON_ORDINARY_KNOWN_V3 if e[0] != drop)
     rules = dict(du.ORDINARY_RULES_V3, known=[x for x in du.ORDINARY_RULES_V3["known"] if x["symbol"] != drop])
-    starts = du.LINE_STARTS_V3[:-1]
+    starts, ends = du.LINE_STARTS_V3[:-1], du.LINE_ENDS_V3[:-1]
     return {
         "a known entry dropped": (du_with(NON_ORDINARY_KNOWN_V3=known, ORDINARY_RULES_V3=rules,
                                           UNIVERSE_RULES_V3=dict(v3, ordinary=rules, known=known)),
                                   (v3_shape_failures, v3_failures)),
         "ur-2's rules under the ur-3 name": (du_with(UNIVERSE_RULES_V3=dict(du.UNIVERSE_RULES_V2, version="ur-3")),
-                                             (v3_shape_failures, v3_failures, v3_line_start_failures)),
+                                             (v3_shape_failures, v3_failures, v3_line_start_failures,
+                                              v3_line_end_failures)),
         "the v2 rules off": (du_with(UNIVERSE_RULES_V3=dict(v3, v2=False)), (v3_shape_failures, v3_failures)),
         "ur-2's kept text": (du_with(ORDINARY_RULES_V3=dict(du.ORDINARY_RULES_V3, kept=du.ORDINARY_RULES_V2["kept"])),
                              (v3_shape_failures,)),
         "a line start dropped": (du_with(LINE_STARTS_V3=starts, UNIVERSE_RULES_V3=dict(v3, line_starts=starts)),
                                  (v3_line_start_failures,)),
+        "a line end dropped": (du_with(LINE_ENDS_V3=ends, UNIVERSE_RULES_V3=dict(v3, line_ends=ends)),
+                               (v3_line_end_failures,)),
+        "COG's last own day a day late": (
+            du_with(UNIVERSE_RULES_V3=dict(v3, line_ends=(("COG", "2021-10-02", du.LINE_ENDS_V3[0][2]),
+                                                           *du.LINE_ENDS_V3[1:]))), (v3_line_end_failures,)),
     }
 
 
@@ -935,12 +1020,14 @@ def guarded_failures(fn=None):
 
 
 def one_copy_failures():
-    """Asset growth runs data_utils' started_sql as _started and a no-argument RowGuard as PriorYearGuard; it and
-    fcf-conversion each run data_utils' guarded_sql as _paired, bound to their own guard column."""
-    ag = load_topic("asset-growth")
-    f = [] if ag._started is du.started_sql else ["asset growth's _started is not data_utils.started_sql"]
-    for mod, topic, col in ((ag, "asset-growth", "prior_guard"), (load_topic("fcf-conversion"), "fcf-conversion",
-                                                                   "pair_guard")):
+    """Asset growth and fcf-conversion each run data_utils' started_sql as _started (fcf-conversion for its line
+    starts and line ends), and guarded_sql as _paired, bound to their own guard column; asset growth runs a
+    no-argument RowGuard as PriorYearGuard."""
+    ag, fcf = load_topic("asset-growth"), load_topic("fcf-conversion")
+    f = []
+    for mod, topic, col in ((ag, "asset-growth", "prior_guard"), (fcf, "fcf-conversion", "pair_guard")):
+        if mod._started is not du.started_sql:
+            f.append(f"{topic}'s _started is not data_utils.started_sql")
         p, g = mod._paired, getattr(du, "guarded_sql", None)
         if g is None or getattr(p, "func", None) is not g or getattr(p, "args", None) != (col,) or \
                 getattr(p, "keywords", None):
@@ -1007,6 +1094,10 @@ def main():
     expect("ur-3 on the ur-1 cases, pasted as a filter too", ordinary_failures(v3_sql))
     expect("ur-3 hand list, keep list, rules text and config", v3_shape_failures())
     expect("ur-3 line_starts: each out before its first own day, ur-2's leg unchanged", v3_line_start_failures())
+    expect("ur-3 line_ends: each out after its last own day, listed on its leg only; none in ur-2 or ur-1",
+           v3_line_end_failures())
+    for label, cls in line_end_mutants().items():
+        expect_fail(f"ur-3 line_ends, {label}", v3_line_end_failures(rules=cls))
     for label, (m, checks) in v3_mutants().items():
         for fn in checks:
             expect_fail(f"ur-3 {fn.__name__}, {label}", fn(m))
@@ -1018,7 +1109,7 @@ def main():
     expect("guarded_sql: the candidates a guard pairs or leaves unranked", guarded_failures())
     expect_fail("guarded_sql, the rule ignored", guarded_failures(lambda col, sql, rule="IS NULL":
                                                                    f"SELECT * FROM ({sql}) _g WHERE _g.{col} IS NULL"))
-    expect("one copy: asset growth's _started and PriorYearGuard, and both topics' _paired, are data_utils'",
+    expect("one copy: both topics' _started and _paired, and asset growth's PriorYearGuard, are data_utils'",
            one_copy_failures())
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_universe_rules: PASS ({len(ran)} checks)")

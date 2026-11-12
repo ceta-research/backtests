@@ -3016,11 +3016,15 @@ class UniverseRules:
     def __init__(self, cfg=None):
         self.cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
         self.lines, self.removed, self.cik, self.drops = 0, [], [], []
-        self.class_twins, self.class_held, self.starts = set(), {}, {}
+        self.class_twins, self.class_held, self.starts, self.ends = set(), {}, {}, {}
 
     def not_started(self, target_date):
         """The leg's line_starts lines a screen on target_date leaves out: before its first own day."""
         return sorted(s for s, (d, _) in self.starts.items() if target_date.isoformat() < d)
+
+    def ended(self, target_date):
+        """The leg's line_ends lines a screen on target_date leaves out: after its last own day."""
+        return sorted(s for s, (d, _) in self.ends.items() if d < target_date.isoformat())
 
     def mark_twins(self, con, universe="universe"):
         """Key the cfg's class twins (mark_class_twins) among the `universe` table's lines; nothing outside ur-2."""
@@ -3046,7 +3050,8 @@ class UniverseRules:
         kept = [r for r in rows if r["symbol"] not in why]
         self.cik = cik_shared(kept)
         kept_symbols = {r["symbol"] for r in kept}
-        self.starts = {s: (d, e) for s, d, e in self.cfg.get("line_starts", ()) if s in kept_symbols}
+        listed = lambda key: {s: (d, e) for s, d, e in self.cfg.get(key, ()) if s in kept_symbols}
+        self.starts, self.ends = listed("line_starts"), listed("line_ends")
         return kept
 
     def yield_drops(self, rows, target_date):
@@ -3070,9 +3075,11 @@ class UniverseRules:
             by_period = [{"rebalance_date": d, "symbols": s} for d, s in sorted(self.class_held.items())]
             out["class_stand_ins"] = {"rule": CLASS_TWIN_RULE, "lines_keyed": len(self.class_twins),
                                       "picked": sum(len(p["symbols"]) for p in by_period), "by_period": by_period}
-        if self.starts:   # only a leg that holds a listed line, so every other leg's block is unchanged
-            out["line_starts"] = {"rule": LINE_START_RULE, "lines": [
-                {"symbol": s, "first_day": d, "evidence": e} for s, (d, e) in sorted(self.starts.items())]}
+        for key, rule, day, lines in (("line_starts", LINE_START_RULE, "first_day", self.starts),
+                                      ("line_ends", LINE_END_RULE, "last_day", self.ends)):
+            if lines:   # only a leg that holds a listed line, so every other leg's block is unchanged
+                out[key] = {"rule": rule, "lines": [
+                    {"symbol": s, day: d, "evidence": e} for s, (d, e) in sorted(lines.items())]}
         return out
 
 
@@ -3194,8 +3201,8 @@ CLASS_TWIN_RULE = ("an SAO preferred or unit line of a company with an ordinary 
                    "first priced sibling, which stands in; by_period lists the stand-ins each screen picked, as "
                    "check N's counts do, so a period the cash rule then holds in cash still lists its picks")
 
-# Universe rules ur-3, opt-in through cfg: ur-2 with more hand-list lines (receipts listed abroad among them) and
-# more line starts. ur-2 stays as its results files ran it.
+# Universe rules ur-3, opt-in through cfg: ur-2 with more hand-list lines (receipts listed abroad among them), more
+# line starts, and line ends. ur-2 stays as its results files ran it.
 NON_ORDINARY_KNOWN_V3 = NON_ORDINARY_KNOWN_V2 + (
     ("FITBP", "preferred", "Fifth Third Bancorp's preferred depositary shares on NYSE beside FITB, sharing FITB's "
                            "issuer code (316773) in its ISIN"),
@@ -3227,6 +3234,17 @@ LINE_STARTS_V3 = LINE_STARTS_V2 + (
     ("AXIA3.SA", "2025-12-05", "AXIA Energia's ordinary line from the same rename: its FY rows copy Eletrobras's "
                                "from 2006, while its bars start in 2026"),
 )
+# (symbol, last own day, evidence): a line whose later financial rows are not its listing's
+LINE_ENDS_V3 = (
+    ("COG", "2021-10-01", "Cabot Oil & Gas: its bars end 2021-10-01, when it became Coterra (CTRA, the same ISIN "
+                          "and CIK); its FY rows dated after that are a garbled part-copy of Coterra's filings (its "
+                          "net income equals CTRA's and its free cash flow equals CTRA's operating cash flow)"),
+    ("CLR", "2022-11-22", "Continental Resources: its bars end 2022-11-22, when it went private; its later FY rows "
+                          "fill free cash flow with operating cash flow and hold the market cap at one value"),
+)
+LINE_END_RULE = ("a listed line leaves the universe after its last own day: its bars end that day, and its later "
+                 "financial rows copy another line's filings or carry filled-in values, so a screen after that day "
+                 "leaves it out and its slot goes to the next name")
 ORDINARY_RULES_V3 = {
     "rule": ORDINARY_RULES_V2["rule"],
     "order": {**ORDINARY_RULES_V2["order"], "known": "NON_ORDINARY_KNOWN_V3, the hand list below"},
@@ -3240,7 +3258,7 @@ ORDINARY_RULES_V3 = {
     "keep": ORDINARY_RULES_V2["keep"],
 }
 UNIVERSE_RULES_V3 = {**UNIVERSE_RULES_V2, "version": "ur-3", "ordinary": ORDINARY_RULES_V3,
-                     "known": NON_ORDINARY_KNOWN_V3, "line_starts": LINE_STARTS_V3}
+                     "known": NON_ORDINARY_KNOWN_V3, "line_starts": LINE_STARTS_V3, "line_ends": LINE_ENDS_V3}
 
 
 def _sao_issuer_sql(t):
@@ -3281,8 +3299,8 @@ def class_twin_symbols(con, table="isin_map"):
 # Screen helpers shared by the topics' screen_stocks.
 
 def started_sql(candidates_sql, late):
-    """candidates_sql without the lines in late (UniverseRules.not_started on the screen date); unchanged when
-    late is empty."""
+    """candidates_sql without the lines in late (UniverseRules.not_started, and ended where a topic applies line
+    ends, on the screen date); unchanged when late is empty."""
     if not late:
         return candidates_sql
     return f"SELECT * FROM ({candidates_sql}) _s WHERE _s.symbol NOT IN ({_sql_list(late)})"

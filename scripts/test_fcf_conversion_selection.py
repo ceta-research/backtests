@@ -11,10 +11,13 @@ income in (1, 3), with free cash flow over revenue, ROE and the operating margin
 over the floor; one line per security, then the top 30 by the ratio.
 
 Also covered: ur-3's Brazil class twins with data checks off and on, each ur-3 line start (before and on its
-first own day, check M's events, a freed slot), and the --exclude-sector switch (it removes a line any of
-whose profile rows names the sector, after the screen's other tests and before the top-30 cut, and records
-it per rebalance; off, the book doesn't change). Every mutant of the topic's source must trip a check, by
-changing a book or a record and not by raising.
+first own day, check M's events, a freed slot), each ur-3 line end (before, on and after its last own day,
+check M's events, the line_ends block, and July books from 2021 to 2023 where COG and CLR each hold a slot
+until their last own day and the next name takes it after), and the --exclude-sector switch (it removes a
+line any of whose profile rows names the sector, after the screen's other tests and before the top-30 cut,
+and records it per rebalance; off, the book doesn't change). Every mutant of the topic's source must trip a
+check, by changing a book or a record and not by raising, and so must each mutant of data_utils' line-end
+date test and block.
 
 The live screen (screen.py, today's TTM rows) takes the backtest's universe rules: a line ur-3 alone removes
 stays out, and --cloud sends the same SQL text, its regex backslashes intact. Its mutants must trip that check.
@@ -183,6 +186,9 @@ BRAZIL_STAND_INS = [{"rebalance_date": D.isoformat(), "symbols": ["BRBB4.SA", "B
 
 # ur-3's line starts: a listed line's rows and bars before its first own day copy another line's history.
 LINE_STARTS = [(s, date.fromisoformat(d)) for s, d, _ in UNIVERSE_RULES_V3["line_starts"]]
+# ur-3's line ends: a listed line's rows after its last own day are not its listing's.
+LINE_ENDS = [(s, date.fromisoformat(d)) for s, d, _ in UNIVERSE_RULES_V3.get("line_ends", ())]
+JULY = (date(2021, 7, 1), date(2022, 7, 1), date(2023, 7, 1))     # COG ends between the first two, CLR the last two
 
 # The sector switch. FIN2 has two profile rows and only one names the sector; FIN_LOW fails ROE and
 # FIN_UNPAIRED the pair, so neither passed the screen; FIN_OUT is outside the universe.
@@ -291,9 +297,9 @@ def brazil_failures(mod):
     return out
 
 
-def leg_rules(mod, companies):
+def leg_rules(mod, companies, rules=UniverseRules):
     """The leg's rules (the topic's own UNIVERSE_RULES) after its profile rows: every fixture line kept."""
-    ur = UniverseRules(mod.UNIVERSE_RULES)
+    ur = rules(mod.UNIVERSE_RULES)
     ur.sector_rows([{"symbol": s, "exchange": "X", "cik": None, "companyName": s, "non_ordinary": None}
                     for s in companies])
     return ur
@@ -332,6 +338,43 @@ def line_start_failures(mod):
         out.append(f"the left-out line's slot: missing {sorted(set(crowd) - {sym} - got)}, extra {sorted(got - set(crowd))}")
     if mod._started("SELECT 1", []) != "SELECT 1":
         out.append("the candidates SQL changes when no line is left out")
+    return out
+
+
+def line_end_failures(mod, rules=UniverseRules):
+    """Each ur-3 line end: a screen the day before or on its last own day ranks the line, with data checks on
+    and off, and check M reads its event; a screen the day after leaves it out and check M reads none; the
+    block lists it. In a crowd of 31 fillers screened each July from 2021 to 2023, COG and CLR each hold a slot
+    in the books before their last own day, and the next filler takes it in the books after. rules: the
+    UniverseRules class the leg runs (a data_utils mutant's)."""
+    out = [] if {s for s, _ in LINE_ENDS} == {"COG", "CLR"} else [f"ur-3's line ends {LINE_ENDS}, want COG and CLR"]
+    for sym, last in LINE_ENDS:
+        rows = {sym: co(cf=(T(100, last),))}
+        for label, dc in (("data checks off", None), ("data checks on", DataChecks("on", mod.DATA_CHECKS))):
+            ur = leg_rules(mod, rows, rules)
+            for d, want in ((last - timedelta(days=1), {sym}), (last, {sym}), (last + timedelta(days=1), set())):
+                got = {s for s, _ in screen(mod, db(rows), d, dc=dc, ur=ur)}
+                if got != want:
+                    out.append(f"{sym} on {d} ({label}): {sorted(got)}, want {sorted(want)}")
+        lines = [(r["symbol"], r["last_day"]) for r in ur.block().get("line_ends", {}).get("lines", [])]
+        if lines != [(sym, last.isoformat())]:
+            out.append(f"{sym}: line_ends block {lines}")
+        inelig = {sym: co(cf=(T(100, last),), rule="ineligible")}
+        for d, want in ((last, [sym]), (last + timedelta(days=1), [])):
+            dc = DataChecks("on", mod.DATA_CHECKS)
+            screen(mod, db(inelig), d, dc=dc, ur=leg_rules(mod, inelig, rules))
+            caps = [e["symbol"] for e in dc.events if e["check"] == "cap"]
+            if caps != want:
+                out.append(f"check M events for {sym} on {d}: {caps}, want {want}")
+    days = [T(100, d) for d in JULY]
+    crowd = {**{f"F{i:02d}": co(cf=days, conv=1.1 + 0.01 * i) for i in range(31)},
+             **{s: co(cf=days, conv=2.9) for s, _ in LINE_ENDS}}
+    con, ur = db(crowd, on=JULY), leg_rules(mod, crowd, rules)
+    for d in JULY:
+        out += diff(f"line-end crowd {d}", screen(mod, con, d, ur=ur),
+                    ranked(crowd, {s for s, last in LINE_ENDS if last < d}))
+    if [r["symbol"] for r in ur.block().get("line_ends", {}).get("lines", [])] != sorted(s for s, _ in LINE_ENDS):
+        out.append(f"line-end crowd: line_ends block {ur.block().get('line_ends')}")
     return out
 
 
@@ -377,7 +420,7 @@ def failures(src, epoch_types=("UINTEGER",)):
         mod = load(src)
         for t in epoch_types:   # the book first: it reads only what any version of the screen takes
             out += diff(f"book ({t})", screen(mod, db(COMPANIES, t), D), EXPECT)
-        return (out + guard_failures(mod) + brazil_failures(mod) + line_start_failures(mod)
+        return (out + guard_failures(mod) + brazil_failures(mod) + line_start_failures(mod) + line_end_failures(mod)
                 + sector_failures(mod))
     except Exception as e:  # reported as an error: main() does not count it as a caught mutant
         return out + [f"error: {type(e).__name__}: {e}"]
@@ -395,7 +438,8 @@ SIGNS = ("          AND cf.freeCashFlow > 0\n", "inc.netIncome > 0 AND inc.reven
 ROE_OUTER = "inc.revenue > ?))\n          AND km.returnOnEquity > ?\n"
 SEMI = "          AND cf.symbol IN (SELECT symbol FROM universe)\n"
 LAG = "cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))"
-CANDIDATES = 'candidates = _started(_candidates_sql("km.cap_used > ?"), late)'
+CANDIDATES = 'candidates = _started(_candidates_sql("km.cap_used > ?"), late + gone)'
+CAP_LINES = "_paired(_started(_candidates_sql(CAP_FAIL_TEST, events=True), late + gone))"
 PICKED = "picked = [(r[0], r[1]) for r in rows]"
 TWIN_KEY = "twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get(\"class_twins\")))"
 DEDUP = ("FROM ({isin_dedup_sql(pool, target_date, offset_days, MIN_ENTRY_PRICE,\n"
@@ -468,10 +512,14 @@ MUTANTS = {
     "no line starts": [("late = ur.not_started(target_date) if ur is not None else []", "late = []")],
     "a line left out after the top-30 cut": [
         (CANDIDATES, 'candidates = _candidates_sql("km.cap_used > ?")'),
-        (PICKED, "picked = [(r[0], r[1]) for r in rows if r[0] not in late]")],
-    "check M reads a line before its first own day": [
-        ("_paired(_started(_candidates_sql(CAP_FAIL_TEST, events=True), late))",
-         "_paired(_candidates_sql(CAP_FAIL_TEST, events=True))")],
+        (PICKED, "picked = [(r[0], r[1]) for r in rows if r[0] not in late + gone]")],
+    "check M reads a line before its first own day": [(CAP_LINES, CAP_LINES.replace("late + gone", "gone"))],
+    # ur-3's line ends
+    "no line ends": [("gone = ur.ended(target_date) if ur is not None else []", "gone = []")],
+    "an ended line left out after the top-30 cut": [
+        (CANDIDATES, 'candidates = _started(_candidates_sql("km.cap_used > ?"), late)'),
+        (PICKED, "picked = [(r[0], r[1]) for r in rows if r[0] not in gone]")],
+    "check M reads a line after its last own day": [(CAP_LINES, CAP_LINES.replace("late + gone", "late"))],
     # the sector switch
     "the switch keeps every line": [("WHERE _x.symbol NOT IN (SELECT symbol FROM sector_out)", "WHERE TRUE")],
     "the switch after the top-30 cut": [
@@ -484,6 +532,31 @@ MUTANTS = {
     "every profile row must name the sector": [
         (ANY_ROW, ANY_ROW[:-1] + ' and all(x.get("sector") in self.sectors for x in rows if x["symbol"] == r["symbol"])}')],
 }
+
+
+# data_utils' line-end test and block, each mutant run through line_end_failures
+DU_PATH = os.path.join(ROOT, "data_utils.py")
+with open(DU_PATH) as fh:
+    DU_SRC = fh.read()
+ENDED = "if d < target_date.isoformat())"
+DU_MUTANTS = {
+    "a line left out on its last own day too": [(ENDED, "if d <= target_date.isoformat())")],
+    "a line left out before its last own day, not after": [(ENDED, "if d > target_date.isoformat())")],
+    "a line kept the day after its last own day": [(ENDED, "if d < (target_date - timedelta(days=1)).isoformat())")],
+    "line_ends not written to the block": [('("line_ends", LINE_END_RULE, "last_day", self.ends)',
+                                            '("line_ends", LINE_END_RULE, "last_day", {})')],
+}
+
+
+def du_line_end_failures(src):
+    """line_end_failures with the UniverseRules of data_utils source src."""
+    try:
+        du_mod = types.ModuleType("data_utils_line_end_mutant")
+        du_mod.__file__ = DU_PATH
+        exec(compile(src, DU_PATH, "exec"), du_mod.__dict__)
+        return line_end_failures(load(SRC), du_mod.UniverseRules)
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
 
 
 # ---------------------------------------------------------------- the live screen (screen.py)
@@ -749,12 +822,14 @@ def main():
     survived, broken = mutant_results(SRC, MUTANTS, failures)
     s2, b2 = mutant_results(SCREEN_SRC, SCREEN_MUTANTS, screen_failures)
     s3, b3 = mutant_results(SRC, RESULT_MUTANTS, costs_and_results_failures)
-    survived, broken = survived + s2 + s3, broken + b2 + b3
+    s4, b4 = mutant_results(DU_SRC, DU_MUTANTS, du_line_end_failures)
+    survived, broken = survived + s2 + s3 + s4, broken + b2 + b3 + b4
     if survived or broken:
         print("test_fcf_conversion_selection: FAIL (mutants survived:", survived, "; mutants that raised:", broken, ")")
         sys.exit(1)
     print(f"test_fcf_conversion_selection: PASS ({len(COMPANIES)} companies, {len(CROWD)} in the crowd,"
-          f" {len(LINE_STARTS)} line starts, {len(MUTANTS)} mutants caught; the live screen,"
+          f" {len(LINE_STARTS)} line starts, {len(LINE_ENDS)} line ends, {len(MUTANTS)} mutants caught;"
+          f" data_utils' line-end test and block, {len(DU_MUTANTS)} mutants caught; the live screen,"
           f" {len(SCREEN_MUTANTS)} mutants caught; costs and the results file on the SET leg,"
           f" {len(RESULT_MUTANTS)} mutants caught)")
 

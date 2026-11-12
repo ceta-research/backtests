@@ -13,7 +13,8 @@ Rows: the FY cash-flow, income, key-metrics and ratios rows with a period end in
 Universe: ordinary shares only (data_utils universe rules ur-3, METHODOLOGY.md): preferreds, notes, units,
         funds, US ADRs, US trusts and LPs and the hand list's lines, depositary receipts listed abroad among
         them, are out before the screen; on SAO a company holds one line; a line whose earlier history copies
-        another line's enters on its first own day (ur-3 line_starts).
+        another line's enters on its first own day (ur-3 line_starts), and a line whose later rows are not its
+        listing's leaves after its last own day (ur-3 line_ends).
 Portfolio: Top 30 by highest FCF conversion, equal weight. Cash if < 10 qualify.
 Rebalancing: Annual (July), from 2000 to the latest close (METHODOLOGY.md, "Run Window"). Data checks dc-3 in
         place of a return cap. Costs: costs.tiered_cost, its USD tiers converted at the leg's
@@ -374,8 +375,8 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
     dc (data_utils.DataChecks): when on, NVDR twins share a security (check N); it also records the
     screen's twin and market-cap events. ur-3's class twins share a security in every mode, so an SAO
     company holds one line. ur: the leg's data_utils.UniverseRules (its removals act at the fetch, its
-    line_starts here; it records the class twins each screen picks). guard (StatementPairGuard) records the
-    unranked candidates. sectors (SectorExclusion) leaves its lines out and records them.
+    line_starts and line_ends here; it records the class twins each screen picks). guard (StatementPairGuard)
+    records the unranked candidates. sectors (SectorExclusion) leaves its lines out and records them.
     """
     # 45-day lag for point-in-time (July rebalance = filings through ~May 17)
     cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))
@@ -384,7 +385,8 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
     pair_gap = PAIR_MAX_GAP_DAYS * 86400
 
     late = ur.not_started(target_date) if ur is not None else []
-    candidates = _started(_candidates_sql("km.cap_used > ?"), late)
+    gone = ur.ended(target_date) if ur is not None else []
+    candidates = _started(_candidates_sql("km.cap_used > ?"), late + gone)
     params = [cutoff_epoch, stale_epoch,                       # cf
               cutoff_epoch, stale_epoch, pair_gap, pair_gap,   # inc_window
               cutoff_epoch, stale_epoch,                       # km
@@ -411,7 +413,7 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
         sectors.record(con, paired, params, target_date)
     if dc is not None:
         dc.twins(con, pool, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _ in picked])
-        dc.caps(con, _paired(_started(_candidates_sql(CAP_FAIL_TEST, events=True), late)), params + [mktcap_min],
+        dc.caps(con, _paired(_started(_candidates_sql(CAP_FAIL_TEST, events=True), late + gone)), params + [mktcap_min],
                 target_date, mktcap_min)
     return picked
 
