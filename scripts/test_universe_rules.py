@@ -24,13 +24,12 @@ ur-2 is frozen at FROZEN_V2 as ur-1 is at FROZEN: its config JSON, its SQL, an e
 rules block of every committed asset-growth results file. ur-3 (cfg=UNIVERSE_RULES_V3) is ur-2 plus the
 lines PROFILE_V3 holds (real profile rows: each new line reads known under ur-3 and None under ur-1 and
 ur-2, the lines beside them stay) and the new line starts, each out of a screen before its first own day.
-started_sql (the line-start filter) and RowGuard (a screen guard's record) are checked here too, with
-asset growth running data_utils' copies.
+started_sql (the line-start filter), RowGuard (a screen guard's record) and guarded_sql (a guard's paired or
+unranked candidates) are checked here too, with asset growth and fcf-conversion running data_utils' copies.
 
 Usage: python scripts/test_universe_rules.py
 """
 import glob
-import importlib.util
 import json
 import os
 import re
@@ -45,7 +44,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 import data_utils as du   # noqa: E402
-from test_data_checks import load_base   # noqa: E402
+from test_data_checks import load_base, load_topic   # noqa: E402
 
 FROZEN = "9b72870"   # the commit defensive-quality's published ur-1 results ran on
 FROZEN_V2 = "2a741b7"   # ur-2 as asset-growth's committed results ran it
@@ -920,13 +919,32 @@ def row_guard_mutants():
     return {"a date screened again counted twice": Adds, "reasons in name order": NameOrder}
 
 
+def guarded_failures(fn=None):
+    """guarded_sql keeps the candidates whose guard column passes (IS NULL) or fails (IS NOT NULL), in the text
+    asset growth's screen has always run."""
+    fn = getattr(du, "guarded_sql", None) if fn is None else fn
+    if fn is None:
+        return ["data_utils has no guarded_sql"]
+    f = []
+    for rule in ("IS NULL", "IS NOT NULL"):
+        if fn("prior_guard", "SELECT 1", rule) != f"SELECT * FROM (SELECT 1) _g WHERE _g.prior_guard {rule}":
+            f.append(f"guarded_sql {rule}: {fn('prior_guard', 'SELECT 1', rule)}")
+    if fn("pair_guard", "SELECT 1") != "SELECT * FROM (SELECT 1) _g WHERE _g.pair_guard IS NULL":
+        f.append(f"guarded_sql's default rule: {fn('pair_guard', 'SELECT 1')}")
+    return f
+
+
 def one_copy_failures():
-    """Asset growth runs data_utils' started_sql as _started and a no-argument RowGuard as PriorYearGuard."""
-    spec = importlib.util.spec_from_file_location("asset_growth_one_copy",
-                                                  os.path.join(ROOT, "asset-growth", "backtest.py"))
-    ag = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(ag)
+    """Asset growth runs data_utils' started_sql as _started and a no-argument RowGuard as PriorYearGuard; it and
+    fcf-conversion each run data_utils' guarded_sql as _paired, bound to their own guard column."""
+    ag = load_topic("asset-growth")
     f = [] if ag._started is du.started_sql else ["asset growth's _started is not data_utils.started_sql"]
+    for mod, topic, col in ((ag, "asset-growth", "prior_guard"), (load_topic("fcf-conversion"), "fcf-conversion",
+                                                                   "pair_guard")):
+        p, g = mod._paired, getattr(du, "guarded_sql", None)
+        if g is None or getattr(p, "func", None) is not g or getattr(p, "args", None) != (col,) or \
+                getattr(p, "keywords", None):
+            f.append(f"{topic}'s _paired is not data_utils.guarded_sql bound to {col}")
     own = {k for k in vars(ag.PriorYearGuard) if not (k.startswith("__") and k.endswith("__"))} - {"RULE"}
     if not issubclass(ag.PriorYearGuard, du.RowGuard) or own:
         f.append(f"PriorYearGuard is not a RowGuard, or overrides {sorted(own)}")
@@ -997,7 +1015,11 @@ def main():
     expect("RowGuard: counts by reason, a date replaced, block keys and order", row_guard_failures())
     for label, cls in row_guard_mutants().items():
         expect_fail(f"RowGuard, {label}", row_guard_failures(cls))
-    expect("one copy: asset growth's _started and PriorYearGuard are data_utils'", one_copy_failures())
+    expect("guarded_sql: the candidates a guard pairs or leaves unranked", guarded_failures())
+    expect_fail("guarded_sql, the rule ignored", guarded_failures(lambda col, sql, rule="IS NULL":
+                                                                   f"SELECT * FROM ({sql}) _g WHERE _g.{col} IS NULL"))
+    expect("one copy: asset growth's _started and PriorYearGuard, and both topics' _paired, are data_utils'",
+           one_copy_failures())
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_universe_rules: PASS ({len(ran)} checks)")
 

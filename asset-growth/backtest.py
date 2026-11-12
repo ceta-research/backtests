@@ -42,6 +42,7 @@ import os
 import sys
 import time
 from datetime import date, datetime, timedelta
+from functools import partial
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
@@ -52,7 +53,8 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
                         load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
-                        UniverseRules, non_ordinary_sql, UNIVERSE_RULES_V2, RowGuard, started_sql as _started)
+                        UniverseRules, non_ordinary_sql, UNIVERSE_RULES_V2, RowGuard, started_sql as _started,
+                        guarded_sql)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -306,9 +308,8 @@ def _candidates_sql(cap_test, events=False):
     """
 
 
-def _paired(candidates_sql, rule="IS NULL"):
-    """The candidates the prior-year guard pairs ("IS NULL") or leaves unranked ("IS NOT NULL")."""
-    return f"SELECT * FROM ({candidates_sql}) _g WHERE _g.prior_guard {rule}"
+# The candidates the prior-year guard pairs ("IS NULL") or leaves unranked ("IS NOT NULL").
+_paired = partial(guarded_sql, "prior_guard")
 
 
 def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None, guard=None):

@@ -19,6 +19,13 @@ changing a book or a record and not by raising.
 The live screen (screen.py, today's TTM rows) takes the backtest's universe rules: a line ur-3 alone removes
 stays out, and --cloud sends the same SQL text, its regex backslashes intact. Its mutants must trip that check.
 
+Costs and the results file: run_backtest, its screen and prices stubbed, books a JPX holding at 1 trillion yen
+in the 0.3% tier and an LSE holding at 8 billion pounds in the 0.1% tier (the USD tiers at the leg's FX rate).
+run_single on test_data_checks' synthetic SET leg writes data_checks right after isin_dedup, then
+universe_rules, statement_pair_guard and cost_model (the tiers at 35 baht a dollar, the rate run_backtest
+gets); a sector switch that names no line writes the same file, its sector_exclusion block apart, and one that
+removes a line still pins cost_model. Its mutants must trip these checks.
+
 Usage:
     python scripts/test_fcf_conversion_selection.py [repo root]
 """
@@ -26,8 +33,10 @@ import ast
 import contextlib
 import io
 import itertools
+import json
 import os
 import sys
+import tempfile
 import types
 import warnings
 from datetime import date, datetime, timedelta, timezone
@@ -39,9 +48,11 @@ ROOT = (os.path.abspath(sys.argv[1]) if len(sys.argv) > 1
 PATH = os.path.join(ROOT, "fcf-conversion", "backtest.py")
 with open(PATH) as fh:
     SRC = fh.read()
-sys.path.insert(0, ROOT)
+sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 from data_utils import (DataChecks, UniverseRules, UNIVERSE_RULES_V3, empty_cap_check,   # noqa: E402
                         mark_nvdr_twins)
+from costs import apply_costs, get_fx_per_usd   # noqa: E402
+import test_data_checks as tdc   # noqa: E402
 
 D = date(2020, 7, 1)
 D2 = date(2019, 7, 1)                   # a second screen, for the records' order
@@ -588,6 +599,123 @@ SCREEN_MUTANTS = {
 }
 
 
+# ---------------------------------------------------------------- costs and the results file
+
+# run_backtest on one leg, the screen and prices stubbed: ten holdings at one market cap in the leg's currency,
+# each up 10% before costs. The cost tiers are in USD (over 10B 0.1%, over 2B 0.3%), converted at the leg's rate.
+COST_ENTRY, COST_EXIT, COST_RAW = date(2020, 7, 1), date(2021, 7, 1), 0.10
+COST_CASES = [   # (leg, market cap in its currency, one-way rate): JPX at 150 yen, LSE at 0.79 pounds a dollar
+    ("JPX", 1e12, 0.003),   # 1 trillion yen is about 6.7B dollars: the 0.3% tier, where 1e12 > 10B would read 0.1%
+    ("LSE", 8e9, 0.001),    # 8B pounds is about 10.1B dollars: the 0.1% tier, where 8e9 < 10B would read 0.3%
+]
+COST_MODEL = {"function": "costs.tiered_cost", "fx_per_usd": 35.0}   # the SET leg: 35 baht a dollar
+SET_FINANCIAL = "A01.BK"   # the synthetic leg's line whose profile names FS for the switch's run
+_LEGS = {}
+
+
+def set_leg(financial=False):
+    """test_data_checks' synthetic SET leg for fcf-conversion, built once (runs only read it); financial: with
+    SET_FINANCIAL's profile row in FS."""
+    if financial not in _LEGS:
+        src = tdc.fcf_source()
+        if financial:
+            src.execute("UPDATE profile SET sector = ? WHERE symbol = ?", [FS, SET_FINANCIAL])
+        _LEGS[financial] = src
+    return _LEGS[financial]
+
+
+class FakeCon:
+    """A connection run_backtest must not read: the screen, prices and benchmark are stubbed."""
+
+    def __getattr__(self, name):
+        raise AssertionError(f"run_backtest read the connection ({name})")
+
+
+def cost_return(mod, exchange, cap):
+    """The period return run_backtest books for ten holdings at `cap`, costs on, at the leg's FX rate."""
+    names = [f"C{i:02d}" for i in range(10)]
+    mod.screen_stocks = lambda *a, **k: [(s, cap) for s in names]
+    mod.get_prices = lambda con, symbols, d, **k: {s: 10.0 * (1 + COST_RAW * (d == COST_EXIT)) for s in symbols}
+    mod.get_benchmark_return = lambda *a, **k: 0.05
+    rows = mod.run_backtest(FakeCon(), [COST_ENTRY, COST_EXIT], 0.0, use_costs=True, fx=get_fx_per_usd([exchange]))
+    return rows[0]["portfolio_return"]
+
+
+def cost_failures(src):
+    """A holding's cost tier reads its market cap against the USD tiers converted at the leg's FX rate."""
+    out = []
+    for exchange, cap, rate in COST_CASES:
+        try:
+            got, want = cost_return(load(src), exchange, cap), round(apply_costs(COST_RAW, rate), 6)
+        except Exception as e:
+            return out + [f"error: {type(e).__name__}: {e}"]
+        if got != want:
+            out.append(f"costs: {exchange} at {cap:g} books {got}, want {want} (the {rate:.1%} tier)")
+    return out
+
+
+def results_failures(src):
+    """run_single on test_data_checks' synthetic SET leg (fcf_source): data_checks sits right after isin_dedup, then
+    universe_rules, statement_pair_guard and cost_model, then the LTP keys; cost_model names the tiers and the
+    leg's FX rate, which run_single passes to run_backtest; a switch on a sector no line names writes the same
+    file as no switch, its sector_exclusion block apart, and a switch that removes a line still pins cost_model."""
+    out = []
+    try:
+        mod = load(src)
+        fx = []
+        run_bt = mod.run_backtest
+        mod.run_backtest = lambda *a, **k: fx.append(k.get("fx")) or run_bt(*a, **k)
+        runs = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, mode, sw, s in (("drop", "drop", None, set_leg()), ("ltp", "ltp", None, set_leg()),
+                                      ("none", "ltp", ["Utilities"], set_leg()), ("fin", "ltp", [FS], set_leg(True))):
+                runs[name] = tdc.run_topic("fcf-conversion", s, mode, "on", tmp, tag=f".{name}", mod=mod,
+                                           **({"exclude_sector": sw} if sw else {}))[0]
+    except Exception as e:
+        return out + [f"error: {type(e).__name__}: {e}"]
+    if fx != [35.0] * len(runs):
+        out.append(f"run_single passes fx {fx} to run_backtest, want 35.0 on every run")
+    for name, res in runs.items():
+        keys = list(res)
+        tail = keys[keys.index("isin_dedup") + 1:] if "isin_dedup" in keys else keys
+        want = (["data_checks", "universe_rules", "statement_pair_guard", "cost_model"]
+                + (["sector_exclusion"] if name in ("none", "fin") else [])
+                + (["exit_method", "ltp"] if name != "drop" else []))
+        if tail != want:
+            out.append(f"{name}: keys after isin_dedup {tail}, want {want}")
+        if res.get("cost_model") != COST_MODEL:
+            out.append(f"{name}: cost_model {res.get('cost_model')}, want {COST_MODEL}")
+    none, plain = runs["none"], runs["ltp"]
+    dates = [r["rebalance_date"] for r in none["period_data"]]
+    if none.get("sector_exclusion") != {"sectors": ["Utilities"], "field": "profile.sector",
+                                        "removed": {d: [] for d in dates}}:
+        out.append(f"a sector no line names: sector_exclusion {none.get('sector_exclusion')}")
+    # byte for byte: each file is json.dump(indent=2) of what it loads back as
+    if json.dumps({k: v for k, v in none.items() if k != "sector_exclusion"}, indent=2) != json.dumps(plain, indent=2):
+        out.append("a switch on a sector no line names changes the file beyond its sector_exclusion block")
+    fin = runs["fin"]
+    removed = {s for v in (fin.get("sector_exclusion") or {}).get("removed", {}).values() for s in v}
+    held = {s for r in fin["period_data"] for s in r["holdings"].split(",")}
+    if removed != {SET_FINANCIAL} or held & removed:
+        out.append(f"the switch on {FS}: removed {sorted(removed)}, held {sorted(held & removed)}")
+    return out
+
+
+RESULT_MUTANTS = {
+    "costs ignore the leg's FX rate": [("tiered_cost(mc, fx_per_usd=fx)", "tiered_cost(mc)")],
+    "costs at one baht, yen or pound a dollar": [("fx = get_fx_per_usd(exchanges)", "fx = 1.0")],
+    "run_single doesn't pass the FX rate": [("ur=ur, guard=guard, win=win, fx=fx,", "ur=ur, guard=guard, win=win,")],
+    "cost_model not written": [('"cost_model": {"function": "costs.tiered_cost", "fx_per_usd": fx} if use_costs else None',
+                                '"cost_model": None')],
+    "data_checks after the other blocks": [
+        ('    output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both\n', ""),
+        ("    if ltp_block:\n        output.update(", '    output["data_checks"] = dc.block()\n    if ltp_block:\n'
+                                                      "        output.update(")],
+    "the switch always on": [("sectors = SectorExclusion(exclude_sector) if exclude_sector else None",
+                              "sectors = SectorExclusion(exclude_sector or [])")],
+}
+
+
 def mutant_results(source, mutants, check):
     """(survived, raised): the mutants no check catches, and those caught only by raising."""
     survived, broken = [], []
@@ -606,8 +734,13 @@ def mutant_results(source, mutants, check):
     return survived, broken
 
 
+def costs_and_results_failures(src):
+    return cost_failures(src) + results_failures(src)
+
+
 def main():
-    base = failures(SRC, epoch_types=("UINTEGER", "BIGINT")) + screen_failures(SCREEN_SRC)
+    base = (failures(SRC, epoch_types=("UINTEGER", "BIGINT")) + screen_failures(SCREEN_SRC)
+            + costs_and_results_failures(SRC))
     if base:
         print("test_fcf_conversion_selection: FAIL")
         for f in base:
@@ -615,13 +748,15 @@ def main():
         sys.exit(1)
     survived, broken = mutant_results(SRC, MUTANTS, failures)
     s2, b2 = mutant_results(SCREEN_SRC, SCREEN_MUTANTS, screen_failures)
-    survived, broken = survived + s2, broken + b2
+    s3, b3 = mutant_results(SRC, RESULT_MUTANTS, costs_and_results_failures)
+    survived, broken = survived + s2 + s3, broken + b2 + b3
     if survived or broken:
         print("test_fcf_conversion_selection: FAIL (mutants survived:", survived, "; mutants that raised:", broken, ")")
         sys.exit(1)
     print(f"test_fcf_conversion_selection: PASS ({len(COMPANIES)} companies, {len(CROWD)} in the crowd,"
           f" {len(LINE_STARTS)} line starts, {len(MUTANTS)} mutants caught; the live screen,"
-          f" {len(SCREEN_MUTANTS)} mutants caught)")
+          f" {len(SCREEN_MUTANTS)} mutants caught; costs and the results file on the SET leg,"
+          f" {len(RESULT_MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":

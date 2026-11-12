@@ -29,7 +29,8 @@ Gates:
                dropped MAX_SINGLE_RETURN only with check M at every market-cap floor, passes its
                DataChecks cfg (cfg=dc.cfg) to LtpExits, calls dc.hand after each filter_returns, and
                their committed results hold no data_checks block but mode "on" (on dc-3, also no
-               unreviewed factor flag or stale hand entry: scripts/factor_review.py)
+               unreviewed factor flag or stale hand entry: scripts/factor_review.py), and none holds
+               BCE-PY.TO in a period exiting on or after BCE_PY_FROM
 
 Usage:  python scripts/verify_floor_guard.py
 """
@@ -95,6 +96,8 @@ SCOPE_ALLOW = {
     "defensive-quality/screen.py",
     # The live screen takes asset growth's universe rules ur-2 and its prior-year guard.
     "asset-growth/screen.py",
+    # The live screen takes fcf-conversion's universe rules ur-3.
+    "fcf-conversion/screen.py",
     # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
     # same-day duplicate rows compare against; the note records that and the prod
     # check to run before publishing.
@@ -662,7 +665,11 @@ def forward_hits(tree):
 # each at its own rerun: a topic opts in by joining DATA_CHECKS_TOPICS with its number of
 # market-cap floors. The cap may go only where check M reads every floor (cap_used): without M an
 # inflated market cap lets a name into the book whose return only the cap used to drop (SOS, ZEST).
-DATA_CHECKS_TOPICS = {"deleveraging": 1, "cyclical-timing": 2, "defensive-quality": 1, "asset-growth": 1}
+DATA_CHECKS_TOPICS = {"deleveraging": 1, "cyclical-timing": 2, "defensive-quality": 1, "asset-growth": 1,
+                      "fcf-conversion": 1}
+# BCE-PY.TO stands in for BCE's common line (ur-2's keep list), but from 2026 its series is a preferred's price: a
+# committed data-checks file may not hold it in a period that exits on or after this day.
+BCE_PY_FROM = "2026-01-01"
 DC_NAMES = ("DATA_CHECKS_V1", "DATA_CHECKS_V2", "DATA_CHECKS_V3", "FACTOR_HAND", "DataChecks", "clean_price_cache",
             "mark_nvdr_twins", "load_cap_check", "load_splits", "empty_cap_check", "cap_used_sql", "CAP_FAIL_TEST",
             "nvdr_twins_sql", "apply_cap_rule", "cap_check_sql", "stale_repeat_sql")
@@ -702,15 +709,26 @@ def dc_uses(tree):
     return out
 
 
+def held_symbols(row):
+    """Every symbol a period row says it held: the holdings string, which some topics cut to their first names,
+    and the holdings_full rows when the file carries them."""
+    return set((row.get("holdings") or "").split(",")) | {h.get("symbol") for h in row.get("holdings_full") or []}
+
+
 def dc_results_problem(res):
     """Why a results file of an opted-in topic can't be committed, or None. A file with no data_checks
-    block predates the opt-in; the uncapped attribution arm is never published."""
+    block predates the opt-in; the uncapped attribution arm is never published; BCE-PY.TO is held only in
+    periods that exit before BCE_PY_FROM (res and its rows may lack keys: the self-test probes do)."""
     if not isinstance(res, dict) or "data_checks" not in res:
         return None
     b = res["data_checks"]
     mode = b.get("mode") if isinstance(b, dict) else None
     if mode != "on":
         return f"data_checks mode {mode!r}: only mode 'on' is published"
+    bce = [r.get("rebalance_date") for r in res.get("period_data") or []
+           if "BCE-PY.TO" in held_symbols(r) and (r.get("exit_date") or "") >= BCE_PY_FROM]
+    if bce:
+        return f"BCE-PY.TO held in a period exiting on or after {BCE_PY_FROM} (rebalance {', '.join(map(str, bce))})"
     probs = factor_review.problems(res)   # dc-3: every material factor flag reviewed, none stale
     return "; ".join(probs[:3]) + (f" (+{len(probs) - 3} more)" if len(probs) > 3 else "") if probs else None
 
@@ -1778,7 +1796,8 @@ def main():
     print(f"15 DATACHECKS {len(stray15)} uses outside {sorted(DATA_CHECKS_TOPICS)}; "
           f"{len(DATA_CHECKS_TOPICS) - len({t for t, _, _ in wiring15})}/{len(DATA_CHECKS_TOPICS)} opted-in "
           f"topics fully wired ({sum(used15.values())} uses); {n_res15} committed results carry a data_checks "
-          f"block, {len(results15)} with a problem (not mode on, or a hand-list fault)")
+          f"block, {len(results15)} with a problem (not mode on, a hand-list fault, or BCE-PY.TO in a period "
+          f"exiting from {BCE_PY_FROM})")
     for b in stray15:
         print("    NOT OPTED IN:", b)
     for b in wiring15:
@@ -1830,8 +1849,17 @@ def main():
                          "isin_dedup_sql(c, d, 1, 1.0)\nLtpExits(cr, con, verbose=v)\n")):
         print("    SELF-TEST FAIL: gate 15 flags a capped topic's ordinary calls")
         fails.append(("gate 15 use false positive", "capped topic"))
+    bce = lambda entry, exit_: {"data_checks": {"mode": "on"}, "period_data": [
+        {"rebalance_date": entry, "exit_date": exit_, "holdings": "BCE.TO,BCE-PY.TO"}]}
     for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
-                     ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": {}}, True)):
+                     ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": {}}, True),
+                     (bce("2025-07-01", "2026-07-01"), True), (bce("2026-07-01", "2026-11-06"), True),
+                     (bce("2024-07-01", "2025-07-01"), False), (bce("2025-10-01", "2026-01-01"), True),
+                     ({"data_checks": {"mode": "on"}, "period_data": [
+                         {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01"}]}, False),
+                     ({"data_checks": {"mode": "on"}, "period_data": [
+                         {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01", "holdings": "BCE.TO",
+                          "holdings_full": [{"symbol": "BCE-PY.TO"}]}]}, True)):
         if bool(dc_results_problem(res)) != bad:
             print(f"    SELF-TEST FAIL: gate 15's results check reads {res} wrong")
             fails.append(("gate 15 results probe", str(res)))

@@ -3288,6 +3288,12 @@ def started_sql(candidates_sql, late):
     return f"SELECT * FROM ({candidates_sql}) _s WHERE _s.symbol NOT IN ({_sql_list(late)})"
 
 
+def guarded_sql(column, candidates_sql, rule="IS NULL"):
+    """candidates_sql's rows a screen guard pairs (rule "IS NULL") or leaves unranked ("IS NOT NULL"): column is the
+    guard's reason column, NULL when paired. A topic binds its column once (functools.partial)."""
+    return f"SELECT * FROM ({candidates_sql}) _g WHERE _g.{column} {rule}"
+
+
 class RowGuard:
     """One leg's record of a screen guard: per rebalance date, how many candidates each reason left unranked
     (screen inputs only, so equal in drop, ltp and both). rule: the guard's text for the block; reasons: its
