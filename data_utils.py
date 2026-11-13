@@ -3240,7 +3240,7 @@ LINE_STARTS_V3 = LINE_STARTS_V2 + (
                            "bars to 2025-07-01 repeat IGT's closes, and IGT's last bar is 2025-07-01, the rename's "
                            "day, so that day's screen enters on BRSL's first own bar"),
     ("DOC", "2024-03-29", "Healthpeak Properties, PEAK renamed (the same ISIN and CIK): its bars to 2024-03-28 repeat "
-                          "PEAK's, and PEAK's last bar is 2024-03-28"),
+                          "PEAK's volumes, and PEAK's last bar is 2024-03-28"),
     ("MAGN", "2024-12-04", "Magnera, Glatfelter renamed (the same CIK): its bars to 2024-12-03 repeat GLT's closes, "
                            "and GLT's last bar is 2024-12-03"),
 )
@@ -3255,7 +3255,8 @@ LINE_ENDS_V3 = (
                            "and CIK); its FY rows dated after that are a part-copy of DOC's (FY2025 revenue equal, net "
                            "income 293.6m against 71.3m)"),
     ("GLT", "2024-12-03", "Glatfelter: its bars end 2024-12-03, when it became Magnera (MAGN, the same CIK); its "
-                          "FY2025 row is a part-copy of Magnera's (revenue 3,262m against 3,204m)"),
+                          "FY2025 row, dated after that, reports Magnera's year (revenue 3,262m against MAGN's "
+                          "3,204m; Glatfelter's FY2023 was 1,386m)"),
 )
 LINE_END_RULE = ("a listed line leaves the universe after its last own day: its bars end that day, and its later "
                  "financial rows copy another line's filings or carry filled-in values, so a screen after that day "

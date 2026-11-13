@@ -1678,7 +1678,8 @@ rows fill free cash flow with operating cash flow and hold one market cap. On th
 rank in fcf-conversion's US top 30 with no price to buy, in the slot of a name that has one. A book
 before the last own day still holds the line: asset-growth's 2019 US book holds COG in a real
 year. Two old tickers of the renames above end the same way: PEAK after 2024-03-28 and GLT after
-2024-12-03, each carrying fiscal-year rows after its last bar that part-copy its successor's.
+2024-12-03, each carrying fiscal-year rows after its last bar: PEAK's part-copy DOC's, and GLT's
+FY2025 row reports Magnera's year.
 
 ### Brazil's ordinary lines without prices before 2026
 
