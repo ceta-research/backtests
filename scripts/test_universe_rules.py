@@ -24,7 +24,7 @@ ur-2 is frozen at FROZEN_V2 as ur-1 is at FROZEN: its config JSON, its SQL, an e
 rules block of every committed asset-growth results file. ur-3 (cfg=UNIVERSE_RULES_V3) is ur-2 plus the
 lines PROFILE_V3 holds (real profile rows: each new line reads known under ur-3 and None under ur-1 and
 ur-2, the lines beside them stay), the new line starts, each out of a screen before its first own day, and
-the line ends (COG, CLR), each out of a screen after its last own day; ur-2 and ur-1 have no line ends.
+the line ends (COG, CLR, PEAK, GLT), each out of a screen after its last own day; ur-2 and ur-1 have no line ends.
 without_lines_sql (the line-start and line-end filter), RowGuard (a screen guard's record) and guarded_sql (a
 guard's paired or unranked candidates) are checked here too, with asset growth and fcf-conversion running data_utils'
 copies, as they run its load_universe (the universe fetch).
@@ -712,12 +712,12 @@ def ur2_freeze_mutants():
 
 NEW_KNOWN_V3 = {**dict.fromkeys(("FITBP", "76ID.L", "SANB.L", "SDIP-PREF.ST"), "preferred"),
                 **dict.fromkeys(("AN3PH.AX", "AN3PI.AX", "AN3PJ.AX", "CBAPK.AX"), "notes"),
-                **dict.fromkeys(("6288.HK", "ARION-SDB.ST"), "depositary receipt"),
+                **dict.fromkeys(("6288.HK", "ARION-SDB.ST", "SAMPO-SDB.ST"), "depositary receipt"),
                 "NTCO3.SA": "renamed line", "9512.SR": "second line", "JP": "ADR"}
 NEW_STARTS_V3 = {"L1G.AX": "2025-10-04", "MATR.TO": "2023-06-07", "TKO": "2023-09-12", "AXIA6.SA": "2025-12-05",
-                 "AXIA3.SA": "2025-12-05"}
+                 "AXIA3.SA": "2025-12-05", "BRSL": "2025-07-01", "DOC": "2024-03-29", "MAGN": "2024-12-04"}
 OLD_LINE = {"AZZA3.SA": "ARZZ3.SA", "L1G.AX": "PTM.AX", "MATR.TO": "SCL.TO", "TKO": "WWE", "AXIA6.SA": "ELET6.SA",
-            "AXIA3.SA": "ELET3.SA"}
+            "AXIA3.SA": "ELET3.SA", "BRSL": "IGT", "DOC": "PEAK", "MAGN": "GLT"}
 ELETROBRAS = "Centrais Elétricas Brasileiras S.A. - Eletrobras"
 # symbol, exchange, companyName, isin, cik, isFund, isEtf, isAdr, then the ur-3, ur-2 and ur-1 reasons wanted.
 # The profile rows of ur-3's added lines, the lines beside them, and the line-start lines with their old lines
@@ -740,6 +740,7 @@ PROFILE_V3 = [
     ("6288.HK", "HKSE", "Fast Retailing Co., Ltd.", "US31188H2004", None, F, F, F, "known", None, None),
     ("9987.HK", "HKSE", "Yum China Holdings, Inc.", "US98850P1093", None, F, F, F, None, None, None),
     ("ARION-SDB.ST", "STO", "Arion banki hf.", "SE0010413567", None, F, F, F, "known", None, None),
+    ("SAMPO-SDB.ST", "STO", "Sampo Oyj", "SE0018768707", None, F, F, F, "known", None, None),
     ("NTCO3.SA", "SAO", "Natura &Co Holding S.A.", "BRNTCOACNOR5", None, F, F, F, "known", None, None),
     ("NATU3.SA", "SAO", "Natura & Co Holding S.A.", "BRNATUACNOR6", None, F, F, F, None, None, None),
     ("9512.SR", "SAU", "Riyadh Cement Company", "SA153GA4KK14", None, F, F, F, "known", None, None),
@@ -754,6 +755,12 @@ PROFILE_V3 = [
     ("AXIA6.SA", "SAO", "AXIA Energia S.A.", "BRAXIAACNPB1", None, F, F, F, None, None, None),
     ("AXIA3.SA", "SAO", "AXIA Energia", "BRAXIAACNOR0", None, F, F, F, None, None, None),
     ("ELET6.SA", "SAO", ELETROBRAS, "BRELETACNPB7", None, F, F, F, None, None, None),
+    ("BRSL", "NYSE", "Brightstar Lottery PLC", "GB00BVG7F061", None, F, F, F, None, None, None),
+    ("IGT", "NYSE", "International Game Technology PLC", "GB00BVG7F061", None, F, F, F, None, None, None),
+    ("DOC", "NYSE", "Healthpeak Properties, Inc.", "US42250P1030", None, F, F, F, None, None, None),
+    ("PEAK", "NYSE", "Healthpeak Properties, Inc.", "US42250P1030", None, F, F, F, None, None, None),
+    ("MAGN", "NYSE", "Magnera Corp", "US55939A1079", None, F, F, F, None, None, None),
+    ("GLT", "NYSE", "Glatfelter Corporation", "US3773201062", None, F, F, F, None, None, None),
 ]
 
 
@@ -859,12 +866,12 @@ def v3_line_start_failures(m=du):
     return f
 
 
-NEW_ENDS_V3 = {"COG": "2021-10-01", "CLR": "2022-11-22"}
+NEW_ENDS_V3 = {"COG": "2021-10-01", "CLR": "2022-11-22", "PEAK": "2024-03-28", "GLT": "2024-12-03"}
 
 
 def v3_line_end_failures(m=du, rules=None):
     """ur-3's line_ends: NEW_ENDS_V3, each on neither list and no line start, with an ISO day and evidence that
-    cites no issue number. A leg that keeps both and CTRA (Coterra, which carries COG's company on) leaves each
+    cites no issue number. A leg that keeps them all and CTRA (Coterra, which carries COG's company on) leaves each
     out of a screen the day after its last own day, not on it or before, never CTRA, and lists them; a leg
     without the lines, a leg that removed them, ur-2 and ur-1 write no line_ends key and leave nothing out."""
     rules = m.UniverseRules if rules is None else rules
@@ -880,7 +887,7 @@ def v3_line_end_failures(m=du, rules=None):
         if s in listed or not e.strip() or re.search(r"#\d", e) or date.fromisoformat(d).isoformat() != d:
             f.append(f"line_ends entry {s} {d}")
     row = lambda s, why=None: {"symbol": s, "exchange": "NYSE", "cik": None, "companyName": s, "non_ordinary": why}
-    leg = [row(s) for s in ("CLR", "COG", "CTRA")]
+    leg = [row(s) for s in ("CLR", "COG", "CTRA", "GLT", "PEAK")]
     ur = rules(v3)
     ur.sector_rows(leg)
     for s, d, _ in ends:
