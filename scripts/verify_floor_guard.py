@@ -661,7 +661,7 @@ def forward_hits(tree):
 
 
 # ---------------------------------------------------------------------------
-# Data checks dc-1 and dc-2 (gate 15). They replace filter_returns' 200% return cap one topic at a time,
+# Data checks dc-1 to dc-3 (gate 15). They replace filter_returns' 200% return cap one topic at a time,
 # each at its own rerun: a topic opts in by joining DATA_CHECKS_TOPICS with its number of
 # market-cap floors. The cap may go only where check M reads every floor (cap_used): without M an
 # inflated market cap lets a name into the book whose return only the cap used to drop (SOS, ZEST).

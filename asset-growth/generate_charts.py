@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-from chart_utils import (annual_bars, benchmark_label, growth_series, is_usd_benchmark_proxy,
+from chart_utils import (annual_bars, benchmark_label, growth_series, hatch_partial, is_usd_benchmark_proxy,
                          localize_money_title, money, money_axis_label, money_formatter,
                          partial_note, window_end, window_text, windows_text)
 
@@ -176,10 +176,7 @@ def chart_annual_bars(exchanges, filename, title, footer_universe,
         returns = annual_bars(data[ex_key])[1]
         groups.append(ax.bar([o + (idx + 1) * width for o in offsets], returns, width,
                              label=EXCHANGE_LABELS[ex_key], color=COLORS[ex_key], alpha=0.85))
-    if ex.get("partial_year"):
-        for g in groups:
-            g[-1].set_hatch("//")
-            g[-1].set_edgecolor("#2c3e50")
+    hatch_partial(groups, ex)
 
     ax.set_ylabel("Annual Return (%)", fontsize=12, fontweight="bold")
     ax.set_title(f"{title} ({window_text(ex, bars=True)})", fontsize=14, fontweight="bold", pad=15)

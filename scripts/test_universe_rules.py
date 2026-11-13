@@ -25,9 +25,9 @@ rules block of every committed asset-growth results file. ur-3 (cfg=UNIVERSE_RUL
 lines PROFILE_V3 holds (real profile rows: each new line reads known under ur-3 and None under ur-1 and
 ur-2, the lines beside them stay), the new line starts, each out of a screen before its first own day, and
 the line ends (COG, CLR), each out of a screen after its last own day; ur-2 and ur-1 have no line ends.
-started_sql (the line-start and line-end filter), RowGuard (a screen guard's record) and guarded_sql (a guard's
-paired or unranked candidates) are checked here too, with asset growth and fcf-conversion running data_utils'
-copies.
+without_lines_sql (the line-start and line-end filter), RowGuard (a screen guard's record) and guarded_sql (a
+guard's paired or unranked candidates) are checked here too, with asset growth and fcf-conversion running data_utils'
+copies, as they run its load_universe (the universe fetch).
 
 Usage: python scripts/test_universe_rules.py
 """
@@ -961,16 +961,17 @@ def v3_mutants():
 
 # ---------------------------------------------------------------- shared screen helpers
 
-def started_sql_failures(fn=None):
-    """started_sql leaves its SQL as it is with no line out, else drops the listed lines and no others (quotes too)."""
-    fn = du.started_sql if fn is None else fn
+def without_lines_failures(fn=None):
+    """without_lines_sql leaves its SQL as it is with no line out, else drops the listed lines and no others
+    (quotes too)."""
+    fn = du.without_lines_sql if fn is None else fn
     sql = "SELECT symbol FROM lines"
-    f = [] if fn(sql, []) == sql else ["started_sql changes the SQL when no line is left out"]
+    f = [] if fn(sql, []) == sql else ["without_lines_sql changes the SQL when no line is left out"]
     con = duckdb.connect()
     con.execute("CREATE TABLE lines AS SELECT * FROM (VALUES ('AZZA3.SA'), ('ARZZ3.SA'), ('O''X')) t(symbol)")
     got = sorted(r[0] for r in con.execute(fn(sql, ["AZZA3.SA", "O'X"])).fetchall())
     if got != ["ARZZ3.SA"]:
-        f.append(f"started_sql keeps {got}")
+        f.append(f"without_lines_sql keeps {got}")
     return f
 
 
@@ -1020,14 +1021,20 @@ def guarded_failures(fn=None):
 
 
 def one_copy_failures():
-    """Asset growth and fcf-conversion each run data_utils' started_sql as _started (fcf-conversion for its line
-    starts and line ends), and guarded_sql as _paired, bound to their own guard column; asset growth runs a
-    no-argument RowGuard as PriorYearGuard."""
+    """Asset growth and fcf-conversion each run data_utils' without_lines_sql (asset growth as _started, for its
+    line starts; fcf-conversion for its line starts and line ends), load_universe, and guarded_sql as _paired,
+    bound to their own guard column, and neither holds its own profile query; asset growth runs a no-argument
+    RowGuard as PriorYearGuard."""
     ag, fcf = load_topic("asset-growth"), load_topic("fcf-conversion")
     f = []
-    for mod, topic, col in ((ag, "asset-growth", "prior_guard"), (fcf, "fcf-conversion", "pair_guard")):
-        if mod._started is not du.started_sql:
-            f.append(f"{topic}'s _started is not data_utils.started_sql")
+    for mod, topic, col, without in ((ag, "asset-growth", "prior_guard", "_started"),
+                                     (fcf, "fcf-conversion", "pair_guard", "without_lines_sql")):
+        if getattr(mod, without, None) is not du.without_lines_sql:
+            f.append(f"{topic}'s {without} is not data_utils.without_lines_sql")
+        with open(mod.__file__) as fh:
+            own_query = "FROM profile p" in fh.read()
+        if getattr(mod, "load_universe", None) is not du.load_universe or own_query:
+            f.append(f"{topic} does not fetch its universe through data_utils.load_universe alone")
         p, g = mod._paired, getattr(du, "guarded_sql", None)
         if g is None or getattr(p, "func", None) is not g or getattr(p, "args", None) != (col,) or \
                 getattr(p, "keywords", None):
@@ -1101,16 +1108,16 @@ def main():
     for label, (m, checks) in v3_mutants().items():
         for fn in checks:
             expect_fail(f"ur-3 {fn.__name__}, {label}", fn(m))
-    expect("started_sql: unchanged with no line out, the listed lines dropped", started_sql_failures())
-    expect_fail("started_sql, nothing dropped", started_sql_failures(lambda sql, late: sql))
+    expect("without_lines_sql: unchanged with no line out, the listed lines dropped", without_lines_failures())
+    expect_fail("without_lines_sql, nothing dropped", without_lines_failures(lambda sql, lines: sql))
     expect("RowGuard: counts by reason, a date replaced, block keys and order", row_guard_failures())
     for label, cls in row_guard_mutants().items():
         expect_fail(f"RowGuard, {label}", row_guard_failures(cls))
     expect("guarded_sql: the candidates a guard pairs or leaves unranked", guarded_failures())
     expect_fail("guarded_sql, the rule ignored", guarded_failures(lambda col, sql, rule="IS NULL":
                                                                    f"SELECT * FROM ({sql}) _g WHERE _g.{col} IS NULL"))
-    expect("one copy: both topics' _started and _paired, and asset growth's PriorYearGuard, are data_utils'",
-           one_copy_failures())
+    expect("one copy: both topics' line filter, universe fetch and _paired, and asset growth's PriorYearGuard, are "
+           "data_utils'", one_copy_failures())
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_universe_rules: PASS ({len(ran)} checks)")
 

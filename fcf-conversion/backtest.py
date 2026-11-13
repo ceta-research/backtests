@@ -60,7 +60,7 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V3, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
                         load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
-                        UniverseRules, non_ordinary_sql, UNIVERSE_RULES_V3, RowGuard, started_sql as _started,
+                        UniverseRules, load_universe, UNIVERSE_RULES_V3, RowGuard, without_lines_sql,
                         guarded_sql)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
@@ -126,24 +126,9 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     con.execute("SET memory_limit='4GB'")
 
     # 1. Universe: ordinary shares only (the CASE names why a line is not one; those lines stay out)
-    print("  Fetching exchange membership...")
-    profile_sql = f"""
-        SELECT DISTINCT symbol, exchange, cik, companyName, sector,
-               {non_ordinary_sql("p", cfg=UNIVERSE_RULES)} AS non_ordinary
-        FROM profile p
-        {exchange_where}
-    """
-    profiles = client.query(profile_sql, verbose=verbose)
-    if not profiles:
-        print("  No symbols found for these exchanges.")
+    kept = load_universe(client, con, exchange_where, ur, UNIVERSE_RULES, extra_cols=("sector",), verbose=verbose)
+    if kept is None:
         return None
-    kept = ur.sector_rows(profiles)
-    print(f"  Universe: {ur.lines} symbols, {len(ur.removed)} not ordinary shares")
-    if not kept:
-        print("  No ordinary shares in this universe.")
-        return None
-    con.execute("CREATE TABLE universe AS SELECT DISTINCT unnest(?::VARCHAR[]) AS symbol",
-                [sorted({r["symbol"] for r in kept})])
     if sectors is not None:
         sectors.load(con, kept)
         print(f"  Excluded sectors {sectors.sectors}: {len(sectors.symbols)} lines leave the book")
@@ -386,7 +371,8 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
 
     late = ur.not_started(target_date) if ur is not None else []
     gone = ur.ended(target_date) if ur is not None else []
-    candidates = _started(_candidates_sql("km.cap_used > ?"), late + gone)
+    left_out = late + gone
+    candidates = without_lines_sql(_candidates_sql("km.cap_used > ?"), left_out)
     params = [cutoff_epoch, stale_epoch,                       # cf
               cutoff_epoch, stale_epoch, pair_gap, pair_gap,   # inc_window
               cutoff_epoch, stale_epoch,                       # km
@@ -413,8 +399,8 @@ def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None,
         sectors.record(con, paired, params, target_date)
     if dc is not None:
         dc.twins(con, pool, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _ in picked])
-        dc.caps(con, _paired(_started(_candidates_sql(CAP_FAIL_TEST, events=True), late + gone)), params + [mktcap_min],
-                target_date, mktcap_min)
+        dc.caps(con, _paired(without_lines_sql(_candidates_sql(CAP_FAIL_TEST, events=True), left_out)),
+                params + [mktcap_min], target_date, mktcap_min)
     return picked
 
 
@@ -633,7 +619,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     data_checks: "on" (data checks dc-3), or "uncapped" (no check and no cap: attribution only). The
     universe rules ur-3 and the pair guard apply in both. full_holdings: every invested period row also
-    lists each booked name (holdings_full). exclude_sector: profile sectors whose lines leave the book
+    lists each booked name (holdings_full). exclude_sector: the profile sector whose lines leave the book
     (--exclude-sector; sector_exclusion in the results), or None. win: the run's data_utils.RunWindow (main
     builds it from --end-date or --end-year)."""
     win = win.for_leg(universe_name)
@@ -769,11 +755,10 @@ def main():
     parser.add_argument("--full-holdings", action="store_true",
                         help="Also list every booked name per invested period (holdings_full: entry and exit "
                              "bars and prices, return before costs), for review")
-    parser.add_argument("--exclude-sector", action="append", default=None, metavar="SECTOR",
+    parser.add_argument("--exclude-sector", default=None, metavar="SECTOR",
                         help="Leave out the lines whose profile sector is SECTOR (any of a line's profile rows) "
                              "after the screen's other tests and before the top-30 cut, listing them per "
-                             "rebalance (sector_exclusion in the results). Repeat it for more sectors; off by "
-                             "default")
+                             "rebalance (sector_exclusion in the results). Off by default")
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()

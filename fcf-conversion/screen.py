@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold
-from data_utils import UniverseRules, non_ordinary_sql, started_sql
+from data_utils import UniverseRules, non_ordinary_sql, without_lines_sql
 from backtest import UNIVERSE_RULES
 
 SQL_TEMPLATE = """
@@ -60,7 +60,7 @@ WHERE i.netIncome > 0
 """
 
 
-def late_lines(day):
+def left_out_lines(day):
     """ur-3's lines a screen on day leaves out: before a line start's first own day or after a line end's last.
     UniverseRules reads its line lists for the kept rows it is given, so every listed line goes in as one."""
     ur = UniverseRules(UNIVERSE_RULES)
@@ -69,7 +69,7 @@ def late_lines(day):
 
 
 def screen_sql(exchanges, mktcap_min, day=None):
-    """The screen's SQL on these exchanges (all when None) on day (today in UTC when None): the lines late_lines
+    """The screen's SQL on these exchanges (all when None) on day (today in UTC when None): the lines left_out_lines
     names leave before the top-30 cut, so the next names take their slots. The CASE goes in as a format value: it
     holds braces."""
     if exchanges:
@@ -79,8 +79,8 @@ def screen_sql(exchanges, mktcap_min, day=None):
         exchange_filter = ""
     candidates = SQL_TEMPLATE.format(mktcap_min=mktcap_min, exchange_filter=exchange_filter,
                                      non_ordinary=non_ordinary_sql("p", cfg=UNIVERSE_RULES))
-    late = late_lines(day or datetime.now(timezone.utc).date())
-    return f"SELECT * FROM ({started_sql(candidates, late)}) _r ORDER BY fcf_conversion DESC, symbol LIMIT 30"
+    left_out = left_out_lines(day or datetime.now(timezone.utc).date())
+    return f"SELECT * FROM ({without_lines_sql(candidates, left_out)}) _r ORDER BY fcf_conversion DESC, symbol LIMIT 30"
 
 
 def main():

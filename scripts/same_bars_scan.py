@@ -25,7 +25,6 @@ Usage:
 """
 import argparse
 import collections
-import datetime as dt
 import itertools
 import json
 import os
@@ -33,14 +32,13 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
-from data_utils import utc_epoch   # noqa: E402
-from split_check import WINDOW_DAYS, one_per_day, plus, spans, sql_list   # noqa: E402
+from split_check import WINDOW_DAYS, epoch, leg_key, one_per_day, plus, spans, sql_list   # noqa: E402
 
 MIN_WINDOWS = 3
 
 
 def held_lines(res):
-    return sorted({s for s, _, _, _ in spans(res)})
+    return sorted({s for s, *_ in spans(res)})
 
 
 def rebalance_dates(res):
@@ -88,11 +86,10 @@ def first_bars(bars, dates, lines):
     return out
 
 
-def pairs(res, bars, min_windows=None):
-    """(listed, exempt): the pairs of res's held lines whose first window bars match in min_windows (MIN_WINDOWS)
-    or more rebalance windows, each {"pair", "windows": [bar dates]}; a listed one also gives the windows inside
-    both lines' own days, and an exempt one its reason."""
-    min_windows = MIN_WINDOWS if min_windows is None else min_windows
+def pairs(res, bars):
+    """(listed, exempt): the pairs of res's held lines whose first window bars match in MIN_WINDOWS or more
+    rebalance windows, each {"pair", "windows": [bar dates]}; a listed one also gives the windows inside both
+    lines' own days, and an exempt one its reason."""
     known, starts, ends, class_twins = rules(res)
     hits = collections.defaultdict(list)
     for got in first_bars(bars, rebalance_dates(res), held_lines(res)).values():
@@ -104,7 +101,7 @@ def pairs(res, bars, min_windows=None):
                 hits[(a, b)].append((got[a][0], got[b][0]))
     listed, exempt = [], []
     for (a, b), days in sorted(hits.items()):
-        if len(days) < min_windows:
+        if len(days) < MIN_WINDOWS:
             continue
         rec = {"pair": [a, b], "windows": [da for da, _ in days]}
         why = twin(a, b, class_twins) or ("known list" if a in known or b in known else None)
@@ -112,7 +109,7 @@ def pairs(res, bars, min_windows=None):
                if all(starts.get(x, "") <= dx <= ends.get(x, "9999-12-31") for x, dx in ((a, da), (b, db)))]
         if why:
             exempt.append({**rec, "reason": why})
-        elif len(own) < min_windows:
+        elif len(own) < MIN_WINDOWS:
             exempt.append({**rec, "reason": f"line start or end: {len(own)} of {len(days)} windows inside both "
                                             "lines' own days"})
         else:
@@ -124,7 +121,6 @@ def fetch_sql(legs):
     """The one read-only stock_eod query: every held line's bars in every rebalance window of the legs."""
     lines = sorted({s for res in legs for s in held_lines(res)})
     dates = sorted({d for res in legs for d in rebalance_dates(res)})
-    epoch = lambda d: utc_epoch(dt.date.fromisoformat(d))
     wins = ", ".join(f"({epoch(d)}, {epoch(plus(d, WINDOW_DAYS))})" for d in dates)
     return ("SELECT DISTINCT e.symbol, e.date, e.close, e.volume, e.adjClose FROM stock_eod e "
             f"JOIN (VALUES {wins}) w(a, b) ON e.dateEpoch > w.a AND e.dateEpoch <= w.b "
@@ -163,7 +159,7 @@ def main(argv=None):
     report, left = {}, 0
     for path, res in legs:
         listed, exempt = pairs(res, bars)
-        key = res["universe"] if res["universe"] not in report else f"{res['universe']} ({path})"
+        key = leg_key(report, res["universe"], path)
         report[key] = {"file": path, "held_lines": len(held_lines(res)), "windows": len(rebalance_dates(res)),
                        "pairs": listed, "exempt": exempt}
         left += len(listed)

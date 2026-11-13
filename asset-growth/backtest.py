@@ -53,7 +53,7 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
                         load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
-                        UniverseRules, non_ordinary_sql, UNIVERSE_RULES_V2, RowGuard, started_sql as _started,
+                        UniverseRules, load_universe, UNIVERSE_RULES_V2, RowGuard, without_lines_sql as _started,
                         guarded_sql)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
@@ -118,24 +118,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     con.execute("SET memory_limit='4GB'")
 
     # 1. Universe: ordinary shares only (the CASE names why a line is not one; those lines stay out)
-    print("  Fetching exchange membership...")
-    profile_sql = f"""
-        SELECT DISTINCT symbol, exchange, cik, companyName,
-               {non_ordinary_sql("p", cfg=UNIVERSE_RULES)} AS non_ordinary
-        FROM profile p
-        {exchange_where}
-    """
-    profiles = client.query(profile_sql, verbose=verbose)
-    if not profiles:
-        print("  No symbols found for these exchanges.")
+    if load_universe(client, con, exchange_where, ur, UNIVERSE_RULES, verbose=verbose) is None:
         return None
-    kept = ur.sector_rows(profiles)
-    print(f"  Universe: {ur.lines} symbols, {len(ur.removed)} not ordinary shares")
-    if not kept:
-        print("  No ordinary shares in this universe.")
-        return None
-    con.execute("CREATE TABLE universe AS SELECT DISTINCT unnest(?::VARCHAR[]) AS symbol",
-                [sorted({r["symbol"] for r in kept})])
 
     if exchanges:
         sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"

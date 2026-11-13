@@ -361,8 +361,7 @@ GC_MUTANTS = [
     ("cumulative title typed", 'f"{title} ({window_text(ex)})"', 'f"{title} (2000-2025)"'),
     ("cumulative series without the partial point", "return growth_series(data[exchange_key], field, initial)",
      'return growth_series({**data[exchange_key], "partial_year": None}, field, initial)'),
-    ("partial bars not hatched", '    if ex.get("partial_year"):\n        for g in groups:',
-     "    if False:\n        for g in groups:"),
+    ("partial bars not hatched", "    hatch_partial(groups, ex)\n", ""),
     ("annual footer without the partial note", '+ (f". {note}" if note else "")', ""),
 ]
 
@@ -376,8 +375,7 @@ FCF_GC_MUTANTS = [
      'years, port = annual_bars(entry, "portfolio")\n    spy = annual_bars(entry, "spy")[1]',
      'years, port = annual_bars({**entry, "partial_year": None}, "portfolio")\n'
      '    spy = annual_bars({**entry, "partial_year": None}, "spy")[1]'),
-    ("partial bars not hatched", '    if entry.get("partial_year"):\n        for g in groups:',
-     "    if False:\n        for g in groups:"),
+    ("partial bars not hatched", "    hatch_partial(groups, entry)\n", ""),
     ("annual footer without the partial note", "    note = partial_note(entry)\n", '    note = ""\n'),
     ("per-leg titles without the window", "def leg_window(entry, bars=False):\n",
      'def leg_window(entry, bars=False):\n    return ""\n'),

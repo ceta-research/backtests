@@ -17,9 +17,9 @@ Usage:
 import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import (annual_bars, benchmark_label, benchmark_legend, growth_series, is_usd_benchmark_proxy,
-                         localize_money_title, money, money_axis_label, money_formatter, partial_note, window_end,
-                         window_text, windows_text)
+from chart_utils import (annual_bars, benchmark_label, benchmark_legend, growth_series, hatch_partial,
+                         is_usd_benchmark_proxy, localize_money_title, money, money_axis_label, money_formatter,
+                         partial_note, window_end, window_text, windows_text)
 import json
 import os
 import sys
@@ -116,10 +116,7 @@ def annual_returns_chart(entry, exchange, out_path, bench="S&P 500"):
                      label="FCF Conversion Quality", alpha=0.85),
               ax.bar([p + width / 2 for p in x_pos], spy, width, color=BENCHMARK_COLOR,
                      label=bench, alpha=0.85)]
-    if entry.get("partial_year"):
-        for g in groups:
-            g[-1].set_hatch("//")
-            g[-1].set_edgecolor("#2c3e50")
+    hatch_partial(groups, entry)
 
     ax.set_title(f"Annual Returns ({exchange}{leg_window(entry, bars=True)})", fontsize=14, fontweight="bold")
     ax.set_xlabel("Year")

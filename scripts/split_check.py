@@ -5,14 +5,16 @@ DATA_QUALITY_ISSUES lists the fault on ASX and SAO: the price steps by the split
 equal to close, so check F's drift stays 1 and the data checks can't see it. Four reads per results file:
   1. check L: the file's own large-move lists (data_checks.large_moves, ltp.large_moves);
   2. the max-to-min adjClose ratio of every held line over its whole history (DATA_QUALITY_ISSUES' query);
-  3. inside every held window (the first bar after the rebalance date to 11 days past the exit date), every
+  3. inside every held window (the first bar after the rebalance date to 11 days past the exit date, or to the
+     exit date itself for the partial period, whose exit the backtest prices at the close on its end date), every
      one-day adjClose move of +80% or more or -44% or less up to the holding's exit bar, with the close's move
      that day, the splits_calendar rows within 3 days and whether it reverses within 5 trading days, also up to
      the exit bar (an undoing after it isn't in the booked return);
   4. every splits_calendar row inside a holding (after its entry bar, up to its exit bar), tested for absorption:
      adjClose stepping by the row's price factor means it wasn't adjusted.
 A date with two bars keeps one, the highest adjClose and then the highest close, as the backtests' price loaders
-do. A step that reverses nets out of the holding's return and changes nothing. A one-way step with a split row,
+do. A step that reverses nets out of the holding's return and changes nothing, and so does a later step up to the
+bar that completed the reversal, when it is the reversing step's opposite. A one-way step with a split row,
 or whose adjClose step equals the close's at a round ratio (and isn't a reopening after zero-volume days), is an
 artifact candidate: its step is divided out of the holding's return. A split row adjClose didn't absorb is
 rebuilt with the day's traded move restored. A split row on an artifact's day is rebuilt once, as the step, and
@@ -61,13 +63,26 @@ def days_apart(a, b):
     return abs((dt.date.fromisoformat(a) - dt.date.fromisoformat(b)).days)
 
 
+def epoch(d):
+    """An ISO date's UTC-midnight epoch, as stock_eod.dateEpoch holds it."""
+    return utc_epoch(dt.date.fromisoformat(d))
+
+
+def leg_key(legs, universe, path):
+    """A leg's key in a record's legs: its universe, with its file beside it when another leg has the name."""
+    return universe if universe not in legs else f"{universe} ({path})"
+
+
 def spans(res):
-    """[(symbol, rebalance date, exit date, names held)]: every held line-period of res's invested rows."""
+    """[(symbol, rebalance date, exit date, names held, window end)]: every held line-period of res's invested
+    rows. The window ends WINDOW_DAYS past the exit date, or on it for the partial period, whose exit the backtest
+    prices at the close on the end date."""
     out = []
     for p in res["period_data"]:
         if p.get("stocks_held") and not str(p.get("holdings") or "").startswith("CASH"):
-            out += [(s, p["rebalance_date"][:10], p["exit_date"][:10], p["stocks_held"])
-                    for s in sorted(held_symbols(p) - {""})]
+            xd = p["exit_date"][:10]
+            end = xd if p.get("partial") else plus(xd, WINDOW_DAYS)
+            out += [(s, p["rebalance_date"][:10], xd, p["stocks_held"], end) for s in sorted(held_symbols(p) - {""})]
     return out
 
 
@@ -84,10 +99,9 @@ def queries(res):
     sp = spans(res)
     if not sp:
         return None
-    lst = sql_list(sorted({s for s, _, _, _ in sp}))
-    epoch = lambda d: utc_epoch(dt.date.fromisoformat(d))
-    vals = ", ".join(f"('{s}', {epoch(r)}, {epoch(plus(x, WINDOW_DAYS))})" for s, r, x, _ in sp)
-    first, last = min(r for _, r, _, _ in sp), max(plus(x, WINDOW_DAYS) for _, _, x, _ in sp)
+    lst = sql_list(sorted({s for s, *_ in sp}))
+    vals = ", ".join(f"('{s}', {epoch(r)}, {epoch(end)})" for s, r, *_, end in sp)
+    first, last = min(r for _, r, *_ in sp), max(end for *_, end in sp)
     return (("SELECT symbol, MIN(adjClose) AS min_price, MAX(adjClose) AS max_price, "
              "MAX(adjClose) / NULLIF(MIN(adjClose), 0) AS price_ratio FROM stock_eod "
              f"WHERE symbol IN ({lst}) AND adjClose > 0 GROUP BY symbol"),
@@ -119,10 +133,11 @@ def by_symbol(bars):
     return out
 
 
-def holding(seq, reb, xd):
-    """(window bars, entry index, exit index) or None: the bars after reb to WINDOW_DAYS past xd, the first one
-    inside the entry window, and the first after xd (the window's last bar for a partial period)."""
-    seq = [b for b in seq if reb < b[0] <= plus(xd, WINDOW_DAYS)]
+def holding(seq, reb, xd, end):
+    """(window bars, entry index, exit index) or None: the bars after reb to end (spans' window end), the first one
+    inside the entry window, and the first after xd, else the window's last bar (a partial period's window ends on
+    xd, so its exit is the last bar on or before it)."""
+    seq = [b for b in seq if reb < b[0] <= end]
     ent = 0 if seq and seq[0][0] <= plus(reb, WINDOW_DAYS) else None
     ext = next((i for i, b in enumerate(seq) if b[0] > xd), len(seq) - 1)
     return (seq, ent, ext) if ent is not None and ext > ent else None
@@ -130,30 +145,33 @@ def holding(seq, reb, xd):
 
 def steps(seq, ent, ext, split_rows):
     """The one-day adjClose moves of +80% or -44% inside the holding, each with its close move, the split rows
-    within SPLIT_DAYS and whether it reverses within REVERSAL_BARS trading days, up to the exit bar."""
+    within SPLIT_DAYS and whether it reverses within REVERSAL_BARS trading days, up to the exit bar (undone_by:
+    the bar that completed the reversal)."""
     out = []
     for i in range(ent + 1, ext + 1):
         la = math.log(seq[i][2] / seq[i - 1][2])
         if -STEP < la < STEP:
             continue
         back = [math.log(seq[j][2] / seq[i][2]) for j in range(i + 1, min(i + 1 + REVERSAL_BARS, ext + 1))]
+        k = next((k for k, b in enumerate(back) if abs(b + la) < 0.25 * abs(la)), None)
         out.append({"date": seq[i][0], "prev": seq[i - 1][0], "adj_step": math.exp(la),
                     "close_step": seq[i][1] / seq[i - 1][1], "volume": [seq[i - 1][3], seq[i][3]],
                     "split_rows": [list(x) for x in split_rows if days_apart(x[0], seq[i][0]) <= SPLIT_DAYS],
-                    "reverses": any(abs(b + la) < 0.25 * abs(la) for b in back)})
+                    "reverses": k is not None, "undone_by": None if k is None else seq[i + 1 + k][0]})
     return out
 
 
 def classify(cands):
-    """Marks each step netted (it reverses, or it undoes a step that does), artifact and why."""
+    """Marks each step netted (it reverses, or it undoes a step that does, on or before the bar that completed the
+    reversal), artifact and why."""
     netted = set()
     for i, c in enumerate(cands):
         if c["reverses"]:
             netted.add(i)
             lc = math.log(c["adj_step"])
             j = next((j for j in range(i + 1, len(cands)) if (cands[j]["symbol"], cands[j]["rebalance"]) ==
-                      (c["symbol"], c["rebalance"]) and abs(math.log(cands[j]["adj_step"]) + lc) < 0.25 * abs(lc)),
-                     None)
+                      (c["symbol"], c["rebalance"]) and abs(math.log(cands[j]["adj_step"]) + lc) < 0.25 * abs(lc)
+                      and cands[j]["date"] <= c["undone_by"]), None)
             if j is not None:
                 netted.add(j)
     for i, c in enumerate(cands):
@@ -251,8 +269,8 @@ def check_leg(res, bars, splits, ratio, not_artifact=()):
     for r in splits:
         rows_of[r["symbol"]].append((str(r["date"])[:10], r.get("numerator"), r.get("denominator")))
     cands, tests, held = [], [], {}
-    for s, reb, xd, n in sp:
-        h = holding(by.get(s, []), reb, xd)
+    for s, reb, xd, n, end in sp:
+        h = holding(by.get(s, []), reb, xd, end)
         if h is None:
             continue
         seq, ent, ext = h
@@ -282,7 +300,7 @@ def check_leg(res, bars, splits, ratio, not_artifact=()):
         "ratio_over_1000": sorted([{"symbol": r["symbol"], "price_ratio": r["price_ratio"]} for r in ratios
                                    if r["price_ratio"] > 1000], key=lambda r: -r["price_ratio"]),
         "ratio_over_100": sum(1 for r in ratios if r["price_ratio"] > 100),
-        "held_lines": len({s for s, _, _, _ in sp}), "held_line_periods": len(sp), "line_periods_priced": len(held),
+        "held_lines": len({s for s, *_ in sp}), "held_line_periods": len(sp), "line_periods_priced": len(held),
         "steps": cands, "split_rows_in_windows": tests, "rebuilds": kept,
         "not_artifact": [e for e in effects if e["key"] in not_artifact]})
 
@@ -323,7 +341,7 @@ def main(argv=None):
         ratio, bars, splits = ([cr.query(sql, verbose=False, limit=1000000, timeout=600) or [] for sql in q]
                                if q else ([], [], []))
         leg = check_leg(res, bars, splits, ratio, args.not_artifact)
-        key = leg["universe"] if leg["universe"] not in report["legs"] else f"{leg['universe']} ({path})"
+        key = leg_key(report["legs"], leg["universe"], path)
         report["legs"][key] = {"file": path, **leg}
         print("\n".join(report_lines(key, leg)), flush=True)
     unmatched = set(args.not_artifact) - {e["key"] for leg in report["legs"].values() for e in leg["not_artifact"]}

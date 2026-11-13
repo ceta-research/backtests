@@ -30,7 +30,8 @@ in the 0.3% tier and an LSE holding at 8 billion pounds in the 0.1% tier (the US
 run_single on test_data_checks' synthetic SET leg writes data_checks right after isin_dedup, then
 universe_rules, statement_pair_guard and cost_model (the tiers at 35 baht a dollar, the rate run_backtest
 gets); a sector switch that names no line writes the same file, its sector_exclusion block apart, and one that
-removes a line still pins cost_model. Its mutants must trip these checks.
+removes a line still pins cost_model; the universe fetch carries the profile's sector; main() hands
+--exclude-sector to run_single as one sector name. Its mutants must trip these checks.
 
 Usage:
     python scripts/test_fcf_conversion_selection.py [repo root]
@@ -45,7 +46,7 @@ import sys
 import tempfile
 import types
 import warnings
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 import duckdb
 
@@ -56,22 +57,17 @@ with open(PATH) as fh:
     SRC = fh.read()
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 from data_utils import (DataChecks, UniverseRules, UNIVERSE_RULES_V3, empty_cap_check,   # noqa: E402
-                        mark_nvdr_twins)
+                        mark_nvdr_twins, utc_epoch as ep)
 from costs import apply_costs, get_fx_per_usd   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
+# asset growth's selection test: its screen dates and floor, and the checks both topics' screens share
+from test_asset_growth_selection import D, D2, FLOOR, brazil_failures, diff, screen   # noqa: E402
 
-D = date(2020, 7, 1)
-D2 = date(2019, 7, 1)                   # a second screen, for the records' order
-FLOOR = 1e9
 FY18, FY19 = date(2018, 12, 31), date(2019, 12, 31)
 NI = 100.0
 FS = "Financial Services"
 SAME = object()                         # the income rows report in the cash-flow rows' currency
 _conv = itertools.count(1)
-
-
-def ep(d):
-    return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp())
 
 
 def T(n, d=D):
@@ -184,8 +180,6 @@ BRAZIL = {
     "BREE3.SA": co(px=None), "BREE4.SA": co(px=None),                             # neither priced
     "BRFF3.SA": co(), "BRFF11.SA": co(),       # a priced unit sorts before its priced ordinary line
 }
-BRAZIL_BOOK = {"BRAA3.SA", "BRBB4.SA", "BRCC11.SA", "BREE3.SA", "BRFF3.SA"}
-BRAZIL_STAND_INS = [{"rebalance_date": D.isoformat(), "symbols": ["BRBB4.SA", "BRCC11.SA"]}]
 
 # ur-3's line starts: a listed line's rows and bars before its first own day copy another line's history.
 LINE_STARTS = [(s, date.fromisoformat(d)) for s, d, _ in UNIVERSE_RULES_V3["line_starts"]]
@@ -238,19 +232,6 @@ def db(companies, epoch_type="UINTEGER", on=(D,)):
     return con
 
 
-def diff(label, got, want):
-    if got == want:
-        return []
-    names, wnames = [r[0] for r in got], [r[0] for r in want]
-    if set(names) != set(wnames):
-        return [f"{label}: missing {sorted(set(wnames) - set(names))}, extra {sorted(set(names) - set(wnames))}"]
-    return [f"{label}: {got} != {want}"]
-
-
-def screen(mod, con, d, **kw):
-    return [(r[0], r[1]) for r in mod.screen_stocks(con, d, FLOOR, offset_days=1, **kw)]
-
-
 def guard_failures(mod):
     """The screen with data checks on and the guard recording: the same book, check M's events, and the
     record's keys and counts per date, sorted by date and equal whichever date is screened first; then a
@@ -280,23 +261,6 @@ def guard_failures(mod):
     out += diff("crowd book", screen(mod, con, D, guard=g), CROWD_EXPECT)
     if g.block()["by_period"] != [{"rebalance_date": D.isoformat(), "currency_mismatch": 1, "no_income_in_window": 0}]:
         out.append(f"crowd statement_pair_guard {g.block()['by_period']}")
-    return out
-
-
-def brazil_failures(mod):
-    """Each SAO company holds one line, with data checks on and off: the ordinary line when it has an entry
-    price; else its first priced sibling, which the leg's UniverseRules records as a stand-in; the ordinary
-    line again when no line is priced."""
-    out = []
-    for label, dc in (("data checks off", None), ("data checks on", DataChecks("on", mod.DATA_CHECKS))):
-        con, ur = db(BRAZIL), UniverseRules(mod.UNIVERSE_RULES)
-        ur.mark_twins(con)
-        got = {s for s, _ in screen(mod, con, D, dc=dc, ur=ur)}
-        if got != BRAZIL_BOOK:
-            out.append(f"Brazil book ({label}): {sorted(got)}, want {sorted(BRAZIL_BOOK)}")
-        stand = ur.block()["class_stand_ins"]["by_period"]
-        if stand != BRAZIL_STAND_INS:
-            out.append(f"Brazil stand-ins ({label}): {stand}, want {BRAZIL_STAND_INS}")
     return out
 
 
@@ -339,7 +303,7 @@ def line_start_failures(mod):
     got = {s for s, _ in screen(mod, db(crowd), D, ur=leg_rules(mod, crowd))}
     if got != set(crowd) - {sym}:
         out.append(f"the left-out line's slot: missing {sorted(set(crowd) - {sym} - got)}, extra {sorted(got - set(crowd))}")
-    if mod._started("SELECT 1", []) != "SELECT 1":
+    if mod.without_lines_sql("SELECT 1", []) != "SELECT 1":
         out.append("the candidates SQL changes when no line is left out")
     return out
 
@@ -423,8 +387,8 @@ def failures(src, epoch_types=("UINTEGER",)):
         mod = load(src)
         for t in epoch_types:   # the book first: it reads only what any version of the screen takes
             out += diff(f"book ({t})", screen(mod, db(COMPANIES, t), D), EXPECT)
-        return (out + guard_failures(mod) + brazil_failures(mod) + line_start_failures(mod) + line_end_failures(mod)
-                + sector_failures(mod))
+        return (out + guard_failures(mod) + brazil_failures(mod, db, BRAZIL) + line_start_failures(mod)
+                + line_end_failures(mod) + sector_failures(mod))
     except Exception as e:  # reported as an error: main() does not count it as a caught mutant
         return out + [f"error: {type(e).__name__}: {e}"]
 
@@ -441,8 +405,8 @@ SIGNS = ("          AND cf.freeCashFlow > 0\n", "inc.netIncome > 0 AND inc.reven
 ROE_OUTER = "inc.revenue > ?))\n          AND km.returnOnEquity > ?\n"
 SEMI = "          AND cf.symbol IN (SELECT symbol FROM universe)\n"
 LAG = "cutoff_epoch = utc_epoch(target_date - timedelta(days=FILING_LAG_DAYS))"
-CANDIDATES = 'candidates = _started(_candidates_sql("km.cap_used > ?"), late + gone)'
-CAP_LINES = "_paired(_started(_candidates_sql(CAP_FAIL_TEST, events=True), late + gone))"
+CANDIDATES = 'candidates = without_lines_sql(_candidates_sql("km.cap_used > ?"), left_out)'
+CAP_LINES = "_paired(without_lines_sql(_candidates_sql(CAP_FAIL_TEST, events=True), left_out))"
 PICKED = "picked = [(r[0], r[1]) for r in rows]"
 TWIN_KEY = "twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get(\"class_twins\")))"
 DEDUP = ("FROM ({isin_dedup_sql(pool, target_date, offset_days, MIN_ENTRY_PRICE,\n"
@@ -515,14 +479,14 @@ MUTANTS = {
     "no line starts": [("late = ur.not_started(target_date) if ur is not None else []", "late = []")],
     "a line left out after the top-30 cut": [
         (CANDIDATES, 'candidates = _candidates_sql("km.cap_used > ?")'),
-        (PICKED, "picked = [(r[0], r[1]) for r in rows if r[0] not in late + gone]")],
-    "check M reads a line before its first own day": [(CAP_LINES, CAP_LINES.replace("late + gone", "gone"))],
+        (PICKED, "picked = [(r[0], r[1]) for r in rows if r[0] not in left_out]")],
+    "check M reads a line before its first own day": [(CAP_LINES, CAP_LINES.replace("left_out", "gone"))],
     # ur-3's line ends
     "no line ends": [("gone = ur.ended(target_date) if ur is not None else []", "gone = []")],
     "an ended line left out after the top-30 cut": [
-        (CANDIDATES, 'candidates = _started(_candidates_sql("km.cap_used > ?"), late)'),
+        (CANDIDATES, 'candidates = without_lines_sql(_candidates_sql("km.cap_used > ?"), late)'),
         (PICKED, "picked = [(r[0], r[1]) for r in rows if r[0] not in gone]")],
-    "check M reads a line after its last own day": [(CAP_LINES, CAP_LINES.replace("late + gone", "late"))],
+    "check M reads a line after its last own day": [(CAP_LINES, CAP_LINES.replace("left_out", "late"))],
     # the sector switch
     "the switch keeps every line": [("WHERE _x.symbol NOT IN (SELECT symbol FROM sector_out)", "WHERE TRUE")],
     "the switch after the top-30 cut": [
@@ -593,17 +557,13 @@ LINE_SCREEN_LINES = {"COG": ("NYSE", "US0000000021", False, 2.6, 5e9),
                      "ASX1.AX": ("ASX", "AU0000000032", False, 1.4, 5e9)}
 
 
-class ScreenClient:
-    """Stands in for CetaResearch: query runs the SQL on the fixture, execute_code records the code."""
+class ScreenClient(tdc.FakeClient):
+    """Stands in for CetaResearch: query runs the SQL on the fixture (test_data_checks' FakeClient), execute_code
+    records the code."""
 
     def __init__(self, con):
-        self.con, self.sqls, self.codes = con, [], []
-
-    def query(self, sql, **_kw):
-        self.sqls.append(sql)
-        cur = self.con.execute(sql)
-        cols = [c[0] for c in cur.description]
-        return [dict(zip(cols, r)) for r in cur.fetchall()]
+        super().__init__(con)
+        self.codes = []
 
     def execute_code(self, code, **_kw):
         self.codes.append(code)
@@ -714,8 +674,10 @@ SCREEN_MUTANTS = {
     "the screen keeps ended lines": [("ur.not_started(day) + ur.ended(day)", "ur.not_started(day)")],
     "the screen ranks a line before its first own day": [("ur.not_started(day) + ur.ended(day)", "ur.ended(day)")],
     "the screen leaves its lines out after the top-30 cut": [
-        ('return f"SELECT * FROM ({started_sql(candidates, late)}) _r ORDER BY fcf_conversion DESC, symbol LIMIT 30"',
-         'return started_sql(f"SELECT * FROM ({candidates}) _r ORDER BY fcf_conversion DESC, symbol LIMIT 30", late)')],
+        ('return f"SELECT * FROM ({without_lines_sql(candidates, left_out)}) _r ORDER BY fcf_conversion DESC, symbol '
+         'LIMIT 30"',
+         'return without_lines_sql(f"SELECT * FROM ({candidates}) _r ORDER BY fcf_conversion DESC, symbol LIMIT 30", '
+         'left_out)')],
     "the screen with no symbol tie-break": [("ORDER BY fcf_conversion DESC, symbol LIMIT 30\"",
                                              "ORDER BY fcf_conversion DESC LIMIT 30\"")],
     "the screen ranked on the rounded column": [("ORDER BY fcf_conversion DESC, symbol LIMIT 30\"",
@@ -792,7 +754,7 @@ def results_failures(src):
         runs = {}
         with tempfile.TemporaryDirectory() as tmp:
             for name, mode, sw, s in (("drop", "drop", None, set_leg()), ("ltp", "ltp", None, set_leg()),
-                                      ("none", "ltp", ["Utilities"], set_leg()), ("fin", "ltp", [FS], set_leg(True))):
+                                      ("none", "ltp", "Utilities", set_leg()), ("fin", "ltp", FS, set_leg(True))):
                 runs[name] = tdc.run_topic("fcf-conversion", s, mode, "on", tmp, tag=f".{name}", mod=mod,
                                            **({"exclude_sector": sw} if sw else {}))[0]
     except Exception as e:
@@ -837,6 +799,9 @@ RESULT_MUTANTS = {
                                                       "        output.update(")],
     "the switch always on": [("sectors = SectorExclusion(exclude_sector) if exclude_sector else None",
                               "sectors = SectorExclusion(exclude_sector or [])")],
+    "the universe fetch without the sector column": [('extra_cols=("sector",), ', "")],
+    "--exclude-sector repeatable": [('parser.add_argument("--exclude-sector", default=None,',
+                                     'parser.add_argument("--exclude-sector", action="append", default=None,')],
 }
 
 
@@ -858,8 +823,27 @@ def mutant_results(source, mutants, check):
     return survived, broken
 
 
+def flag_failures(src):
+    """main() on one leg hands --exclude-sector to run_single as one sector name, as the arm's legs-file line
+    passes it (CetaResearch and run_single stubbed, a typed end year so no query runs)."""
+    try:
+        mod, got = load(src), []
+        mod.CetaResearch = lambda **_kw: None
+        mod.run_single = lambda *a, **k: got.append(k.get("exclude_sector"))
+        argv, sys.argv = sys.argv, ["backtest.py", "--exchange", "NYSE,NASDAQ,AMEX", "--end-year", "2025",
+                                    "--exclude-sector", FS]
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                mod.main()
+        finally:
+            sys.argv = argv
+    except (Exception, SystemExit) as e:   # argparse exits on a flag it doesn't take
+        return [f"error: {type(e).__name__}: {e}"]
+    return [] if got == [FS] else [f"main hands run_single exclude_sector {got}, want [{FS!r}]"]
+
+
 def costs_and_results_failures(src):
-    return cost_failures(src) + results_failures(src)
+    return cost_failures(src) + results_failures(src) + flag_failures(src)
 
 
 def main():

@@ -26,8 +26,9 @@ and volume, and every line carries the same bar on each rebalance date, which is
 Leg two (no universe_rules block) holds PETR3.SA and PETR4.SA's 3 windows, listed there, and LEG2A, which copies
 leg one's AAA: lines of two legs are never paired. Leg three holds only the NVDR twins. main() exits 1 on legs one
 and two and 0 on leg three, and --fetch builds the same bars file from one stock_eod query on an in-memory
-warehouse. Every mutant of same_bars_scan.py (each exemption and its scope, the one bar a day, the zero-volume
-rule, the volume match, the 3, the window's first and last day, the exit code) must trip a check.
+warehouse (test_split_check's). Every mutant of same_bars_scan.py (each exemption and its scope, the one bar a
+day, the zero-volume rule, the volume match, the 3, the window's first and last day, the exit code) must trip a
+check.
 
 Usage:
     python scripts/test_same_bars_scan.py [repo root]
@@ -39,15 +40,13 @@ import os
 import sys
 import tempfile
 import types
-from datetime import date, timedelta
-
-import duckdb
 
 ROOT = (os.path.abspath(sys.argv[1]) if len(sys.argv) > 1
         else os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PATH = os.path.join(ROOT, "scripts", "same_bars_scan.py")
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
-from data_utils import utc_epoch   # noqa: E402
+from split_check import plus   # noqa: E402
+from test_split_check import Warehouse, fake_cr_client   # noqa: E402
 
 DATES = [f"{y}-07-01" for y in range(2015, 2025)]
 LEG1 = ["AAA", "BBB", "NEAR1", "NEAR2", "XYZ.BK", "XYZ-R.BK", "PPP.BK", "QQQ-R.BK", "PETR3.SA", "PETR4.SA",
@@ -90,10 +89,6 @@ WANT = {   # leg: (pairs listed, {exempt pair: reason prefix})
     "LEG2": ([("PETR3.SA", "PETR4.SA")], {}),
     "LEG3": ([], {("XYZ-R.BK", "XYZ.BK"): "check N twin"}),
 }
-
-
-def plus(d, n):
-    return (date.fromisoformat(d) + timedelta(days=n)).isoformat()
 
 
 def own_bar(line, w):
@@ -147,49 +142,21 @@ def pair_failures(mod, bar_file):
     return out
 
 
-class Warehouse:
-    """Stands in for CetaResearch: stock_eod in DuckDB, the warehouse's column types."""
-
-    def __init__(self, bar_file):
-        self.con, self.sqls = duckdb.connect(), []
-        self.con.execute("CREATE TABLE stock_eod(symbol VARCHAR, date DATE, dateEpoch UINTEGER, close DOUBLE,"
-                         " adjClose DOUBLE, volume DOUBLE)")
-        self.con.executemany("INSERT INTO stock_eod VALUES (?, ?, ?, ?, ?, ?)",
-                             [(s, d, utc_epoch(date.fromisoformat(d)), c, a, v)
-                              for s, rows in bar_file.items() for d, c, v, a in rows])
-
-    def query(self, sql, **_kw):
-        self.sqls.append(sql)
-        cur = self.con.execute(sql)
-        cols = [c[0] for c in cur.description]
-        return [dict(zip(cols, r)) for r in cur.fetchall()]
-
-
 def run_main(mod, names, bar_path, fetch=None):
-    """main() on the named legs' files: (exit code, its JSON record)."""
-    saved = sys.modules.get("cr_client")
-    if fetch is not None:
-        fake = types.ModuleType("cr_client")
-        fake.CetaResearch = lambda *a, **k: fetch
-        sys.modules["cr_client"] = fake
-    try:
-        with tempfile.TemporaryDirectory() as tmp:
-            files = []
-            for n in names:
-                files.append(os.path.join(tmp, f"{n}.json"))
-                with open(files[-1], "w") as fh:
-                    json.dump(LEGS[n], fh)
-            out = os.path.join(tmp, "out.json")
-            args = files + ["--bars", bar_path, "--json", out] + (["--fetch"] if fetch is not None else [])
-            with contextlib.redirect_stdout(io.StringIO()):
-                code = mod.main(args)
-            with open(out) as fh:
-                return code, json.load(fh)
-    finally:
-        if saved is None:
-            sys.modules.pop("cr_client", None)
-        else:
-            sys.modules["cr_client"] = saved
+    """main() on the named legs' files, with --fetch through the fetch warehouse when one is given: (exit code, its
+    JSON record)."""
+    with fake_cr_client(fetch), tempfile.TemporaryDirectory() as tmp:
+        files = []
+        for n in names:
+            files.append(os.path.join(tmp, f"{n}.json"))
+            with open(files[-1], "w") as fh:
+                json.dump(LEGS[n], fh)
+        out = os.path.join(tmp, "out.json")
+        args = files + ["--bars", bar_path, "--json", out] + (["--fetch"] if fetch is not None else [])
+        with contextlib.redirect_stdout(io.StringIO()):
+            code = mod.main(args)
+        with open(out) as fh:
+            return code, json.load(fh)
 
 
 def main_failures(mod, bar_file):
@@ -204,7 +171,8 @@ def main_failures(mod, bar_file):
         code, _ = run_main(mod, ["LEG3"], path)
         if code != 0:
             out.append(f"main on leg three: exit {code}, want 0")
-        wh = Warehouse(bar_file)
+        wh = Warehouse([{"symbol": s, "date": d, "close": c, "adjClose": a, "volume": v}
+                        for s, rows in bar_file.items() for d, c, v, a in rows])
         fetched_path = os.path.join(tmp, "fetched.json")
         code, rec2 = run_main(mod, ["LEG1", "LEG2"], fetched_path, fetch=wh)
         if len(wh.sqls) != 1:
@@ -256,7 +224,7 @@ MUTANTS = {
     "line ends ignored": [('dx <= ends.get(x, "9999-12-31")', 'dx <= "9999-12-31"')],
     "a match on a line end's last own day not counted": [('dx <= ends.get(x, "9999-12-31")',
                                                           'dx < ends.get(x, "9999-12-31")')],
-    "one own window lists a pair": [("elif len(own) < min_windows:", "elif not own:")],
+    "one own window lists a pair": [("elif len(own) < MIN_WINDOWS:", "elif not own:")],
     "every bar row kept": [("in one_per_day(", "in list(")],
     "zero-volume windows compared": [("if b is not None and b[2]:", "if b is not None:")],
     "volume not compared": [("same[(cents, vol)].append(s)", "same[cents].append(s)")],

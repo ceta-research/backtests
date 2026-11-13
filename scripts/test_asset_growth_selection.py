@@ -7,7 +7,8 @@ reportedCurrency (NULL matches NULL), among the lines in `universe`. The old scr
 row with any row on or before T-410, so a skipped year, a stub or a currency switch still ranked. A line
 left without a prior row is unranked, and the screen's prior_year_guard record counts it
 (currency_switch, no_prior_in_window). Every mutant of the topic's source must trip a check, by changing
-the book or the record and not by raising.
+the book or the record and not by raising. test_fcf_conversion_selection.py runs diff, screen and
+brazil_failures from here on its own caches.
 
 Usage:
     python scripts/test_asset_growth_selection.py [repo root]
@@ -17,7 +18,7 @@ import itertools
 import os
 import sys
 import types
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 import duckdb
 
@@ -28,7 +29,7 @@ with open(PATH) as fh:
     SRC = fh.read()
 sys.path.insert(0, ROOT)
 from data_utils import (DataChecks, UniverseRules, UNIVERSE_RULES_V2, empty_cap_check,   # noqa: E402
-                        mark_nvdr_twins)
+                        mark_nvdr_twins, utc_epoch as ep)
 
 D = date(2020, 7, 1)
 D2 = date(2019, 7, 1)                   # a second screen, for the record's order
@@ -41,10 +42,6 @@ IN_LAG = date(2020, 6, 15)
 PRIOR_TA = 1000.0
 DECOY_TA = 2000.0                       # paired with any current row: growth under -45%, out of the band
 _curr = itertools.count(1)
-
-
-def ep(d):
-    return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp())
 
 
 def back(d, days):
@@ -268,13 +265,14 @@ def checked_failures(mod):
     return out
 
 
-def brazil_failures(mod):
-    """Each SAO company holds one line, with data checks on and off: the ordinary line when it has an entry
-    price; else its first priced sibling, which the leg's UniverseRules records as a stand-in; the ordinary
-    line again when no line is priced."""
+def brazil_failures(mod, db, companies):
+    """Each SAO company of companies (BRAZIL's lines, as db(companies) caches them) holds one line, with the
+    topic's data checks on and off and its universe rules: the ordinary line when it has an entry price; else its
+    first priced sibling, which the leg's UniverseRules records as a stand-in; the ordinary line again when no
+    line is priced."""
     out = []
-    for label, dc in (("data checks off", None), ("data checks on", DataChecks("on"))):
-        con, ur = db(BRAZIL), UniverseRules(UNIVERSE_RULES_V2)
+    for label, dc in (("data checks off", None), ("data checks on", DataChecks("on", mod.DATA_CHECKS))):
+        con, ur = db(companies), UniverseRules(mod.UNIVERSE_RULES)
         ur.mark_twins(con)
         got = {s for s, _ in screen(mod, con, D, dc=dc, ur=ur)}
         if got != BRAZIL_BOOK:
@@ -334,7 +332,7 @@ def ranking_mutant_failures():
         sys.exit(1)
     try:
         data_utils._twin_ranked_sql = lambda *a, **k: orig(*a, **k).replace(TWIN_TERM, "")
-        return brazil_failures(load(SRC))
+        return brazil_failures(load(SRC), db, BRAZIL)
     finally:
         data_utils._twin_ranked_sql = orig
 
@@ -379,7 +377,7 @@ def failures(src, epoch_types=("UINTEGER",)):
         mod = load(src)
         for t in epoch_types:   # the book first: it reads only what any version of the screen takes
             out += diff(f"book ({t})", screen(mod, db(COMPANIES, t), D), EXPECT)
-        return out + checked_failures(mod) + brazil_failures(mod) + arezzo_failures(mod) + sweep(mod)
+        return out + checked_failures(mod) + brazil_failures(mod, db, BRAZIL) + arezzo_failures(mod) + sweep(mod)
     except Exception as e:  # reported as an error: main() does not count it as a caught mutant
         return out + [f"error: {type(e).__name__}: {e}"]
 

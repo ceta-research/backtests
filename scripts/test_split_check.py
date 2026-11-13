@@ -28,15 +28,23 @@ A second leg on the same periods pins the edges and the thresholds:
   Z     a 0.5x step on a zero-volume day after another: not a reopening, an artifact;
   AF    a 2.5x one-way step with a split row two days after it: an artifact;
   LATE  a 2x step in a holding whose first bar is 12 days after the rebalance date: unpriced, nothing read;
-  ON11  a holding whose first bar is 11 days after it: priced.
-Each leg's rebuilt excess is checked against metrics.compute_metrics on returns rebuilt here by hand (each
+  ON11  a holding whose first bar is 11 days after it: priced;
+  SUB   a 2x spike undone by two moves under the step threshold, then an unadjusted 2:1 split later in the
+        holding: the spike nets out alone and the split is rebuilt (alone in a leg, it puts the leg over the bar);
+  TP    a 0.5x step and a 2:1 split row on the first bar after the partial period's exit date, which the backtest
+        prices at that day's close: neither is read;
+  XP    a 0.5x step on the partial period's exit date, undone the bar after: the undoing is past the priced exit,
+        so the step doesn't net out and is a round-ratio artifact.
+Every period has bars after its exit date, as the warehouse has once the run's end date has passed. Each leg's
+rebuilt excess is checked against metrics.compute_metrics on returns rebuilt here by hand (each
 holding's corrections compounded, two periods per year, the partial period's fraction), and so is each rebuild's
 own move. A leg with no artifact reads under the bar, and a move equal to the bar is over it (the bar set to a
 rebuild's exact move). A person's "no change" on H leaves it out of the rebuilds and
 the net and lists it in the leg's not_artifact, beside the every-candidate net; on a leg whose only artifact it is,
 the verdict turns under the bar. main() runs the three queries per file on an in-memory warehouse for both legs
-with that call and writes the same records; a key that matches no candidate is refused, and so is a symbol holding
-a quote or a semicolon, before any SQL is built. Every mutant of split_check.py (the reversal window, the
+with that call and writes the same records, its bars query reading no partial holding's bar past the exit date; a
+key that matches no candidate is refused, and so is a symbol holding a quote or a semicolon, before any SQL is
+built. The warehouse loads each table with one INSERT. Every mutant of split_check.py (the reversal window, the
 split-row window, the absorption test, the rebuild's sign, each threshold above and more) must trip a check.
 
 Usage:
@@ -86,7 +94,7 @@ HOLDINGS = {
     "F": (P3, [(40, 1.0, 1.25)], (), ((40, 4, 5),)),
     "G": (P3, [(55, 0.5, 0.5)], range(50, 55), ()),
 }
-EDGE = {   # P1's exit bar is its day 185 (the first bar after the exit date); P3 has no bar after its exit date
+EDGE = {   # P1's exit bar is its day 185 (the first bar after the exit date); P3's is its day 92, the exit date
     "X": (P1, [(185, 0.5, 0.5), (186, 2.0, 2.0)], (), ()),
     "T": (P1, [(186, 0.5, 0.5)], (), ((186, 2, 1),)),
     "M": (P1, [(60, 2.0, 2.0), (62, 0.64, 0.64)], (), ()),
@@ -102,6 +110,9 @@ EDGE = {   # P1's exit bar is its day 185 (the first bar after the exit date); P
     "AF": (P2, [(130, 0.4, 0.4)], (), ((132, 5, 2),)),
     "LATE": (P3, [(40, 2.0, 2.0)], (), (), 12),
     "ON11": (P3, [], (), (), 11),
+    "SUB": (P1, [(30, 2.0, 2.0), (31, 0.7, 0.7), (32, 1 / 1.4, 1 / 1.4), (120, 0.5, 0.5)], (), ((120, 2, 1),)),
+    "TP": (P3, [(93, 0.5, 0.5)], (), ((93, 2, 1),)),
+    "XP": (P3, [(92, 0.5, 0.5), (93, 2.0, 2.0)], (), ()),
 }
 DUPLICATES = [("DUP", P1, 1, 5.0, 5.0), ("DUP", P1, 80, 10.0, 20.0)]   # (symbol, period, day, close, adjClose)
 NETS, ROUND_WHY = "reverses inside the window, nets out", "round ratio with the close moving the same"
@@ -118,12 +129,14 @@ EDGE_STEPS = sorted([
     ("FL", day(P2, 90), False, False, NO_SIGN), ("Z", day(P2, 110), False, True, ROUND_WHY),
     ("AF", day(P2, 130), False, True, "split row"),
     ("NS", day(P1, 120), True, False, NETS), ("NS", day(P1, 122), True, False, NETS),
-    ("NG", day(P1, 140), True, False, NETS), ("NG", day(P1, 142), True, False, NETS)])
+    ("NG", day(P1, 140), True, False, NETS), ("NG", day(P1, 142), True, False, NETS),
+    ("SUB", day(P1, 30), True, False, NETS), ("SUB", day(P1, 120), False, True, "split row"),
+    ("XP", day(P3, 92), False, True, ROUND_WHY)])
 SPLIT_ROWS = sorted([   # (symbol, row day, unadjusted): every split row inside a holding
     ("C", day(P2, 50), True), ("D", day(P2, 70), False), ("E", day(P2, 87), False), ("S", day(P2, 110), True),
     ("E2", day(P3, 26), False), ("F", day(P3, 40), True)])
 EDGE_SPLIT_ROWS = sorted([("N", day(P2, 50), False), ("AF", day(P2, 132), False),
-                          ("NS", day(P1, 120), True), ("NG", day(P1, 142), True)])
+                          ("NS", day(P1, 120), True), ("NG", day(P1, 142), True), ("SUB", day(P1, 120), True)])
 # (symbol, day): (booked return, names held, correction, kind); the holding's return times the correction
 REBUILDS = {
     ("B", day(P1, 60)): (0.0, 3, 0.5, "step"), ("B", day(P1, 66)): (0.0, 3, 2.0, "step"),
@@ -133,9 +146,10 @@ REBUILDS = {
     ("F", day(P3, 40)): (0.25, 3, 0.8, "factor step, close flat"),
 }
 EDGE_REBUILDS = {
-    ("X", day(P1, 185)): (-0.5, 6, 2.0, "step"), ("M", day(P1, 60)): (2 * 0.64 - 1, 6, 0.5, "step"),
-    ("DUP", day(P1, 80)): (1.0, 6, 0.5, "step"), ("R", day(P2, 70)): (-0.475, 5, 1 / 0.525, "step"),
+    ("X", day(P1, 185)): (-0.5, 7, 2.0, "step"), ("M", day(P1, 60)): (2 * 0.64 - 1, 7, 0.5, "step"),
+    ("DUP", day(P1, 80)): (1.0, 7, 0.5, "step"), ("R", day(P2, 70)): (-0.475, 5, 1 / 0.525, "step"),
     ("Z", day(P2, 110)): (-0.5, 5, 2.0, "step"), ("AF", day(P2, 130)): (-0.6, 5, 2.5, "step"),
+    ("SUB", day(P1, 120)): (-0.5, 7, 2.0, "step"), ("XP", day(P3, 92)): (-0.5, 4, 2.0, "step"),
 }
 # universe: (holdings, extra bar rows, steps, split rows, rebuilds)
 CASES = {"TEST": (HOLDINGS, (), STEPS, SPLIT_ROWS, REBUILDS),
@@ -145,16 +159,16 @@ RATIO = [{"symbol": "A", "min_price": 1.0, "max_price": 1500.0, "price_ratio": 1
          {"symbol": "B", "min_price": 1.0, "max_price": 150.0, "price_ratio": 150.0},
          {"symbol": "C", "min_price": 2.0, "max_price": 10.0, "price_ratio": 5.0}]
 H_KEY = f"H:{P1[0]}:{day(P1, 100)}"   # a person's "no change" on H's step
+SUB_KEY = f"SUB:{P1[0]}:{day(P1, 120)}"
 V_LEG, V_KEY = {"Q": (P1, [(30, 1.3, 1.3)], (), ()), "V": (P1, [(50, 2.0, 2.0)], (), ())}, f"V:{P1[0]}:{day(P1, 50)}"
 
 
 def bars(symbol, period, events=(), quiet=(), first=1):
-    """Daily bars from the first bar's day after the rebalance date to 3 days past the exit date (to the exit date
-    in the partial period), at BASE with volume VOL; each event multiplies every bar from its day on."""
+    """Daily bars from the first bar's day after the rebalance date to 3 days past the exit date, at BASE with
+    volume VOL; each event multiplies every bar from its day on."""
     r, x = (date.fromisoformat(d) for d in period)
-    tail = 0 if period == P3 else 3
     out, c, a = [], BASE, BASE
-    for k in range(1, (x - r).days + tail + 1):
+    for k in range(1, (x - r).days + 4):
         for d, fc, fa in events:
             if d == k:
                 c, a = c * fc, a * fa
@@ -284,14 +298,19 @@ def leg_failures(mod):
 
 
 def edge_failures(mod):
-    """The second leg: the exit edge, the duplicate bars, the thresholds and the entry window."""
+    """The second leg: the exit edges, the duplicate bars, the thresholds, the entry window and the reversal's
+    partner; then SUB alone in a leg, which its split rebuild puts over the bar."""
     res, bar_rows, split_rows = case_fixture("EDGE")
     leg = mod.check_leg(res, bar_rows, split_rows, [])
     out = case_failures("EDGE", leg)
-    want = {"held_lines": 13, "held_line_periods": 13, "line_periods_priced": 12}
+    want = {"held_lines": 16, "held_line_periods": 16, "line_periods_priced": 15}
     got = {k: leg.get(k) for k in want}
     if got != want:
         out.append(f"EDGE leg fields {got}, want {want} (LATE unpriced, ON11 priced)")
+    alone = mod.check_leg(*fixture({"SUB": EDGE["SUB"]}), [])
+    keys = [e["key"] for e in alone["rebuilds"]]
+    if alone["verdict"] != "over the bar" or keys != [SUB_KEY]:
+        out.append(f"SUB alone: verdict {alone['verdict']}, rebuilds {keys}; want over the bar with {SUB_KEY}")
     return out
 
 
@@ -326,20 +345,29 @@ def bar_failures(mod):
     return [] if len(over) == 2 else [f"a move equal to the bar: over_bar {over}, want the rebuild's and the net's"]
 
 
-class Warehouse:
-    """Stands in for CetaResearch: stock_eod and splits_calendar in DuckDB, the warehouse's column types."""
+EOD_COLUMNS = (("symbol", "VARCHAR"), ("date", "DATE"), ("dateEpoch", "UINTEGER"), ("close", "DOUBLE"),
+               ("adjClose", "DOUBLE"), ("volume", "DOUBLE"))
+SPLIT_COLUMNS = (("symbol", "VARCHAR"), ("date", "DATE"), ("numerator", "DOUBLE"), ("denominator", "DOUBLE"))
 
-    def __init__(self, bar_rows, split_rows):
+
+class Warehouse:
+    """Stands in for CetaResearch: stock_eod and splits_calendar in DuckDB, the warehouse's column types, from bar
+    and split rows as dicts (test_same_bars_scan's warehouse too)."""
+
+    def __init__(self, bar_rows, split_rows=()):
         self.con, self.sqls = duckdb.connect(), []
-        self.con.execute("CREATE TABLE stock_eod(symbol VARCHAR, date DATE, dateEpoch UINTEGER, close DOUBLE,"
-                         " adjClose DOUBLE, volume DOUBLE)")
-        self.con.execute("CREATE TABLE splits_calendar(symbol VARCHAR, date DATE, numerator DOUBLE,"
-                         " denominator DOUBLE)")
-        self.con.executemany("INSERT INTO stock_eod VALUES (?, ?, ?, ?, ?, ?)",
-                             [(b["symbol"], b["date"], utc_epoch(date.fromisoformat(b["date"])), b["close"],
-                               b["adjClose"], b["volume"]) for b in bar_rows])
-        self.con.executemany("INSERT INTO splits_calendar VALUES (?, ?, ?, ?)",
-                             [(r["symbol"], r["date"], r["numerator"], r["denominator"]) for r in split_rows])
+        on = lambda r: date.fromisoformat(r["date"])
+        self.load("stock_eod", EOD_COLUMNS, [(b["symbol"], on(b), utc_epoch(on(b)), b["close"], b["adjClose"],
+                                              b["volume"]) for b in bar_rows])
+        self.load("splits_calendar", SPLIT_COLUMNS,
+                  [(r["symbol"], on(r), r["numerator"], r["denominator"]) for r in split_rows])
+
+    def load(self, table, columns, rows):
+        """The table, its rows in one INSERT (a list per column, unnested side by side)."""
+        self.con.execute(f"CREATE TABLE {table}({', '.join(f'{c} {t}' for c, t in columns)})")
+        if rows:
+            self.con.execute(f"INSERT INTO {table} SELECT {', '.join(f'unnest(?::{t}[])' for _, t in columns)}",
+                             [list(col) for col in zip(*rows)])
 
     def query(self, sql, **_kw):
         self.sqls.append(sql)
@@ -348,33 +376,39 @@ class Warehouse:
         return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
-def run_main(mod, wh, legs, flags=()):
-    """main() on the legs' files through wh: (its record, None), or (None, the code it exited with)."""
+@contextlib.contextmanager
+def fake_cr_client(wh):
+    """cr_client, inside the block, a module whose CetaResearch hands back wh."""
     fake = types.ModuleType("cr_client")
     fake.CetaResearch = lambda *a, **k: wh
     saved = sys.modules.get("cr_client")
     sys.modules["cr_client"] = fake
     try:
-        with tempfile.TemporaryDirectory() as tmp:
-            paths, out = [], os.path.join(tmp, "out.json")
-            for res in legs:
-                paths.append(os.path.join(tmp, f"{res['universe']}.json"))
-                with open(paths[-1], "w") as fh:
-                    json.dump(res, fh)
-            try:
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                    mod.main(paths + ["--json", out] + list(flags))
-            except SystemExit as e:
-                return None, e.code
-            if not os.path.exists(out):
-                return None, "no record written"
-            with open(out) as fh:
-                return json.load(fh), None
+        yield
     finally:
         if saved is None:
             sys.modules.pop("cr_client", None)
         else:
             sys.modules["cr_client"] = saved
+
+
+def run_main(mod, wh, legs, flags=()):
+    """main() on the legs' files through wh: (its record, None), or (None, the code it exited with)."""
+    with fake_cr_client(wh), tempfile.TemporaryDirectory() as tmp:
+        paths, out = [], os.path.join(tmp, "out.json")
+        for res in legs:
+            paths.append(os.path.join(tmp, f"{res['universe']}.json"))
+            with open(paths[-1], "w") as fh:
+                json.dump(res, fh)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                mod.main(paths + ["--json", out] + list(flags))
+        except SystemExit as e:
+            return None, e.code
+        if not os.path.exists(out):
+            return None, "no record written"
+        with open(out) as fh:
+            return json.load(fh), None
 
 
 def main_failures(mod):
@@ -396,6 +430,9 @@ def main_failures(mod):
             out.append(f"main's {u} record differs from check_leg on the same query rows")
         if sorted(s[0] for s in CASES[u][2]) != sorted(c["symbol"] for c in want["steps"]):
             out.append(f"the warehouse's bars give other {u} steps than the fixture's")
+        partial = {s for s, h in CASES[u][0].items() if h[0] == P3}
+        if any(b["symbol"] in partial and str(b["date"])[:10] > P3[1] for b in got_bars):
+            out.append(f"the bars query reads {u}'s partial holdings past their exit date")
     if report.get("bar") != 0.15:
         out.append(f"main's bar {report.get('bar')}, want 0.15")
     if report.get("not_artifact") != [H_KEY]:
@@ -445,6 +482,14 @@ MUTANTS = {
     "split rows tested past the exit bar": [("range(ent + 1, ext + 1) if seq[i][0] >= d0",
                                              "range(ent + 1, len(seq)) if seq[i][0] >= d0")],
     "the exit bar on the exit date": [("if b[0] > xd), len(seq) - 1)", "if b[0] >= xd), len(seq) - 1)")],
+    "a partial exit on the first bar after the end date": [('end = xd if p.get("partial") else plus(xd, WINDOW_DAYS)',
+                                                             "end = plus(xd, WINDOW_DAYS)")],
+    "the partial span fetched past its exit date": [
+        ("{epoch(r)}, {epoch(end)})", "{epoch(r)}, {epoch(plus(end, WINDOW_DAYS))})"),
+        ("max(end for *_, end in sp)", "max(plus(end, WINDOW_DAYS) for *_, end in sp)")],
+    "a reversal netted against any later opposite step": [(' and cands[j]["date"] <= c["undone_by"]', "")],
+    "the bar that undid a reversal not netted with it": [('cands[j]["date"] <= c["undone_by"]',
+                                                          'cands[j]["date"] < c["undone_by"]')],
     "an entry bar late by any number of days": [("ent = 0 if seq and seq[0][0] <= plus(reb, WINDOW_DAYS) else None",
                                                  "ent = 0 if seq else None")],
     "an entry bar on the 11th day unpriced": [("seq[0][0] <= plus(reb, WINDOW_DAYS)",
@@ -485,6 +530,8 @@ MUTANTS = {
                                                       '"net_move_every_candidate": round(net, 4)')],
     "a person's no change not recorded": [('"not_artifact": [e for e in effects if e["key"] in not_artifact]',
                                            '"not_artifact": []')],
+    "a leg keyed with its file though its name is free": [
+        ('return universe if universe not in legs else f"{universe} ({path})"', 'return f"{universe} ({path})"')],
     "main ignores --not-artifact": [("check_leg(res, bars, splits, ratio, args.not_artifact)",
                                      "check_leg(res, bars, splits, ratio)")],
     "a key matching no candidate taken": [("    if unmatched:\n", "    if False:\n")],

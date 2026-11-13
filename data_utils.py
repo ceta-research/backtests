@@ -3028,7 +3028,8 @@ class UniverseRules:
         return sorted(s for s, (d, _) in self.ends.items() if d < target_date.isoformat())
 
     def mark_twins(self, con, universe="universe"):
-        """Key the cfg's class twins (mark_class_twins) among the `universe` table's lines; nothing outside ur-2."""
+        """Key the cfg's class twins (mark_class_twins) among the `universe` table's lines; nothing when cfg has no
+        class_twins (ur-1)."""
         if self.cfg.get("class_twins"):
             mark_class_twins(con, universe=universe)
             self.class_twins = class_twin_symbols(con)
@@ -3297,14 +3298,39 @@ def class_twin_symbols(con, table="isin_map"):
 
 
 # ---------------------------------------------------------------------------
-# Screen helpers shared by the topics' screen_stocks.
+# Fetch and screen helpers shared by the topics' fetch_data_via_api and screen_stocks.
 
-def started_sql(candidates_sql, late):
-    """candidates_sql without the lines in late (UniverseRules.not_started, and ended where a topic applies line
-    ends, on the screen date); unchanged when late is empty."""
-    if not late:
+def load_universe(client, con, exchange_where, ur, cfg, extra_cols=(), verbose=False):
+    """The `universe` table: the profile lines exchange_where selects, less those non_ordinary_sql (cfg's CASE)
+    names, as ur (the leg's UniverseRules) reads them. Returns the kept profile rows, or None, the reason
+    printed, when the query finds no line or keeps none. extra_cols: more profile columns on each row."""
+    print("  Fetching exchange membership...")
+    cols = "".join(f" {c}," for c in extra_cols)
+    profiles = client.query(f"""
+        SELECT DISTINCT symbol, exchange, cik, companyName,{cols}
+               {non_ordinary_sql("p", cfg=cfg)} AS non_ordinary
+        FROM profile p
+        {exchange_where}
+    """, verbose=verbose)
+    if not profiles:
+        print("  No symbols found for these exchanges.")
+        return None
+    kept = ur.sector_rows(profiles)
+    print(f"  Universe: {ur.lines} symbols, {len(ur.removed)} not ordinary shares")
+    if not kept:
+        print("  No ordinary shares in this universe.")
+        return None
+    con.execute("CREATE TABLE universe AS SELECT DISTINCT unnest(?::VARCHAR[]) AS symbol",
+                [sorted({r["symbol"] for r in kept})])
+    return kept
+
+
+def without_lines_sql(candidates_sql, lines):
+    """candidates_sql without the lines a screen leaves out on its date (UniverseRules.not_started, and
+    UniverseRules.ended where a topic applies line ends); unchanged when there are none."""
+    if not lines:
         return candidates_sql
-    return f"SELECT * FROM ({candidates_sql}) _s WHERE _s.symbol NOT IN ({_sql_list(late)})"
+    return f"SELECT * FROM ({candidates_sql}) _s WHERE _s.symbol NOT IN ({_sql_list(lines)})"
 
 
 def guarded_sql(column, candidates_sql, rule="IS NULL"):
