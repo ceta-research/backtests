@@ -8,9 +8,9 @@ universe rules already cover:
   - check N twins: an X-R.BK NVDR line beside X.BK;
   - class twins, on a leg whose universe_rules block has class_stand_ins: two SAO lines of one issuer (the
     ticker's first four characters, ur-2's key for a line with no ISIN; an issuer only the ISIN names isn't seen);
-  - a line the leg's rules removed as a known line (universe_rules.ordinary_shares.removed, reason known);
   - window by window, a match before a line's first own day (universe_rules.line_starts) or after its last own
     day (universe_rules.line_ends).
+A line the rules remove at the fetch, a known line among them, is never held, so it needs no exemption.
 A zero-volume bar isn't compared: an untraded day's close carries no volume to match. A date with two bars keeps
 one, the highest adjClose and then the highest close (split_check.one_per_day, the backtests' price loaders'
 rule). Every held line is read in every window of its leg, held then or not, since a copy is rarely held beside
@@ -59,12 +59,11 @@ def twin(a, b, class_twins):
 
 
 def rules(res):
-    """(known lines, first own days, last own days, whether the leg keys class twins) from its universe_rules."""
+    """(first own days, last own days, whether the leg keys class twins) from its universe_rules."""
     ur = res.get("universe_rules") or {}
-    known = {r["symbol"] for r in (ur.get("ordinary_shares") or {}).get("removed", []) if r.get("reason") == "known"}
     starts = {x["symbol"]: x["first_day"] for x in (ur.get("line_starts") or {}).get("lines", [])}
     ends = {x["symbol"]: x["last_day"] for x in (ur.get("line_ends") or {}).get("lines", [])}
-    return known, starts, ends, "class_stand_ins" in ur
+    return starts, ends, "class_stand_ins" in ur
 
 
 def first_bars(bars, dates, lines):
@@ -90,7 +89,7 @@ def pairs(res, bars):
     """(listed, exempt): the pairs of res's held lines whose first window bars match in MIN_WINDOWS or more
     rebalance windows, each {"pair", "windows": [bar dates]}; a listed one also gives the windows inside both
     lines' own days, and an exempt one its reason."""
-    known, starts, ends, class_twins = rules(res)
+    starts, ends, class_twins = rules(res)
     hits = collections.defaultdict(list)
     for got in first_bars(bars, rebalance_dates(res), held_lines(res)).values():
         same = collections.defaultdict(list)
@@ -104,7 +103,7 @@ def pairs(res, bars):
         if len(days) < MIN_WINDOWS:
             continue
         rec = {"pair": [a, b], "windows": [da for da, _ in days]}
-        why = twin(a, b, class_twins) or ("known list" if a in known or b in known else None)
+        why = twin(a, b, class_twins)
         own = [da for da, db in days
                if all(starts.get(x, "") <= dx <= ends.get(x, "9999-12-31") for x, dx in ((a, da), (b, db)))]
         if why:

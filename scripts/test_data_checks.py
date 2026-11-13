@@ -12,8 +12,9 @@ both; and source mutants of data_utils, factor_review and two topics each fail.
 
 Each opted-in topic runs end to end on its synthetic leg with its own data checks version (DC_VERSIONS:
 fcf-conversion on dc-3, the other four on dc-1), and asset-growth and fcf-conversion with their universe rules
-(ur-2, ur-3), each against a must-fail mutant on an older version. Gate 15's results check refuses a file
-holding BCE-PY.TO in a period that exits on or after 2026-01-01.
+(ur-2, ur-3), each against a must-fail mutant on an older version, and fcf-conversion's class twins against one
+that never keys them. Gate 15's results check refuses a file holding BCE-PY.TO in a period that exits on or
+after 2026-01-01.
 
 dc-2's check S (stale repeats): in T's windows a run of 4 identical traded rows loses rows 2-4 while
 runs of 3, a new volume or a new close each day, a run split across two windows and the benchmark
@@ -2217,6 +2218,18 @@ def load_topic(topic):
     return mod
 
 
+def topic_from_text(text, tmp, name):
+    """A topic module run from text (a mutant of its backtest.py), written to tmp as name.py."""
+    path = os.path.join(tmp, f"{name}.py")
+    with open(path, "w") as fh:
+        fh.write(text)
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, ROOT)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 class FakeClient:
     """Stands in for CetaResearch: runs the topic's own SQL on the fixture, parquet like the API."""
 
@@ -2399,18 +2412,19 @@ def defensive_source():
     return src
 
 
-def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=None, tag="", mod=None, **kw):
+def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=None, tag="", mod=None,
+              use_costs=True, **kw):
     """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both). win: the
     run window (default the fixture's 2000-2025 grid, --end-year 2025); tag names the output file apart;
-    mod: the topic module to run (default a fresh load of the topic's script); kw: run_single's own options
-    (fcf-conversion's exclude_sector)."""
+    mod: the topic module to run (default a fresh load of the topic's script); use_costs False: a --no-costs
+    run; kw: run_single's own options (fcf-conversion's exclude_sector)."""
     mod = mod or load_topic(topic)
     out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}{'.full' if full_holdings else ''}{tag}.json")
     client = FakeClient(src)
     freq = "quarterly" if topic == "deleveraging" else "annual"
     kw = {**kw, "full_holdings": True} if full_holdings else kw
     with contextlib.redirect_stdout(io.StringIO()):
-        mod.run_single(client, ["SET"], "SET", freq, True, 0.02, False, out, offset_days=1,
+        mod.run_single(client, ["SET"], "SET", freq, use_costs, 0.02, False, out, offset_days=1,
                        exit_method=run_mode, data_checks=data_checks,
                        win=win if win is not None else du.RunWindow.typed(2025), **kw)
     with open(out) as fh:
@@ -2589,7 +2603,6 @@ def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
         {"currency_switch": 1, "no_prior_in_window": 12})
     if drop is None:
         return f
-    ub = drop["universe_rules"]
     held_at, invested = held_dates(drop["period_data"])
     kept = held_at("JUP.L") & held_at(AG_SER)
     if held_at("GUD.AX") or held_at(AG_GAPPY) or not invested <= kept:
@@ -2597,14 +2610,21 @@ def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
                  f"{AG_SER} missing at {sorted(invested - kept)}")
     if held_at(AG_SWITCH) != invested - {"2011-07-01"}:
         f.append(f"{AG_SWITCH} held at {sorted(held_at(AG_SWITCH))}: out at 2011-07-01 only")
-    cs = ub.get("class_stand_ins") or {}
-    want_cs = (du.CLASS_TWIN_RULE, 1, len(invested),
-               [{"rebalance_date": d, "symbols": [AG_BR_PREF]} for d in sorted(invested)])
-    if (cs.get("rule"), cs.get("lines_keyed"), cs.get("picked"), cs.get("by_period")) != want_cs or \
+    return f + stand_in_failures(drop)
+
+
+def stand_in_failures(res):
+    """AG_BR_PREF holds its SAO company's slot as a class twin in res (a run with data checks on): held in every
+    invested book and listed there by class_stand_ins (one line keyed), AG_BR_ORD never held."""
+    held_at, invested = held_dates(res["period_data"])
+    cs = res["universe_rules"].get("class_stand_ins") or {}
+    want = (du.CLASS_TWIN_RULE, 1, len(invested),
+            [{"rebalance_date": d, "symbols": [AG_BR_PREF]} for d in sorted(invested)])
+    if (cs.get("rule"), cs.get("lines_keyed"), cs.get("picked"), cs.get("by_period")) != want or \
             held_at(AG_BR_PREF) != invested or held_at(AG_BR_ORD):
-        f.append(f"class_stand_ins {cs.get('lines_keyed')} keyed, {cs.get('picked')} picked; {AG_BR_PREF} held at "
-                 f"{len(held_at(AG_BR_PREF))} of {len(invested)}, {AG_BR_ORD} at {len(held_at(AG_BR_ORD))}")
-    return f
+        return [f"class_stand_ins {cs.get('lines_keyed')} keyed, {cs.get('picked')} picked; {AG_BR_PREF} held at "
+                f"{len(held_at(AG_BR_PREF))} of {len(invested)}, {AG_BR_ORD} at {len(held_at(AG_BR_ORD))}"]
+    return []
 
 
 def vary(src):
@@ -2619,36 +2639,43 @@ def vary(src):
 # filler whose FY2010 income row reports in USD, so its FY2010 cash-flow row has no income row to pair with
 FCF_RECEIPT = ("6288.HK", "Fast Retailing Co Ltd", "US0000628800")
 FCF_SWITCH = "A10.BK"
+# the lines fcf_source adds: symbol -> (name, ISIN, FY market cap, free cash flow over net income)
+FCF_ADDED = {FCF_RECEIPT[0]: (*FCF_RECEIPT[1:], 5.03e10, 2.5),
+             AG_BR_ORD: (AG_RULES[AG_BR_ORD][0], AG_RULES[AG_BR_ORD][2], 5.04e10, 1.3),
+             AG_BR_PREF: (AG_RULES[AG_BR_PREF][0], AG_RULES[AG_BR_PREF][2], 5.05e10, 1.2)}
 
 
 def fcf_source():
     """synthetic_source() as an fcf-conversion leg, its bars through vary(): ur-3's profile columns, OPM 20%,
     reportedCurrency THB on the income rows and on fcf's own cash-flow rows, whose free cash flow is net income
     times a ratio distinct per line (2.0 down by 0.02 a line), so every line, the special names included, passes
-    the screen with an income row that pairs and ranks apart. Plus FCF_RECEIPT at a ratio of 2.5, so it would
-    rank first: under ur-3 it must leave every book. FCF_SWITCH's FY2010 income row is in USD, so the pair guard
-    counts it at 2011-07-01 (currency_mismatch) and it isn't ranked then."""
+    the screen with an income row that pairs and ranks apart. Plus FCF_ADDED's lines: FCF_RECEIPT at a ratio of
+    2.5, so it would rank first: under ur-3 it must leave every book; and asset growth's SAO company at the foot
+    of the book, its ordinary line AG_BR_ORD with no bars, so AG_BR_PREF holds the company's slot as a class
+    twin. FCF_SWITCH's FY2010 income row is in USD, so the pair guard counts it at 2011-07-01 (currency_mismatch)
+    and it isn't ranked then."""
     src = synthetic_source()
     rule_columns(src)
     src.execute("ALTER TABLE profile ADD COLUMN isAdr BOOLEAN")
     src.execute("UPDATE profile SET isAdr = FALSE")
     src.execute("ALTER TABLE financial_ratios ADD COLUMN operatingProfitMargin DOUBLE")
     src.execute("UPDATE financial_ratios SET operatingProfitMargin = 0.2")
-    s, name, isin = FCF_RECEIPT
-    src.execute("INSERT INTO profile VALUES (?, 'SET', 'TH', ?, 'Consumer Cyclical', 5e10, TRUE, 'THB', ?, NULL,"
-                " FALSE, FALSE, FALSE)", [s, isin, name])
-    for y in range(1998, 2025):
-        fy = date(y, 12, 31)
-        src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, ?, 1.0, 0.2)", [s, fy.isoformat(), ep(fy)])
-        src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, 5.03e10)", [s, fy.isoformat(), ep(fy)])
-        src.execute("INSERT INTO income_statement VALUES (?, 'FY', ?, ?, ?, 2e9, 2.0, 1e9, ?)",
-                    [s, fy.isoformat(), ep(fy), 1000.0 * 1.05 ** (y - 1998), (fy + timedelta(days=60)).isoformat()])
-    window_bars(src, s)
+    for s, (name, isin, cap, _) in FCF_ADDED.items():
+        src.execute("INSERT INTO profile VALUES (?, 'SET', 'TH', ?, 'Consumer Cyclical', 5e10, TRUE, 'THB', ?, NULL,"
+                    " FALSE, FALSE, FALSE)", [s, isin, name])
+        for y in range(1998, 2025):
+            fy = date(y, 12, 31)
+            src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, ?, 1.0, 0.2)", [s, fy.isoformat(), ep(fy)])
+            src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, ?)", [s, fy.isoformat(), ep(fy), cap])
+            src.execute("INSERT INTO income_statement VALUES (?, 'FY', ?, ?, ?, 2e9, 2.0, 1e9, ?)",
+                        [s, fy.isoformat(), ep(fy), 1000.0 * 1.05 ** (y - 1998), (fy + timedelta(days=60)).isoformat()])
+        if s != AG_BR_ORD:
+            window_bars(src, s)
     src.execute("ALTER TABLE income_statement ADD COLUMN reportedCurrency VARCHAR")
     src.execute("UPDATE income_statement SET reportedCurrency = 'THB'")
     src.execute("CREATE TABLE cash_flow_statement(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch UINTEGER,"
                 " freeCashFlow DOUBLE, reportedCurrency VARCHAR)")
-    conv = {**{s: 2.0 - 0.02 * i for i, s in enumerate(FILLERS + SPECIAL)}, FCF_RECEIPT[0]: 2.5}
+    conv = {**{s: 2.0 - 0.02 * i for i, s in enumerate(FILLERS + SPECIAL)}, **{s: v[3] for s, v in FCF_ADDED.items()}}
     src.executemany("INSERT INTO cash_flow_statement VALUES (?, 'FY', ?, ?, ?, 'THB')",
                     [(s, d, e, ni * conv[s]) for s, d, e, ni in
                      src.execute("SELECT symbol, date, dateEpoch, netIncome FROM income_statement").fetchall()])
@@ -2662,8 +2689,9 @@ def fcf_rules_failures(src, tmp, mod=None, tag=""):
     data_checks in order (universe_rules, statement_pair_guard, cost_model), equal across exit methods
     (universe_rules in the uncapped arm too); universe_rules is ur-3's with ORDINARY_RULES_V3 and the sent
     profile query carries ur-3's CASE, not ur-2's; FCF_RECEIPT, on ur-3's hand list only, leaves at the fetch and
-    every book; the guard counts FCF_SWITCH at 2011-07-01 only, not held then; each priced period lists its
-    unpriced names. mod: the topic module to run (a mutant), tag names its files apart."""
+    every book; AG_BR_PREF stands in for AG_BR_ORD in every invested book and class_stand_ins lists it at each
+    (stand_in_failures); the guard counts FCF_SWITCH at 2011-07-01 only, not held then; each priced period lists
+    its unpriced names. mod: the topic module to run (a mutant), tag names its files apart."""
     f, drop = rules_guard_failures(
         "fcf-conversion", src, tmp, mod, tag, ["universe_rules", "statement_pair_guard", "cost_model"],
         du.UNIVERSE_RULES_V3, du.UNIVERSE_RULES_V2, [(FCF_RECEIPT[0], "known", FCF_RECEIPT[1])],
@@ -2676,7 +2704,7 @@ def fcf_rules_failures(src, tmp, mod=None, tag=""):
         f.append(f"{FCF_RECEIPT[0]} held at {sorted(held_at(FCF_RECEIPT[0]))}; {len(invested)} periods invested")
     if held_at(FCF_SWITCH) != invested - {"2011-07-01"}:
         f.append(f"{FCF_SWITCH} held at {sorted(held_at(FCF_SWITCH))}: out at 2011-07-01 only")
-    return f
+    return f + stand_in_failures(drop)
 
 
 # The data checks each opted-in topic runs: its block's version, and its rules the version's config
@@ -3214,14 +3242,7 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
     def load():
         if mod_src is None:
             return load_topic(topic)
-        path = os.path.join(tmp, f"hand_mutant_{topic.replace('-', '_')}.py")
-        with open(path, "w") as fh:
-            fh.write(mod_src)
-        spec = importlib.util.spec_from_file_location(f"hand_mutant_{topic.replace('-', '_')}", path)
-        mod = importlib.util.module_from_spec(spec)
-        sys.path.insert(0, ROOT)
-        spec.loader.exec_module(mod)
-        return mod
+        return topic_from_text(mod_src, tmp, f"hand_mutant_{topic.replace('-', '_')}")
 
     f = []
     base, _ = run_topic(topic, src, "ltp", "on", tmp, full_holdings=True, tag=".hand0")
@@ -3554,6 +3575,13 @@ def main():
         ur2.UNIVERSE_RULES = du.UNIVERSE_RULES_V2
         expect_fail(f"fcf-conversion on ur-2's rules ({FCF_RECEIPT[0]} held)",
                     fcf_rules_failures(srcs["fcf-conversion"], tmp, mod=ur2, tag=".ur2"))
+        # without the call a run with data checks on still completes (the uncapped arm raises): its book must fail
+        call, text = "ur.mark_twins(con)", open(os.path.join(ROOT, "fcf-conversion", "backtest.py")).read()
+        check(text.count(call) == 1, f"fcf-conversion calls {call} once (the mutant's anchor)")
+        no_twins = topic_from_text(text.replace(call, "None"), tmp, "no_twins_fcf_conversion")
+        expect_fail(f"fcf-conversion with {call} removed ({AG_BR_PREF} not standing in)",
+                    stand_in_failures(run_topic("fcf-conversion", srcs["fcf-conversion"], "drop", "on", tmp,
+                                                tag=".notwins", mod=no_twins)[0]))
         for t in DATA_CHECKS_TOPICS:
             expect(f"H {t} on a dc-3 hand list end to end", hand_topic_failures(t, srcs.get(t, src), tmp))
         expect("H mutants each fail a check", hand_mutant_failures(tmp, {None: src, **srcs}))

@@ -3,7 +3,7 @@
 
 Ten annual rebalance windows. Every line's first window bar (the day after the rebalance date) has its own close
 and volume, and every line carries the same bar on each rebalance date, which is outside the window. Leg one
-(ur-3's blocks: class_stand_ins, two known lines, four line starts, two line ends) holds these copies:
+(ur-3's blocks: class_stand_ins, four line starts, two line ends) holds these copies:
   AAA, BBB            the same first bar in 3 windows, no rule covers them: listed. BBB has a second bar on its
                       first window bar's date, with a lower adjClose and close: the higher one is kept;
   NEAR1, NEAR2        the same in 2 windows: under the 3, not listed;
@@ -12,8 +12,6 @@ and volume, and every line carries the same bar on each rebalance date, which is
   PETR3.SA, PETR4.SA  class twins (one issuer), 3 windows: exempt on a leg that keys class twins;
   ABCE3.SA, ABCF3.SA  two SAO lines sharing three characters, not four, 3 windows: listed;
   ABCD, ABCDE         two lines off SAO sharing four characters, 3 windows: listed;
-  NATU3.SA, NTCO3.SA  NTCO3.SA removed as a known line, 5 windows: exempt;
-  AKN1, ZKN1          AKN1 removed as a known line, first in the pair, 3 windows: exempt;
   ARZZ3.SA, AZZA3.SA  9 windows, all before AZZA3.SA's first own day: exempt;
   OLDL, NEWL          2 windows before NEWL's first own day and 3 after: listed;
   PRE1, PRE2          2 windows before PRE2's first own day and 2 after: exempt;
@@ -21,14 +19,15 @@ and volume, and every line carries the same bar on each rebalance date, which is
   COG, CTRA           3 windows, all after COG's last own day: exempt;
   END0, END1          3 windows, the last on END1's last own day: listed;
   VOL1, VOL2          the same close in 3 windows on different volumes: not a match;
+  DIME1, DIME2        the same volume in 3 windows, closes 12.31 and 12.32 (one at the dime): not a match;
   GAP1, GAP2          the same bar in 3 windows, 12 days after each rebalance date: outside the window, no match;
   DEAD1, DEAD2        the same close in 4 windows with no volume: not a match.
 Leg two (no universe_rules block) holds PETR3.SA and PETR4.SA's 3 windows, listed there, and LEG2A, which copies
 leg one's AAA: lines of two legs are never paired. Leg three holds only the NVDR twins. main() exits 1 on legs one
 and two and 0 on leg three, and --fetch builds the same bars file from one stock_eod query on an in-memory
 warehouse (test_split_check's). Every mutant of same_bars_scan.py (each exemption and its scope, the one bar a
-day, the zero-volume rule, the volume match, the 3, the window's first and last day, the exit code) must trip a
-check.
+day, the zero-volume rule, the volume match, the cent, the 3, the window's first and last day, the exit code) must
+trip a check.
 
 Usage:
     python scripts/test_same_bars_scan.py [repo root]
@@ -50,28 +49,24 @@ from test_split_check import Warehouse, fake_cr_client   # noqa: E402
 
 DATES = [f"{y}-07-01" for y in range(2015, 2025)]
 LEG1 = ["AAA", "BBB", "NEAR1", "NEAR2", "XYZ.BK", "XYZ-R.BK", "PPP.BK", "QQQ-R.BK", "PETR3.SA", "PETR4.SA",
-        "ABCE3.SA", "ABCF3.SA", "ABCD", "ABCDE", "NATU3.SA", "NTCO3.SA", "AKN1", "ZKN1", "ARZZ3.SA", "AZZA3.SA",
-        "OLDL", "NEWL", "PRE1", "PRE2", "STA0", "STA1", "COG", "CTRA", "END0", "END1", "VOL1", "VOL2", "GAP1", "GAP2",
-        "DEAD1", "DEAD2"]
+        "ABCE3.SA", "ABCF3.SA", "ABCD", "ABCDE", "ARZZ3.SA", "AZZA3.SA", "OLDL", "NEWL", "PRE1", "PRE2", "STA0",
+        "STA1", "COG", "CTRA", "END0", "END1", "VOL1", "VOL2", "DIME1", "DIME2", "GAP1", "GAP2", "DEAD1", "DEAD2"]
 LEG2 = ["PETR3.SA", "PETR4.SA", "LEG2A"]
 LEG3 = ["XYZ.BK", "XYZ-R.BK"]
 # line: (the line it copies, the windows it copies, as indexes into DATES)
 COPIES = {"BBB": ("AAA", (0, 1, 2)), "NEAR2": ("NEAR1", (3, 4)), "XYZ-R.BK": ("XYZ.BK", (0, 1, 2, 3)),
           "QQQ-R.BK": ("PPP.BK", (0, 1, 2)), "PETR4.SA": ("PETR3.SA", (5, 6, 7)),
           "ABCF3.SA": ("ABCE3.SA", (6, 7, 8)), "ABCDE": ("ABCD", (3, 4, 5)),
-          "NTCO3.SA": ("NATU3.SA", (0, 1, 2, 3, 4)), "ZKN1": ("AKN1", (0, 1, 2)),
           "AZZA3.SA": ("ARZZ3.SA", tuple(range(9))), "NEWL": ("OLDL", (1, 2, 5, 6, 7)),
           "PRE2": ("PRE1", (3, 4, 5, 6)), "STA1": ("STA0", (4, 5, 6)), "CTRA": ("COG", (7, 8, 9)),
-          "END1": ("END0", (4, 5, 6)), "VOL2": ("VOL1", (0, 1, 2)), "GAP2": ("GAP1", (0, 1, 2)),
-          "DEAD2": ("DEAD1", (0, 1, 2, 3)), "LEG2A": ("AAA", (0, 1, 2))}
+          "END1": ("END0", (4, 5, 6)), "VOL2": ("VOL1", (0, 1, 2)), "DIME2": ("DIME1", (0, 1, 2)),
+          "GAP2": ("GAP1", (0, 1, 2)), "DEAD2": ("DEAD1", (0, 1, 2, 3)), "LEG2A": ("AAA", (0, 1, 2))}
 CLOSE_ONLY = {"VOL2"}   # copies its source's close on its own volume
+CENT_APART = {"DIME1": 12.31, "DIME2": 12.32}   # their closes in DIME2's copied windows, on one volume
 LATE_BARS = {"GAP1", "GAP2"}   # every bar after a rebalance date is 12 days or more after it
 QUIET = {("DEAD1", w) for w in range(4)}   # no volume on DEAD1's first bar in windows 0 to 3, so DEAD2's either
 DUPLICATES = [("BBB", ["2015-07-02", 0.5, 77, 0.4])]   # a second bar on BBB's first window bar's date
 UR1 = {"version": "ur-3",
-       "ordinary_shares": {"removed": [{"symbol": "NTCO3.SA", "reason": "known", "name": "a renamed line"},
-                                       {"symbol": "AKN1", "reason": "known", "name": "another renamed line"},
-                                       {"symbol": "OLDL", "reason": "name_term", "name": "another reason"}]},
        "class_stand_ins": {"by_period": [{"rebalance_date": "2020-07-01", "symbols": ["PETR4.SA"]}]},
        "line_starts": {"lines": [{"symbol": "AZZA3.SA", "first_day": "2024-08-27"},
                                  {"symbol": "NEWL", "first_day": "2020-01-01"},
@@ -83,7 +78,6 @@ WANT = {   # leg: (pairs listed, {exempt pair: reason prefix})
     "LEG1": (sorted([("AAA", "BBB"), ("NEWL", "OLDL"), ("PPP.BK", "QQQ-R.BK"), ("ABCE3.SA", "ABCF3.SA"),
                      ("ABCD", "ABCDE"), ("STA0", "STA1"), ("END0", "END1")]),
              {("XYZ-R.BK", "XYZ.BK"): "check N twin", ("PETR3.SA", "PETR4.SA"): "class twin",
-              ("NATU3.SA", "NTCO3.SA"): "known list", ("AKN1", "ZKN1"): "known list",
               ("ARZZ3.SA", "AZZA3.SA"): "line start or end", ("PRE1", "PRE2"): "line start or end",
               ("COG", "CTRA"): "line start or end"}),
     "LEG2": ([("PETR3.SA", "PETR4.SA")], {}),
@@ -108,6 +102,8 @@ def bars():
             c, v = own_bar(src if w in wins else line, w)
             if line in CLOSE_ONLY:
                 v = own_bar(line, w)[1]
+            if line in CENT_APART and w in COPIES["DIME2"][1]:
+                c = CENT_APART[line]
             if (line, w) in QUIET or (src, w) in QUIET and w in wins:
                 v = 0
             rows += [[d, 99.0, 5, 99.0], [plus(d, first), c, v, c], [plus(d, first + 2), c + 0.5, v + 1, c + 0.5]]
@@ -215,9 +211,6 @@ MUTANTS = {
     "class twins on any exchange": [('return symbol[:4] if symbol.endswith(".SA") else None', "return symbol[:4]")],
     "a three-character issuer key": [('return symbol[:4] if symbol.endswith(".SA") else None',
                                       'return symbol[:3] if symbol.endswith(".SA") else None')],
-    "no known-list exemption": [('"known list" if a in known or b in known else None', "None")],
-    "the known list read on a pair's second line only": [('"known list" if a in known or b in known else None',
-                                                          '"known list" if b in known else None')],
     "line starts ignored": [('starts.get(x, "") <= dx', '"" <= dx')],
     "a line start exempts every window": [('starts.get(x, "") <= dx', 'x not in starts and "" <= dx')],
     "a match on a line start's first own day not counted": [('starts.get(x, "") <= dx', 'starts.get(x, "") < dx')],
@@ -228,6 +221,7 @@ MUTANTS = {
     "every bar row kept": [("in one_per_day(", "in list(")],
     "zero-volume windows compared": [("if b is not None and b[2]:", "if b is not None:")],
     "volume not compared": [("same[(cents, vol)].append(s)", "same[cents].append(s)")],
+    "closes compared to the dime": [("round(float(b[1]) * 100)", "round(float(b[1]) * 10)")],
     "two windows list a pair": [("MIN_WINDOWS = 3", "MIN_WINDOWS = 2")],
     "four windows needed": [("MIN_WINDOWS = 3", "MIN_WINDOWS = 4")],
     "the rebalance date's bar read as the window's first": [("d < b[0] <= hi", "d <= b[0] <= hi")],

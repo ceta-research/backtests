@@ -25,6 +25,8 @@ A second leg on the same periods pins the edges and the thresholds:
   N     a 1041131:1000000 split row with adjClose up 0.5%: under the near-one factor floor, absorbed;
   R     a 0.525x step with the close moving the same: inside the 6% round-ratio tolerance, an artifact;
   FL    a 2x adjClose step on a flat close with no split row: no split signature;
+  CL    a 2x adjClose step with the close up 2.06x, 3% off it, no split row: not the close moving the same, no
+        split signature;
   Z     a 0.5x step on a zero-volume day after another: not a reopening, an artifact;
   AF    a 2.5x one-way step with a split row two days after it: an artifact;
   LATE  a 2x step in a holding whose first bar is 12 days after the rebalance date: unpriced, nothing read;
@@ -113,6 +115,7 @@ EDGE = {   # P1's exit bar is its day 185 (the first bar after the exit date); P
     "SUB": (P1, [(30, 2.0, 2.0), (31, 0.7, 0.7), (32, 1 / 1.4, 1 / 1.4), (120, 0.5, 0.5)], (), ((120, 2, 1),)),
     "TP": (P3, [(93, 0.5, 0.5)], (), ((93, 2, 1),)),
     "XP": (P3, [(92, 0.5, 0.5), (93, 2.0, 2.0)], (), ()),
+    "CL": (P3, [(40, 2.06, 2.0)], (), ()),
 }
 DUPLICATES = [("DUP", P1, 1, 5.0, 5.0), ("DUP", P1, 80, 10.0, 20.0)]   # (symbol, period, day, close, adjClose)
 NETS, ROUND_WHY = "reverses inside the window, nets out", "round ratio with the close moving the same"
@@ -131,7 +134,7 @@ EDGE_STEPS = sorted([
     ("NS", day(P1, 120), True, False, NETS), ("NS", day(P1, 122), True, False, NETS),
     ("NG", day(P1, 140), True, False, NETS), ("NG", day(P1, 142), True, False, NETS),
     ("SUB", day(P1, 30), True, False, NETS), ("SUB", day(P1, 120), False, True, "split row"),
-    ("XP", day(P3, 92), False, True, ROUND_WHY)])
+    ("XP", day(P3, 92), False, True, ROUND_WHY), ("CL", day(P3, 40), False, False, NO_SIGN)])
 SPLIT_ROWS = sorted([   # (symbol, row day, unadjusted): every split row inside a holding
     ("C", day(P2, 50), True), ("D", day(P2, 70), False), ("E", day(P2, 87), False), ("S", day(P2, 110), True),
     ("E2", day(P3, 26), False), ("F", day(P3, 40), True)])
@@ -149,7 +152,7 @@ EDGE_REBUILDS = {
     ("X", day(P1, 185)): (-0.5, 7, 2.0, "step"), ("M", day(P1, 60)): (2 * 0.64 - 1, 7, 0.5, "step"),
     ("DUP", day(P1, 80)): (1.0, 7, 0.5, "step"), ("R", day(P2, 70)): (-0.475, 5, 1 / 0.525, "step"),
     ("Z", day(P2, 110)): (-0.5, 5, 2.0, "step"), ("AF", day(P2, 130)): (-0.6, 5, 2.5, "step"),
-    ("SUB", day(P1, 120)): (-0.5, 7, 2.0, "step"), ("XP", day(P3, 92)): (-0.5, 4, 2.0, "step"),
+    ("SUB", day(P1, 120)): (-0.5, 7, 2.0, "step"), ("XP", day(P3, 92)): (-0.5, 5, 2.0, "step"),
 }
 # universe: (holdings, extra bar rows, steps, split rows, rebuilds)
 CASES = {"TEST": (HOLDINGS, (), STEPS, SPLIT_ROWS, REBUILDS),
@@ -303,7 +306,7 @@ def edge_failures(mod):
     res, bar_rows, split_rows = case_fixture("EDGE")
     leg = mod.check_leg(res, bar_rows, split_rows, [])
     out = case_failures("EDGE", leg)
-    want = {"held_lines": 16, "held_line_periods": 16, "line_periods_priced": 15}
+    want = {"held_lines": 17, "held_line_periods": 17, "line_periods_priced": 16}
     got = {k: leg.get(k) for k in want}
     if got != want:
         out.append(f"EDGE leg fields {got}, want {want} (LATE unpriced, ON11 priced)")
@@ -502,6 +505,7 @@ MUTANTS = {
     "absorbed and unadjusted swapped": [("abs(math.log(a_st / pf)) < 0.1", "abs(math.log(a_st / pf)) >= 0.1")],
     "no near-one factor floor": [(" and abs(math.log(pf)) > 0.05", "")],
     "a 3% round-ratio tolerance": [("abs(k / q - 1) < 0.06", "abs(k / q - 1) < 0.03")],
+    "a 50% close-step tolerance": [('abs(st / c["close_step"] - 1) < 0.01', 'abs(st / c["close_step"] - 1) < 0.5')],
     "a round ratio without the close moving the same": [("(round_ratio and same and not reopen)",
                                                          "(round_ratio and not reopen)")],
     "a reopening read as an artifact": [("(round_ratio and same and not reopen)", "(round_ratio and same)")],

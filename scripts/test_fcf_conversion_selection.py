@@ -29,7 +29,7 @@ Costs and the results file: run_backtest, its screen and prices stubbed, books a
 in the 0.3% tier and an LSE holding at 8 billion pounds in the 0.1% tier (the USD tiers at the leg's FX rate).
 run_single on test_data_checks' synthetic SET leg writes data_checks right after isin_dedup, then
 universe_rules, statement_pair_guard and cost_model (the tiers at 35 baht a dollar, the rate run_backtest
-gets); a sector switch that names no line writes the same file, its sector_exclusion block apart, and one that
+gets; null on a no-costs run); a sector switch that names no line writes the same file, its sector_exclusion block apart, and one that
 removes a line still pins cost_model; the universe fetch carries the profile's sector; main() hands
 --exclude-sector to run_single as one sector name. Its mutants must trip these checks.
 
@@ -743,8 +743,9 @@ def cost_failures(src):
 def results_failures(src):
     """run_single on test_data_checks' synthetic SET leg (fcf_source): data_checks sits right after isin_dedup, then
     universe_rules, statement_pair_guard and cost_model, then the LTP keys; cost_model names the tiers and the
-    leg's FX rate, which run_single passes to run_backtest; a switch on a sector no line names writes the same
-    file as no switch, its sector_exclusion block apart, and a switch that removes a line still pins cost_model."""
+    leg's FX rate, which run_single passes to run_backtest, and a no-costs run writes it null; a switch on a
+    sector no line names writes the same file as no switch, its sector_exclusion block apart, and a switch that
+    removes a line still pins cost_model."""
     out = []
     try:
         mod = load(src)
@@ -753,10 +754,13 @@ def results_failures(src):
         mod.run_backtest = lambda *a, **k: fx.append(k.get("fx")) or run_bt(*a, **k)
         runs = {}
         with tempfile.TemporaryDirectory() as tmp:
-            for name, mode, sw, s in (("drop", "drop", None, set_leg()), ("ltp", "ltp", None, set_leg()),
-                                      ("none", "ltp", "Utilities", set_leg()), ("fin", "ltp", FS, set_leg(True))):
+            for name, mode, sw, s, costs in (("drop", "drop", None, set_leg(), True),
+                                             ("ltp", "ltp", None, set_leg(), True),
+                                             ("none", "ltp", "Utilities", set_leg(), True),
+                                             ("fin", "ltp", FS, set_leg(True), True),
+                                             ("free", "ltp", None, set_leg(), False)):
                 runs[name] = tdc.run_topic("fcf-conversion", s, mode, "on", tmp, tag=f".{name}", mod=mod,
-                                           **({"exclude_sector": sw} if sw else {}))[0]
+                                           use_costs=costs, **({"exclude_sector": sw} if sw else {}))[0]
     except Exception as e:
         return out + [f"error: {type(e).__name__}: {e}"]
     if fx != [35.0] * len(runs):
@@ -769,8 +773,9 @@ def results_failures(src):
                 + (["exit_method", "ltp"] if name != "drop" else []))
         if tail != want:
             out.append(f"{name}: keys after isin_dedup {tail}, want {want}")
-        if res.get("cost_model") != COST_MODEL:
-            out.append(f"{name}: cost_model {res.get('cost_model')}, want {COST_MODEL}")
+        want_model = None if name == "free" else COST_MODEL
+        if res.get("cost_model") != want_model:
+            out.append(f"{name}: cost_model {res.get('cost_model')}, want {want_model}")
     none, plain = runs["none"], runs["ltp"]
     dates = [r["rebalance_date"] for r in none["period_data"]]
     if none.get("sector_exclusion") != {"sectors": ["Utilities"], "field": "profile.sector",
@@ -793,6 +798,7 @@ RESULT_MUTANTS = {
     "run_single doesn't pass the FX rate": [("ur=ur, guard=guard, win=win, fx=fx,", "ur=ur, guard=guard, win=win,")],
     "cost_model not written": [('"cost_model": {"function": "costs.tiered_cost", "fx_per_usd": fx} if use_costs else None',
                                 '"cost_model": None')],
+    "cost_model written on a no-costs run": [('"fx_per_usd": fx} if use_costs else None', '"fx_per_usd": fx}')],
     "data_checks after the other blocks": [
         ('    output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both\n', ""),
         ("    if ltp_block:\n        output.update(", '    output["data_checks"] = dc.block()\n    if ltp_block:\n'
