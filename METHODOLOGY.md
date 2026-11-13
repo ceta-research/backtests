@@ -211,27 +211,32 @@ Three topics keep their universe to ordinary shares, through opt-in helpers in `
 
 **ur-3 (fcf-conversion).** fcf-conversion ranks by free cash flow over net income, and every line of a company carries the company's statements, so a preferred, a note, a receipt or a second line ranks on its company's ratio and takes a second slot. ur-3 is ur-2 (its keep list, reasons, name terms, class twins and line starts, and no yield rule) with a longer hand list, more line starts and line ends. fcf-conversion's fetch keeps the lines `non_ordinary_sql(cfg=UNIVERSE_RULES_V3)` returns NULL for in its `universe` table.
 
-- **The hand list `NON_ORDINARY_KNOWN_V3`:** ur-2's 60 lines plus 13, each recorded with its evidence:
+- **The hand list `NON_ORDINARY_KNOWN_V3`:** ur-2's 60 lines plus 14, each recorded with its evidence:
   - preferreds: FITBP (Fifth Third's preferred depositary shares beside FITB), 76ID.L (Rotork's cumulative preference line beside ROR.L), SANB.L (Santander UK's preference line, with no listed ordinary share) and SDIP-PREF.ST (Sdiptech's preference line beside its B share);
   - notes: three ANZ capital notes (AN3PH.AX, AN3PI.AX, AN3PJ.AX) and CommBank PERLS (CBAPK.AX), priced near their 100 face value;
-  - depositary receipts listed abroad: 6288.HK (Fast Retailing's Hong Kong receipts on its Tokyo share, with a US ISIN) and ARION-SDB.ST (Arion banki's Swedish receipts on its Icelandic share);
+  - depositary receipts listed abroad: 6288.HK (Fast Retailing's Hong Kong receipts on its Tokyo share, with a US ISIN) ARION-SDB.ST (Arion banki's Swedish receipts on its Icelandic share) and SAMPO-SDB.ST (Sampo's Swedish receipts on its Finnish share);
   - NTCO3.SA, a renamed copy: it repeats NATU3.SA's close on 5,225 of 5,238 shared days and ends on 2025-07-24 while NATU3.SA trades on, so NATU3.SA keeps Natura's years;
   - 9512.SR, Riyadh Cement's second line beside 3092.SR: the same close on 574 of 577 shared days, ending 2023-11-29;
   - JP, Jupai Holdings, whose NYSE line was American depositary shares of six ordinary shares each (its Form 20-F), which the profile doesn't flag `isAdr`.
 
   The receipts are hand entries, not a rule: Yum China's 9987.HK is an ordinary share on HKSE with a US ISIN, as 6288.HK has, and the profile flags neither as an ADR.
 - **Kept** (the rules' `kept` text): Thai NVDRs (check N keys each to its ordinary line); depositary receipts of ordinary shares outside NYSE, NASDAQ, AMEX and SAO (TDRs, lines flagged `isAdr`) until a book holds one, while the receipts on the hand list leave; ordinary shares listed first elsewhere, disclosed (Manulife's 0945.HK and Yancoal Australia's 3668.HK on HKSE, Canadian banks' and insurers' NYSE lines); share classes; REITs and their units; trust units and LPs outside the US; SAO preferred and unit lines of a company with an ordinary line, as class twins with one slot; and the keep list.
-- **Line starts** (`LINE_STARTS_V3`): ur-2's AZZA3.SA and five more, each on the old line's last bar plus one day:
+- **Line starts** (`LINE_STARTS_V3`): ur-2's AZZA3.SA and eight more, each on the old line's last bar plus one day except BRSL's:
   - L1G.AX on 2025-10-04: L1 Group's bars to 2025-10-03 repeat the closes and volumes of PTM.AX (Platinum), whose last bar is that day;
   - MATR.TO on 2023-06-07: Mattr's bars to 2023-06-06 carry the volumes of SCL.TO (Shawcor, the company's old name);
   - TKO on 2023-09-12: TKO Group Holdings' bars to 2023-09-11 repeat WWE's closes;
   - AXIA6.SA on 2025-12-05: AXIA Energia's bars to 2025-12-04 repeat ELET6.SA's (Eletrobras) closes and volumes;
-  - AXIA3.SA on 2025-12-05: AXIA Energia's ordinary line from the same rename, whose fiscal-year rows copy Eletrobras's from 2006 while its bars start in 2026, so without the start it would take a slot no one could buy.
+  - AXIA3.SA on 2025-12-05: AXIA Energia's ordinary line from the same rename, whose fiscal-year rows copy Eletrobras's from 2006 while its bars start in 2026, so without the start it would take a slot no one could buy;
+  - BRSL on 2025-07-01: Brightstar Lottery's bars to that day repeat International Game Technology's (IGT, the same ISIN and CIK) closes. IGT's last bar is 2025-07-01, the rename's day and a rebalance date, so the start is that day: the July 1 screen enters on 2025-07-02, BRSL's first own bar. A start on 2025-07-02 would leave the July 1 screen with IGT alone, which has no bar to buy;
+  - DOC on 2024-03-29: Healthpeak's bars to 2024-03-28 repeat PEAK's, its old ticker (the same ISIN and CIK);
+  - MAGN on 2024-12-04: Magnera's bars to 2024-12-03 repeat the closes of GLT (Glatfelter, the same CIK).
 - **Line ends** (`LINE_ENDS_V3`, `UniverseRules.ended()`), the mirror of a line start: a line whose later financial rows aren't its listing's leaves the universe after its last own day. A screen on the last own day keeps the line. A screen after it leaves the line out, and the slot goes to the next name. A book dated before the last own day still holds the line.
   - COG (Cabot Oil & Gas) after 2021-10-01: its bars end that day, when it became Coterra (CTRA, the same ISIN and CIK), and its fiscal-year rows dated later are a garbled part-copy of Coterra's filings (its net income equals CTRA's, and its free cash flow equals CTRA's operating cash flow).
   - CLR (Continental Resources) after 2022-11-22: its bars end that day, when it went private, and its later rows fill free cash flow with operating cash flow and hold the market cap at one value.
+  - PEAK (Healthpeak's old ticker) after 2024-03-28: its bars end that day, when DOC took the listing, and its fiscal-year rows dated later are a part-copy of DOC's (equal FY2025 revenue, another net income).
+  - GLT (Glatfelter) after 2024-12-03: its bars end that day, when it became Magnera, and its FY2025 row is a part-copy of Magnera's.
 
-  Neither day is one of fcf-conversion's July rebalance dates. A screen dated on a last own day would keep the line and then find no entry price for it (`entry_unpriced`).
+  None of the four days is one of fcf-conversion's July rebalance dates. A screen dated on a last own day would keep the line and then find no entry price for it (`entry_unpriced`).
 
 The results carry a `universe_rules` block with its version: the rules' texts, the lines removed with their reasons, counts, and the kept US lines that share a CIK with another kept line, a report for plain-named notes or units the rule missed. ur-1's block also holds the yield rule and each yield drop (rebalance date, symbol, reason, both yields, both currencies); ur-2's has no `dividend_yield`, and on a leg that holds a line-starts line it lists that line under `line_starts`. ur-3's block has ur-2's shape with version `ur-3`, and lists a leg's line ends under `line_ends` the same way. Each priced period also lists `entry_unpriced`, its screened names with no usable entry price. defensive-quality's live screen (`screen.py`) keeps ordinary shares only and the 25% ceiling; it reads TTM rows, which give no same-FY dividends paid and cap, so it doesn't run the cross-currency check. asset-growth's live screen keeps ordinary shares only under ur-2. fcf-conversion's keeps them under ur-3, and also leaves out the lines its line starts and line ends keep out of a screen on the day it runs.
 

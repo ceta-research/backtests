@@ -3217,6 +3217,7 @@ NON_ORDINARY_KNOWN_V3 = NON_ORDINARY_KNOWN_V2 + (
     ("6288.HK", "depositary receipt", "Fast Retailing's Hong Kong depositary receipts on the Tokyo share, a US ISIN "
                                       "on a Japanese company"),
     ("ARION-SDB.ST", "depositary receipt", "Arion banki's Swedish depository receipts on the Icelandic share"),
+    ("SAMPO-SDB.ST", "depositary receipt", "Sampo's Swedish depository receipts on the Finnish share"),
     ("NTCO3.SA", "renamed line", "Natura &Co Holding's line: it copies NATU3.SA's history (the same close on "
                                  "5,225 of 5,238 shared days) and ends 2025-07-24 while NATU3.SA trades on"),
     ("9512.SR", "second line", "Riyadh Cement's second line beside 3092.SR, the same close on 574 of 577 shared "
@@ -3235,6 +3236,13 @@ LINE_STARTS_V3 = LINE_STARTS_V2 + (
                                "and volumes, and ELET6.SA's last bar is 2025-12-04"),
     ("AXIA3.SA", "2025-12-05", "AXIA Energia's ordinary line from the same rename: its FY rows copy Eletrobras's "
                                "from 2006, while its bars start in 2026"),
+    ("BRSL", "2025-07-01", "Brightstar Lottery, International Game Technology renamed (the same ISIN and CIK): its "
+                           "bars to 2025-07-01 repeat IGT's closes, and IGT's last bar is 2025-07-01, the rename's "
+                           "day, so that day's screen enters on BRSL's first own bar"),
+    ("DOC", "2024-03-29", "Healthpeak Properties, PEAK renamed (the same ISIN and CIK): its bars to 2024-03-28 repeat "
+                          "PEAK's, and PEAK's last bar is 2024-03-28"),
+    ("MAGN", "2024-12-04", "Magnera, Glatfelter renamed (the same CIK): its bars to 2024-12-03 repeat GLT's closes, "
+                           "and GLT's last bar is 2024-12-03"),
 )
 # (symbol, last own day, evidence): a line whose later financial rows are not its listing's
 LINE_ENDS_V3 = (
@@ -3243,6 +3251,11 @@ LINE_ENDS_V3 = (
                           "net income equals CTRA's and its free cash flow equals CTRA's operating cash flow)"),
     ("CLR", "2022-11-22", "Continental Resources: its bars end 2022-11-22, when it went private; its later FY rows "
                           "fill free cash flow with operating cash flow and hold the market cap at one value"),
+    ("PEAK", "2024-03-28", "Healthpeak's old ticker: its bars end 2024-03-28, when DOC took the listing (the same ISIN "
+                           "and CIK); its FY rows dated after that are a part-copy of DOC's (FY2025 revenue equal, net "
+                           "income 293.6m against 71.3m)"),
+    ("GLT", "2024-12-03", "Glatfelter: its bars end 2024-12-03, when it became Magnera (MAGN, the same CIK); its "
+                          "FY2025 row is a part-copy of Magnera's (revenue 3,262m against 3,204m)"),
 )
 LINE_END_RULE = ("a listed line leaves the universe after its last own day: its bars end that day, and its later "
                  "financial rows copy another line's filings or carry filled-in values, so a screen after that day "
