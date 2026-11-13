@@ -1697,7 +1697,7 @@ def validate_price_data(con, max_price_ratio=1000, verbose=True):
 #   F factor flags  DataChecks records stage-1 drift and split events; it changes no price. dc-3 adds a hand
 #                   list (FACTOR_HAND, DataChecks.hand): reviewed returns for the flags that move a leg.
 #   L large moves   DataChecks lists every kept window-bar holding with |ln(1+r)| >= ln 2.
-#   S stale repeats dc-2 only (DATA_CHECKS_V2): a run of identical traded rows keeps its first row, in
+#   S stale repeats dc-2 and dc-3 (DATA_CHECKS_V2, V3): a run of identical traded rows keeps its first row, in
 #                   clean_price_cache() and in LtpExits(traded_only=True, cfg=...) fills.
 # All thresholds live in DATA_CHECKS_V1 (dc-1), DATA_CHECKS_V2 (dc-2) or DATA_CHECKS_V3 (dc-3), which every
 # results file carries.
@@ -3023,7 +3023,8 @@ class UniverseRules:
         return sorted(s for s, (d, _) in self.starts.items() if target_date.isoformat() < d)
 
     def ended(self, target_date):
-        """The leg's line_ends lines a screen on target_date leaves out: after its last own day."""
+        """The leg's line_ends lines a screen on target_date leaves out: after its last own day. A screen on the
+        last own day keeps the line, and its entry, on a later bar, then finds no price (entry_unpriced)."""
         return sorted(s for s, (d, _) in self.ends.items() if d < target_date.isoformat())
 
     def mark_twins(self, con, universe="universe"):
