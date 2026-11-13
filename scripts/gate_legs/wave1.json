@@ -45,25 +45,25 @@
   }
  },
  "fcf-conversion": {
-  "_source": "backtest.py --global presets_to_run, minus singapore: its \"SGX\" matches no rows (no returns_SGX.json, not published; EXCHANGE_PRESETS singapore is SES). If the code moves to SES, add singapore as --exchange SES",
+  "_source": "backtest.py --global presets_to_run (its singapore \"SGX\" preset, which matched no rows and was never published, is gone; EXCHANGE_PRESETS singapore is SES: if the code adds it, add singapore as --exchange SES). --end-year 2025: the published window, since the topic moved to the run window",
   "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}],
   "legs": {
-   "us": ["--exchange", "NYSE,NASDAQ,AMEX"],
-   "india": ["--exchange", "NSE"],
-   "germany": ["--exchange", "XETRA"],
-   "sweden": ["--exchange", "STO"],
-   "canada": ["--exchange", "TSX"],
-   "china": ["--exchange", "SHZ,SHH"],
-   "hongkong": ["--exchange", "HKSE"],
-   "japan": ["--exchange", "JPX"],
-   "uk": ["--exchange", "LSE"],
-   "australia": ["--exchange", "ASX"],
-   "korea": ["--exchange", "KSC"],
-   "brazil": ["--exchange", "SAO"],
-   "switzerland": ["--exchange", "SIX"],
-   "taiwan": ["--exchange", "TAI"],
-   "thailand": ["--exchange", "SET"],
-   "saudi": ["--exchange", "SAU"]
+   "us": ["--end-year", "2025", "--exchange", "NYSE,NASDAQ,AMEX"],
+   "india": ["--end-year", "2025", "--exchange", "NSE"],
+   "germany": ["--end-year", "2025", "--exchange", "XETRA"],
+   "sweden": ["--end-year", "2025", "--exchange", "STO"],
+   "canada": ["--end-year", "2025", "--exchange", "TSX"],
+   "china": ["--end-year", "2025", "--exchange", "SHZ,SHH"],
+   "hongkong": ["--end-year", "2025", "--exchange", "HKSE"],
+   "japan": ["--end-year", "2025", "--exchange", "JPX"],
+   "uk": ["--end-year", "2025", "--exchange", "LSE"],
+   "australia": ["--end-year", "2025", "--exchange", "ASX"],
+   "korea": ["--end-year", "2025", "--exchange", "KSC"],
+   "brazil": ["--end-year", "2025", "--exchange", "SAO"],
+   "switzerland": ["--end-year", "2025", "--exchange", "SIX"],
+   "taiwan": ["--end-year", "2025", "--exchange", "TAI"],
+   "thailand": ["--end-year", "2025", "--exchange", "SET"],
+   "saudi": ["--end-year", "2025", "--exchange", "SAU"]
   }
  },
  "cash-conversion": {

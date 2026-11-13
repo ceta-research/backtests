@@ -12,9 +12,10 @@ never merge, a collapsed twin frees its top-N slot. Then each campaign topic (TO
 3) runs its real fetch_data_via_api + screen (screen_stocks; dogs-of-dow's screen_dogs) against
 a fake client on XETRA, SIX, STO, LSE and NYSE legs, run_backtest's offset_days is followed through
 the screen into the dedup, and the topics in SLOT_BOOK show the top-N cut running after it. The
-wave 3 screens and asset-growth need rows the shared fixture lacks (WAVE3_ROWS): each runs on its
-own copy, placed on the edge of its rule (52-week-high on exactly MIN_HISTORY_ROWS bars,
-dcf-discount at the yield cap, asset-growth's last two balance sheets in one currency), and one
+wave 3 screens, asset-growth and fcf-conversion need rows the shared fixture lacks (WAVE3_ROWS): each
+runs on its own copy, placed on the edge of its rule (52-week-high on exactly MIN_HISTORY_ROWS bars,
+dcf-discount at the yield cap, asset-growth's last two balance sheets in one currency, fcf-conversion's
+newest cash-flow and income rows in one currency), and one
 step outside no longer holds the leg's lines. Each check is re-run against mutants
 of the rule and must fail. Checks survive python -O.
 """
@@ -559,15 +560,27 @@ def rows_asset_growth(src, latest_ccy=None):
         src.execute("UPDATE balance_sheet SET reportedCurrency = ? WHERE date = ?", [latest_ccy, FYS[-1]])
 
 
+def rows_fcf(src, latest_ccy=None):
+    """The columns fcf-conversion's universe rules read, and cash-flow and income rows in the leg's currency, so
+    each line's cash-flow row pairs with its income row. latest_ccy: the newest cash-flow row reports in it
+    instead, so it pairs with no income row."""
+    rule_columns(src)
+    leg_currency(src, "cash_flow_statement")
+    leg_currency(src, "income_statement")
+    if latest_ccy:
+        src.execute("UPDATE cash_flow_statement SET reportedCurrency = ? WHERE date = ?", [latest_ccy, FYS[-1]])
+
+
 # What a screen needs that the shared fixture lacks. Each topic runs on its own source_db() plus these rows.
 WAVE3_ROWS = {"52-week-high": rows_52wh, "dcf-discount": rows_dcf, "defensive-quality": rows_defensive,
-              "asset-growth": rows_asset_growth}
+              "asset-growth": rows_asset_growth, "fcf-conversion": rows_fcf}
 # The same rows one step outside the topic's rule: the screen must stop holding the leg's lines.
 ROW_MUTANTS = {
     "52-week-high": ("a bar short", lambda src: rows_52wh(src, HISTORY_BARS - 1)),
     "dcf-discount": ("latest filing just over the yield cap", lambda src: rows_dcf(src, YIELD_CAP * (1 + 1e-9))),
     "defensive-quality": ("only NOI1's second row is defensive", lambda src: rows_defensive(src, "Industrials")),
     "asset-growth": ("the newest filing in another currency", lambda src: rows_asset_growth(src, "JPY")),
+    "fcf-conversion": ("the newest cash-flow row in another currency", lambda src: rows_fcf(src, "JPY")),
 }
 
 

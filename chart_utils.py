@@ -197,6 +197,14 @@ def annual_bars(entry, field="portfolio"):
     return labels, values
 
 
+def hatch_partial(groups, entry):
+    """Hatch each bar group's last bar, annual_bars' partial year, when entry has one."""
+    if entry.get("partial_year"):
+        for g in groups:
+            g[-1].set_hatch("//")
+            g[-1].set_edgecolor("#2c3e50")
+
+
 def partial_note(entry):
     """A footer sentence on the partial year's dates, or '' when there is none."""
     py = entry.get("partial_year")

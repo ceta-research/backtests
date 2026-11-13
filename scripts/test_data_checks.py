@@ -6,8 +6,15 @@ real one (AKSO.OL 2024-10) keeps adjClose, a range (DLAR.L 2008) books its midpo
 tolerance is hand_stale, and a quarterly span, a filled name, the uncapped mode, record=False and a cash period
 add nothing; the list agrees with the committed results; factor_review finds the 24 flags at 0.1pp or more with
 their recorded effects and nothing left against the list; gate 15 refuses a dc-3 file with an unreviewed flag, a
-stale entry, an unbooked entry or a CAGR that doesn't reproduce; each of the four topics books a listed holding
-end to end in drop, ltp and both; and source mutants of data_utils, factor_review and two topics each fail.
+stale entry, an unbooked entry or a CAGR that doesn't reproduce; a found_in and the review read a diagnostics file
+(results/diagnostics/<name>.json); each of the five topics books a listed holding end to end in drop, ltp and
+both; and source mutants of data_utils, factor_review and two topics each fail.
+
+Each opted-in topic runs end to end on its synthetic leg with its own data checks version (DC_VERSIONS:
+fcf-conversion on dc-3, the other four on dc-1), and asset-growth and fcf-conversion with their universe rules
+(ur-2, ur-3), each against a must-fail mutant on an older version, and fcf-conversion's class twins against one
+that never keys them. Gate 15's results check refuses a file holding BCE-PY.TO in a period that exits on or
+after 2026-01-01.
 
 dc-2's check S (stale repeats): in T's windows a run of 4 identical traded rows loses rows 2-4 while
 runs of 3, a new volume or a new close each day, a run split across two windows and the benchmark
@@ -73,10 +80,12 @@ import json
 import math
 import os
 import random
+import shutil
 import statistics
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from datetime import date, timedelta
 
 import duckdb
@@ -2209,6 +2218,18 @@ def load_topic(topic):
     return mod
 
 
+def topic_from_text(text, tmp, name):
+    """A topic module run from text (a mutant of its backtest.py), written to tmp as name.py."""
+    path = os.path.join(tmp, f"{name}.py")
+    with open(path, "w") as fh:
+        fh.write(text)
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, ROOT)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 class FakeClient:
     """Stands in for CetaResearch: runs the topic's own SQL on the fixture, parquet like the API."""
 
@@ -2391,17 +2412,19 @@ def defensive_source():
     return src
 
 
-def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=None, tag="", mod=None):
+def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=None, tag="", mod=None,
+              use_costs=True, **kw):
     """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both). win: the
     run window (default the fixture's 2000-2025 grid, --end-year 2025); tag names the output file apart;
-    mod: the topic module to run (default a fresh load of the topic's script)."""
+    mod: the topic module to run (default a fresh load of the topic's script); use_costs False: a --no-costs
+    run; kw: run_single's own options (fcf-conversion's exclude_sector)."""
     mod = mod or load_topic(topic)
     out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}{'.full' if full_holdings else ''}{tag}.json")
     client = FakeClient(src)
     freq = "quarterly" if topic == "deleveraging" else "annual"
-    kw = {"full_holdings": True} if full_holdings else {}
+    kw = {**kw, "full_holdings": True} if full_holdings else kw
     with contextlib.redirect_stdout(io.StringIO()):
-        mod.run_single(client, ["SET"], "SET", freq, True, 0.02, False, out, offset_days=1,
+        mod.run_single(client, ["SET"], "SET", freq, use_costs, 0.02, False, out, offset_days=1,
                        exit_method=run_mode, data_checks=data_checks,
                        win=win if win is not None else du.RunWindow.typed(2025), **kw)
     with open(out) as fh:
@@ -2512,58 +2535,44 @@ def asset_growth_source():
     return src
 
 
-def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
-    """asset-growth's universe rules ur-2 and prior-year guard end to end on asset_growth_source(): both blocks
-    follow data_checks in order, equal across exit methods (universe_rules in the uncapped arm too); the sent
-    profile query carries ur-2's CASE, not ur-1's; GUD.AX leaves every book while JUP.L and AG_SER stay; AG_BR_PREF
-    stands in for AG_BR_ORD in every invested book and class_stand_ins lists it at each; the guard
-    counts AG_SWITCH at 2011-07-01 and AG_GAPPY at every odd-year rebalance, neither held then; each priced period
-    lists its unpriced names. mod: the topic module to run (a mutant), tag names its files apart."""
+def rules_guard_failures(topic, src, tmp, mod, tag, after, cfg, older, removed, guard, want, by_reason):
+    """A topic's universe rules (ur-2 or later) and screen guard end to end on its synthetic leg, shared by the
+    asset-growth and fcf-conversion checks: `after` (universe_rules, the guard's key, any later key) follows
+    data_checks in order; universe_rules is equal across exit methods and in the uncapped arm, cfg's version and
+    ordinary rules with no yield rule, and its removals are `removed` (symbol, reason, name); the sent profile
+    query carries cfg's CASE, not `older`'s; no screen fills the top 30; the guard block is equal across exit
+    methods, want(date) per rebalance and by_reason in total; each priced period lists its unpriced names
+    (DLST.BK from its delisting on). Returns (failures, the drop run's results), the results None when the blocks
+    are out of order."""
     f = []
-    runs = {m: run_topic("asset-growth", src, m, "on", tmp, tag=tag, mod=mod) for m in ("drop", "ltp", "both")}
-    (drop, sqls), unc = runs["drop"], run_topic("asset-growth", src, "ltp", "uncapped", tmp, tag=tag, mod=mod)[0]
+    runs = {m: run_topic(topic, src, m, "on", tmp, tag=tag, mod=mod) for m in ("drop", "ltp", "both")}
+    (drop, sqls), unc = runs["drop"], run_topic(topic, src, "ltp", "uncapped", tmp, tag=tag, mod=mod)[0]
     keys = list(drop)
-    tail = ["data_checks", "universe_rules", "prior_year_guard"]
-    if "data_checks" not in keys or keys[keys.index("data_checks"):keys.index("data_checks") + 3] != tail:
-        return [f"universe_rules and prior_year_guard sit right after data_checks: {keys}"]
+    tail = ["data_checks", *after]
+    if "data_checks" not in keys or keys[keys.index("data_checks"):keys.index("data_checks") + len(tail)] != tail:
+        return [f"{', '.join(after)} sit right after data_checks: {keys}"], None
     ub = drop["universe_rules"]
     if any(r[0]["universe_rules"] != ub for r in runs.values()) or unc["universe_rules"] != ub:
         f.append("universe_rules differs across exit methods or in the uncapped arm")
-    if (ub["version"], ub["ordinary_shares"]["rules"]) != ("ur-2", du.ORDINARY_RULES_V2) or "dividend_yield" in ub:
+    if (ub["version"], ub["ordinary_shares"]["rules"]) != (cfg["version"], cfg["ordinary"]) or "dividend_yield" in ub:
         f.append(f"universe_rules header {ub['version']} {list(ub)}")
     rem = [(r["symbol"], r["reason"], r["name"]) for r in ub["ordinary_shares"]["removed"]]
-    if rem != [("GUD.AX", "known", AG_RULES["GUD.AX"][0])] or ub["ordinary_shares"]["by_reason"] != {"known": 1}:
+    if rem != removed or ub["ordinary_shares"]["by_reason"] != dict(Counter(r for _, r, _ in removed)):
         f.append(f"removed {rem}")
-    if not any(du.non_ordinary_sql("p", cfg=du.UNIVERSE_RULES_V2) in s for s in sqls) or \
-            any(du.non_ordinary_sql("p") in s for s in sqls):
-        f.append("the profile query carries ur-2's CASE, not ur-1's")
+    if not any(du.non_ordinary_sql("p", cfg=cfg) in s for s in sqls) or \
+            any(du.non_ordinary_sql("p", cfg=older) in s for s in sqls):
+        f.append(f"the profile query carries {cfg['version']}'s CASE, not {older['version']}'s")
     rows = drop["period_data"]
     dates = [r["rebalance_date"] for r in rows]
     if max(r["screened"] for r in rows) >= 30:
         f.append("a screen fills the top 30: the book checks below could miss a name")
-    held_at = lambda s: {r["rebalance_date"] for r in rows if s in r["holdings"].split(",")}
-    invested = {r["rebalance_date"] for r in rows if r["stocks_held"]}
-    kept = held_at("JUP.L") & held_at(AG_SER)
-    if held_at("GUD.AX") or held_at(AG_GAPPY) or not invested <= kept:
-        f.append(f"held: GUD.AX {sorted(held_at('GUD.AX'))}, {AG_GAPPY} {sorted(held_at(AG_GAPPY))}, JUP.L and "
-                 f"{AG_SER} missing at {sorted(invested - kept)}")
-    if held_at(AG_SWITCH) != invested - {"2011-07-01"}:
-        f.append(f"{AG_SWITCH} held at {sorted(held_at(AG_SWITCH))}: out at 2011-07-01 only")
-    cs = ub.get("class_stand_ins") or {}
-    want_cs = (du.CLASS_TWIN_RULE, 1, len(invested),
-               [{"rebalance_date": d, "symbols": [AG_BR_PREF]} for d in sorted(invested)])
-    if (cs.get("rule"), cs.get("lines_keyed"), cs.get("picked"), cs.get("by_period")) != want_cs or \
-            held_at(AG_BR_PREF) != invested or held_at(AG_BR_ORD):
-        f.append(f"class_stand_ins {cs.get('lines_keyed')} keyed, {cs.get('picked')} picked; {AG_BR_PREF} held at "
-                 f"{len(held_at(AG_BR_PREF))} of {len(invested)}, {AG_BR_ORD} at {len(held_at(AG_BR_ORD))}")
-    g = drop["prior_year_guard"]
-    if any(r[0]["prior_year_guard"] != g for r in runs.values()):
-        f.append("prior_year_guard differs across exit methods")
-    want = [{"rebalance_date": d, "currency_switch": int(d == "2011-07-01"), "no_prior_in_window": int(d[:4]) % 2}
-            for d in dates]
-    if list(g) != ["rule", "dropped", "by_reason", "by_period"] or g["by_period"] != want or \
-            g["by_reason"] != {"currency_switch": 1, "no_prior_in_window": 12} or g["dropped"] != 13:
-        f.append(f"prior_year_guard {g['by_reason']} {[p for p in g['by_period'] if p not in want][:3]}")
+    g = drop[guard]
+    if any(r[0][guard] != g for r in runs.values()):
+        f.append(f"{guard} differs across exit methods")
+    per = [{"rebalance_date": d, **want(d)} for d in dates]
+    if list(g) != ["rule", "dropped", "by_reason", "by_period"] or g["by_period"] != per or \
+            g["by_reason"] != by_reason or g["dropped"] != sum(by_reason.values()):
+        f.append(f"{guard} {g['by_reason']} {[p for p in g['by_period'] if p not in per][:3]}")
     for r in rows:
         if r["stocks_held"] and len(r.get("entry_unpriced") or []) != r["screened"] - r["entry_buyable"]:
             f.append(f"{r['rebalance_date']}: entry_unpriced {r.get('entry_unpriced')}")
@@ -2571,13 +2580,157 @@ def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
     dl = {r["rebalance_date"] for r in rows if "DLST.BK" in (r.get("entry_unpriced") or [])}
     if dl != {d for d in dates if d >= "2018-07-01"}:
         f.append(f"DLST.BK unpriced at {sorted(dl)}, want every rebalance from 2018-07-01")
-    return f
+    return f, drop
 
 
-def topic_failures(topic, src, tmp):
+def held_dates(rows):
+    """(held_at, invested): held_at(symbol) the rebalance dates whose book holds it; invested the dates held."""
+    return (lambda s: {r["rebalance_date"] for r in rows if s in r["holdings"].split(",")},
+            {r["rebalance_date"] for r in rows if r["stocks_held"]})
+
+
+def asset_growth_rules_failures(src, tmp, mod=None, tag=""):
+    """asset-growth's universe rules ur-2 and prior-year guard end to end on asset_growth_source(): both blocks
+    follow data_checks in order, equal across exit methods (universe_rules in the uncapped arm too); the sent
+    profile query carries ur-2's CASE, not ur-1's; GUD.AX leaves every book while JUP.L and AG_SER stay; AG_BR_PREF
+    stands in for AG_BR_ORD in every invested book and class_stand_ins lists it at each; the guard
+    counts AG_SWITCH at 2011-07-01 and AG_GAPPY at every odd-year rebalance, neither held then; each priced period
+    lists its unpriced names. mod: the topic module to run (a mutant), tag names its files apart."""
+    f, drop = rules_guard_failures(
+        "asset-growth", src, tmp, mod, tag, ["universe_rules", "prior_year_guard"], du.UNIVERSE_RULES_V2,
+        du.UNIVERSE_RULES_V1, [("GUD.AX", "known", AG_RULES["GUD.AX"][0])], "prior_year_guard",
+        lambda d: {"currency_switch": int(d == "2011-07-01"), "no_prior_in_window": int(d[:4]) % 2},
+        {"currency_switch": 1, "no_prior_in_window": 12})
+    if drop is None:
+        return f
+    held_at, invested = held_dates(drop["period_data"])
+    kept = held_at("JUP.L") & held_at(AG_SER)
+    if held_at("GUD.AX") or held_at(AG_GAPPY) or not invested <= kept:
+        f.append(f"held: GUD.AX {sorted(held_at('GUD.AX'))}, {AG_GAPPY} {sorted(held_at(AG_GAPPY))}, JUP.L and "
+                 f"{AG_SER} missing at {sorted(invested - kept)}")
+    if held_at(AG_SWITCH) != invested - {"2011-07-01"}:
+        f.append(f"{AG_SWITCH} held at {sorted(held_at(AG_SWITCH))}: out at 2011-07-01 only")
+    return f + stand_in_failures(drop)
+
+
+def stand_in_failures(res):
+    """AG_BR_PREF holds its SAO company's slot as a class twin in res (a run with data checks on): held in every
+    invested book and listed there by class_stand_ins (one line keyed), AG_BR_ORD never held."""
+    held_at, invested = held_dates(res["period_data"])
+    cs = res["universe_rules"].get("class_stand_ins") or {}
+    want = (du.CLASS_TWIN_RULE, 1, len(invested),
+            [{"rebalance_date": d, "symbols": [AG_BR_PREF]} for d in sorted(invested)])
+    if (cs.get("rule"), cs.get("lines_keyed"), cs.get("picked"), cs.get("by_period")) != want or \
+            held_at(AG_BR_PREF) != invested or held_at(AG_BR_ORD):
+        return [f"class_stand_ins {cs.get('lines_keyed')} keyed, {cs.get('picked')} picked; {AG_BR_PREF} held at "
+                f"{len(held_at(AG_BR_PREF))} of {len(invested)}, {AG_BR_ORD} at {len(held_at(AG_BR_ORD))}"]
+    return []
+
+
+def vary(src):
+    """Per-day volume on the fixture's flat traded bars: a bar of volume 1e5 gets 1e5 plus 1 to 7 by its date, so
+    no two neighbouring bars of a line repeat their close and volume, and dc-2's rule S moves none. Closes, zero
+    volumes and every other volume stay. A second call changes only the bars added since (the run window's)."""
+    src.execute("UPDATE stock_eod SET volume = 1e5 + 1 + (dateEpoch // 86400) % 7 WHERE volume = 1e5")
+    return src
+
+
+# fcf-conversion's universe-rule line, a depositary receipt on ur-3's hand list only (symbol, name, ISIN), and a
+# filler whose FY2010 income row reports in USD, so its FY2010 cash-flow row has no income row to pair with
+FCF_RECEIPT = ("6288.HK", "Fast Retailing Co Ltd", "US0000628800")
+FCF_SWITCH = "A10.BK"
+# the lines fcf_source adds: symbol -> (name, ISIN, FY market cap, free cash flow over net income)
+FCF_ADDED = {FCF_RECEIPT[0]: (*FCF_RECEIPT[1:], 5.03e10, 2.5),
+             AG_BR_ORD: (AG_RULES[AG_BR_ORD][0], AG_RULES[AG_BR_ORD][2], 5.04e10, 1.3),
+             AG_BR_PREF: (AG_RULES[AG_BR_PREF][0], AG_RULES[AG_BR_PREF][2], 5.05e10, 1.2)}
+
+
+def fcf_source():
+    """synthetic_source() as an fcf-conversion leg, its bars through vary(): ur-3's profile columns, OPM 20%,
+    reportedCurrency THB on the income rows and on fcf's own cash-flow rows, whose free cash flow is net income
+    times a ratio distinct per line (2.0 down by 0.02 a line), so every line, the special names included, passes
+    the screen with an income row that pairs and ranks apart. Plus FCF_ADDED's lines: FCF_RECEIPT at a ratio of
+    2.5, so it would rank first: under ur-3 it must leave every book; and asset growth's SAO company at the foot
+    of the book, its ordinary line AG_BR_ORD with no bars, so AG_BR_PREF holds the company's slot as a class
+    twin. FCF_SWITCH's FY2010 income row is in USD, so the pair guard counts it at 2011-07-01 (currency_mismatch)
+    and it isn't ranked then."""
+    src = synthetic_source()
+    rule_columns(src)
+    src.execute("ALTER TABLE profile ADD COLUMN isAdr BOOLEAN")
+    src.execute("UPDATE profile SET isAdr = FALSE")
+    src.execute("ALTER TABLE financial_ratios ADD COLUMN operatingProfitMargin DOUBLE")
+    src.execute("UPDATE financial_ratios SET operatingProfitMargin = 0.2")
+    for s, (name, isin, cap, _) in FCF_ADDED.items():
+        src.execute("INSERT INTO profile VALUES (?, 'SET', 'TH', ?, 'Consumer Cyclical', 5e10, TRUE, 'THB', ?, NULL,"
+                    " FALSE, FALSE, FALSE)", [s, isin, name])
+        for y in range(1998, 2025):
+            fy = date(y, 12, 31)
+            src.execute("INSERT INTO financial_ratios VALUES (?, 'FY', ?, ?, 1.0, 0.2)", [s, fy.isoformat(), ep(fy)])
+            src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, ?)", [s, fy.isoformat(), ep(fy), cap])
+            src.execute("INSERT INTO income_statement VALUES (?, 'FY', ?, ?, ?, 2e9, 2.0, 1e9, ?)",
+                        [s, fy.isoformat(), ep(fy), 1000.0 * 1.05 ** (y - 1998), (fy + timedelta(days=60)).isoformat()])
+        if s != AG_BR_ORD:
+            window_bars(src, s)
+    src.execute("ALTER TABLE income_statement ADD COLUMN reportedCurrency VARCHAR")
+    src.execute("UPDATE income_statement SET reportedCurrency = 'THB'")
+    src.execute("CREATE TABLE cash_flow_statement(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch UINTEGER,"
+                " freeCashFlow DOUBLE, reportedCurrency VARCHAR)")
+    conv = {**{s: 2.0 - 0.02 * i for i, s in enumerate(FILLERS + SPECIAL)}, **{s: v[3] for s, v in FCF_ADDED.items()}}
+    src.executemany("INSERT INTO cash_flow_statement VALUES (?, 'FY', ?, ?, ?, 'THB')",
+                    [(s, d, e, ni * conv[s]) for s, d, e, ni in
+                     src.execute("SELECT symbol, date, dateEpoch, netIncome FROM income_statement").fetchall()])
+    src.execute("UPDATE income_statement SET reportedCurrency = 'USD' WHERE symbol = ? AND date = '2010-12-31'",
+                [FCF_SWITCH])
+    return vary(src)
+
+
+def fcf_rules_failures(src, tmp, mod=None, tag=""):
+    """fcf-conversion's universe rules ur-3 and statement pair guard end to end on fcf_source(): the blocks follow
+    data_checks in order (universe_rules, statement_pair_guard, cost_model), equal across exit methods
+    (universe_rules in the uncapped arm too); universe_rules is ur-3's with ORDINARY_RULES_V3 and the sent
+    profile query carries ur-3's CASE, not ur-2's; FCF_RECEIPT, on ur-3's hand list only, leaves at the fetch and
+    every book; AG_BR_PREF stands in for AG_BR_ORD in every invested book and class_stand_ins lists it at each
+    (stand_in_failures); the guard counts FCF_SWITCH at 2011-07-01 only, not held then; each priced period lists
+    its unpriced names. mod: the topic module to run (a mutant), tag names its files apart."""
+    f, drop = rules_guard_failures(
+        "fcf-conversion", src, tmp, mod, tag, ["universe_rules", "statement_pair_guard", "cost_model"],
+        du.UNIVERSE_RULES_V3, du.UNIVERSE_RULES_V2, [(FCF_RECEIPT[0], "known", FCF_RECEIPT[1])],
+        "statement_pair_guard", lambda d: {"currency_mismatch": int(d == "2011-07-01"), "no_income_in_window": 0},
+        {"currency_mismatch": 1, "no_income_in_window": 0})
+    if drop is None:
+        return f
+    held_at, invested = held_dates(drop["period_data"])
+    if held_at(FCF_RECEIPT[0]) or len(invested) < 20:
+        f.append(f"{FCF_RECEIPT[0]} held at {sorted(held_at(FCF_RECEIPT[0]))}; {len(invested)} periods invested")
+    if held_at(FCF_SWITCH) != invested - {"2011-07-01"}:
+        f.append(f"{FCF_SWITCH} held at {sorted(held_at(FCF_SWITCH))}: out at 2011-07-01 only")
+    return f + stand_in_failures(drop)
+
+
+# The data checks each opted-in topic runs: its block's version, and its rules the version's config
+DC_VERSIONS = {"deleveraging": "dc-1", "cyclical-timing": "dc-1", "defensive-quality": "dc-1", "asset-growth": "dc-1",
+               "fcf-conversion": "dc-3"}
+DC_CONFIGS = {"dc-1": du.DATA_CHECKS_V1, "dc-2": du.DATA_CHECKS_V2, "dc-3": du.DATA_CHECKS_V3}
+
+
+def dc_header_failures(topic, dcb):
+    """The block's header: mode on, no cap, the topic's version (DC_VERSIONS) and that version's rules, so a dc-3
+    topic carries rule S (stale_repeat) and the code's hand list (factor_hand), and a dc-1 topic neither."""
+    ver = DC_VERSIONS.get(topic)
+    want = json.loads(json.dumps({k: v for k, v in DC_CONFIGS.get(ver, {}).items() if k != "version"}))
+    rules = dcb.get("rules") or {}
+    if dcb["mode"] != "on" or dcb["max_single_return"] is not None or dcb["version"] != ver or rules != want:
+        return [f"{topic}: header {dcb['mode']} {dcb['max_single_return']} {dcb['version']}, want {ver}; rules "
+                f"differ in {sorted(k for k in set(rules) | set(want) if rules.get(k) != want.get(k))}"]
+    return []
+
+
+def topic_failures(topic, src, tmp, mod=None, tag=""):
+    """One opted-in topic end to end on its synthetic leg. mod: the topic module to run (a mutant), tag names
+    its files apart."""
     f = []
-    runs = {m: run_topic(topic, src, m, "on", tmp) for m in ("drop", "ltp", "both")}
-    unc, _ = run_topic(topic, src, "ltp", "uncapped", tmp)
+    runs = {m: run_topic(topic, src, m, "on", tmp, tag=tag, mod=mod) for m in ("drop", "ltp", "both")}
+    unc, _ = run_topic(topic, src, "ltp", "uncapped", tmp, tag=tag, mod=mod)
     drop, both, ltp = runs["drop"][0], runs["both"][0], runs["ltp"][0]
     g = {"topic": topic, "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}]}
     _, probs = check_stage_a(g, both, drop, ltp, with_ltp=True)
@@ -2606,8 +2759,7 @@ def topic_failures(topic, src, tmp):
     blk = shuffled.block()
     if json.dumps(blk["events"]) != json.dumps(ev) or json.dumps(blk["large_moves"]) != json.dumps(dcb["large_moves"]):
         f.append(f"{topic}: shuffled events give different JSON")
-    if dcb["mode"] != "on" or dcb["max_single_return"] is not None or dcb["version"] != "dc-1":
-        f.append(f"{topic}: header {dcb['mode']} {dcb['max_single_return']}")
+    f += dc_header_failures(topic, dcb)
     if not all(isinstance(v, int) for k, v in c.items() if k != "rows_moved") or \
             not all(isinstance(v, int) for v in c["rows_moved"].values()):
         f.append(f"{topic}: counts are ints")
@@ -2878,12 +3030,31 @@ def hand_unit_failures(m=du):
     return f
 
 
-def hand_list_failures():
-    """The list against the committed results: each entry's span, in each leg it was found in, is a band
-    factor_flag with the entry's adjClose return and exit date; spans are unique; kinds, booked values and
-    ranges are well formed; every entry carries evidence."""
+def results_file(root, where):
+    """A leg as found_in and REVIEW_EFFECTS name it, "<topic>/<leg>" (results/returns_<leg>.json) or
+    "<topic>/diagnostics/<name>" (results/diagnostics/<name>.json, a diagnostic run such as financials_out)."""
+    topic, *leg = where.split("/")
+    if len(leg) == 2 and leg[0] == "diagnostics":
+        return os.path.join(root, topic, "results", "diagnostics", f"{leg[1]}.json")
+    return os.path.join(root, topic, "results", f"returns_{'/'.join(leg)}.json")
+
+
+def review_files(root, topic):
+    """(leg, path) for each committed results file of a topic that factor_review reads, legs named as
+    results_file() reads them."""
+    d = os.path.join(root, topic, "results")
+    return ([(os.path.basename(p)[8:-5], p) for p in sorted(glob.glob(os.path.join(d, "returns_*.json")))]
+            + [("diagnostics/" + os.path.basename(p)[:-5], p)
+               for p in sorted(glob.glob(os.path.join(d, "diagnostics", "*.json")))])
+
+
+def hand_list_failures(root=ROOT, entries=None):
+    """The list against the committed results: each entry's span, in each leg it was found in (a diagnostics
+    file too), is a band factor_flag with the entry's adjClose return and exit date; spans are unique; kinds,
+    booked values and ranges are well formed; every entry carries evidence. root and entries: a test tree and
+    list in place of the repo's."""
     f = []
-    entries = du.DATA_CHECKS_V3["factor_hand"]["entries"]
+    entries = du.DATA_CHECKS_V3["factor_hand"]["entries"] if entries is None else entries
     spans = [(e["symbol"], e["rebalance_date"], e["exit_date"]) for e in entries]
     if len(set(spans)) != len(spans):
         f.append("a span is listed twice")
@@ -2894,41 +3065,92 @@ def hand_list_failures():
         if not ok:
             f.append(f"malformed entry {e['symbol']} {e['rebalance_date']}")
         for where in e["found_in"]:
-            topic, leg = where.split("/")
-            res = json.load(open(os.path.join(ROOT, topic, "results", f"returns_{leg}.json")))
-            ev = [x for x in res["data_checks"]["events"] if x["check"] == "factor_flag" and "band" in x["reasons"]
-                  and (x["symbol"], x["rebalance_date"]) == (e["symbol"], e["rebalance_date"])]
+            path = results_file(root, where)
+            if not os.path.exists(path):
+                f.append(f"{e['symbol']} {e['rebalance_date']}: found_in {where} has no results file")
+                continue
+            res = json.load(open(path))
+            ev = [x for x in (res.get("data_checks") or {}).get("events", []) if x["check"] == "factor_flag"
+                  and "band" in x["reasons"] and (x["symbol"], x["rebalance_date"]) == (e["symbol"], e["rebalance_date"])]
             exit_ = {r["rebalance_date"]: r["exit_date"] for r in res["period_data"]}.get(e["rebalance_date"])
             if len(ev) != 1 or exit_ != e["exit_date"] or abs(ev[0]["r_adj"] - e["return_adj"]) > 1e-6:
                 f.append(f"{e['symbol']} {e['rebalance_date']} in {where}: {ev} exit {exit_}")
     return f
 
 
-def review_failures():
-    """factor_review on the four topics' committed results: every leg reproduces; the effects of the listed flags
-    match REVIEW_EFFECTS to 1e-4 and no other band flag reaches 0.1pp; against the hand list, nothing is left."""
+# fcf-conversion's committed files predate its port and carry no data_checks block; the results PR replaces them
+# and removes this.
+NO_BLOCK_FILES = {"fcf-conversion": 16}
+
+
+def review_failures(root=ROOT, effects=None, entries=None, no_block=None):
+    """factor_review on the data-checks topics' committed results, diagnostics files included: every leg
+    reproduces; the effects of the listed flags match REVIEW_EFFECTS to 1e-4 and no other band flag reaches
+    0.1pp; against the hand list, nothing is left. A file with no data_checks block counts only where
+    NO_BLOCK_FILES lists its topic, at that count. root, effects, entries and no_block: a test tree and
+    its tables in place of the repo's."""
     import factor_review as fr
-    f, seen = [], set()
-    entries = du.DATA_CHECKS_V3["factor_hand"]["entries"]
+    effects = REVIEW_EFFECTS if effects is None else effects
+    entries = du.DATA_CHECKS_V3["factor_hand"]["entries"] if entries is None else entries
+    no_block = NO_BLOCK_FILES if no_block is None else no_block
+    f, seen, blockless = [], set(), {}
     for t in DATA_CHECKS_TOPICS:
-        for p in sorted(glob.glob(os.path.join(ROOT, t, "results", "returns_*.json"))):
-            leg = os.path.basename(p)[8:-5]
+        for leg, p in review_files(root, t):
             res = json.load(open(p))
+            if "data_checks" not in res:
+                blockless[t] = blockless.get(t, 0) + 1
+                continue
             if not fr.reproduces(res):
                 f.append(f"{t}/{leg} doesn't reproduce")
             for (s, r, _), _, eff in fr.effects(res):
                 k = (t, leg, s, r)
-                if k in REVIEW_EFFECTS:
+                if k in effects:
                     seen.add(k)
-                    if abs(eff - REVIEW_EFFECTS[k]) > 1e-4:
-                        f.append(f"{k}: effect {eff:.4f}, recorded {REVIEW_EFFECTS[k]}")
+                    if abs(eff - effects[k]) > 1e-4:
+                        f.append(f"{k}: effect {eff:.4f}, recorded {effects[k]}")
                 elif abs(eff) >= 0.1:
                     f.append(f"{k}: effect {eff:.4f}, not recorded")
             if fr.unreviewed(res, entries, 0.1):
                 f.append(f"{t}/{leg} unreviewed: {fr.unreviewed(res, entries, 0.1)}")
-    if seen != set(REVIEW_EFFECTS):
-        f.append(f"recorded flags not found: {sorted(set(REVIEW_EFFECTS) - seen)}")
+    if blockless != no_block:
+        f.append(f"files with no data_checks block {blockless}, want {no_block}")
+    if seen != set(effects):
+        f.append(f"recorded flags not found: {sorted(set(effects) - seen)}")
     return f
+
+
+ARM = "fcf-conversion/diagnostics/financials_out_NYSE_NASDAQ_AMEX"
+
+
+def diagnostics_failures(tmp):
+    """found_in and the review read a diagnostics file, on a test tree: asset growth Sweden's committed file
+    as fcf-conversion's financials-out arm, beside one of fcf's block-less files. Its two KINV-B.ST flags,
+    listed with the arm as found_in and in an effects table keyed by the arm, pass; unrecorded, a found_in
+    without the diagnostics part, a block-less file of another topic or a count other than the pinned one
+    each fail. Returns (name, failures, must_fail) rows."""
+    root = os.path.join(tmp, "diagnostics_tree")
+    arm = results_file(root, ARM)
+    os.makedirs(os.path.dirname(arm))
+    shutil.copy(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json"), arm)
+    shutil.copy(os.path.join(ROOT, "fcf-conversion", "results", "returns_SET.json"),
+                os.path.join(root, "fcf-conversion", "results", "returns_SET.json"))
+    kinv = [e for e in du.DATA_CHECKS_V3["factor_hand"]["entries"] if e["symbol"] == "KINV-B.ST"]
+    leg = ARM.split("/", 1)[1]
+    effects = {("fcf-conversion", leg, "KINV-B.ST", "2014-07-01"): REVIEW_EFFECTS[("asset-growth", "STO", "KINV-B.ST", "2014-07-01")],
+               ("fcf-conversion", leg, "KINV-B.ST", "2020-07-01"): REVIEW_EFFECTS[("asset-growth", "STO", "KINV-B.ST", "2020-07-01")]}
+    other = os.path.join(tmp, "diagnostics_other")
+    shutil.copytree(root, other)
+    os.makedirs(os.path.join(other, "asset-growth", "results"))
+    shutil.copy(os.path.join(ROOT, "fcf-conversion", "results", "returns_SET.json"),
+                os.path.join(other, "asset-growth", "results", "returns_SET.json"))
+    one = {"fcf-conversion": 1}
+    return [("found_in names the arm", hand_list_failures(root, [dict(e, found_in=[ARM]) for e in kinv]), False),
+            ("found_in without the diagnostics part",
+             hand_list_failures(root, [dict(e, found_in=[ARM.replace("/diagnostics", "")]) for e in kinv]), True),
+            ("the review reads the arm", review_failures(root, effects, no_block=one), False),
+            ("the arm's flags unrecorded", review_failures(root, {}, no_block=one), True),
+            ("a block-less file of another topic", review_failures(other, effects, no_block=one), True),
+            ("a block-less count other than the pinned one", review_failures(root, effects, no_block={"fcf-conversion": 2}), True)]
 
 
 def dc3_file(res, drop_listed=(), drop_hand=(), stale=False, cagr_shift=0.0, min_pp=None):
@@ -3020,14 +3242,7 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
     def load():
         if mod_src is None:
             return load_topic(topic)
-        path = os.path.join(tmp, f"hand_mutant_{topic.replace('-', '_')}.py")
-        with open(path, "w") as fh:
-            fh.write(mod_src)
-        spec = importlib.util.spec_from_file_location(f"hand_mutant_{topic.replace('-', '_')}", path)
-        mod = importlib.util.module_from_spec(spec)
-        sys.path.insert(0, ROOT)
-        spec.loader.exec_module(mod)
-        return mod
+        return topic_from_text(mod_src, tmp, f"hand_mutant_{topic.replace('-', '_')}")
 
     f = []
     base, _ = run_topic(topic, src, "ltp", "on", tmp, full_holdings=True, tag=".hand0")
@@ -3179,14 +3394,64 @@ def gate15_failures():
     # the floor-guard harness's no-cap exemption is the data-checks list plus the two topics that never had a cap
     if NO_RETURN_CAP - {"qarp", "low-pe"} != set(DATA_CHECKS_TOPICS):
         f.append(f"test_floor_guard NO_RETURN_CAP {sorted(NO_RETURN_CAP)} is not qarp, low-pe and DATA_CHECKS_TOPICS")
-    # only a mode-on block may sit in a committed results file, and on dc-3 one with no hand-list fault
+    if set(DC_VERSIONS) != set(DATA_CHECKS_TOPICS):
+        f.append(f"DC_VERSIONS names {sorted(DC_VERSIONS)}, not DATA_CHECKS_TOPICS {sorted(DATA_CHECKS_TOPICS)}")
+    return f + results_check_failures()
+
+
+def bce_file(entry, exit_):
+    """A mode-on results file holding BCE-PY.TO in one period."""
+    return {"data_checks": {"mode": "on"},
+            "period_data": [{"rebalance_date": entry, "exit_date": exit_, "holdings": "BCE.TO,BCE-PY.TO"}]}
+
+
+def results_check_failures(problem=dc_results_problem):
+    """Gate 15's results check: only a mode-on block may sit in a committed results file, on dc-3 one with no
+    hand-list fault, and none holding BCE-PY.TO in a period that exits on or after 2026-01-01 (from then its
+    series is a preferred's price): the 2025 book and the 2026 partial period are refused, the 2024 book isn't."""
+    f = []
     sto = json.load(open(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json")))
     for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
                      ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True),
-                     (dc3_file(sto), False), (dc3_file(sto, stale=True), True)):
-        if bool(dc_results_problem(res)) != bad:
+                     (dc3_file(sto), False), (dc3_file(sto, stale=True), True),
+                     (bce_file("2025-07-01", "2026-07-01"), True), (bce_file("2026-07-01", "2026-11-06"), True),
+                     (bce_file("2024-07-01", "2025-07-01"), False), (bce_file("2025-10-01", "2026-01-01"), True),
+                     ({"data_checks": {"mode": "on"}, "period_data": [
+                         {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01"}]}, False),
+                     ({"data_checks": {"mode": "on"}, "period_data": [
+                         {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01", "holdings": "BCE.TO",
+                          "holdings_full": [{"symbol": "BCE-PY.TO"}]}]}, True)):
+        if bool(problem(res)) != bad:
             label = res if len(json.dumps(res)) < 200 else f"Sweden's file on dc-3, bad={bad}"
-            f.append(f"dc_results_problem({label}) {dc_results_problem(res)}")
+            f.append(f"dc_results_problem({label}) {problem(res)}")
+    return f
+
+
+GATE15_RESULTS_MUTANTS = {
+    "BCE-PY.TO tested on the entry date": ('(r.get("exit_date") or "") >= BCE_PY_FROM',
+                                           '(r.get("rebalance_date") or "") >= BCE_PY_FROM'),
+    "an exit on the day itself let through": ('(r.get("exit_date") or "") >= BCE_PY_FROM',
+                                              '(r.get("exit_date") or "") > BCE_PY_FROM'),
+    "holdings_full not read": ('| {h.get("symbol") for h in row.get("holdings_full") or []}', ''),
+}
+
+
+def gate15_results_mutant_failures(tmp):
+    """Each GATE15_RESULTS_MUTANTS edit of verify_floor_guard.py must fail results_check_failures."""
+    f = []
+    src = open(os.path.join(ROOT, "scripts", "verify_floor_guard.py")).read()
+    for i, (label, (old, new)) in enumerate(GATE15_RESULTS_MUTANTS.items()):
+        if src.count(old) != 1:
+            f.append(f"gate 15 results mutant {label}: anchor found {src.count(old)} times")
+            continue
+        path = os.path.join(tmp, f"vfg_mutant_{i}.py")
+        with open(path, "w") as fh:
+            fh.write(src.replace(old, new, 1))
+        spec = importlib.util.spec_from_file_location(f"vfg_mutant_{i}", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        if not results_check_failures(mod.dc_results_problem):
+            f.append(f"gate 15 results mutant {label} passes every check")
     return f
 
 
@@ -3229,10 +3494,13 @@ def main():
     expect("H hand list on real rows: rebuilt, real, a range, stale, spans, fills, uncapped, record, cash, block",
            hand_unit_failures())
     expect("H hand list agrees with the committed results", hand_list_failures())
-    expect("H review: the 24 effects, nothing else at 0.1pp, nothing left against the list", review_failures())
+    expect("H review: the 24 effects, nothing else at 0.1pp, nothing left against the list, fcf's 16 files skipped",
+           review_failures())
     expect("H gate 15 on a dc-3 file: unreviewed, stale, unbooked entry, unreproduced, threshold",
            gate_dc3_failures())
     with tempfile.TemporaryDirectory() as tmp:
+        for name, failures, must_fail in diagnostics_failures(tmp):
+            (expect_fail if must_fail else expect)(f"H diagnostics: {name}", failures)
         expect("S mutants each fail a check", s_mutant_failures(tmp))
     # N
     expect("N twins", twin_failures())
@@ -3282,12 +3550,18 @@ def main():
                                ("LtpExits(traded_only=False) identity", ltp_identity_failures(base))):
             expect(name, failures + ([stale] if failures else []))
     # every opted-in topic end to end, and gate 15
-    srcs = {"defensive-quality": defensive_source(), "asset-growth": asset_growth_source()}
+    srcs = {"defensive-quality": defensive_source(), "asset-growth": asset_growth_source(),
+            "fcf-conversion": fcf_source()}
     src = synthetic_source()
     with tempfile.TemporaryDirectory() as tmp:
         for t in DATA_CHECKS_TOPICS:
             expect(f"{t} end to end", topic_failures(t, srcs.get(t, src), tmp))
             expect(f"{t} full holdings", holdings_full_failures(t, srcs.get(t, src), tmp))
+        dc1 = load_topic("fcf-conversion")
+        dc1.DATA_CHECKS = du.DATA_CHECKS_V1
+        header = topic_failures("fcf-conversion", srcs["fcf-conversion"], tmp, mod=dc1, tag=".dc1")
+        expect_fail("fcf-conversion on dc-1's data checks", header)
+        check(any("header" in x for x in header), f"fcf-conversion on dc-1 fails for its header: {header}")
         expect("defensive-quality universe rules end to end", defensive_rules_failures(srcs["defensive-quality"], tmp))
         expect("asset-growth universe rules ur-2 and prior-year guard end to end",
                asset_growth_rules_failures(srcs["asset-growth"], tmp))
@@ -3295,9 +3569,23 @@ def main():
         ur1.UNIVERSE_RULES = du.UNIVERSE_RULES_V1
         expect_fail("asset-growth on ur-1's rules (GUD.AX held, JUP.L and A12.BK removed)",
                     asset_growth_rules_failures(srcs["asset-growth"], tmp, mod=ur1, tag=".ur1"))
+        expect("fcf-conversion universe rules ur-3 and statement pair guard end to end",
+               fcf_rules_failures(srcs["fcf-conversion"], tmp))
+        ur2 = load_topic("fcf-conversion")
+        ur2.UNIVERSE_RULES = du.UNIVERSE_RULES_V2
+        expect_fail(f"fcf-conversion on ur-2's rules ({FCF_RECEIPT[0]} held)",
+                    fcf_rules_failures(srcs["fcf-conversion"], tmp, mod=ur2, tag=".ur2"))
+        # without the call a run with data checks on still completes (the uncapped arm raises): its book must fail
+        call, text = "ur.mark_twins(con)", open(os.path.join(ROOT, "fcf-conversion", "backtest.py")).read()
+        check(text.count(call) == 1, f"fcf-conversion calls {call} once (the mutant's anchor)")
+        no_twins = topic_from_text(text.replace(call, "None"), tmp, "no_twins_fcf_conversion")
+        expect_fail(f"fcf-conversion with {call} removed ({AG_BR_PREF} not standing in)",
+                    stand_in_failures(run_topic("fcf-conversion", srcs["fcf-conversion"], "drop", "on", tmp,
+                                                tag=".notwins", mod=no_twins)[0]))
         for t in DATA_CHECKS_TOPICS:
             expect(f"H {t} on a dc-3 hand list end to end", hand_topic_failures(t, srcs.get(t, src), tmp))
         expect("H mutants each fail a check", hand_mutant_failures(tmp, {None: src, **srcs}))
+        expect("gate 15 results mutants each fail a check", gate15_results_mutant_failures(tmp))
     expect("gate 15 on the real topics and mutants", gate15_failures())
     print("\n".join(f"ok {r}" for r in ran))
     print(f"test_data_checks: PASS ({len(ran)} checks)")

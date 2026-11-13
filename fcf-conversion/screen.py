@@ -5,6 +5,8 @@ FCF Conversion Quality Screen
 Shows current stocks passing the FCF conversion quality filter using TTM data.
 
 Signal: FCF/NI > 100%, FCF/NI < 300%, FCF margin > 10%, ROE > 10%, OPM > 10%
+Universe: ordinary shares only, by the backtest's universe rules (data_utils ur-3), without the lines its line
+starts and line ends leave out of a screen today.
 
 Usage:
     # Screen US stocks (default)
@@ -20,10 +22,13 @@ Usage:
 import argparse
 import os
 import sys
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from cli_utils import add_common_args, resolve_exchanges, get_mktcap_threshold
+from data_utils import UniverseRules, non_ordinary_sql, without_lines_sql
+from backtest import UNIVERSE_RULES
 
 SQL_TEMPLATE = """
 SELECT
@@ -34,7 +39,8 @@ SELECT
   ROUND(c.freeCashFlow / NULLIF(i.revenue, 0) * 100, 1) AS fcf_margin_pct,
   ROUND(k.returnOnEquityTTM * 100, 1) AS roe_pct,
   ROUND(r.operatingProfitMarginTTM * 100, 1) AS op_margin_pct,
-  ROUND(k.marketCap / 1e9, 1) AS mktcap_bn
+  ROUND(k.marketCap / 1e9, 1) AS mktcap_bn,
+  c.freeCashFlow / NULLIF(i.netIncome, 0) AS fcf_conversion
 FROM cash_flow_statement_ttm c
 JOIN income_statement_ttm i ON c.symbol = i.symbol
 JOIN key_metrics_ttm k ON c.symbol = k.symbol
@@ -49,10 +55,32 @@ WHERE i.netIncome > 0
   AND k.returnOnEquityTTM > 0.10
   AND r.operatingProfitMarginTTM > 0.10
   AND k.marketCap > {mktcap_min}
+  AND ({non_ordinary}) IS NULL
   {exchange_filter}
-ORDER BY c.freeCashFlow / NULLIF(i.netIncome, 0) DESC
-LIMIT 30
 """
+
+
+def left_out_lines(day):
+    """ur-3's lines a screen on day leaves out: before a line start's first own day or after a line end's last.
+    UniverseRules reads its line lists for the kept rows it is given, so every listed line goes in as one."""
+    ur = UniverseRules(UNIVERSE_RULES)
+    ur.sector_rows([{"symbol": s} for key in ("line_starts", "line_ends") for s, _, _ in UNIVERSE_RULES.get(key, ())])
+    return ur.not_started(day) + ur.ended(day)
+
+
+def screen_sql(exchanges, mktcap_min, day=None):
+    """The screen's SQL on these exchanges (all when None) on day (today in UTC when None): the lines left_out_lines
+    names leave before the top-30 cut, so the next names take their slots. The CASE goes in as a format value: it
+    holds braces."""
+    if exchanges:
+        ex_list = ", ".join(f"'{e}'" for e in exchanges)
+        exchange_filter = f"AND p.exchange IN ({ex_list})"
+    else:
+        exchange_filter = ""
+    candidates = SQL_TEMPLATE.format(mktcap_min=mktcap_min, exchange_filter=exchange_filter,
+                                     non_ordinary=non_ordinary_sql("p", cfg=UNIVERSE_RULES))
+    left_out = left_out_lines(day or datetime.now(timezone.utc).date())
+    return f"SELECT * FROM ({without_lines_sql(candidates, left_out)}) _r ORDER BY fcf_conversion DESC, symbol LIMIT 30"
 
 
 def main():
@@ -64,23 +92,16 @@ def main():
 
     exchanges, universe_name = resolve_exchanges(args)
     mktcap_min = get_mktcap_threshold(exchanges)
-
-    # Build exchange filter
-    if exchanges:
-        ex_list = ", ".join(f"'{e}'" for e in exchanges)
-        exchange_filter = f"AND p.exchange IN ({ex_list})"
-    else:
-        exchange_filter = ""
-
-    sql = SQL_TEMPLATE.format(mktcap_min=mktcap_min, exchange_filter=exchange_filter)
+    sql = screen_sql(exchanges, mktcap_min)
 
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
 
     if args.cloud:
+        # repr, not a '''...''' literal: the SQL's regex backslashes (\b) must reach the query unchanged
         code = f"""
 from cr_client import CetaResearch
 cr = CetaResearch()
-results = cr.query('''{sql}''')
+results = cr.query({sql!r})
 if results:
     print(f"{{len(results)}} stocks pass FCF Conversion screen")
     print(f"{{'':<8}} {{'Company':<30}} {{'Exch':<8}} {{'Conv%':>8}} {{'FCFMgn%':>8}} {{'ROE%':>8}} {{'OPM%':>8}} {{'MCap$B':>8}}")

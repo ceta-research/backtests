@@ -42,6 +42,7 @@ import os
 import sys
 import time
 from datetime import date, datetime, timedelta
+from functools import partial
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
@@ -52,7 +53,8 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
                         load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
-                        UniverseRules, non_ordinary_sql, UNIVERSE_RULES_V2)
+                        UniverseRules, load_universe, UNIVERSE_RULES_V2, RowGuard, without_lines_sql as _started,
+                        guarded_sql)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -116,24 +118,8 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     con.execute("SET memory_limit='4GB'")
 
     # 1. Universe: ordinary shares only (the CASE names why a line is not one; those lines stay out)
-    print("  Fetching exchange membership...")
-    profile_sql = f"""
-        SELECT DISTINCT symbol, exchange, cik, companyName,
-               {non_ordinary_sql("p", cfg=UNIVERSE_RULES)} AS non_ordinary
-        FROM profile p
-        {exchange_where}
-    """
-    profiles = client.query(profile_sql, verbose=verbose)
-    if not profiles:
-        print("  No symbols found for these exchanges.")
+    if load_universe(client, con, exchange_where, ur, UNIVERSE_RULES, verbose=verbose) is None:
         return None
-    kept = ur.sector_rows(profiles)
-    print(f"  Universe: {ur.lines} symbols, {len(ur.removed)} not ordinary shares")
-    if not kept:
-        print("  No ordinary shares in this universe.")
-        return None
-    con.execute("CREATE TABLE universe AS SELECT DISTINCT unnest(?::VARCHAR[]) AS symbol",
-                [sorted({r["symbol"] for r in kept})])
 
     if exchanges:
         sym_filter_sql = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({ex_filter}){listing_and})"
@@ -230,7 +216,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
 PRIOR_GUARD_REASONS = ("currency_switch", "no_prior_in_window")
 
 
-class PriorYearGuard:
+class PriorYearGuard(RowGuard):
     """One leg's prior-year guard record: per rebalance date, the screen's candidates left unranked because
     no prior FY row pairs with the current one (screen inputs only: equal in drop, ltp and both)."""
 
@@ -242,18 +228,7 @@ class PriorYearGuard:
             "in the universe that pass the ROE, ROA, margin and market-cap tests")
 
     def __init__(self):
-        self.periods = {}
-
-    def record(self, rows, target_date):
-        """rows: (symbol, reason) of one screen's unranked candidates."""
-        self.periods[target_date.isoformat()] = {k: sum(1 for _, why in rows if why == k)
-                                                 for k in PRIOR_GUARD_REASONS}
-
-    def block(self):
-        by_period = [{"rebalance_date": d, **n} for d, n in sorted(self.periods.items())]
-        by_reason = {k: sum(p[k] for p in by_period) for k in PRIOR_GUARD_REASONS}
-        return {"rule": self.RULE, "dropped": sum(by_reason.values()), "by_reason": by_reason,
-                "by_period": by_period}
+        super().__init__(self.RULE, PRIOR_GUARD_REASONS)
 
 
 def _candidates_sql(cap_test, events=False):
@@ -317,17 +292,8 @@ def _candidates_sql(cap_test, events=False):
     """
 
 
-def _started(candidates_sql, late):
-    """The candidates without the lines a screen leaves out before their ur-2 line_starts day (unchanged if none)."""
-    if not late:
-        return candidates_sql
-    names = ", ".join("'" + s.replace("'", "''") + "'" for s in late)
-    return f"SELECT * FROM ({candidates_sql}) _s WHERE _s.symbol NOT IN ({names})"
-
-
-def _paired(candidates_sql, rule="IS NULL"):
-    """The candidates the prior-year guard pairs ("IS NULL") or leaves unranked ("IS NOT NULL")."""
-    return f"SELECT * FROM ({candidates_sql}) _g WHERE _g.prior_guard {rule}"
+# The candidates the prior-year guard pairs ("IS NULL") or leaves unranked ("IS NOT NULL").
+_paired = partial(guarded_sql, "prior_guard")
 
 
 def screen_stocks(con, target_date, mktcap_min, offset_days=1, dc=None, ur=None, guard=None):

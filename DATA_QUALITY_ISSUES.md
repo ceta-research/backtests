@@ -2,13 +2,13 @@
 
 Known data quality issues affecting backtests. All strategies in this repo are affected unless noted otherwise.
 
-Last updated: 2026-11-09
+Last updated: 2026-11-13
 
 ---
 
 ## ASX (Australian Securities Exchange)
 
-**Status:** Excluded from all backtests
+**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun. `scripts/split_check.py` reads the leg's results file and confirms every split or consolidation that adjClose carries unadjusted; the check passes when no confirmed artifact moves the leg's excess by 0.15pp or more, alone or all rebuilt together. It can't see a split under 1.8x with no `splits_calendar` row (Root cause, below). asset-growth's check of 2026-11-11, on its November 2026 books, found none that large: every confirmed artifact rebuilt moves Australia -0.04pp.
 **Issue:** FMP `adjClose` has incorrect stock split/consolidation adjustments
 **Severity:** Fatal (produces 58%+ CAGR artifacts)
 
@@ -46,7 +46,7 @@ ORDER BY price_ratio DESC
 
 ## SAO (Sao Paulo Stock Exchange, Brazil)
 
-**Status:** Excluded from all backtests
+**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun, as for ASX above. asset-growth's check of 2026-11-11 found no artifact moving its Brazil leg by 0.15pp: three bonus issues adjClose hadn't absorbed (CMIG3.SA's in 2010 and 2021, DEXP4.SA's in 2025), rebuilt with the bonus shares restored, move it +0.08pp.
 **Issue:** Same FMP `adjClose` issue as ASX
 **Severity:** Fatal (produces 3,250% single-year returns)
 
@@ -221,7 +221,7 @@ Added 2026-03-03. `filter_returns()` in `data_utils.py` provides reusable price 
 
 Used by: asset-growth. Should be adopted by all future strategies. Existing strategies (qarp, low-pe, interest-coverage) can be retrofitted.
 
-Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
+Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth and fcf-conversion (its code; its committed results still ran with the cap) pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
 
 ### How to check a new exchange
 Before adding an exchange to a backtest, run these checks:
@@ -971,7 +971,14 @@ Not fixed yet:
   different currency from the floor (HKSE 57%, SES 34%, LSE 27%, TSX 25%, SIX 19%, US 18%,
   STO 7%). Restating the cap changes membership both ways: 25 of 750 US slots and 20 of 725
   LSE slots went to names under the floor, while 35 STO and 29 HKSE slots belonged to names
-  the raw figure wrongly removed.
+  the raw figure wrongly removed. In fcf-conversion's October 2026 books, at rough fixed rates,
+  22 held line-years would sit under the floor once the cap is converted. Universe rules ur-2,
+  and so ur-3, remove 9 of them (US ADRs), and the other 13 are UK 10 (EVOK.L 2010
+  and 2013, BGEO.L 2014 and 2016 to 2018 in Georgian lari, PLUS.L 2014, GKP.L 2019, TBLD.L
+  2021, TKO.L 2022), US 2 (CAE 2000, and JP 2016, which universe rules ur-3 now remove as an
+  ADR) and Australia 1 (SNZ.AX 2015). That counts one side only: names the raw cap wrongly
+  kept out can't be priced offline. fcf-conversion's code keeps the floor as it is, and its
+  README discloses it.
 - Lines of one company that carry their own ISINs are not collapsed by the same-ISIN rule
   and can hold separate slots: Thai `-R` (NVDR) lines, preference and second share-class
   lines, and mutual-fund share classes. In the rerun books: price-to-sales SET's two
@@ -1217,7 +1224,8 @@ still hold every listed line; read them with the measurements earlier in this se
 **Status:** in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks), and both
 topics' committed results were rerun with it in October 2026; defensive-quality joined in November
 2026 (see "Lines that aren't ordinary shares" below), and asset-growth with its November 2026
-rerun. The other topics keep their existing cap
+rerun. fcf-conversion's code joined in November 2026 on data checks dc-3; its committed results
+are still the October run's, with the cap. The other topics keep their existing cap
 (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their own rerun.
 
 The 200% single-return cap drops a holding only when its return is high. Reading every holding
@@ -1497,8 +1505,8 @@ hold NVDR lines beside their ordinary lines until their own reruns.
 
 **Status:** fixed for defensive-quality by its universe rules (METHODOLOGY.md, Universe Rules) in
 its November 2026 rerun, and for asset-growth by universe rules ur-2 in its November 2026 rerun (see
-"Asset growth's data fixes" below). Every other topic still holds
-these lines.
+"Asset growth's data fixes" below). fcf-conversion's code removes them under universe rules ur-3,
+and its committed results predate that. Every other topic still holds these lines.
 
 defensive-quality ranks by the vendor's dividend yield, so anything carrying a company's yield
 without being its ordinary share, and any yield on the wrong scale, takes a slot near the top.
@@ -1540,12 +1548,17 @@ reports a new plain-named second line. Other topics keep these lines until a sha
 **Status:** asset-growth's code and its November 2026 results carry universe rules ur-2, the
 prior-year guard and the data checks (METHODOLOGY.md, Universe Rules, Filing and Selection Rules and
 Data Checks). The counts below are of the October 2026 books, made before all three, 7,064 held
-line-years over 16 legs, and each entry says what is fixed and what stays open.
+line-years over 16 legs, and each entry says what is fixed and what stays open. fcf-conversion's
+code carries universe rules ur-3 (ur-2 with more hand-list lines, line starts and line ends), its
+own statement window and pair test, and data checks dc-3; its committed results are the October
+2026 run's and predate all three. Where fcf-conversion's October books held the same kind of line,
+the entry gives its state too, and the last two entries are its own.
 
 ### KSC lines that duplicate KOSDAQ series
 
-**Status:** fixed in asset-growth (ur-2) for the five duplicates its book held; open for the other
-KSC lines and for every other topic's Korea leg.
+**Status:** fixed in asset-growth (ur-2) for the five duplicates its book held, and in
+fcf-conversion's code (ur-3 holds the same five); open for the other KSC lines and for every other
+topic's Korea leg.
 
 82 KSC (KOSPI) lines share their six-digit code with a KOSDAQ (KOE) line. By their bars, 20 are
 concurrent duplicates of the `.KQ` series (the same close on 90% or more of the days both traded),
@@ -1566,13 +1579,22 @@ question, and it's open.
 Four 2024 holdings exited at a last traded price in mid-August 2024: 013030, 029960, 064760 and
 265520.KS. Those exits are the feed stop, not delistings. Three have no delisting record, and
 013030.KS's is dated 2024-08-14, the day its bars stop; Hy-Lok trades on as 013030.KQ from
-2026-01-16. Under ur-2, 013030.KS can still exit this way. fcf-conversion's Korea leg holds 4
-line-years on these lines and rising-yield's 2, both open.
+2026-01-16. Under ur-2, 013030.KS can still exit this way. rising-yield's Korea leg holds 2
+line-years on these lines, open.
+
+fcf-conversion's October Korea book holds 4: 069080.KS in 2016 and 2021, one of the five
+concurrent duplicates (the same close on 5,049 of 5,065 shared days), which ur-3's hand list
+removes, and 068760.KS (Celltrion Pharm) and 036540.KS (SFA Semicon) in 2022. Those two overlap
+their `.KQ` series with different closes (the same close on 80 of 4,173 and 2,180 of 5,339 shared
+days), so no hand-list entry takes them, and they stay in the code's Korea leg.
 
 ### BCE's three TSX lines
 
-**Status:** open for the run window's final period. ur-2 keeps BCE-PY.TO and removes BCE-PA.TO;
-nothing handles 2026 yet.
+**Status:** refused at publication, not fixed. ur-2 and ur-3 keep BCE-PY.TO and remove BCE-PA.TO.
+Gate 15 of `scripts/verify_floor_guard.py` refuses a committed results file of a data-checks topic
+that holds BCE-PY.TO in a period exiting on or after 2026-01-01 (it reads `holdings` and
+`holdings_full`), so a run whose 2025 or 2026 book holds it can't be published as it stands.
+Nothing maps BCE's common to BCE.TO in 2026 yet.
 
 BCE.TO, BCE-PY.TO and BCE-PA.TO are three TSX lines named BCE Inc., each with its own ISIN, and they
 carry the same fiscal-year rows. BCE-PY.TO is BCE's common price series through 2025: its July
@@ -1587,19 +1609,23 @@ stay open. A run past July 2025 that holds BCE from the 2025 rebalance books it 
 31.04 to 21.09, a fake -32%, and from 2026 BCE.TO and BCE-PY.TO can both screen on the same rows.
 Before 2026, a year BCE screens in can also seat BCE.TO beside it with no entry price
 (`entry_unpriced`). The November 2026 TSX books hold BCE-PY.TO up to the 2020 rebalance and no BCE
-line in 2025 or 2026, so neither case reaches them.
+line in 2025 or 2026, so neither case reaches them. fcf-conversion's October TSX book holds
+BCE-PY.TO with BCE-PA.TO in 9 years, the last at the 2024 rebalance, which exits in July 2025.
 
 ### GUD.AX and AOV.AX, and other renamed or legacy lines
 
-**Status:** GUD.AX and AZZA3.SA fixed in asset-growth (ur-2's hand list and line starts); the other
-lines are open.
+**Status:** GUD.AX and AZZA3.SA fixed in asset-growth (ur-2's hand list and line starts). Universe
+rules ur-3, in fcf-conversion's code, fix the renamed pairs below by line starts or hand entries,
+and end two dead lines; asset-growth's committed files predate ur-3. BC88.L, ABG.AX, SHA.DE, 9511.SR
+and CORE-PREF.ST are open.
 
 GUD Holdings was renamed Amotiv on 2024-06-18. AOV.AX, the new line, carries GUD's price history
 under a different ISIN, with the same close on every July bar from 1990 to 2024, so the same-ISIN
 dedup can't join the two. GUD.AX has a delisting record dated 2024-06-27. asset-growth's Australia
 book held both lines in 2009, 2010 and 2024. In 2024 GUD.AX exited at its last bar, 2024-07-04,
 while AOV.AX sat in the same book: one company held twice, then exited early. ur-2 hand-lists
-GUD.AX.
+GUD.AX. fcf-conversion's October Australia books held GUD.AX beside AOV.AX in 2011, 2021 and 2024;
+ur-3 keeps ur-2's GUD.AX entry, so its code holds Amotiv once.
 
 AZZA3.SA (Azzas 2154, from Arezzo's 2024 merger with Soma) repeats ARZZ3.SA's closes and volumes
 day for day up to 2024-08-26, ARZZ3.SA's last bar, under a different ISIN and with Arezzo's
@@ -1613,14 +1639,38 @@ NATU3.SA (one company under its old and new ticker, with identical July closes) 
 with ABP.AX twice, SHA.DE beside SHA0.DE twice, and two
 Saudi lines with 95xx codes, likely the parallel market: 9512.SR beside 3092.SR three times and
 9511.SR beside 4323.SR once. The October Sweden book also held two `-PREF` lines that no
-pattern reads, CORE-PREF.ST and SDIP-PREF.ST, and they stay as well. Open: a hand-list entry each, or a test for two lines with one name and
-identical closes.
+pattern reads, CORE-PREF.ST and SDIP-PREF.ST, and they stay as well under ur-2.
+
+ur-3 hand-lists four of them, 76ID.L, NTCO3.SA, 9512.SR and SDIP-PREF.ST, so each company keeps the
+line that trades on (ROR.L, NATU3.SA, 3092.SR and Sdiptech's B share). fcf-conversion's October books
+held them in UK 2010 and 2016 to 2020, Brazil 2016, Saudi 2022 and 2023, and Sweden 2021. The test
+for a pair no rule covers reads bars, not names, since a name test misses Platinum becoming L1 Group:
+`scripts/same_bars_scan.py` lists pairs of held lines in one leg whose first window bars match, close
+to the cent and volume, in three or more rebalance windows, less the pairs the universe rules and
+check N already cover, and runs on a rerun's legs before the install. BC88.L, ABG.AX, SHA.DE, 9511.SR
+and CORE-PREF.ST stay open.
 
 The November books hold two more such pairs, each new line carrying the old one's prices under a new
 ISIN: L1G.AX beside PTM.AX (Platinum Asset Management, L1 Group since its October 2025 merger with L1
 Capital) in seven Australia books, and MATR.TO beside SCL.TO (Shawcor, trading as Mattr since June
 2023) in four Canada books. asset-growth/README.md's known limits give each leg, Brazil's included,
-with the copy taken out. Open: a line start each, as AZZA3.SA's.
+with the copy taken out. ur-3 gives each a line start on the old line's last bar plus one day,
+L1G.AX on 2025-10-04 and MATR.TO on 2023-06-07, and adds two pairs fcf-conversion's October books
+held: TKO beside WWE (US 2021), whose start is 2023-09-12, and AXIA6.SA beside ELET6.SA (Brazil
+2009), whose start is 2025-12-05. AXIA3.SA, the same rename's ordinary line, starts that day too: its
+fiscal-year rows copy Eletrobras's from 2006 while its bars start in 2026. fcf-conversion's October
+books held L1G.AX with PTM.AX in Australia 2009, 2011 to 2013 and 2017, and MATR.TO with SCL.TO in
+Canada 2007, 2010 and 2013.
+
+A line end is the mirror of a line start: the line leaves every screen dated after its last own day,
+and a screen on that day keeps it. ur-3 ends two US lines whose later financial rows aren't their
+listing's. Cabot Oil & Gas (COG) stopped trading on 2021-10-01 when it became Coterra (CTRA, the
+same ISIN and CIK), and its fiscal-year rows dated later are a garbled part-copy of Coterra's
+filings. Continental Resources (CLR) stopped trading on 2022-11-22 when it went private, and its later
+rows fill free cash flow with operating cash flow and hold one market cap. On those rows either can
+rank in fcf-conversion's US top 30 with no price to buy, in the slot of a name that has one. A book
+before the last own day still holds the line: asset-growth's 2019 US book holds COG in a real
+year.
 
 ### Brazil's ordinary lines without prices before 2026
 
@@ -1637,7 +1687,9 @@ the results under `universe_rules.class_stand_ins`.
 
 ### JUP.L's fund flag and SATS's reused ticker
 
-**Status:** JUP.L fixed in asset-growth (ur-2's keep list); SATS's removal accepted.
+**Status:** JUP.L fixed in asset-growth (ur-2's keep list) and in fcf-conversion's code (ur-3 has
+the same keep list; its October UK book held JUP.L in 2012 to 2014, 2018 and 2019); the removals of
+SATS and of CAM, two reused tickers, accepted.
 
 - **JUP.L.** The profile sets `isFund` on Jupiter Fund Management plc, an asset manager's ordinary
   share. asset-growth's UK book held it in 5 years (2012-2019). ur-1's `fund_flag` removes it; ur-2
@@ -1649,16 +1701,23 @@ the results under `universe_rules.class_stand_ins`.
   removes SATS under ur-1 and ur-2, so EchoStar's 2022 line-year leaves the book. Accepted: that
   year's screen passed 30 names, so the slot goes to the next-ranked one. Without a keep entry,
   Strive's rows can't enter a 2026 book either.
+- **CAM.** fcf-conversion's 2015 US book held CAM, then Cameron International (July 2015 bar 51.50
+  on about 1.9 million shares). Today's profile files the reused ticker as a municipal ETF, so
+  `fund_flag` removes it under ur-1, ur-2 and ur-3, and Cameron's 2015 line-year leaves the book.
+  Accepted as SATS was: that year's screen passed 30 names, so the slot goes to the next-ranked one.
 
 ### US ADRs the profile doesn't flag, and converted trusts
 
-**Status:** the four ADRs fixed in asset-growth (ur-2's hand list); the converted trust open.
+**Status:** the four ADRs fixed in asset-growth (ur-2's hand list), and a fifth, JP, in
+fcf-conversion's code (ur-3's hand list); the converted trust open.
 
 ur-2's `us_adr` reads the profile's `isAdr` flag, which misses four ADRs asset-growth's US book
 held: AZN in 2001, 2003 and 2012 and JHX in 2003 (each now carries its ordinary share's ISIN after
 a direct US listing, AstraZeneca in 2026 and James Hardie in 2025), RDS-B in 2002 (Royal Dutch
 Shell's class B ADR, held beside SHEL, which the profile flags) and WIMI in 2020 (WiMi Hologram's
-depositary shares). ur-2 hand-lists all four, which removes them in every year. The flag also errs
+depositary shares). ur-2 hand-lists all four, which removes them in every year. ur-3 adds JP,
+Jupai Holdings, held in fcf-conversion's 2016 US book: a Cayman company whose NYSE line was American
+depositary shares of six ordinary shares each (its Form 20-F). The flag also errs
 the other way: VRN, Veren's Canadian common share on NYSE, carries `isAdr` (held only in
 rising-yield's book).
 
@@ -1669,9 +1728,16 @@ fell on the day it converted from an LP.
 
 ### Notes and certificates no rule sees
 
-**Status:** open, under ur-1 and ur-2.
+**Status:** open for the lines below under ur-1, ur-2 and ur-3; six lines fcf-conversion's books
+held are on ur-3's hand list.
 
-No pattern in either version removes KTH (Corts Trust, a trust certificate), NSS (NuStar Logistics
+fcf-conversion's October books held four notes and two preferreds that no pattern reads: ANZ's
+capital notes AN3PH.AX, AN3PI.AX and AN3PJ.AX and CommBank's PERLS CBAPK.AX in the 2023 Australia
+book, priced near their 100 face value beside ANZ.AX and CBA.AX, FITBP (Fifth Third's preferred
+depositary shares, beside FITB) in the 2023 US book, and SANB.L (Santander UK's preference line,
+with no listed ordinary share) in the 2010 UK book. ur-3 hand-lists all six.
+
+No pattern in any version removes KTH (Corts Trust, a trust certificate), NSS (NuStar Logistics
 notes; its profile name ends "SB NT", and `nt` isn't a name term) or US notes listed under plain
 tickers that the suffix rules can't read: TANNL, KKRS, DHCNL, OPINL, NYMTL, WHLRL and ADAMH. A
 hand-list entry each, checked against its closes, would take them out. The probe behind ur-2's
@@ -1711,6 +1777,55 @@ changes drop, and a short year ranks only on a row 300 to 430 days back. Nothing
 company whose rows switch stays out that year, as the 27 out-of-band pairs already were. The
 key-metrics and ratios rows now share the current row's window; on the 4,093 held line-years
 checked, both already came from the balance row's fiscal year.
+
+### FCF conversion's statement window and pair test
+
+**Status:** fixed in fcf-conversion's code (METHODOLOGY.md, Filing and Selection Rules); its
+committed results predate it.
+
+FCF conversion divides one fiscal year's free cash flow by its net income, so a percent, sub-unit or
+per-share error cancels in the ratio. What can go wrong is a pair of rows from different years or
+currencies. The October 2026 code took each of its four rows (cash flow, income, key metrics,
+ratios) as its table's latest on or before the 45-day cutoff, with no lower bound, and picked the
+cash-flow and income rows apart. On its books, 5,021 kept line-years after universe rules ur-2 were
+read for both faults:
+
+- **Rows from different fiscal years: 5 line-years.** 0511.HK 2009 (a cash-flow row 548 days old),
+  6861.T 2015 (income, key-metrics and ratios rows 457 days old), AGI.NS 2024 (an income row 823 days
+  old), and WLY and WLYB 2013 (427 days). No other kept line-year pairs rows from two years.
+- **Rows in different currencies: 1 line-year.** BXB.AX 2011, its cash flow in US dollars and its
+  income in Australian dollars.
+
+The code now reads all four rows from one window, a period end in (T-410, T-45] days, which drops
+the five, and pairs the income row with the cash-flow row: the latest income row in the window whose
+period end is within 31 days of the cash-flow row's, in the same `reportedCurrency`. A company with
+none isn't ranked that year, which drops BXB.AX 2011, and `statement_pair_guard` counts those lines
+per rebalance date. Nothing is restated.
+
+### Receipts listed abroad, and ordinary shares listed first elsewhere
+
+**Status:** the two receipts fcf-conversion's books held leave in its code (ur-3's hand list);
+ordinary shares listed first elsewhere stay, disclosed. Every other topic holds both kinds.
+
+A line on one market can be a depositary receipt on a share listed on another. Its price is the
+receipt's and its statements are the company's, so it ranks as the company does. fcf-conversion's
+October books held two:
+
+- 6288.HK, Fast Retailing's Hong Kong depositary receipts on its Tokyo share, in the 2022 Hong Kong
+  book. It carries a US ISIN on a Japanese company.
+- ARION-SDB.ST, Arion banki's Swedish depository receipts on its Icelandic share, in the 2022 Sweden
+  book.
+
+Universe rules ur-3 hand-list both as `depositary receipt`. A rule can't do this from the profile:
+Yum China's 9987.HK, an ordinary share on HKSE, carries a US ISIN as 6288.HK does, and the profile
+flags neither as an ADR. Other receipts outside NYSE, NASDAQ, AMEX and SAO (TDRs, lines flagged
+`isAdr`) stay under ur-3 until a book holds one, and ur-2 keeps them all.
+
+A company's ordinary share listed on a second market is a different case: it trades at its own
+price on that market. These stay, and the topic's README discloses them. fcf-conversion's October
+books hold Manulife's 0945.HK in the Hong Kong books of 2003 to 2008, Yancoal Australia's 3668.HK in
+2019, 2022 and 2023, and 20 US line-years of Canadian banks' and insurers' NYSE lines (RY 5, TD 4,
+BMO 3, SLF 3, MFC 3, CM 2).
 
 ---
 
@@ -1819,8 +1934,10 @@ the content.
 **Still unchecked.** Only `revenue-accel`, `small-cap`, `sector-rotation` and, since
 October 2026, `price-to-sales` (US only) carry an `isFund` diagnostic.
 These rank on a revenue-derived metric with no guard at all: `market-share`,
-`ocf-growth`, `revenue-surprise`, `fcf-conversion` and `owner-earnings`. Measure
-`--exclude-funds` on each when its topic next comes up for a rerun.
+`ocf-growth`, `revenue-surprise` and `owner-earnings`, and `fcf-conversion` in its committed
+results. Measure `--exclude-funds` on each when its topic next comes up for a rerun.
+fcf-conversion's code removes the lines the profile flags as funds or ETFs, under universe rules
+ur-3, since November 2026.
 
 **price-to-sales: measured on the US leg (2026-10-14).** The rerun US book has mutual-fund
 share classes (PRGTX, JTSSX, SMTAX, JMUEX, GEMAX, FLCSX) among its ten recorded lowest-P/S
@@ -1844,7 +1961,8 @@ Removing funds *hurts* here, as in `small-cap`: without them the US book returns
 2018-2020 fall. The return differs in 13 of 26 years, all from 2013. The US result doesn't rest
 on the funds: it is 5.71 points a year ahead of the S&P 500 without them. The other 15
 markets weren't run without funds. fcf-conversion was rerun in the first wave without a
-funds-excluded run; it has no such flag yet.
+funds-excluded run; its code now leaves the lines the profile flags as funds or ETFs out of the
+universe (ur-3), and a BDC or SPAC the flags miss stays.
 
 ---
 
@@ -1891,7 +2009,7 @@ among them).
 
 ## Cost tiers are USD but market caps are local currency (found 2026-08-17)
 
-**Status:** Capability added to `costs.py`, callers NOT yet migrated
+**Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion's code), the rest not yet
 **Affects:** every backtest that calls `tiered_cost()` (80 of them)
 **Severity:** Minor. Understates costs outside the US, concentrated in Asia.
 
@@ -1939,6 +2057,17 @@ holdings into more expensive tiers, but it's **below 1** for GBP (0.79) and EUR
 (0.92), which scales them down and makes LSE and XETRA holdings cheaper. So the
 migration alone moves those two markets *up*. Don't read a European CAGR rising
 after migration as a bug.
+
+`fcf-conversion` is the second (its code, November 2026; its committed results predate
+it). It resolves the rate once per leg and records the model in each results file as
+`cost_model`, `{"function": "costs.tiered_cost", "fx_per_usd": <the leg's rate>}`; a
+`--no-costs` run writes `"cost_model": null`. On its October books the migration alone
+moves each leg's excess by: Taiwan -0.47pp, India -0.45, Thailand -0.43, China -0.40,
+Japan -0.36, Hong Kong -0.29, Korea -0.17, Brazil -0.14, Saudi Arabia -0.13,
+Sweden -0.09, Canada and Australia -0.05, UK +0.03, Switzerland +0.02, and the US and
+Germany 0. The residual: the rate is keyed to the listing exchange, while fcf-conversion's cap is
+in the company's reporting currency, so Hong Kong's CNY reporters are tiered at 7.8 for
+a currency near 7.25, and the UK's USD reporters at 0.79.
 
 ---
 
