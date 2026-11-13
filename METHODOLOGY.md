@@ -234,7 +234,7 @@ Three topics keep their universe to ordinary shares, through opt-in helpers in `
   - COG (Cabot Oil & Gas) after 2021-10-01: its bars end that day, when it became Coterra (CTRA, the same ISIN and CIK), and its fiscal-year rows dated later are a garbled part-copy of Coterra's filings (its net income equals CTRA's, and its free cash flow equals CTRA's operating cash flow).
   - CLR (Continental Resources) after 2022-11-22: its bars end that day, when it went private, and its later rows fill free cash flow with operating cash flow and hold the market cap at one value.
   - PEAK (Healthpeak's old ticker) after 2024-03-28: its bars end that day, when DOC took the listing, and its fiscal-year rows dated later are a part-copy of DOC's (equal FY2025 revenue, another net income).
-  - GLT (Glatfelter) after 2024-12-03: its bars end that day, when it became Magnera, and its FY2025 row, dated after it, reports Magnera's year (revenue 3,262m against Glatfelter's 1,386m for FY2023).
+  - GLT (Glatfelter) after 2024-12-03: its bars end that day, when it became Magnera, and its FY2025 row, dated after that day, reports Magnera's year (revenue 3,262m against Glatfelter's 1,386m for FY2023).
 
   None of the four days is one of fcf-conversion's July rebalance dates. A screen dated on a last own day would keep the line and then find no entry price for it (`entry_unpriced`).
 

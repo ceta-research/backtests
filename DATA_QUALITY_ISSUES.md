@@ -1677,9 +1677,9 @@ filings. Continental Resources (CLR) stopped trading on 2022-11-22 when it went 
 rows fill free cash flow with operating cash flow and hold one market cap. On those rows either can
 rank in fcf-conversion's US top 30 with no price to buy, in the slot of a name that has one. A book
 before the last own day still holds the line: asset-growth's 2019 US book holds COG in a real
-year. Two old tickers of the renames above end the same way: PEAK after 2024-03-28 and GLT after
-2024-12-03, each carrying fiscal-year rows after its last bar: PEAK's part-copy DOC's, and GLT's
-FY2025 row reports Magnera's year.
+year. Two old tickers of the renames above end the same way, PEAK after 2024-03-28 and GLT after
+2024-12-03, since each carries fiscal-year rows dated after its last bar. PEAK's rows part-copy
+DOC's, and GLT's FY2025 row reports Magnera's year.
 
 ### Brazil's ordinary lines without prices before 2026
 
@@ -1813,7 +1813,7 @@ per rebalance date. Nothing is restated.
 
 ### Receipts listed abroad, and ordinary shares listed first elsewhere
 
-**Status:** the two receipts fcf-conversion's books held leave in its code (ur-3's hand list);
+**Status:** the three receipts fcf-conversion's books held leave in its code (ur-3's hand list);
 ordinary shares listed first elsewhere stay, disclosed. Every other topic holds both kinds.
 
 A line on one market can be a depositary receipt on a share listed on another. Its price is the
