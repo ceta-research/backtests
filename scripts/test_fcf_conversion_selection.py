@@ -20,7 +20,10 @@ check, by changing a book or a record and not by raising, and so must each mutan
 date test and block.
 
 The live screen (screen.py, today's TTM rows) takes the backtest's universe rules: a line ur-3 alone removes
-stays out, and --cloud sends the same SQL text, its regex backslashes intact. Its mutants must trip that check.
+stays out, and --cloud sends the same SQL text, its regex backslashes intact. ur-3's line ends and starts hold on
+the screen's day before the top-30 cut: today's US book leaves COG and CLR out and the next fillers take their
+slots, a book on a line's last own day keeps it, and L1G.AX stays out the day before its first own day. The book
+ranks on the unrounded FCF over net income, then by symbol, at the 30th slot. Its mutants must trip these checks.
 
 Costs and the results file: run_backtest, its screen and prices stubbed, books a JPX holding at 1 trillion yen
 in the 0.3% tier and an LSE holding at 8 billion pounds in the 0.1% tier (the USD tiers at the leg's FX rate).
@@ -574,6 +577,20 @@ SCREEN_LINES = {"ORD1.HK": ("HKSE", "HK0000000011", False, 1.5, 5e9),
                 "OTHER.L": ("LSE", "GB0000000015", False, 1.6, 5e9),
                 "SMALL.HK": ("HKSE", "HK0000000016", False, 1.7, 1e8)}
 SCREEN_BOOK = ["ORD1.HK", "ORD2.HK"]
+# ur-3's line ends COG and CLR rank ahead of 31 NYSE fillers, so a US book that keeps them, or leaves them out
+# after the top-30 cut, is not the fillers' first 30. The fillers go in last first. U28 and U29 tie on FCF over net
+# income, so the book of 2021-10-01 keeps U28 at the 30th slot by the symbol tie-break alone. T31 rounds to U30's
+# fcf_conversion_pct below its unrounded value and sorts before it, so a book ranked on the rounded column keeps
+# T31 at the 30th slot. L1G.AX is ur-3's line start on ASX (first own day 2025-10-04).
+US_FILLERS = [f"U{i:02d}" for i in range(1, 31)] + ["T31"]
+FILLER_CONV = {**{s: round(2.4 - 0.03 * i, 2) for i, s in enumerate(US_FILLERS[:27], 1)},
+               "U28": 1.56, "U29": 1.56, "U30": 1.5004, "T31": 1.5001}
+LINE_SCREEN_LINES = {"COG": ("NYSE", "US0000000021", False, 2.6, 5e9),
+                     "CLR": ("NYSE", "US0000000022", False, 2.5, 5e9),
+                     **{s: ("NYSE", f"US00000001{i:02d}", False, FILLER_CONV[s], 5e9)
+                        for i, s in reversed(list(enumerate(US_FILLERS, 1)))},
+                     "L1G.AX": ("ASX", "AU0000000031", False, 1.5, 5e9),
+                     "ASX1.AX": ("ASX", "AU0000000032", False, 1.4, 5e9)}
 
 
 class ScreenClient:
@@ -601,7 +618,7 @@ def screen_db():
     con.execute("CREATE TABLE income_statement_ttm(symbol VARCHAR, netIncome DOUBLE, revenue DOUBLE)")
     con.execute("CREATE TABLE key_metrics_ttm(symbol VARCHAR, returnOnEquityTTM DOUBLE, marketCap DOUBLE)")
     con.execute("CREATE TABLE financial_ratios_ttm(symbol VARCHAR, operatingProfitMarginTTM DOUBLE)")
-    for s, (ex, isin, fund, conv, cap) in SCREEN_LINES.items():
+    for s, (ex, isin, fund, conv, cap) in {**SCREEN_LINES, **LINE_SCREEN_LINES}.items():
         con.execute("INSERT INTO profile VALUES (?, ?, ?, ?, ?, FALSE, FALSE)", [s, f"{s} Holdings Ltd", ex, isin, fund])
         con.execute("INSERT INTO cash_flow_statement_ttm VALUES (?, ?)", [s, conv * NI])
         con.execute("INSERT INTO income_statement_ttm VALUES (?, ?, ?)", [s, NI, 5 * NI])
@@ -664,11 +681,45 @@ def screen_failures(src):
     return out
 
 
+def screen_line_failures(src):
+    """ur-3's line ends and starts in the live screen: main() on NYSE (today) leaves COG and CLR out and ranks the
+    fillers' first 30; screen_sql on a line's last own day keeps it and the day after leaves it out, the next
+    filler taking its slot; on ASX, L1G.AX is out the day before its first own day and ranks on it."""
+    us = [(date(2021, 10, 1), ["COG", "CLR"] + US_FILLERS[:28]), (date(2021, 10, 2), ["CLR"] + US_FILLERS[:29]),
+          (date(2022, 11, 23), US_FILLERS[:30])]
+    asx = [(date(2025, 10, 3), ["ASX1.AX"]), (date(2025, 10, 4), ["L1G.AX", "ASX1.AX"])]
+    try:
+        mod = load_screen(src)
+        con = screen_db()
+        client = ScreenClient(con)
+        run_screen_main(mod, client, ["--exchange", "NYSE"])
+        cases = [("NYSE today", client.sqls[-1], US_FILLERS[:30])]
+        for ex, days in ((["NYSE"], us), (["ASX"], asx)):
+            cases += [(f"{ex[0]} {d}", mod.screen_sql(ex, mod.get_mktcap_threshold(ex), d), want) for d, want in days]
+        books = [(label, [r[0] for r in con.execute(sql).fetchall()], want) for label, sql, want in cases]
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    return [f"screen {label}: book {book}, want {want}" for label, book, want in books if book != want]
+
+
+def live_screen_failures(src):
+    return screen_failures(src) + screen_line_failures(src)
+
+
 SCREEN_MUTANTS = {
     "the screen keeps every line": [("  AND ({non_ordinary}) IS NULL\n", "")],
     "the screen on ur-2": [('non_ordinary_sql("p", cfg=UNIVERSE_RULES)',
                             'non_ordinary_sql("p", cfg=__import__("data_utils").UNIVERSE_RULES_V2)')],
     "--cloud sends the SQL in a triple-quoted string": [("cr.query({sql!r})", "cr.query('''{sql}''')")],
+    "the screen keeps ended lines": [("ur.not_started(day) + ur.ended(day)", "ur.not_started(day)")],
+    "the screen ranks a line before its first own day": [("ur.not_started(day) + ur.ended(day)", "ur.ended(day)")],
+    "the screen leaves its lines out after the top-30 cut": [
+        ('return f"SELECT * FROM ({started_sql(candidates, late)}) _r ORDER BY fcf_conversion DESC, symbol LIMIT 30"',
+         'return started_sql(f"SELECT * FROM ({candidates}) _r ORDER BY fcf_conversion DESC, symbol LIMIT 30", late)')],
+    "the screen with no symbol tie-break": [("ORDER BY fcf_conversion DESC, symbol LIMIT 30\"",
+                                             "ORDER BY fcf_conversion DESC LIMIT 30\"")],
+    "the screen ranked on the rounded column": [("ORDER BY fcf_conversion DESC, symbol LIMIT 30\"",
+                                                 "ORDER BY fcf_conversion_pct DESC, symbol LIMIT 30\"")],
 }
 
 
@@ -812,7 +863,7 @@ def costs_and_results_failures(src):
 
 
 def main():
-    base = (failures(SRC, epoch_types=("UINTEGER", "BIGINT")) + screen_failures(SCREEN_SRC)
+    base = (failures(SRC, epoch_types=("UINTEGER", "BIGINT")) + live_screen_failures(SCREEN_SRC)
             + costs_and_results_failures(SRC))
     if base:
         print("test_fcf_conversion_selection: FAIL")
@@ -820,7 +871,7 @@ def main():
             print("  ", f)
         sys.exit(1)
     survived, broken = mutant_results(SRC, MUTANTS, failures)
-    s2, b2 = mutant_results(SCREEN_SRC, SCREEN_MUTANTS, screen_failures)
+    s2, b2 = mutant_results(SCREEN_SRC, SCREEN_MUTANTS, live_screen_failures)
     s3, b3 = mutant_results(SRC, RESULT_MUTANTS, costs_and_results_failures)
     s4, b4 = mutant_results(DU_SRC, DU_MUTANTS, du_line_end_failures)
     survived, broken = survived + s2 + s3 + s4, broken + b2 + b3 + b4
