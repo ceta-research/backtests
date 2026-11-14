@@ -1223,10 +1223,10 @@ still hold every listed line; read them with the measurements earlier in this se
 
 **Status:** in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks), and both
 topics' committed results were rerun with it in October 2026; defensive-quality joined in November
-2026 (see "Lines that aren't ordinary shares" below), and asset-growth with its November 2026
-rerun. fcf-conversion's code joined in November 2026 on data checks dc-3; its committed results
-are still the October run's, with the cap. The other topics keep their existing cap
-(200%, 300% in three; qarp, low-pe and sector-correlation have none) until their own rerun.
+2026 (see "Lines that aren't ordinary shares" below), asset-growth with its November 2026 rerun,
+and fcf-conversion, on data checks dc-3, with its own November 2026 rerun. The other topics keep
+their existing cap (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their
+own rerun.
 
 The 200% single-return cap drops a holding only when its return is high. Reading every holding
 it dropped from these two topics' published books, and the holdings beside them, found real
@@ -1550,8 +1550,8 @@ prior-year guard and the data checks (METHODOLOGY.md, Universe Rules, Filing and
 Data Checks). The counts below are of the October 2026 books, made before all three, 7,064 held
 line-years over 16 legs, and each entry says what is fixed and what stays open. fcf-conversion's
 code carries universe rules ur-3 (ur-2 with more hand-list lines, line starts and line ends), its
-own statement window and pair test, and data checks dc-3; its committed results are the October
-2026 run's and predate all three. Where fcf-conversion's October books held the same kind of line,
+own statement window and pair test, and data checks dc-3, and its committed results are the
+November 2026 rerun's on all three. Where fcf-conversion's October books held the same kind of line,
 the entry gives its state too, and the last two entries are its own.
 
 ### KSC lines that duplicate KOSDAQ series
@@ -2070,8 +2070,8 @@ holdings into more expensive tiers, but it's **below 1** for GBP (0.79) and EUR
 migration alone moves those two markets *up*. Don't read a European CAGR rising
 after migration as a bug.
 
-`fcf-conversion` is the second (its code, November 2026; its committed results predate
-it). It resolves the rate once per leg and records the model in each results file as
+`fcf-conversion` is the second (its code and its committed results, November 2026). It
+resolves the rate once per leg and records the model in each results file as
 `cost_model`, `{"function": "costs.tiered_cost", "fx_per_usd": <the leg's rate>}`; a
 `--no-costs` run writes `"cost_model": null`. On its October books the migration alone
 moves each leg's excess by: Taiwan -0.47pp, India -0.45, Thailand -0.43, China -0.40,
