@@ -2949,6 +2949,10 @@ REVIEW_EFFECTS = {
     ("deleveraging", "OSL", "SCHB.OL", "2024-04-01"): -0.1404,
     ("deleveraging", "SET", "RAM.BK", "2017-10-01"): 0.1083,
     ("deleveraging", "SHZ_SHH", "600997.SS", "2006-01-01"): -0.1126,
+    ("fcf-conversion", "HKSE", "1428.HK", "2024-07-01"): -0.1193,
+    ("fcf-conversion", "LSE", "CRDA.L", "2006-07-01"): 0.1421,
+    ("fcf-conversion", "LSE", "EXPN.L", "2011-07-01"): -0.1633,
+    ("fcf-conversion", "SHZ_SHH", "600036.SS", "2005-07-01"): -0.1088,
 }
 
 
@@ -3078,9 +3082,8 @@ def hand_list_failures(root=ROOT, entries=None):
     return f
 
 
-# fcf-conversion's committed files predate its port and carry no data_checks block; the results PR replaces them
-# and removes this.
-NO_BLOCK_FILES = {"fcf-conversion": 16}
+# Every data-checks topic's committed files carry a data_checks block.
+NO_BLOCK_FILES = {}
 
 
 def review_failures(root=ROOT, effects=None, entries=None, no_block=None):
@@ -3124,16 +3127,20 @@ ARM = "fcf-conversion/diagnostics/financials_out_NYSE_NASDAQ_AMEX"
 
 def diagnostics_failures(tmp):
     """found_in and the review read a diagnostics file, on a test tree: asset growth Sweden's committed file
-    as fcf-conversion's financials-out arm, beside one of fcf's block-less files. Its two KINV-B.ST flags,
-    listed with the arm as found_in and in an effects table keyed by the arm, pass; unrecorded, a found_in
-    without the diagnostics part, a block-less file of another topic or a count other than the pinned one
-    each fail. Returns (name, failures, must_fail) rows."""
+    as fcf-conversion's financials-out arm, beside a copy of fcf's SET file without its data_checks block. Its
+    two KINV-B.ST flags, listed with the arm as found_in and in an effects table keyed by the arm, pass;
+    unrecorded, a found_in without the diagnostics part, a block-less file of another topic or a count other
+    than the pinned one each fail. Returns (name, failures, must_fail) rows."""
+    def blockless(path):
+        res = json.load(open(os.path.join(ROOT, "fcf-conversion", "results", "returns_SET.json")))
+        res.pop("data_checks")
+        json.dump(res, open(path, "w"))
+
     root = os.path.join(tmp, "diagnostics_tree")
     arm = results_file(root, ARM)
     os.makedirs(os.path.dirname(arm))
     shutil.copy(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json"), arm)
-    shutil.copy(os.path.join(ROOT, "fcf-conversion", "results", "returns_SET.json"),
-                os.path.join(root, "fcf-conversion", "results", "returns_SET.json"))
+    blockless(os.path.join(root, "fcf-conversion", "results", "returns_SET.json"))
     kinv = [e for e in du.DATA_CHECKS_V3["factor_hand"]["entries"] if e["symbol"] == "KINV-B.ST"]
     leg = ARM.split("/", 1)[1]
     effects = {("fcf-conversion", leg, "KINV-B.ST", "2014-07-01"): REVIEW_EFFECTS[("asset-growth", "STO", "KINV-B.ST", "2014-07-01")],
@@ -3141,8 +3148,7 @@ def diagnostics_failures(tmp):
     other = os.path.join(tmp, "diagnostics_other")
     shutil.copytree(root, other)
     os.makedirs(os.path.join(other, "asset-growth", "results"))
-    shutil.copy(os.path.join(ROOT, "fcf-conversion", "results", "returns_SET.json"),
-                os.path.join(other, "asset-growth", "results", "returns_SET.json"))
+    blockless(os.path.join(other, "asset-growth", "results", "returns_SET.json"))
     one = {"fcf-conversion": 1}
     return [("found_in names the arm", hand_list_failures(root, [dict(e, found_in=[ARM]) for e in kinv]), False),
             ("found_in without the diagnostics part",
@@ -3494,8 +3500,7 @@ def main():
     expect("H hand list on real rows: rebuilt, real, a range, stale, spans, fills, uncapped, record, cash, block",
            hand_unit_failures())
     expect("H hand list agrees with the committed results", hand_list_failures())
-    expect("H review: the 24 effects, nothing else at 0.1pp, nothing left against the list, fcf's 16 files skipped",
-           review_failures())
+    expect("H review: the 28 effects, nothing else at 0.1pp, nothing left against the list", review_failures())
     expect("H gate 15 on a dc-3 file: unreviewed, stale, unbooked entry, unreproduced, threshold",
            gate_dc3_failures())
     with tempfile.TemporaryDirectory() as tmp:
