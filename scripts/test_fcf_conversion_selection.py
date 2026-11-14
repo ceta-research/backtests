@@ -12,8 +12,8 @@ over the floor; one line per security, then the top 30 by the ratio.
 
 Also covered: ur-3's Brazil class twins with data checks off and on, each ur-3 line start (before and on its
 first own day, check M's events, a freed slot), each ur-3 line end (before, on and after its last own day,
-check M's events, the line_ends block, and July books from 2021 to 2023 where COG and CLR each hold a slot
-until their last own day and the next name takes it after), and the --exclude-sector switch (it removes a
+check M's events, the line_ends block, and July books from 2021 to 2025 where COG, CLR, PEAK and GLT each hold a
+slot until their last own day and the next name takes it after), and the --exclude-sector switch (it removes a
 line any of whose profile rows names the sector, after the screen's other tests and before the top-30 cut,
 and records it per rebalance; off, the book doesn't change). Every mutant of the topic's source must trip a
 check, by changing a book or a record and not by raising, and so must each mutant of data_utils' line-end
@@ -185,7 +185,9 @@ BRAZIL = {
 LINE_STARTS = [(s, date.fromisoformat(d)) for s, d, _ in UNIVERSE_RULES_V3["line_starts"]]
 # ur-3's line ends: a listed line's rows after its last own day are not its listing's.
 LINE_ENDS = [(s, date.fromisoformat(d)) for s, d, _ in UNIVERSE_RULES_V3.get("line_ends", ())]
-JULY = (date(2021, 7, 1), date(2022, 7, 1), date(2023, 7, 1))     # COG ends between the first two, CLR the last two
+# COG ends between the first two, CLR the next two, PEAK the next and GLT the last two
+JULY = tuple(date(y, 7, 1) for y in range(2021, 2026))
+ENDED_LINES = {"COG", "CLR", "PEAK", "GLT"}
 
 # The sector switch. FIN2 has two profile rows and only one names the sector; FIN_LOW fails ROE and
 # FIN_UNPAIRED the pair, so neither passed the screen; FIN_OUT is outside the universe.
@@ -311,10 +313,11 @@ def line_start_failures(mod):
 def line_end_failures(mod, rules=UniverseRules):
     """Each ur-3 line end: a screen the day before or on its last own day ranks the line, with data checks on
     and off, and check M reads its event; a screen the day after leaves it out and check M reads none; the
-    block lists it. In a crowd of 31 fillers screened each July from 2021 to 2023, COG and CLR each hold a slot
-    in the books before their last own day, and the next filler takes it in the books after. rules: the
+    block lists it. In a crowd of 31 fillers screened each July from 2021 to 2025, each ended line holds a slot
+    in the books before its last own day, and the next filler takes it in the books after. rules: the
     UniverseRules class the leg runs (a data_utils mutant's)."""
-    out = [] if {s for s, _ in LINE_ENDS} == {"COG", "CLR"} else [f"ur-3's line ends {LINE_ENDS}, want COG and CLR"]
+    out = [] if {s for s, _ in LINE_ENDS} == ENDED_LINES else [
+        f"ur-3's line ends {LINE_ENDS}, want {sorted(ENDED_LINES)}"]
     for sym, last in LINE_ENDS:
         rows = {sym: co(cf=(T(100, last),))}
         for label, dc in (("data checks off", None), ("data checks on", DataChecks("on", mod.DATA_CHECKS))):

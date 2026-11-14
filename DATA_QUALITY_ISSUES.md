@@ -1662,6 +1662,13 @@ fiscal-year rows copy Eletrobras's from 2006 while its bars start in 2026. fcf-c
 books held L1G.AX with PTM.AX in Australia 2009, 2011 to 2013 and 2017, and MATR.TO with SCL.TO in
 Canada 2007, 2010 and 2013.
 
+fcf-conversion's November gate found three more US renames whose new ticker repeats the old one's
+bars: BRSL (Brightstar Lottery) beside IGT to 2025-07-01, DOC (Healthpeak) beside PEAK to 2024-03-28,
+and MAGN (Magnera) beside GLT (Glatfelter) to 2024-12-03. Its books held BRSL in 2023, DOC in 2018,
+and its financials-out arm GLT and MAGN together in 2001. ur-3 starts DOC and MAGN on the old line's
+last bar plus one day. BRSL starts on 2025-07-01, IGT's last bar and a rebalance date, so the July 1
+screen buys BRSL's first own bar. A start a day later would rank IGT, which has no bar after it.
+
 A line end is the mirror of a line start: the line leaves every screen dated after its last own day,
 and a screen on that day keeps it. ur-3 ends two US lines whose later financial rows aren't their
 listing's. Cabot Oil & Gas (COG) stopped trading on 2021-10-01 when it became Coterra (CTRA, the
@@ -1670,7 +1677,9 @@ filings. Continental Resources (CLR) stopped trading on 2022-11-22 when it went 
 rows fill free cash flow with operating cash flow and hold one market cap. On those rows either can
 rank in fcf-conversion's US top 30 with no price to buy, in the slot of a name that has one. A book
 before the last own day still holds the line: asset-growth's 2019 US book holds COG in a real
-year.
+year. Two old tickers of the renames above end the same way, PEAK after 2024-03-28 and GLT after
+2024-12-03, since each carries fiscal-year rows dated after its last bar. PEAK's rows part-copy
+DOC's, and GLT's FY2025 row reports Magnera's year.
 
 ### Brazil's ordinary lines without prices before 2026
 
@@ -1804,7 +1813,7 @@ per rebalance date. Nothing is restated.
 
 ### Receipts listed abroad, and ordinary shares listed first elsewhere
 
-**Status:** the two receipts fcf-conversion's books held leave in its code (ur-3's hand list);
+**Status:** the three receipts fcf-conversion's books held leave in its code (ur-3's hand list);
 ordinary shares listed first elsewhere stay, disclosed. Every other topic holds both kinds.
 
 A line on one market can be a depositary receipt on a share listed on another. Its price is the
@@ -1816,7 +1825,10 @@ October books held two:
 - ARION-SDB.ST, Arion banki's Swedish depository receipts on its Icelandic share, in the 2022 Sweden
   book.
 
-Universe rules ur-3 hand-list both as `depositary receipt`. A rule can't do this from the profile:
+The November gate's books held a third, SAMPO-SDB.ST (Sampo's Swedish depository receipts on its
+Finnish share) in the 2025 Sweden book.
+
+Universe rules ur-3 hand-list all three as `depositary receipt`. A rule can't do this from the profile:
 Yum China's 9987.HK, an ordinary share on HKSE, carries a US ISIN as 6288.HK does, and the profile
 flags neither as an ADR. Other receipts outside NYSE, NASDAQ, AMEX and SAO (TDRs, lines flagged
 `isAdr`) stay under ur-3 until a book holds one, and ur-2 keeps them all.
