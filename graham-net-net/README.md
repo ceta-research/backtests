@@ -10,7 +10,7 @@ Benjamin Graham's deep value screen: buy stocks trading below their net current 
 
 ## How the screen works
 
-On each April rebalance date, for every company on the market's exchanges (delisted ones included, up to the date they stopped trading):
+On each April rebalance date, for every company on the market's exchanges (a delisted one included up to the date it stopped trading, though the price data holds almost none that stopped before 2015 in the US or 2020 elsewhere: METHODOLOGY.md, Limitations: Survivorship Bias):
 
 1. Take the company's latest fiscal-year row whose fiscal year ended at least 45 days before the rebalance date and no more than 540 days before it. A company with no such row drops out for that year.
 2. Keep it only if that row's NCAV is positive and its market cap (as of that fiscal year end) is above the market's floor (table below).

@@ -73,5 +73,5 @@ python3 earnings-consistency/generate_charts.py
 
 - **Point-in-time:** Filing date used, not fiscal year end, with 45-day lag to simulate real-world availability.
 - **Stale cutoff:** FY filings older than 5 years are ignored (avoids zombie symbols with no recent filings).
-- **Survivorship:** FMP data includes delisted companies. Results are not survivorship-biased.
+- **Survivorship:** The price data holds almost no company that stopped trading before 2015 (US) or 2020 (other markets), so the earlier years are measured on companies that survived at least that long. The committed results use drop exits, so a holding that stopped trading during a period is left out of that period's return in any year. See METHODOLOGY.md (Limitations: Survivorship Bias).
 - **ASX/SAO excluded:** Adjusted close price artifacts per `DATA_QUALITY_ISSUES.md`.

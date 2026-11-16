@@ -68,4 +68,4 @@ python3 oversold-quality/generate_charts.py
 
 ## Data
 
-All data from Ceta Research (FMP financial data warehouse). Survivorship-bias-reduced (includes delisted stocks). Market cap thresholds in local currency via `cli_utils.get_mktcap_threshold()`.
+All data from Ceta Research (FMP financial data warehouse). The price data holds almost no company that stopped trading before 2015 (US) or 2020 (other markets), so the earlier years are measured on companies that survived at least that long. The committed results use drop exits, so a holding that stopped trading during a period is left out of that period's return in any year (METHODOLOGY.md, Limitations: Survivorship Bias). Market cap thresholds in local currency via `cli_utils.get_mktcap_threshold()`.
