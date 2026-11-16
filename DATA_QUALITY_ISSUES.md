@@ -221,7 +221,7 @@ Added 2026-03-03. `filter_returns()` in `data_utils.py` provides reusable price 
 
 Used by: asset-growth. Should be adopted by all future strategies. Existing strategies (qarp, low-pe, interest-coverage) can be retrofitted.
 
-Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth and fcf-conversion (its code; its committed results still ran with the cap) pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
+Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth and fcf-conversion pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
 
 ### How to check a new exchange
 Before adding an exchange to a backtest, run these checks:
@@ -1505,8 +1505,8 @@ hold NVDR lines beside their ordinary lines until their own reruns.
 
 **Status:** fixed for defensive-quality by its universe rules (METHODOLOGY.md, Universe Rules) in
 its November 2026 rerun, and for asset-growth by universe rules ur-2 in its November 2026 rerun (see
-"Asset growth's data fixes" below). fcf-conversion's code removes them under universe rules ur-3,
-and its committed results predate that. Every other topic still holds these lines.
+"Asset growth's data fixes" below), and for fcf-conversion by universe rules ur-3 in its November
+2026 rerun. Every other topic still holds these lines.
 
 defensive-quality ranks by the vendor's dividend yield, so anything carrying a company's yield
 without being its ordinary share, and any yield on the wrong scale, takes a slot near the top.
@@ -1789,8 +1789,8 @@ checked, both already came from the balance row's fiscal year.
 
 ### FCF conversion's statement window and pair test
 
-**Status:** fixed in fcf-conversion's code (METHODOLOGY.md, Filing and Selection Rules); its
-committed results predate it.
+**Status:** fixed in fcf-conversion (METHODOLOGY.md, Filing and Selection Rules), its committed
+results included since its November 2026 rerun.
 
 FCF conversion divides one fiscal year's free cash flow by its net income, so a percent, sub-unit or
 per-share error cancels in the ratio. What can go wrong is a pair of rows from different years or
