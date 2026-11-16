@@ -189,7 +189,7 @@ Errors every arm carries, which the checks leave as they are:
 
 ### Universe Rules
 
-Three topics keep their universe to ordinary shares, through opt-in helpers in `data_utils.py`: defensive-quality on universe rules version `ur-1` (`UNIVERSE_RULES_V1`, the default), asset-growth on `ur-2` (`UNIVERSE_RULES_V2`) and fcf-conversion on `ur-3` (`UNIVERSE_RULES_V3`). The other topics use none yet. A version doesn't change once a topic's results store its rules: ur-1 stays as defensive-quality's results ran it and ur-2 as asset-growth's did, and a different rule is a new version.
+Three topics keep their universe to ordinary shares, through opt-in helpers in `data_utils.py`: defensive-quality on universe rules version `ur-1` (`UNIVERSE_RULES_V1`, the default), asset-growth on `ur-2` (`UNIVERSE_RULES_V2`) and fcf-conversion on `ur-3` (`UNIVERSE_RULES_V3`). The other topics use none yet. A version doesn't change once a topic's results store its rules: ur-1 stays as defensive-quality's results ran it, ur-2 as asset-growth's did and ur-3 as fcf-conversion's did, and a different rule is a new version.
 
 **ur-1 (defensive-quality).** defensive-quality ranks by dividend yield, so a line whose yield isn't an ordinary share's, or isn't the company's real yield, goes straight to the top of its book. Its universe is ordinary shares only, and its screen drops yields it can't trust.
 

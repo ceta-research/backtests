@@ -1557,7 +1557,7 @@ the entry gives its state too, and the last two entries are its own.
 ### KSC lines that duplicate KOSDAQ series
 
 **Status:** fixed in asset-growth (ur-2) for the five duplicates its book held, and in
-fcf-conversion's code (ur-3 holds the same five); open for the other KSC lines and for every other
+fcf-conversion (ur-3 holds the same five); open for the other KSC lines and for every other
 topic's Korea leg.
 
 82 KSC (KOSPI) lines share their six-digit code with a KOSDAQ (KOE) line. By their bars, 20 are
@@ -1615,7 +1615,7 @@ BCE-PY.TO with BCE-PA.TO in 9 years, the last at the 2024 rebalance, which exits
 ### GUD.AX and AOV.AX, and other renamed or legacy lines
 
 **Status:** GUD.AX and AZZA3.SA fixed in asset-growth (ur-2's hand list and line starts). Universe
-rules ur-3, in fcf-conversion's code, fix the renamed pairs below by line starts or hand entries,
+rules ur-3, in fcf-conversion, fix the renamed pairs below by line starts or hand entries,
 and end two dead lines; asset-growth's committed files predate ur-3. BC88.L, ABG.AX, SHA.DE, 9511.SR
 and CORE-PREF.ST are open.
 
@@ -1696,9 +1696,9 @@ the results under `universe_rules.class_stand_ins`.
 
 ### JUP.L's fund flag and SATS's reused ticker
 
-**Status:** JUP.L fixed in asset-growth (ur-2's keep list) and in fcf-conversion's code (ur-3 has
-the same keep list; its October UK book held JUP.L in 2012 to 2014, 2018 and 2019); the removals of
-SATS and of CAM, two reused tickers, accepted.
+**Status:** JUP.L fixed in asset-growth (ur-2's keep list) and in fcf-conversion (ur-3 has the
+same keep list; its UK book holds JUP.L in 2012 to 2014, 2018 and 2019); the removals of SATS and of
+CAM, two reused tickers, accepted.
 
 - **JUP.L.** The profile sets `isFund` on Jupiter Fund Management plc, an asset manager's ordinary
   share. asset-growth's UK book held it in 5 years (2012-2019). ur-1's `fund_flag` removes it; ur-2
@@ -1718,7 +1718,7 @@ SATS and of CAM, two reused tickers, accepted.
 ### US ADRs the profile doesn't flag, and converted trusts
 
 **Status:** the four ADRs fixed in asset-growth (ur-2's hand list), and a fifth, JP, in
-fcf-conversion's code (ur-3's hand list); the converted trust open.
+fcf-conversion (ur-3's hand list); the converted trust open.
 
 ur-2's `us_adr` reads the profile's `isAdr` flag, which misses four ADRs asset-growth's US book
 held: AZN in 2001, 2003 and 2012 and JHX in 2003 (each now carries its ordinary share's ISIN after
@@ -1813,7 +1813,7 @@ per rebalance date. Nothing is restated.
 
 ### Receipts listed abroad, and ordinary shares listed first elsewhere
 
-**Status:** the three receipts fcf-conversion's books held leave in its code (ur-3's hand list);
+**Status:** the three receipts fcf-conversion's books held leave its universe (ur-3's hand list);
 ordinary shares listed first elsewhere stay, disclosed. Every other topic holds both kinds.
 
 A line on one market can be a depositary receipt on a share listed on another. Its price is the
@@ -2021,7 +2021,7 @@ among them).
 
 ## Cost tiers are USD but market caps are local currency (found 2026-08-17)
 
-**Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion's code), the rest not yet
+**Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion, its committed results included), the rest not yet
 **Affects:** every backtest that calls `tiered_cost()` (80 of them)
 **Severity:** Minor. Understates costs outside the US, concentrated in Asia.
 
