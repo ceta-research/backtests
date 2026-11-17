@@ -221,7 +221,7 @@ Added 2026-03-03. `filter_returns()` in `data_utils.py` provides reusable price 
 
 Used by: asset-growth. Should be adopted by all future strategies. Existing strategies (qarp, low-pe, interest-coverage) can be retrofitted.
 
-Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth and fcf-conversion (its code; its committed results still ran with the cap) pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
+Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth and fcf-conversion pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
 
 ### How to check a new exchange
 Before adding an exchange to a backtest, run these checks:
@@ -1223,10 +1223,10 @@ still hold every listed line; read them with the measurements earlier in this se
 
 **Status:** in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks), and both
 topics' committed results were rerun with it in October 2026; defensive-quality joined in November
-2026 (see "Lines that aren't ordinary shares" below), and asset-growth with its November 2026
-rerun. fcf-conversion's code joined in November 2026 on data checks dc-3; its committed results
-are still the October run's, with the cap. The other topics keep their existing cap
-(200%, 300% in three; qarp, low-pe and sector-correlation have none) until their own rerun.
+2026 (see "Lines that aren't ordinary shares" below), asset-growth with its November 2026 rerun,
+and fcf-conversion, on data checks dc-3, with its own November 2026 rerun. The other topics keep
+their existing cap (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their
+own rerun.
 
 The 200% single-return cap drops a holding only when its return is high. Reading every holding
 it dropped from these two topics' published books, and the holdings beside them, found real
@@ -1505,8 +1505,8 @@ hold NVDR lines beside their ordinary lines until their own reruns.
 
 **Status:** fixed for defensive-quality by its universe rules (METHODOLOGY.md, Universe Rules) in
 its November 2026 rerun, and for asset-growth by universe rules ur-2 in its November 2026 rerun (see
-"Asset growth's data fixes" below). fcf-conversion's code removes them under universe rules ur-3,
-and its committed results predate that. Every other topic still holds these lines.
+"Asset growth's data fixes" below), and for fcf-conversion by universe rules ur-3 in its November
+2026 rerun. Every other topic still holds these lines.
 
 defensive-quality ranks by the vendor's dividend yield, so anything carrying a company's yield
 without being its ordinary share, and any yield on the wrong scale, takes a slot near the top.
@@ -1550,14 +1550,14 @@ prior-year guard and the data checks (METHODOLOGY.md, Universe Rules, Filing and
 Data Checks). The counts below are of the October 2026 books, made before all three, 7,064 held
 line-years over 16 legs, and each entry says what is fixed and what stays open. fcf-conversion's
 code carries universe rules ur-3 (ur-2 with more hand-list lines, line starts and line ends), its
-own statement window and pair test, and data checks dc-3; its committed results are the October
-2026 run's and predate all three. Where fcf-conversion's October books held the same kind of line,
+own statement window and pair test, and data checks dc-3, and its committed results are the
+November 2026 rerun's on all three. Where fcf-conversion's October books held the same kind of line,
 the entry gives its state too, and the last two entries are its own.
 
 ### KSC lines that duplicate KOSDAQ series
 
 **Status:** fixed in asset-growth (ur-2) for the five duplicates its book held, and in
-fcf-conversion's code (ur-3 holds the same five); open for the other KSC lines and for every other
+fcf-conversion (ur-3 holds the same five); open for the other KSC lines and for every other
 topic's Korea leg.
 
 82 KSC (KOSPI) lines share their six-digit code with a KOSDAQ (KOE) line. By their bars, 20 are
@@ -1615,7 +1615,7 @@ BCE-PY.TO with BCE-PA.TO in 9 years, the last at the 2024 rebalance, which exits
 ### GUD.AX and AOV.AX, and other renamed or legacy lines
 
 **Status:** GUD.AX and AZZA3.SA fixed in asset-growth (ur-2's hand list and line starts). Universe
-rules ur-3, in fcf-conversion's code, fix the renamed pairs below by line starts or hand entries,
+rules ur-3, in fcf-conversion, fix the renamed pairs below by line starts or hand entries,
 and end two dead lines; asset-growth's committed files predate ur-3. BC88.L, ABG.AX, SHA.DE, 9511.SR
 and CORE-PREF.ST are open.
 
@@ -1696,9 +1696,9 @@ the results under `universe_rules.class_stand_ins`.
 
 ### JUP.L's fund flag and SATS's reused ticker
 
-**Status:** JUP.L fixed in asset-growth (ur-2's keep list) and in fcf-conversion's code (ur-3 has
-the same keep list; its October UK book held JUP.L in 2012 to 2014, 2018 and 2019); the removals of
-SATS and of CAM, two reused tickers, accepted.
+**Status:** JUP.L fixed in asset-growth (ur-2's keep list) and in fcf-conversion (ur-3 has the
+same keep list; its UK book holds JUP.L in 2012 to 2014, 2018 and 2019); the removals of SATS and of
+CAM, two reused tickers, accepted.
 
 - **JUP.L.** The profile sets `isFund` on Jupiter Fund Management plc, an asset manager's ordinary
   share. asset-growth's UK book held it in 5 years (2012-2019). ur-1's `fund_flag` removes it; ur-2
@@ -1718,7 +1718,7 @@ SATS and of CAM, two reused tickers, accepted.
 ### US ADRs the profile doesn't flag, and converted trusts
 
 **Status:** the four ADRs fixed in asset-growth (ur-2's hand list), and a fifth, JP, in
-fcf-conversion's code (ur-3's hand list); the converted trust open.
+fcf-conversion (ur-3's hand list); the converted trust open.
 
 ur-2's `us_adr` reads the profile's `isAdr` flag, which misses four ADRs asset-growth's US book
 held: AZN in 2001, 2003 and 2012 and JHX in 2003 (each now carries its ordinary share's ISIN after
@@ -1789,8 +1789,8 @@ checked, both already came from the balance row's fiscal year.
 
 ### FCF conversion's statement window and pair test
 
-**Status:** fixed in fcf-conversion's code (METHODOLOGY.md, Filing and Selection Rules); its
-committed results predate it.
+**Status:** fixed in fcf-conversion (METHODOLOGY.md, Filing and Selection Rules), its committed
+results included since its November 2026 rerun.
 
 FCF conversion divides one fiscal year's free cash flow by its net income, so a percent, sub-unit or
 per-share error cancels in the ratio. What can go wrong is a pair of rows from different years or
@@ -1813,7 +1813,7 @@ per rebalance date. Nothing is restated.
 
 ### Receipts listed abroad, and ordinary shares listed first elsewhere
 
-**Status:** the three receipts fcf-conversion's books held leave in its code (ur-3's hand list);
+**Status:** the three receipts fcf-conversion's books held leave its universe (ur-3's hand list);
 ordinary shares listed first elsewhere stay, disclosed. Every other topic holds both kinds.
 
 A line on one market can be a depositary receipt on a share listed on another. Its price is the
@@ -2021,7 +2021,7 @@ among them).
 
 ## Cost tiers are USD but market caps are local currency (found 2026-08-17)
 
-**Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion's code), the rest not yet
+**Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion, its committed results included), the rest not yet
 **Affects:** every backtest that calls `tiered_cost()` (80 of them)
 **Severity:** Minor. Understates costs outside the US, concentrated in Asia.
 
@@ -2070,8 +2070,8 @@ holdings into more expensive tiers, but it's **below 1** for GBP (0.79) and EUR
 migration alone moves those two markets *up*. Don't read a European CAGR rising
 after migration as a bug.
 
-`fcf-conversion` is the second (its code, November 2026; its committed results predate
-it). It resolves the rate once per leg and records the model in each results file as
+`fcf-conversion` is the second (its code and its committed results, November 2026). It
+resolves the rate once per leg and records the model in each results file as
 `cost_model`, `{"function": "costs.tiered_cost", "fx_per_usd": <the leg's rate>}`; a
 `--no-costs` run writes `"cost_model": null`. On its October books the migration alone
 moves each leg's excess by: Taiwan -0.47pp, India -0.45, Thailand -0.43, China -0.40,

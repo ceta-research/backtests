@@ -1866,6 +1866,13 @@ FACTOR_HAND = (
      "HK$4.6734 per H share with 5 bonus shares per 10 (ex 2023-07-05) and HK$1.6352 with 3 per 10 (ex "
      "2024-06-26), per the HKEX notices; the close is adjusted for both bonuses, but the factor over-applies "
      "both payouts; close plus HK$2.3966 and 1.2579 on the close's basis"),
+    ("600036.SS", "2005-07-01", "2006-07-01", "real", None, None, 1.14388, ("fcf-conversion/SHZ_SHH",),
+     "China Merchants Bank's share-structure reform gave tradable holders 2.5963 shares per 10 (0.8589 from the "
+     "capital reserve and 1.7374 paid by the non-tradable holders), ex 2006-02-24, with 6 put warrants per 10; "
+     "adjClose steps by 1.256 on 2006-02-27, the first bar after, as the shares' 1.2596 (the warrants aren't booked)"),
+    ("EXPN.L", "2011-07-01", "2012-07-01", "rebuilt", 0.1606, None, 0.933156, ("fcf-conversion/LSE",),
+     "two adjClose bases: adjClose / close sits near 0.50 before 2011-12-28 and near 0.84 from it (0.52 in log) on "
+     "a 5.291p dividend, 0.6% of the close, the close up 0.9% that day; close plus the 5.291p and 13.929p dividends"),
 )
 FACTOR_HAND_RULE = ("each band flag whose close-basis swap moves its leg's excess by review_min_pp or more is "
                     "reviewed by hand and listed by holding span (symbol, rebalance date, exit date): rebuilt (book "

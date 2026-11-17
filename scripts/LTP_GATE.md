@@ -100,9 +100,8 @@ its legs carries `--end-date <date>` or `--end-year <year>`, before the exchange
 `scripts/test_gate_ltp.py` checks that. In the wave files those five topics' legs carry
 `--end-year 2025`. For the first three that reproduces their committed results. asset-growth's
 committed files run to 2026-11-09: its wave 1 legs stop at July 2025, and its README's per-market
-commands carry `--end-date 2026-11-09`. fcf-conversion's committed files are its October 2026 run,
-made before its data checks, universe rules and run window, so its wave 1 legs run the current code
-on that window and don't reproduce them. A rerun for new figures uses its own legs file with `--end-date <date>`: `scripts/data_end.py --legs-file <file> --topic
+commands carry `--end-date 2026-11-09`. fcf-conversion's committed files run to 2026-11-12 in the
+same way, and its README's commands carry `--end-date 2026-11-12`. A rerun for new figures uses its own legs file with `--end-date <date>`: `scripts/data_end.py --legs-file <file> --topic
 <topic>` prints the date every leg traded. Save its output in the gate's out-dir, since a pinned file's
 `data_end` keys are null. Stage-a, det and flip all compare pinned runs, and they're made the same day:
 a pin fixes the prices, not the vendor's later restatements.
