@@ -20,8 +20,9 @@ longer hand list, Brazil's ISIN class with the ticker digit when there is no ISI
 LPs on US exchanges only, and ser only at a name's end. Every row also carries its ur-1 reason, so
 ur-2 is opt-in. Each new reason has a mutant.
 
-ur-2 is frozen at FROZEN_V2 as ur-1 is at FROZEN: its config JSON, its SQL, an exercised block, and the
-rules block of every committed asset-growth results file. ur-3 (cfg=UNIVERSE_RULES_V3) is ur-2 plus the
+ur-2 is frozen at FROZEN_V2 and ur-3 at FROZEN_V3, as ur-1 is at FROZEN: each version's config JSON, its SQL,
+an exercised block, and the rules, line_starts and line_ends blocks of every committed results file of its topic
+(asset-growth, fcf-conversion). ur-3 (cfg=UNIVERSE_RULES_V3) is ur-2 plus the
 lines PROFILE_V3 holds (real profile rows: each new line reads known under ur-3 and None under ur-1 and
 ur-2, the lines beside them stay), the new line starts, each out of a screen before its first own day, and
 the line ends (COG, CLR, PEAK, GLT), each out of a screen after its last own day; ur-2 and ur-1 have no line ends.
@@ -50,6 +51,7 @@ from test_data_checks import load_base, load_topic   # noqa: E402
 
 FROZEN = "9b72870"   # the commit defensive-quality's published ur-1 results ran on
 FROZEN_V2 = "2a741b7"   # ur-2 as asset-growth's committed results ran it
+FROZEN_V3 = "3f10fd6"   # ur-3 as fcf-conversion's committed results ran it (their merge)
 
 
 def check(cond, what):
@@ -643,16 +645,23 @@ def du_with(**names):
     return SimpleNamespace(**{**{k: getattr(du, k) for k in dir(du) if not k.startswith("__")}, **names})
 
 
-# ---------------------------------------------------------------- ur-2 frozen
+# ---------------------------------------------------------------- ur-2 and ur-3 frozen
 
-def ur2_run(m):
-    """m.UniverseRules(m.UNIVERSE_RULES_V2) after one sector query (PROFILE_V2 with its ur-2 reasons, AZZA3.SA
-    beside ARZZ3.SA, BF-A beside BF-B) and one screen's class twins, as the JSON text a results file would hold."""
+# version: (data_utils suffix, the commit its committed results ran on, the topic whose results store it)
+FROZEN_UR = {"ur-2": ("V2", FROZEN_V2, "asset-growth"), "ur-3": ("V3", FROZEN_V3, "fcf-conversion")}
+
+
+def ur_cfg_run(m, v):
+    """m.UniverseRules(m.UNIVERSE_RULES_<v>) after one sector query (PROFILE_V2 with its ur-2 reasons, AZZA3.SA
+    beside ARZZ3.SA, BF-A beside BF-B, L1G.AX beside PTM.AX, COG beside CTRA) and one screen's class twins, as
+    the JSON text a results file would hold."""
     rows = [(s, ex, n, cik, w) for s, ex, n, _, cik, _, _, _, w, _ in PROFILE_V2]
     rows += [("AZZA3.SA", "SAO", "Azzas 2154 S.A.", None, None), ("ARZZ3.SA", "SAO", "Arezzo", None, None),
              ("BF-A", "NYSE", "Brown-Forman Corporation", "0000014693", None),
-             ("BF-B", "NYSE", "Brown-Forman Corporation", "0000014693", None)]
-    ur = m.UniverseRules(m.UNIVERSE_RULES_V2)
+             ("BF-B", "NYSE", "Brown-Forman Corporation", "0000014693", None),
+             ("L1G.AX", "ASX", "L1 Group Limited", None, None), ("PTM.AX", "ASX", "Platinum", None, None),
+             ("COG", "NYSE", "Cabot Oil & Gas", None, None), ("CTRA", "NYSE", "Coterra Energy", None, None)]
+    ur = m.UniverseRules(getattr(m, f"UNIVERSE_RULES_{v}"))
     ur.sector_rows([{"symbol": s, "exchange": ex, "cik": cik, "companyName": n, "non_ordinary": w}
                     for s, ex, n, cik, w in rows])
     con = duckdb.connect()
@@ -664,47 +673,61 @@ def ur2_run(m):
     return json.dumps(ur.block())
 
 
-def ur2_freeze_failures(frozen, m=du):
-    """m's ur-2 against FROZEN_V2's data_utils and asset-growth's committed results."""
-    f = []
+def ur_freeze_failures(frozen, version, m=du):
+    """m's ur-2 or ur-3 against its frozen commit's data_utils and its topic's committed results (diagnostics
+    files included)."""
+    v, at, topic = FROZEN_UR[version]
+    cfg, f = f"UNIVERSE_RULES_{v}", []
     for a, kw in (((), {}), (("q",), {}), (("p", "prof"), {}), ((), {"known": ()})):
-        if m.non_ordinary_sql(*a, cfg=m.UNIVERSE_RULES_V2, **kw) != \
-                frozen.non_ordinary_sql(*a, cfg=frozen.UNIVERSE_RULES_V2, **kw):
-            f.append(f"non_ordinary_sql{a} {kw} under ur-2 differs from {FROZEN_V2}'s")
-    if json.dumps(m.UNIVERSE_RULES_V2) != json.dumps(frozen.UNIVERSE_RULES_V2):
-        f.append(f"UNIVERSE_RULES_V2's JSON differs from {FROZEN_V2}'s")
-    if ur2_run(m) != ur2_run(frozen):
-        f.append(f"UniverseRules(UNIVERSE_RULES_V2).block() JSON differs from {FROZEN_V2}'s")
-    files = sorted(glob.glob(os.path.join(ROOT, "asset-growth", "results", "returns_*.json")))
-    rules = json.loads(json.dumps(m.ORDINARY_RULES_V2))
-    starts = [{"symbol": s, "first_day": d, "evidence": e} for s, d, e in m.LINE_STARTS_V2]
+        if m.non_ordinary_sql(*a, cfg=getattr(m, cfg), **kw) != \
+                frozen.non_ordinary_sql(*a, cfg=getattr(frozen, cfg), **kw):
+            f.append(f"non_ordinary_sql{a} {kw} under {version} differs from {at}'s")
+    if json.dumps(getattr(m, cfg)) != json.dumps(getattr(frozen, cfg)):
+        f.append(f"{cfg}'s JSON differs from {at}'s")
+    if ur_cfg_run(m, v) != ur_cfg_run(frozen, v):
+        f.append(f"UniverseRules({cfg}).block() JSON differs from {at}'s")
+    files = sorted(glob.glob(os.path.join(ROOT, topic, "results", "returns_*.json"))
+                   + glob.glob(os.path.join(ROOT, topic, "results", "diagnostics", "*.json")))
+    rules = json.loads(json.dumps(getattr(m, f"ORDINARY_RULES_{v}")))
+    lines = {"line_starts": (m.LINE_START_RULE, "first_day", getattr(m, f"LINE_STARTS_{v}")),
+             "line_ends": (getattr(m, "LINE_END_RULE", None), "last_day", getattr(m, f"LINE_ENDS_{v}", ()))}
     for path in files:
         with open(path) as fh:
             stored = json.load(fh)["universe_rules"]
-        if stored["version"] != "ur-2" or stored["ordinary_shares"]["rules"] != rules:
-            f.append(f"ORDINARY_RULES_V2 differs from {os.path.basename(path)}'s rules block")
-        ls = stored.get("line_starts")
-        if ls and (ls["rule"] != m.LINE_START_RULE or any(x not in starts for x in ls["lines"])):
-            f.append(f"{os.path.basename(path)}'s line_starts are not LINE_STARTS_V2's")
+        if stored["version"] != version or stored["ordinary_shares"]["rules"] != rules:
+            f.append(f"ORDINARY_RULES_{v} differs from {os.path.basename(path)}'s rules block")
+        for key, (rule, day, cfg_lines) in lines.items():
+            listed = [{"symbol": s, day: d, "evidence": e} for s, d, e in cfg_lines]
+            block = stored.get(key)
+            if block and (block["rule"] != rule or any(x not in listed for x in block["lines"])):
+                f.append(f"{os.path.basename(path)}'s {key} are not {key.upper()}_{v}'s")
     if not files:
-        f.append("no committed asset-growth results file")
+        f.append(f"no committed {topic} results file")
     return f
 
 
-def ur2_freeze_mutants():
-    """ur-2 grown in place: one line start, one hand-list entry, ur-3's line ends."""
-    starts = du.LINE_STARTS_V2 + (("XMUT3.SA", "2025-01-02", "a line start the frozen list never held"),)
+def ur_freeze_mutants(v):
+    """ur-2 or ur-3 grown in place: one line start, one hand-list entry, and for ur-2 ur-3's line ends, for
+    ur-3 one more line end."""
+    cfg = getattr(du, f"UNIVERSE_RULES_{v}")
+    starts = getattr(du, f"LINE_STARTS_{v}") + (("XMUT3.SA", "2025-01-02", "a line start the frozen list never held"),)
     extra = ("XMUT", "notes", "a line the frozen hand list never held")
-    known = du.NON_ORDINARY_KNOWN_V2 + (extra,)
-    rules = dict(du.ORDINARY_RULES_V2,
-                 known=du.ORDINARY_RULES_V2["known"] + [dict(zip(("symbol", "kind", "evidence"), extra))])
+    known = getattr(du, f"NON_ORDINARY_KNOWN_{v}") + (extra,)
+    ordinary = getattr(du, f"ORDINARY_RULES_{v}")
+    rules = dict(ordinary, known=ordinary["known"] + [dict(zip(("symbol", "kind", "evidence"), extra))])
+    if v == "V2":
+        ends = ("ur-3's line ends on ur-2", du_with(UNIVERSE_RULES_V2=dict(cfg, line_ends=du.LINE_ENDS_V3)))
+    else:
+        more = du.LINE_ENDS_V3 + (("XMUT", "2025-01-02", "a line end the frozen list never held"),)
+        ends = ("a line appended to LINE_ENDS_V3",
+                du_with(LINE_ENDS_V3=more, UNIVERSE_RULES_V3=dict(cfg, line_ends=more)))
     return {
-        "a line appended to LINE_STARTS_V2": du_with(
-            LINE_STARTS_V2=starts, UNIVERSE_RULES_V2=dict(du.UNIVERSE_RULES_V2, line_starts=starts)),
-        "an entry appended to NON_ORDINARY_KNOWN_V2": du_with(
-            NON_ORDINARY_KNOWN_V2=known, ORDINARY_RULES_V2=rules,
-            UNIVERSE_RULES_V2=dict(du.UNIVERSE_RULES_V2, ordinary=rules, known=known)),
-        "ur-3's line ends on ur-2": du_with(UNIVERSE_RULES_V2=dict(du.UNIVERSE_RULES_V2, line_ends=du.LINE_ENDS_V3)),
+        f"a line appended to LINE_STARTS_{v}": du_with(
+            **{f"LINE_STARTS_{v}": starts, f"UNIVERSE_RULES_{v}": dict(cfg, line_starts=starts)}),
+        f"an entry appended to NON_ORDINARY_KNOWN_{v}": du_with(
+            **{f"NON_ORDINARY_KNOWN_{v}": known, f"ORDINARY_RULES_{v}": rules,
+               f"UNIVERSE_RULES_{v}": dict(cfg, ordinary=rules, known=known)}),
+        ends[0]: ends[1],
     }
 
 
@@ -1097,12 +1120,13 @@ def main():
     expect("ur-2 line_starts: out before the first own day, listed on its leg only", line_start_failures())
     for label, cls in line_start_mutants().items():
         expect_fail(f"ur-2 line_starts, {label}", line_start_failures(cls))
-    with tempfile.TemporaryDirectory() as tmp:
-        frozen_v2 = load_base(tmp, FROZEN_V2)[0]
-    expect(f"ur-2 frozen at {FROZEN_V2}: config JSON, SQL text, an exercised block, every committed asset-growth"
-           " rules block", ur2_freeze_failures(frozen_v2))
-    for label, m in ur2_freeze_mutants().items():
-        expect_fail(f"ur-2 freeze, {label}", ur2_freeze_failures(frozen_v2, m))
+    for version, (v, at, topic) in FROZEN_UR.items():
+        with tempfile.TemporaryDirectory() as tmp:
+            frozen = load_base(tmp, at)[0]
+        expect(f"{version} frozen at {at}: config JSON, SQL text, an exercised block, every committed {topic}"
+               " rules block", ur_freeze_failures(frozen, version))
+        for label, m in ur_freeze_mutants(v).items():
+            expect_fail(f"{version} freeze, {label}", ur_freeze_failures(frozen, version, m))
     expect("ur-3: the added lines known, the lines beside them kept, ur-2's reasons on ur-2's rows; ur-1 and ur-2"
            " unchanged on the same rows", v3_failures())
     expect("ur-3 on the ur-1 cases, pasted as a filter too", ordinary_failures(v3_sql))
