@@ -1708,12 +1708,12 @@ CAM, two reused tickers, accepted.
   Series A Perpetual SATS Preferred Stock" (listed 2026-10-20), and the line's FY2025 balance row
   is already Strive's ($0.75bn of total assets, against EchoStar's $60.9bn for FY2024). `name_term`
   removes SATS under ur-1 and ur-2, so EchoStar's 2022 line-year leaves the book. Accepted: that
-  year's screen passed 30 names, so the slot goes to the next-ranked one. Without a keep entry,
+  year's screen keeps its top 30, so the next-ranked name takes the slot. Without a keep entry,
   Strive's rows can't enter a 2026 book either.
 - **CAM.** fcf-conversion's 2015 US book held CAM, then Cameron International (July 2015 bar 51.50
   on about 1.9 million shares). Today's profile files the reused ticker as a municipal ETF, so
   `fund_flag` removes it under ur-1, ur-2 and ur-3, and Cameron's 2015 line-year leaves the book.
-  Accepted as SATS was: that year's screen passed 30 names, so the slot goes to the next-ranked one.
+  Accepted as SATS was: that year's screen keeps its top 30, so the next-ranked name takes the slot.
 
 ### US ADRs the profile doesn't flag, and converted trusts
 
@@ -1836,8 +1836,8 @@ flags neither as an ADR. Other receipts outside NYSE, NASDAQ, AMEX and SAO (TDRs
 A company's ordinary share listed on a second market is a different case: it trades at its own
 price on that market. These stay, and the topic's README discloses them. fcf-conversion's October
 books hold Manulife's 0945.HK in the Hong Kong books of 2003 to 2008, Yancoal Australia's 3668.HK in
-2019, 2022 and 2023, and 20 US line-years of Canadian banks' and insurers' NYSE lines (RY 5, TD 4,
-BMO 3, SLF 3, MFC 3, CM 2).
+2019, 2022 and 2023, 20 US line-years of Canadian banks' and insurers' NYSE lines (RY 5, TD 4,
+BMO 3, SLF 3, MFC 3, CM 2) and Deutsche Bank's NYSE ordinary line DB in the 2008 US book.
 
 ---
 
