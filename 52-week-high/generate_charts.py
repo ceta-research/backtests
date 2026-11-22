@@ -5,6 +5,10 @@ Generate charts for 52-Week High Proximity strategy.
 Creates cumulative growth and annual returns charts for each eligible exchange,
 plus CAGR and max drawdown comparison charts.
 
+A run-window file's partial final year is the last point and the last, hatched bar, and its titles carry the
+window the file records. A typed-year file charts as before, but for the cumulative axis, which plots each value
+at its period's end, and the CAGR chart's count of the ranked legs that beat their own benchmark.
+
 Charts are saved to 52-week-high/charts/ and must be moved to:
   ts-content-creator/content/_current/momentum-02-52-week-high/blogs/{region}/
 
@@ -16,7 +20,9 @@ Usage:
 import json
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
-from chart_utils import money, money_axis_label, money_formatter, currency_prefix, localize_money_title, benchmark_label, RESULT_KEY_TO_EXCHANGE
+from chart_utils import (annual_bars, benchmark_label, currency_prefix, growth_series, hatch_partial, leg_window,
+                         localize_money_title, money, money_axis_label, money_formatter, partial_note,
+                         run_window, RESULT_KEY_TO_EXCHANGE)
 import os
 import sys
 
@@ -39,16 +45,8 @@ POSITIVE_COLOR = "#43A047"    # Green
 NEGATIVE_COLOR = "#E53935"    # Red
 
 
-def cumulative_growth(returns):
-    """Compute cumulative growth index starting at 1.0."""
-    curve = [1.0]
-    for r in returns:
-        curve.append(curve[-1] * (1 + r / 100))
-    return curve
-
-
 def measured_span(data):
-    """'2013-2025' for a leg whose benchmark priced only part of the run, else None."""
+    """'<start year>-<end year>' for a leg whose benchmark priced only part of the run, else None."""
     if not data.get("window_truncated"):
         return None
     start, end = data.get("measured_start"), data.get("measured_end")
@@ -56,36 +54,34 @@ def measured_span(data):
 
 
 def ranked_legs(all_data):
-    """Legs fit to rank across markets, plus a footnote naming the ones left out.
+    """Legs fit to rank across markets, plus a footnote naming the ones left out (fcf-conversion's basis).
 
     A leg measured over a shorter window (Norway: its index starts in 2013) does
-    not rank against full-window CAGRs and drawdowns.
+    not rank against full-window CAGRs and drawdowns, nor does a leg never
+    invested or one with no benchmark CAGR.
     """
-    legs, cut = {}, []
+    legs, cut, idle = {}, [], []
     for uni, data in all_data.items():
-        if "error" in data or not data.get("portfolio"):
+        if "error" in data or not data.get("portfolio") or data["portfolio"].get("cagr") is None:
             continue
-        if data.get("invested_periods", 0) > 0 and not data.get("window_truncated", False):
-            legs[uni] = data
-        elif data.get("window_truncated"):
-            label = EXCHANGE_LABELS.get(uni, (None, uni))[1]
+        label = EXCHANGE_LABELS.get(uni, (None, uni))[1]
+        if data.get("window_truncated"):
             cut.append(f"{label}, measured {measured_span(data)}")
-    note = ("Not ranked, benchmark covers only part of the window: " + "; ".join(cut) + "."
-            if cut else "")
-    return legs, note
+        elif data.get("invested_periods", 0) <= 0 or (data.get("spy") or {}).get("cagr") is None:
+            idle.append(label)
+        else:
+            legs[uni] = data
+    notes = [f"Not ranked, benchmark covers only part of the window: {'; '.join(cut)}." if cut else "",
+             f"Not ranked, never invested or no benchmark CAGR: {'; '.join(idle)}." if idle else ""]
+    return legs, " ".join(n for n in notes if n)
 
 
 def plot_cumulative(data, label, benchmark_name, output_path):
-    """Cumulative growth chart: 52W-High Proximity vs local benchmark."""
-    annual = data["annual_returns"]
-    years = [ar["year"] for ar in annual]
-    port_rets = [ar["portfolio"] for ar in annual]
-    bench_rets = [ar["spy"] for ar in annual]
+    """Cumulative growth chart: 52W-High Proximity vs local benchmark, each value at its period's end and a
+    partial final year last."""
+    x, port_curve = growth_series(data, "portfolio", initial=1.0)
+    bench_curve = growth_series(data, "spy", initial=1.0)[1]
 
-    port_curve = cumulative_growth(port_rets)
-    bench_curve = cumulative_growth(bench_rets)
-
-    x = [years[0] - 1] + years
     fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.plot(x, port_curve, color=STRATEGY_COLOR, linewidth=2.5,
@@ -95,7 +91,7 @@ def plot_cumulative(data, label, benchmark_name, output_path):
 
     span = measured_span(data)
     ax.set_title(f"52-Week High Proximity vs {benchmark_name}\n{label}"
-                 + (f", measured {span}" if span else ""),
+                 + (leg_window(data) or (f", measured {span}" if span else "")),
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Portfolio Value (" + currency_prefix(data.get("universe")) + "1 Start)", fontsize=12)
@@ -136,22 +132,22 @@ def plot_cumulative(data, label, benchmark_name, output_path):
 
 
 def plot_annual(data, label, benchmark_name, output_path):
-    """Annual returns bar chart: 52W-High Proximity vs local benchmark."""
-    annual = data["annual_returns"]
-    years = [ar["year"] for ar in annual]
-    port_rets = [ar["portfolio"] for ar in annual]
-    bench_rets = [ar["spy"] for ar in annual]
+    """Annual returns bar chart: 52W-High Proximity vs local benchmark; a partial final year is the last, hatched
+    bar."""
+    years, port_rets = annual_bars(data, "portfolio")
+    bench_rets = annual_bars(data, "spy")[1]
 
     x = np.arange(len(years))
     width = 0.4
 
     fig, ax = plt.subplots(figsize=(14, 6))
-    ax.bar(x - width / 2, port_rets, width, label="52W-High Proximity",
-           color=STRATEGY_COLOR, alpha=0.85)
-    ax.bar(x + width / 2, bench_rets, width, label=benchmark_name, color=BENCHMARK_COLOR, alpha=0.7)
+    groups = [ax.bar(x - width / 2, port_rets, width, label="52W-High Proximity",
+                     color=STRATEGY_COLOR, alpha=0.85),
+              ax.bar(x + width / 2, bench_rets, width, label=benchmark_name, color=BENCHMARK_COLOR, alpha=0.7)]
+    hatch_partial(groups, data)
 
     ax.axhline(0, color="black", linewidth=0.8, linestyle="-")
-    ax.set_title(f"Annual Returns: 52-Week High Proximity vs {benchmark_name}\n{label}",
+    ax.set_title(f"Annual Returns: 52-Week High Proximity vs {benchmark_name}\n{label}{leg_window(data, bars=True)}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Year", fontsize=12)
     ax.set_ylabel("Annual Return (%)", fontsize=12)
@@ -162,6 +158,9 @@ def plot_annual(data, label, benchmark_name, output_path):
     ax.grid(True, alpha=0.3, linestyle=":", axis="y")
 
     plt.tight_layout()
+    note = partial_note(data)
+    if note:
+        fig.text(0.5, -0.01, note, ha="center", va="top", fontsize=9, color="#555555")
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")
@@ -173,6 +172,7 @@ def plot_comparison_cagr(all_data, output_path):
     port_cagrs = []
     spy_cagrs = []
     has_proxy = False
+    beat = counted = 0
     legs, cut_note = ranked_legs(all_data)
 
     for uni, data in sorted(legs.items(),
@@ -185,6 +185,10 @@ def plot_comparison_cagr(all_data, output_path):
         exchanges.append(f"{uni.replace('_', '/')} vs {bench}{'*' if proxy else ''}")
         port_cagrs.append(data["portfolio"].get("cagr") or 0)
         spy_cagrs.append(data["spy"].get("cagr") or 0)
+        # Counted against its own index only: a CAGR against the S&P 500 in USD isn't a market's own result.
+        if not proxy:
+            counted += 1
+            beat += port_cagrs[-1] > spy_cagrs[-1]
 
     if not exchanges:
         return
@@ -199,7 +203,7 @@ def plot_comparison_cagr(all_data, output_path):
            color=BENCHMARK_COLOR, alpha=0.7)
 
     ax.axhline(0, color="black", linewidth=0.8)
-    ax.set_title("52-Week High Proximity: CAGR by Exchange vs Local Benchmark",
+    ax.set_title(f"52-Week High Proximity: CAGR by Exchange vs Local Benchmark{run_window(all_data, list(legs))}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Exchange", fontsize=12)
     ax.set_ylabel("CAGR (%)", fontsize=12)
@@ -216,8 +220,10 @@ def plot_comparison_cagr(all_data, output_path):
     ax.grid(True, alpha=0.3, linestyle=":", axis="y")
 
     plt.tight_layout()
-    if cut_note:
-        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
+    count = (f"{beat} of {counted} beat their own benchmark"
+             + ("; the S&P 500 legs (*) aren't counted." if has_proxy else "."))
+    fig.text(0.5, -0.01, "\n".join(n for n in (count, cut_note) if n), ha="center", va="top", fontsize=9,
+             color="#555555")
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")
@@ -246,7 +252,7 @@ def plot_comparison_drawdown(all_data, output_path):
     fig, ax = plt.subplots(figsize=(max(12, len(exchanges) * 0.8), 6))
     ax.bar(range(len(exchanges)), drawdowns, color=colors, alpha=0.85)
     ax.axhline(0, color="black", linewidth=0.8)
-    ax.set_title("52-Week High Proximity: Max Drawdown by Exchange",
+    ax.set_title(f"52-Week High Proximity: Max Drawdown by Exchange{run_window(all_data, list(legs))}",
                  fontsize=14, fontweight="bold", pad=12)
     ax.set_xlabel("Exchange", fontsize=12)
     ax.set_ylabel("Max Drawdown (%)", fontsize=12)
@@ -284,6 +290,8 @@ EXCHANGE_LABELS = {
     "MIL": ("italy", "Italy (MIL)", "S&P 500"),
     "KLS": ("malaysia", "Malaysia (KLS)", "S&P 500"),
     "SES": ("singapore", "Singapore (SES)", "STI"),
+    "ASX": ("australia", "Australia (ASX)", "ASX 200"),
+    "SAO": ("brazil", "Brazil (SAO)", "Bovespa"),
 }
 
 
