@@ -19,7 +19,7 @@ Checks and tools for the topic backtests: 39 offline tests, the LTP exit-method 
 - `test_period_accounting.py` and `test_wave3_install.py` read tracked `<topic>/results/` files, so a checkout without them fails these two.
 - `test_data_checks.py` runs `git show` on `data_utils.py` at `e1ecb7c` and `203203b`, `test_universe_rules.py` runs `git show` on `data_utils.py` at `9b72870`, `2a741b7` and `3f10fd6`, and `test_chart_partial_year.py` reads asset-growth's results at `9d706a5`, fcf-conversion's at `2a741b7` and 52-week-high's results and `generate_charts.py` at `203203b` (that base script whatever `--base` says): they need the full history, not a shallow clone. `test_universe_rules.py` also reads defensive-quality's, asset-growth's and fcf-conversion's tracked `results/`.
 - `test_domicile_dedup.py` fails on DuckDB 2.0.0, which `requirements.txt` installs today: one mutant puts `uuid()` in a `PARTITION BY`, which 2.0 rejects at bind time. It passes after `.venv/bin/pip install "duckdb<2"` (1.5.6), but `test_pairs_zscore.py` ran about 4 times slower there.
-- Slowest on 3.12.4 with DuckDB 2.0.0: `test_pairs_fundamentals.py` and `test_pairs_multi_pair.py` (about 5 minutes each), then `test_dogs_size.py` and `test_pairs_zscore.py` (under 3 minutes each). Run one test, not the loop, while iterating.
+- Slowest on 3.12.4 with DuckDB 2.0.0: `test_pairs_fundamentals.py` and `test_pairs_multi_pair.py` (about 5 minutes each), then `test_dogs_size.py` and `test_pairs_zscore.py` (under 3 minutes each). On 3.13.2 with DuckDB 1.4.2, `test_52wh_selection.py` is the slowest at about 9 minutes, then `test_data_checks.py` at about 4, and the loop takes about 34. Run one test, not the loop, while iterating.
 
 ## LTP gate
 
