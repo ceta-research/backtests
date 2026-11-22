@@ -43,8 +43,9 @@ universe_rules, signal_guard (its count on every rebalance, equal in drop and lt
 isin_dedup (the tiers at 35 baht a dollar, null on --no-costs), the fetch asks for no MTUM, entry_unpriced
 and the data checks' counts on each row, and in each holdings_full item the one-way rate the name paid
 (cost_rate), which with the item's return gives the row's return. Costs, with run_backtest's screen and prices
-stubbed: a JPX and an LSE cap pay the tier at their leg's FX rate, and a name with no cap the top one; with
---full-holdings, each name of a book across two tiers records its own rate. The quarterly
+stubbed: a JPX, an LSE and a KLS cap pay the tier at their leg's FX rate, and a name with no cap the top one; with
+--full-holdings, each name of a book across two tiers records its own rate; and costs.FX_PER_USD has a rate for
+every exchange --global runs. The quarterly
 run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial
 2026-10-01 period, its window exits and the benchmark's priced on the end date's close, a name with no bar after
 2026-10-30 filled at its last bar, CAGR over span_years and the run window's keys written; main() takes
@@ -616,6 +617,7 @@ COST_ENTRY, COST_EXIT, COST_RAW = date(2020, 4, 1), date(2020, 7, 1), 0.10
 COST_CASES = [   # (leg, market cap in its currency, one-way rate): JPX at 150 yen, LSE at 0.79 pounds a dollar
     ("JPX", 1e12, 0.003),    # 1 trillion yen is about 6.7B dollars: the 0.3% tier, where 1e12 > 10B would read 0.1%
     ("LSE", 8e9, 0.001),     # 8B pounds is about 10.1B dollars: the 0.1% tier, where 8e9 < 10B would read 0.3%
+    ("KLS", 2e10, 0.003),    # 20B ringgit is about 4.5B dollars at 4.46: the 0.3% tier, where 2e10 > 10B would read 0.1%
     ("NYSE", None, 0.005),   # no cap: the 0.5% tier, where the topic charged nothing before
 ]
 
@@ -810,6 +812,25 @@ def legs_failures(src):
 
 
 LEG_MUTANTS = {"australia left out of --global": ('            ("australia",   ["ASX"]),\n', "")}
+
+# Every exchange --global runs has its own rate in costs.FX_PER_USD: get_fx_per_usd reads 1.0 for one it lacks,
+# which would leave that leg's cost tiers unconverted.
+COSTS_PATH = os.path.join(ROOT, "costs.py")
+with open(COSTS_PATH) as fh:
+    COSTS_SRC = fh.read()
+
+
+def fx_failures(costs_src, src=SRC):
+    """The exchanges of src's presets_to_run that costs_src's FX_PER_USD has no rate for."""
+    try:
+        rates = load(costs_src, COSTS_PATH).FX_PER_USD
+        missing = sorted({e for ex in global_presets(src).values() for e in ex} - set(rates))
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    return [f"no FX_PER_USD rate for {missing}: their cost tiers stay in dollars"] if missing else []
+
+
+FX_MUTANTS = {"Malaysia's rate left out": ('"KLS": 4.46,', "")}
 
 
 # The live screen (screen.py): the backtest's fetch and screen on one date, with data checks on.
@@ -1097,8 +1118,8 @@ def mutant_results(mutants, check, must_book=(), src=SRC):
 
 
 def main():
-    base = (legs_failures(SRC) + screen_failures(SCREEN_SRC) + failures(SRC) + rules_failures(SRC)
-            + run_failures(SRC) + partial_failures(SRC) + t_failures(SRC))
+    base = (legs_failures(SRC) + fx_failures(COSTS_SRC) + screen_failures(SCREEN_SRC) + failures(SRC)
+            + rules_failures(SRC) + run_failures(SRC) + partial_failures(SRC) + t_failures(SRC))
     if base:
         print("test_52wh_selection: FAIL", base)
         sys.exit(1)
@@ -1109,7 +1130,8 @@ def main():
     s4, e4 = mutant_results(T_MUTANTS, t_failures, T_MUTANTS)
     s5, e5 = mutant_results(LEG_MUTANTS, legs_failures, LEG_MUTANTS)
     s6, e6 = mutant_results(SCREEN_MUTANTS, screen_failures, SCREEN_MUTANTS, src=SCREEN_SRC)
-    survived, errored = survived + s1 + s2 + s3 + s4 + s5 + s6, errored + e1 + e2 + e4 + e5 + e6
+    s7, e7 = mutant_results(FX_MUTANTS, fx_failures, FX_MUTANTS, src=COSTS_SRC)
+    survived, errored = survived + s1 + s2 + s3 + s4 + s5 + s6 + s7, errored + e1 + e2 + e4 + e5 + e6 + e7
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
@@ -1118,7 +1140,7 @@ def main():
           f" universe rules ur-4 on {n_rules} listings, {len(RULE_MUTANTS)} mutants caught; the run on the synthetic"
           f" SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window, {len(WINDOW_MUTANTS)} mutants caught;"
           f" check T, {len(T_MUTANTS)} mutants caught; the gate's legs, {len(LEG_MUTANTS)} mutants caught;"
-          f" the live screen, {len(SCREEN_MUTANTS)} mutants caught)")
+          f" the cost rates, {len(FX_MUTANTS)} mutants caught; the live screen, {len(SCREEN_MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":

@@ -50,6 +50,7 @@ FX_PER_USD = {
     "TAI": 32.0, "TWO": 32.0,               # TWD
     "SET": 35.0,                            # THB
     "SGX": 1.35, "SES": 1.35,               # SGD
+    "KLS": 4.46,                            # MYR
     # Other regions
     "SAO": 5.0,                             # BRL
     "MEX": 17.0, "BMV": 17.0,               # MXN
