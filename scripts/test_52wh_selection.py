@@ -18,11 +18,16 @@ The same-security dedup still runs before the top-30 cut, on the run's own entry
 mutant of the topic's source must trip a check; the traded-bar rule's must trip it on a wrong
 book, not an error.
 
+The run on test_data_checks' synthetic SET leg (wh52_source): run_single on --end-year 2025 books today's 103
+quarterly periods; each invested row's holdings string names every booked name, and --full-holdings adds
+holdings_full, every booked name in that order, changing nothing else. Its mutants must trip these checks.
+
 Usage:
     python scripts/test_52wh_selection.py [repo root]
 """
 import os
 import sys
+import tempfile
 import types
 from datetime import date, datetime, timedelta, timezone
 
@@ -31,7 +36,9 @@ ROOT = (os.path.abspath(sys.argv[1]) if len(sys.argv) > 1
 PATH = os.path.join(ROOT, "52-week-high", "backtest.py")
 with open(PATH) as fh:
     SRC = fh.read()
-sys.path.insert(0, ROOT)
+sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
+import data_utils as du   # noqa: E402
+import test_data_checks as tdc   # noqa: E402
 
 D = date(2020, 4, 1)                    # the rebalance date R; bars are keyed by days from it
 PREV = date(2020, 1, 1)                 # the rebalance date before R: its fetch window reaches back past R-390
@@ -365,25 +372,95 @@ MUTANTS = {
 }
 
 
-def main():
-    base = failures(SRC)
-    if base:
-        print("test_52wh_selection: FAIL", base)
-        sys.exit(1)
+# ---------------------------------------------------------------- the run on the synthetic SET leg
+
+TOPIC = "52-week-high"
+GRID = du.generate_rebalance_dates(2000, 2025, "quarterly")   # --end-year 2025: 104 dates, 103 periods
+_LEGS = {}
+
+
+def set_leg():
+    """test_data_checks' synthetic SET leg as a 52-week-high leg, built once (runs only read it)."""
+    if "leg" not in _LEGS:
+        _LEGS["leg"] = tdc.wh52_source()
+    return _LEGS["leg"]
+
+
+def strip_full(res):
+    return {**res, "period_data": [{k: v for k, v in r.items() if k != "holdings_full"} for r in res["period_data"]]}
+
+
+def results_failures(src):
+    """run_single on the synthetic SET leg, --end-year 2025: 103 quarterly periods from 2000-01-01; each invested
+    row's holdings names every booked name (books of more than 10, so a cut shows); --full-holdings adds
+    holdings_full, every booked name in the holdings' order, and changes nothing else."""
+    try:
+        mod = load(src)
+        with tempfile.TemporaryDirectory() as tmp:
+            plain = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod)[0]
+            full = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod, full_holdings=True)[0]
+    except Exception as e:  # reported as an error: main() does not count it as a caught mutant
+        return [f"error: {type(e).__name__}: {e}"]
+    out = []
+    rows = plain["period_data"]
+    if [r["rebalance_date"] for r in rows] != [d.isoformat() for d in GRID[:-1]] or rows[-1]["exit_date"] != "2025-10-01":
+        out.append(f"grid {rows[0]['rebalance_date']} to {rows[-1]['exit_date']}, {len(rows)} periods, want 103")
+    held = [r for r in rows if r["stocks_held"]]
+    if not held or max(r["stocks_held"] for r in held) <= 10:
+        out.append("no book holds more than 10 names: a cut holdings string would not show")
+    for r in held:
+        names = r["holdings"].split(",")
+        if len(names) != r["stocks_held"] or len(set(names)) != len(names) or "..." in r["holdings"]:
+            out.append(f"{r['rebalance_date']}: holdings {r['holdings']!r} for {r['stocks_held']} held")
+            break
+    if any("holdings_full" in r for r in rows):
+        out.append("holdings_full written without --full-holdings")
+    if strip_full(full) != plain:
+        out.append(f"--full-holdings changed something else: {tdc.first_diff(strip_full(full), plain)}")
+    for r in full["period_data"]:
+        names = [h["symbol"] for h in r.get("holdings_full") or []]
+        if names != (r["holdings"].split(",") if r["stocks_held"] else []):
+            out.append(f"{r['rebalance_date']}: holdings_full {names}, holdings {r['holdings']!r}")
+            break
+    return out
+
+
+RESULT_MUTANTS = {
+    "holdings cut to 10 names": ('"holdings": ",".join(sym for sym, _, _ in clean),',
+                                 '"holdings": ",".join(sym for sym, _, _ in clean[:10]),'),
+    "--full-holdings ignored": ("DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)",
+                                "DataChecks(data_checks, DATA_CHECKS, full_holdings=False)"),
+}
+
+
+def mutant_results(mutants, check, must_book=()):
+    """(survived, errored): the mutants of SRC no check catches, and those in must_book caught only by an error."""
     survived, errored = [], []
-    for name, (old, new) in MUTANTS.items():
+    for name, (old, new) in mutants.items():
         if SRC.count(old) != 1:
             print(f"test_52wh_selection: FAIL (mutant anchor not unique: {name})")
             sys.exit(1)
-        got = failures(SRC.replace(old, new))
+        got = check(SRC.replace(old, new))
         if not got:
             survived.append(name)
-        elif name in TRADED_MUTANTS and all(f.startswith("error:") for f in got):
+        elif name in must_book and all(f.startswith("error:") for f in got):
             errored.append(name)
+    return survived, errored
+
+
+def main():
+    base = failures(SRC) + results_failures(SRC)
+    if base:
+        print("test_52wh_selection: FAIL", base)
+        sys.exit(1)
+    survived, errored = mutant_results(MUTANTS, failures, TRADED_MUTANTS)
+    s2, e2 = mutant_results(RESULT_MUTANTS, results_failures, RESULT_MUTANTS)
+    survived, errored = survived + s2, errored + e2
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
-    print(f"test_52wh_selection: PASS ({len(SIGNAL) + len(CUT)} listings, {len(MUTANTS)} mutants caught)")
+    print(f"test_52wh_selection: PASS ({len(SIGNAL) + len(CUT)} listings, {len(MUTANTS)} mutants caught; the run on"
+          f" the synthetic SET leg, {len(RESULT_MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":

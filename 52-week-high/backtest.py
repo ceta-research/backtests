@@ -39,11 +39,12 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import (query_parquet, get_prices, generate_rebalance_dates, filter_returns,
+from data_utils import (query_parquet, get_prices, RunWindow, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations, utc_epoch,
-                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map)
+                        campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
+                        DATA_CHECKS_V3, DataChecks)
 from metrics import (compute_metrics, compute_annual_returns, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -62,6 +63,7 @@ DEFAULT_REBALANCE_MONTHS = [1, 4, 7, 10]   # Jan / Apr / Jul / Oct
 MAX_SINGLE_RETURN = 2.0      # Cap at 200% per stock (data quality guard)
 MIN_ENTRY_PRICE = 1.0        # Skip sub-$1 entry prices (price data artifacts)
 MAX_PROXIMITY = 1.1          # Proximity > 1.1 likely a data error (close > 52w high)
+DATA_CHECKS = DATA_CHECKS_V3
 
 # Development compute (max resources)
 FETCH_MEMORY_MB = 4096
@@ -318,9 +320,12 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1):
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop"):
-    """Run 52-week high proximity backtest. Returns list of period result dicts."""
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop", dc=None):
+    """Run 52-week high proximity backtest. Returns list of period result dicts.
+
+    dc: the leg's data_utils.DataChecks (full_holdings lists every booked name per invested row)."""
     results = []
+    dc = dc if dc is not None else DataChecks("uncapped", DATA_CHECKS)
 
     for i in range(len(rebalance_dates) - 1):
         entry_date = rebalance_dates[i]
@@ -363,7 +368,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         # symbol_data keeps the DROP exits so the entry-only cash guard below reads it unchanged.
         symbol_data = book(exit_prices)
-        clean, skipped = filter_returns(book(exit_ltp) if exit_method == "ltp" else symbol_data,
+        booked = exit_ltp if exit_method == "ltp" else exit_prices
+        clean, skipped = filter_returns(book(booked),
                                         min_entry_price=MIN_ENTRY_PRICE,
                                         max_single_return=MAX_SINGLE_RETURN,
                                         verbose=verbose)
@@ -430,7 +436,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "entry_buyable": buyable,
             "min_stocks": MIN_STOCKS,
             "avg_proximity_ratio": round(avg_prox, 4),
-            "holdings": ",".join(sym for sym, _, _ in clean[:10]) + ("..." if len(clean) > 10 else ""),
+            "holdings": ",".join(sym for sym, _, _ in clean),
+            **dc.holdings_full(con, clean, entry_prices, booked, ltp_fill if exit_method == "ltp" else {},
+                               entry_date, exit_date, offset_days, ltp),
         })
         if exit_method == "both":
             c_ltp, _ = filter_returns(book(exit_ltp), min_entry_price=MIN_ENTRY_PRICE,
@@ -515,10 +523,17 @@ def build_output(metrics, annual, valid, results, universe_name, frequency, peri
 
 
 def run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, mktcap_threshold, verbose, output_path=None,
-               offset_days=1, exit_method="drop"):
-    """Run backtest for a single exchange set. Returns output dict or None."""
+               risk_free_rate, verbose, output_path=None, offset_days=1, exit_method="drop",
+               data_checks="on", full_holdings=False, *, win):
+    """Run backtest for a single exchange set. Returns output dict or None.
+
+    data_checks: "on" (data checks dc-3), or "uncapped" (no check and no cap: attribution only).
+    full_holdings: every invested period row also lists each booked name (holdings_full).
+    win: the run's data_utils.RunWindow (main builds it from --end-date or --end-year)."""
+    win = win.for_leg(universe_name)
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
+    dc = DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)
+    mktcap_threshold = get_mktcap_threshold(exchanges)
 
     benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
     exec_model = "next-day close (MOC)" if offset_days == 1 else "same-day close"
@@ -533,8 +548,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print("=" * 65)
 
     print("\nPhase 1: Fetching data via API...")
-    rebalance_dates = generate_rebalance_dates(2000, 2025, frequency,
-                                               months=DEFAULT_REBALANCE_MONTHS)
+    rebalance_dates = win.grid(2000, frequency, months=DEFAULT_REBALANCE_MONTHS, offset_days=offset_days)
     t0 = time.time()
     con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
     if con is None:
@@ -550,7 +564,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=verbose,
                            offset_days=offset_days, benchmark_symbol=benchmark_symbol,
-                           ltp=ltp, exit_method=exit_method)
+                           ltp=ltp, exit_method=exit_method, dc=dc)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -612,6 +626,12 @@ def main():
     parser = argparse.ArgumentParser(description="52-Week High Proximity multi-exchange backtest")
     add_common_args(parser)
     add_exit_method_arg(parser)
+    parser.add_argument("--data-checks", choices=DataChecks.MODES, default="on",
+                        help="Data checks dc-3 (default on). 'uncapped' turns every check off and sets no "
+                             "return cap: the same-day attribution arm only, never published")
+    parser.add_argument("--full-holdings", action="store_true",
+                        help="Also list every booked name per invested period (holdings_full: entry and exit "
+                             "bars and prices, return before costs), for review")
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()
@@ -667,11 +687,11 @@ def main():
         ]
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
+        win = RunWindow.typed(2025)
 
         for preset_name, preset_exchanges in presets_to_run:
             uni_name = "_".join(preset_exchanges)
             rfr = get_risk_free_rate(preset_exchanges, args.risk_free_rate)
-            mktcap_threshold = get_mktcap_threshold(preset_exchanges)
             output_path = None
             if args.output:
                 out_dir = os.path.dirname(args.output) or "."
@@ -683,8 +703,9 @@ def main():
 
             try:
                 result = run_single(cr, preset_exchanges, uni_name, frequency,
-                                    use_costs, rfr, mktcap_threshold, args.verbose, output_path,
-                                    offset_days=offset_days, exit_method=args.exit_method)
+                                    use_costs, rfr, args.verbose, output_path,
+                                    offset_days=offset_days, exit_method=args.exit_method,
+                                    data_checks=args.data_checks, full_holdings=args.full_holdings, win=win)
                 if result:
                     all_results[uni_name] = result
             except Exception as e:
@@ -743,11 +764,12 @@ def main():
 
     # Single exchange mode
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
-    mktcap_threshold = get_mktcap_threshold(exchanges)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
+    win = RunWindow.typed(2025)
     run_single(cr, exchanges, universe_name, frequency, use_costs,
-               risk_free_rate, mktcap_threshold, args.verbose, args.output,
-               offset_days=offset_days, exit_method=args.exit_method)
+               risk_free_rate, args.verbose, args.output, offset_days=offset_days,
+               exit_method=args.exit_method, data_checks=args.data_checks, full_holdings=args.full_holdings,
+               win=win)
 
 
 if __name__ == "__main__":

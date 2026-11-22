@@ -2415,6 +2415,14 @@ def defensive_source():
     return src
 
 
+# Each data-checks topic's rebalance frequency: the quarterly ones' expectations differ from the annual ones'
+FREQ = {"deleveraging": "quarterly", "52-week-high": "quarterly"}
+
+
+def quarterly(topic):
+    return FREQ.get(topic, "annual") == "quarterly"
+
+
 def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=None, tag="", mod=None,
               use_costs=True, **kw):
     """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both). win: the
@@ -2424,7 +2432,7 @@ def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=N
     mod = mod or load_topic(topic)
     out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}{'.full' if full_holdings else ''}{tag}.json")
     client = FakeClient(src)
-    freq = "quarterly" if topic == "deleveraging" else "annual"
+    freq = FREQ.get(topic, "annual")
     kw = {**kw, "full_holdings": True} if full_holdings else kw
     with contextlib.redirect_stdout(io.StringIO()):
         mod.run_single(client, ["SET"], "SET", freq, use_costs, 0.02, False, out, offset_days=1,
@@ -2484,7 +2492,7 @@ def holdings_full_failures(topic, src, tmp):
                 fill = fills.get((r["rebalance_date"], h["symbol"]))
                 if not fill or (fill["last_bar"], fill["ltp"]) != (h["exit_bar"], h["exit_price"]):
                     f.append(f"{topic} {r['rebalance_date']}: {h} does not match its fill {fill}")
-    if topic == "deleveraging" and not n_ltp:
+    if quarterly(topic) and not n_ltp:
         f.append(f"{topic}: no LTP-filled name listed (DLST.BK)")
     if topic == "cyclical-timing" and not n_named:
         f.append(f"{topic}: the synthetic books never pass the 10-name holdings string: the case tests nothing")
@@ -2710,6 +2718,62 @@ def fcf_rules_failures(src, tmp, mod=None, tag=""):
     return f + stand_in_failures(drop)
 
 
+# 52-week-high ranks on prices, so DLST.BK, with no bar after its delisting, is never screened then: WH52_UNPRICED
+# ranks every quarter and has no bar in any entry window, so each invested period lists it as unpriced
+WH52_UNPRICED = "UNP.BK"
+# the lines wh52_source adds: symbol -> (name, ISIN, FY market cap); AG_BR_ORD gets no bar, as in fcf_source
+WH52_ADDED = {AG_BR_ORD: (AG_RULES[AG_BR_ORD][0], AG_RULES[AG_BR_ORD][2], 5.04e10),
+              AG_BR_PREF: (AG_RULES[AG_BR_PREF][0], AG_RULES[AG_BR_PREF][2], 5.05e10),
+              WH52_UNPRICED: ("Unpriced Holdings PCL", "TH3000060001", 5.06e10)}
+WH52_THIN = "A07.BK"   # its added bars trade 10 shares, as its FY2010 December bars do: check M finds no evidence
+
+
+def wh52_source(src=None):
+    """synthetic_source() as a 52-week-high leg, or src, a copy of it with more rows (the run window's): the universe
+    rules' profile columns with isAdr and industry, WH52_ADDED's lines, a bar for every line on each weekday from
+    1999-01-04 on which the filler A00.BK has none (so a 252-bar lookback holds daily rows), at the quarter's
+    price, except on a day the line already has one, after DLST.BK's delisting, and for AG_BR_ORD, whose
+    preferred line then stands in. STD.BK so ranks on these bars and has no entry bar, so STD-R.BK stands in for it.
+    Every bar's high is its close, and the bars vary through vary(), so dc-2's rule S moves none."""
+    src = synthetic_source() if src is None else src
+    rule_columns(src)
+    src.execute("ALTER TABLE profile ADD COLUMN isAdr BOOLEAN")
+    src.execute("UPDATE profile SET isAdr = FALSE")
+    for s, (name, isin, cap) in WH52_ADDED.items():
+        src.execute("INSERT INTO profile VALUES (?, 'SET', 'TH', ?, 'Industrials', 5e10, TRUE, 'THB', ?, NULL, FALSE,"
+                    " FALSE, FALSE)", [s, isin, name])
+        for y in range(1998, 2025):
+            fy = date(y, 12, 31)
+            src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, ?)", [s, fy.isoformat(), ep(fy), cap])
+            src.execute("INSERT INTO income_statement VALUES (?, 'FY', ?, ?, ?, 2e9, 2.0, 1e9, ?)",
+                        [s, fy.isoformat(), ep(fy), 1000.0 * 1.05 ** (y - 1998), (fy + timedelta(days=60)).isoformat()])
+    src.execute("ALTER TABLE profile ADD COLUMN industry VARCHAR")
+    traded = {r[0] for r in src.execute("SELECT date FROM stock_eod WHERE symbol = 'A00.BK'").fetchall()}
+    src.executemany("INSERT INTO stock_eod VALUES (?, ?, ?, ?, ?, ?)",   # window_bars' rows on every A00.BK day
+                    [(AG_BR_PREF, d.isoformat(), ep(d), price(AG_BR_PREF, d), price(AG_BR_PREF, d),
+                      0.0 if d in CLOSED else 1e5) for d in sorted(map(date.fromisoformat, traded))])
+    days = [d for d in weekdays(date(1999, 1, 4), date.fromisoformat(max(traded))) if d.isoformat() not in traded]
+    lines = [r[0] for r in src.execute("SELECT DISTINCT symbol FROM profile WHERE symbol <> ? ORDER BY 1",
+                                       [AG_BR_ORD]).fetchall()]
+    src.execute("CREATE TEMP TABLE _wh52_px(symbol VARCHAR, q INTEGER, px DOUBLE)")
+    quarters = sorted({(d.year - 2000) * 4 + (d.month - 1) // 3: d for d in days}.items())
+    src.executemany("INSERT INTO _wh52_px VALUES (?, ?, ?)", [(s, q, price(s, d)) for s in lines for q, d in quarters])
+    src.execute("CREATE TEMP TABLE _wh52_days(day VARCHAR, e BIGINT, q INTEGER)")
+    src.executemany("INSERT INTO _wh52_days VALUES (?, ?, ?)",
+                    [(d.isoformat(), ep(d), (d.year - 2000) * 4 + (d.month - 1) // 3) for d in days])
+    src.execute("""
+        INSERT INTO stock_eod SELECT p.symbol, d.day, d.e, p.px, p.px, CASE WHEN p.symbol = ? THEN 10.0 ELSE 1e5 END
+        FROM _wh52_px p JOIN _wh52_days d ON d.q = p.q
+        WHERE NOT EXISTS (SELECT 1 FROM stock_eod x WHERE x.symbol = p.symbol AND x.date = d.day)
+          AND NOT (p.symbol = 'DLST.BK' AND d.day > ?)
+        ORDER BY p.symbol, d.e""", [WH52_THIN, DELISTED.isoformat()])
+    src.execute("DROP TABLE _wh52_px")
+    src.execute("DROP TABLE _wh52_days")
+    src.execute("ALTER TABLE stock_eod ADD COLUMN high DOUBLE")
+    src.execute("UPDATE stock_eod SET high = close")
+    return vary(src)
+
+
 # The data checks each opted-in topic runs: its block's version, and its rules the version's config
 DC_VERSIONS = {"deleveraging": "dc-1", "cyclical-timing": "dc-1", "defensive-quality": "dc-1", "asset-growth": "dc-1",
                "fcf-conversion": "dc-3"}
@@ -2767,12 +2831,12 @@ def topic_failures(topic, src, tmp, mod=None, tag=""):
             not all(isinstance(v, int) for v in c["rows_moved"].values()):
         f.append(f"{topic}: counts are ints")
     kinds = {(e["check"], e["symbol"]) for e in ev}
-    want_dates = ["2012-01-02", "2012-07-02"] if topic == "deleveraging" else ["2012-07-02"]
+    want_dates = ["2012-01-02", "2012-07-02"] if quarterly(topic) else ["2012-07-02"]
     if [x["date"] for x in dcb["closed_dates"]] != want_dates:
         f.append(f"{topic}: closed dates {dcb['closed_dates']}")
     want = {("exit_bar", "BAD.BK"), ("twin", "TWN.BK"), ("twin", "STD-R.BK"), ("cap", "INFL.BK"),
             ("factor_flag", "BIG.BK"), ("exit_bar", "ZV.BK"), ("entry_bar", "ZV.BK")}
-    if topic == "deleveraging":
+    if quarterly(topic):
         want |= {("entry_bar", "BAD.BK"), ("factor_flag", "A05.BK")}
     elif DATA_CHECKS_TOPICS[topic] == 2:   # a signal with its own floor (cyclical-timing)
         want |= {("signal_cap", "INFL.BK")}
@@ -2792,7 +2856,7 @@ def topic_failures(topic, src, tmp, mod=None, tag=""):
     if any(e["symbol"] == "A07.BK" and e["check"] in ("cap", "signal_cap") for e in ev):
         f.append(f"{topic}: A07.BK has a cap event, but an unchecked row keeps FMP's cap")
     held = lambda res: {r["rebalance_date"] for r in res["period_data"] if "A07.BK" in r["holdings"].split(",")}
-    fy10 = {"2011-04-01", "2011-07-01", "2011-10-01", "2012-01-01"} if topic == "deleveraging" else {"2011-07-01"}
+    fy10 = {"2011-04-01", "2011-07-01", "2011-10-01", "2012-01-01"} if quarterly(topic) else {"2011-07-01"}
     if not fy10 <= held(unc) or held(ltp) != held(unc):
         f.append(f"{topic}: A07.BK not held at {sorted(fy10 - held(ltp))} (books on its FY2010 row), or held "
                  f"apart from the uncapped arm: {sorted(held(ltp) ^ held(unc))}")
@@ -2816,7 +2880,7 @@ def topic_failures(topic, src, tmp, mod=None, tag=""):
         f.append(f"{topic}: ltp block lacks traded_only provenance")
     if dc_results_problem(ltp) or not dc_results_problem(unc):
         f.append(f"{topic}: the results check must pass mode on and refuse the uncapped arm")
-    if topic == "deleveraging" and not (fl["fills"] and fl["zero_volume_rows_moved"] >= 1):
+    if quarterly(topic) and not (fl["fills"] and fl["zero_volume_rows_moved"] >= 1):
         f.append(f"{topic}: DLST.BK's LTP fill skips its stale zero-volume print ({fl['fills']})")
     ub = unc["data_checks"]
     if ub["mode"] != "uncapped" or ub["events"] or ub["large_moves"] or ub["closed_dates"] or ub["cap_unchecked"] or \
@@ -2825,7 +2889,7 @@ def topic_failures(topic, src, tmp, mod=None, tag=""):
     if "traded_only" in unc["ltp"]:
         f.append(f"{topic}: the uncapped arm's LTP is the plain one")
     # what the checks did, visible against the uncapped arm: BAD.BK's closed-day exit
-    bad = "2011-10-01" if topic == "deleveraging" else "2011-07-01"
+    bad = "2011-10-01" if quarterly(topic) else "2011-07-01"
     pr = lambda res: next(r["portfolio_return"] for r in res["period_data"] if r["rebalance_date"] == bad)
     if not pr(unc) > pr(ltp) + 0.05:
         f.append(f"{topic}: {bad} uncapped {pr(unc)} vs on {pr(ltp)}: BAD.BK's +246% should only be in the uncapped arm")
