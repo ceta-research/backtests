@@ -33,18 +33,15 @@ python3 high-yield-quality/backtest.py
 python3 high-yield-quality/backtest.py --preset india
 python3 high-yield-quality/backtest.py --exchange XETRA
 
-# Current stock screen
-python3 high-yield-quality/screen.py
-python3 high-yield-quality/screen.py --preset india
-
 # Save results
 python3 high-yield-quality/backtest.py --output results/us.json --verbose
 ```
 
 ## Data sources
 
-- `financial_ratios` (FY): dividendYield, dividendPayoutRatio, debtToEquityRatio, currentRatio
-- `key_metrics` (FY): marketCap, returnOnAssets
+- `financial_ratios` (FY): dividendYield, dividendPayoutRatio, debtToEquityRatio
+- `key_metrics` (FY): marketCap, returnOnEquity
+- `cash_flow_statement` (FY): freeCashFlow
 - `stock_eod`: adjClose prices at rebalance dates
 - `profile`: exchange membership
 
@@ -53,5 +50,5 @@ python3 high-yield-quality/backtest.py --output results/us.json --verbose
 | File | Purpose |
 |------|---------|
 | `backtest.py` | Full historical backtest (2000-2025) |
-| `screen.py` | Current qualifying stocks (TTM data) |
+| `screen.py` | An older current-stock screen (yield above 2%, ROA, current ratio), not the backtest's signal; it doesn't run as committed |
 | `results/` | Computed backtest results (JSON per exchange) |
