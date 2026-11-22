@@ -27,7 +27,7 @@ Universe rules ur-4, each leg through the topic's fetch: an SAO company holds on
 preferred line stands in for an ordinary line with no entry bar); a JPX line whose profile industry starts with
 REIT is out on JPX and kept on another leg; a fund the fetch caches is never ranked (the universe semi-join); COG
 and CLR rank on their last own day and not the day after; GETY, a lookback_clip start, ranks on its own bars
-only, and DOC, a rename, on the 252 bars ending at its signal bar.
+only, its first own day's among them, and DOC, a rename, on the 252 bars ending at its signal bar.
 
 Check T on the ranking cache, with data checks on: on a closed rebalance date a line's traded copy moves, so the
 line ranks on its last traded bar before it, while a copy 40 days back, outside every fetch window, stays in the
@@ -43,7 +43,8 @@ universe_rules, signal_guard (its count on every rebalance, equal in drop and lt
 isin_dedup (the tiers at 35 baht a dollar, null on --no-costs), the fetch asks for no MTUM, entry_unpriced
 and the data checks' counts on each row, and in each holdings_full item the one-way rate the name paid
 (cost_rate), which with the item's return gives the row's return. Costs, with run_backtest's screen and prices
-stubbed: a JPX and an LSE cap pay the tier at their leg's FX rate, and a name with no cap the top one. The quarterly
+stubbed: a JPX and an LSE cap pay the tier at their leg's FX rate, and a name with no cap the top one; with
+--full-holdings, each name of a book across two tiers records its own rate. The quarterly
 run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial
 2026-10-01 period, its window exits and the benchmark's priced on the end date's close, a name with no bar after
 2026-10-30 filled at its last bar, CAGR over span_years and the run window's keys written; main() takes
@@ -53,10 +54,12 @@ The gate's legs: scripts/gate_legs/wave3.json holds one 52-week-high leg per --g
 among them, each pinned to --end-year 2025 and installed as the file the global run writes.
 
 The live screen (screen.py) runs the backtest's fetch and screen on one date with data checks on, check M's server
-query (the one reading every FY row over the floor) standing in as cap_check rows: on a JPX leg a J-REIT (ur-4) and a fund (the semi-join) stay out, the floor
-reads cap_used (a cap on the floor once divided is out, a unit over it in, an ineligible row out), ties go to the
-larger cap_used, then the symbol; on NYSE a day after COG's last own day CLR ranks alone; main() prints the book on
-today's leg as CSV and as a table, the fetch's progress on stderr. Its mutants must trip these checks.
+query (the one reading every FY row over the floor) standing in as cap_check rows: on a JPX leg a J-REIT (ur-4)
+and a fund (the semi-join) stay out, the floor reads cap_used (a cap on the floor once divided is out, a unit over
+it in, an ineligible row out), ties go to the larger cap_used, then the symbol; on NYSE a day after COG's last own
+day CLR ranks alone, and 130 days after GETY's first own day GETY ranks on its own bars (ur-4's line start and
+lookback clip); main() prints the book on today's leg as CSV and as a table, the fetch's progress on stderr. Its
+mutants must trip these checks.
 
 Usage:
     python scripts/test_52wh_selection.py [repo root]
@@ -592,6 +595,8 @@ RESULT_MUTANTS = {
                                '"cost_model": None'),
     "cost_model written on a no-costs run": ('"fx_per_usd": fx} if use_costs else None', '"fx_per_usd": fx}'),
     "cost_rate not written": ("cost_rates=rates)", "cost_rates=None)"),
+    "every item records the first name's rate": ("cost_rates=rates)",
+                                                 "cost_rates={s: next(iter(rates.values())) for s in rates})"),
     "data_checks after the other blocks": (
         '    output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both\n',
         ""),
@@ -642,8 +647,42 @@ def cost_unit_failures(src):
     return out
 
 
+# --full-holdings on a book whose caps span two tiers (NYSE, dollars): five names over 10B (0.1%), five at 2B to 10B
+# (0.3%), each with its entry and exit bars in a prices cache
+TIER_BOOK = {f"T{i:02d}": (2e10 if i < 5 else 5e9) for i in range(10)}
+TIER_RATE = {2e10: 0.001, 5e9: 0.003}
+
+
+def cost_rate_failures(src):
+    """run_backtest with --full-holdings on TIER_BOOK, the screen and the benchmark stubbed, each name up 10%: each
+    holdings_full item's cost_rate is its own name's tier, and the row's return is the items' less their round trips."""
+    con = duckdb.connect()
+    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE,"
+                " high DOUBLE, volume DOUBLE)")
+    con.executemany("INSERT INTO prices_cache VALUES (?, ?, ?, ?, ?, 1e6)",
+                    [(s, ep(d + timedelta(days=1)), px, px, px) for s in TIER_BOOK
+                     for d, px in ((COST_ENTRY, 10.0), (COST_EXIT, 11.0))])
+    try:
+        mod = load(src)
+        mod.screen_stocks = lambda *a, **k: [(s, cap, 1.0) for s, cap in TIER_BOOK.items()]
+        mod.get_benchmark_return = lambda *a, **k: 0.05
+        dc = du.DataChecks("uncapped", mod.DATA_CHECKS, full_holdings=True)
+        row = mod.run_backtest(con, [COST_ENTRY, COST_EXIT], 0.0, use_costs=True, fx=1.0, dc=dc)[0]
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    finally:
+        con.close()
+    want = {s: TIER_RATE[cap] for s, cap in TIER_BOOK.items()}
+    got = {h["symbol"]: h.get("cost_rate", "missing") for h in row.get("holdings_full") or []}
+    out = [] if got == want else [f"--full-holdings cost_rate {got}, want {want}"]
+    net = round(COST_RAW - 2 * sum(want.values()) / len(want), 6)
+    if row["portfolio_return"] != net:
+        out.append(f"a book across two tiers returns {row['portfolio_return']}, want {net}")
+    return out
+
+
 def run_failures(src):
-    return cost_unit_failures(src) + results_failures(src)
+    return cost_unit_failures(src) + cost_rate_failures(src) + results_failures(src)
 
 
 # ur-4 on the screen (UNIVERSE_RULES), each leg through the topic's fetch: an SAO company holds one slot with data
@@ -667,13 +706,14 @@ STARTS = {s: date.fromisoformat(d) for s, d, _ in du.UNIVERSE_RULES_V4["line_sta
 
 def started(first):
     """Bars from 250 days before a line's first own day to 130 after: the earlier ones (another company's or the
-    same one's under its old ticker) carry a high of 200 over a close of 100, the line's own close on their high."""
-    bars = {k: [100.0, 100.0, 200.0 if k < 0 else 100.0, 1e6] for k in range(-250, 131)}
+    same one's under its old ticker) carry a high of 200 over a close of 100, the line's own close on their high but
+    on its first own day, whose high of 125 tops its own bars, so a frame that starts a day late reads 1.0."""
+    bars = {k: [100.0, 100.0, 200.0 if k < 0 else 125.0 if k == 0 else 100.0, 1e6] for k in range(-250, 131)}
     return line(bars, at=first, after=(), filings=[(first - timedelta(days=400), 1e10)])
 
 
 CLIPS = {s: started(first) for s, first in STARTS.items()}
-CLIP_SCREENS = {"GETY": {-1: [], 70: [], 130: [("GETY", 1e10, 1.0)]}, "DOC": {-1: [], 70: [("DOC", 1e10, 0.5)]}}
+CLIP_SCREENS = {"GETY": {-1: [], 70: [], 130: [("GETY", 1e10, 0.8)]}, "DOC": {-1: [], 70: [("DOC", 1e10, 0.5)]}}
 RULES_EXPECT = {
     "SAO book, data checks off": [("BRAA3.SA", 6e10, 1.0), ("BRBB4.SA", 5e10, 1.0)],
     "SAO stand-ins": [{"rebalance_date": D.isoformat(), "symbols": ["BRBB4.SA"]}],
@@ -724,6 +764,7 @@ RULE_MUTANTS = {
     "line ends read a day early": ("ur.ended(target_date)", "ur.ended(target_date + timedelta(days=1))"),
     "no lookback clip": (CLIPPED, "for s in ()}"),
     "every line start clipped": (CLIPPED, "for s in ur.starts}"),
+    "the clipped frame starts a day after the first own day": ("trade_epoch >= CASE symbol", "trade_epoch > CASE symbol"),
 }
 
 
@@ -796,6 +837,7 @@ SCREEN_CAP_RULES = {"M_AT.T": ("cap_over_k", 10.0), "M_OVER.T": ("cap_over_k", 1
 SCREEN_BOOK = [("M_USED.T", 4 * JF, 1.0), ("M_RAW.T", 3 * JF, 1.0), ("TIE_A.T", 2 * JF, 1.0),
                ("TIE_B.T", 2 * JF, 1.0), ("M_OVER.T", JF + 1, 1.0), ("NEAR.T", 50 * JF, 0.99)]
 SCREEN_ENDS_DAY = date(2021, 10, 2)   # COG's line ends the day before; CLR's on 2022-11-22
+SCREEN_CLIP_DAY = 130   # days after GETY's first own day (ur-4's line start and lookback clip, which ur-3 lacks)
 TODAY = datetime.now(timezone.utc).date()
 LIVE_LEG = {"8951.T": line(flat(120), cap=8 * JF, industry="REIT - Office", at=TODAY, after=()),
             "LIVE_A.T": line(flat(120), cap=3 * JF, at=TODAY, after=()),
@@ -859,20 +901,24 @@ def screen_main(mod, client, args):
 def screen_failures(src):
     """screen.py on the backtest's rules: on the JPX leg on D the book is SCREEN_BOOK (ur-4's J-REIT and the fund
     out; check M's cap_used at the floor and in the tie order, then the symbol); on NYSE on SCREEN_ENDS_DAY, CLR
-    alone (COG's line ends the day before); main() on today's JPX leg prints LIVE_BOOK, as CSV and as a table, and
+    alone (COG's line ends the day before); on NYSE SCREEN_CLIP_DAY days after GETY's first own day, GETY on its own
+    bars (the screen's line lists are ur-4's); main() on today's JPX leg prints LIVE_BOOK, as CSV and as a table, and
     sends the fetch's progress to stderr."""
+    clip_day = STARTS["GETY"] + timedelta(days=SCREEN_CLIP_DAY)
     try:
         with bound("backtest", screen_backtest(SCREEN_CAP_RULES)):
             mod = load(src, SCREEN_PATH)
         with contextlib.redirect_stdout(io.StringIO()):
             got = {"JPX": mod.screen(screen_client(SCREEN_LEG, "JPX"), ["JPX"], D),
-                   "NYSE": mod.screen(screen_client(ENDS, "NYSE"), ["NYSE"], SCREEN_ENDS_DAY)}
+                   "NYSE": mod.screen(screen_client(ENDS, "NYSE"), ["NYSE"], SCREEN_ENDS_DAY),
+                   "GETY": mod.screen(screen_client({"GETY": CLIPS["GETY"]}, "NYSE"), ["NYSE"], clip_day)}
         live = screen_client(LIVE_LEG, "JPX")
         csv_out = screen_main(mod, live, ["--exchange", "JPX", "--csv"]).splitlines()
         table = screen_main(mod, live, ["--exchange", "JPX"]).splitlines()
     except (Exception, SystemExit) as e:
         return [f"error: {type(e).__name__}: {e}"]
-    out = [f"{k} book {got[k]} != {want}" for k, want in (("JPX", SCREEN_BOOK), ("NYSE", [("CLR", 1e10, 1.0)]))
+    out = [f"{k} book {got[k]} != {want}" for k, want in (("JPX", SCREEN_BOOK), ("NYSE", [("CLR", 1e10, 1.0)]),
+                                                         ("GETY", CLIP_SCREENS["GETY"][SCREEN_CLIP_DAY]))
            if got[k] != want]
     rows = [r.split(",") for r in csv_out[1:]]
     if csv_out[:1] != ["rank,symbol,market_cap,proximity_ratio,pct_below_high"] or \
@@ -887,6 +933,8 @@ def screen_failures(src):
 SCREEN_MUTANTS = {
     "the screen's line lists from ur-2": ("UniverseRules(UNIVERSE_RULES)",
                                           "UniverseRules(__import__('data_utils').UNIVERSE_RULES_V2)"),
+    "the screen's line lists from ur-3": ("UniverseRules(UNIVERSE_RULES)",
+                                          "UniverseRules(__import__('data_utils').UNIVERSE_RULES_V3)"),
     "the screen with data checks off": ('DataChecks("on", DATA_CHECKS)', 'DataChecks("uncapped", DATA_CHECKS)'),
     "the screen with no floor": ("mktcap_min = get_mktcap_threshold(exchanges)\n", "mktcap_min = 0\n"),
     "the screen ignores its day": ("day = day or datetime.now(timezone.utc).date()",
