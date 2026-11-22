@@ -30,8 +30,10 @@ lists why in over_bar; the script exits 0 either way.
 A span the file books through a hand event (data_checks.events: dc-3's hand list reviewed it) has its rebuilds
 listed in the leg's hand_booked, each with its key, its returns (r_booked stays the bars' adjClose return) and its
 entry's kind, hand_kind. A rebuilt entry booked a corrected return (a range books its midpoint), so a rebuild
-would correct it twice, and a real entry is a person's no-change call: either keeps the span's rebuilds out of the
-rebuilds, both nets and the verdict, and a --not-artifact key on them matches no candidate. A kept entry booked
+would correct it twice: its span's rebuilds leave the rebuilds, both nets and the verdict. A real entry booked
+adjClose and is a person's no-change call, so its span's rebuilds count as a --not-artifact key's do: out of the
+rebuilds, the confirmed net and the verdict, in the every-candidate net. A --not-artifact key on a rebuilt or real
+span matches no candidate. A kept entry booked
 adjClose (reviewed, couldn't be rebuilt), so its span's rebuilds stay candidates as any other, with hand_kind in
 the rebuilds too. A hand_stale span booked adjClose and is checked as any other.
 Limits: a split under 1.8x with no splits_calendar row doesn't show, and every candidate needs a person's
@@ -323,11 +325,13 @@ def check_leg(res, bars, splits, ratio, not_artifact=()):
         if kind is not None:
             i["hand_kind"] = kind
             booked.append((i, f))
-        if kind in (None, "kept"):
+        if kind != "rebuilt":
             every.append((i, f))
+    real = {i["key"] for i, _ in booked if i["hand_kind"] == "real"}
+    calls = set(not_artifact) | real
     effects, x0, x_every = score(res, held, every)
-    x1 = score(res, held, [(i, f) for i, f in every if i["key"] not in not_artifact])[2]
-    kept = [e for e in effects if e["key"] not in not_artifact]
+    x1 = score(res, held, [(i, f) for i, f in every if i["key"] not in calls])[2]
+    kept = [e for e in effects if e["key"] not in calls]
     net, net_every = x1[1] - x0[1], x_every[1] - x0[1]
     over = [f"{e['key']} ({e['kind']}) moves the leg's excess {e['leg_excess_move']:+.3f}pp"
             for e in kept if abs(e["leg_excess_move"]) >= BAR]
@@ -347,7 +351,7 @@ def check_leg(res, bars, splits, ratio, not_artifact=()):
         "ratio_over_100": sum(1 for r in ratios if r["price_ratio"] > 100),
         "held_lines": len({s for s, *_ in sp}), "held_line_periods": len(sp), "line_periods_priced": len(held),
         "steps": cands, "split_rows_in_windows": tests, "rebuilds": kept,
-        "not_artifact": [e for e in effects if e["key"] in not_artifact],
+        "not_artifact": [e for e in effects if e["key"] in not_artifact and e["key"] not in real],
         "hand_booked": score(res, held, booked)[0]})
 
 

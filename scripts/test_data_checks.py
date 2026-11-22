@@ -3079,7 +3079,8 @@ def split_check_basis(path, universe, e):
     """Whether the split_check record at path lists e's span (symbol, rebalance, exit) among its universe's
     rebuilds, or under hand_booked as a record taken after the entry books does, with an r_booked (the bars'
     adjClose return) within the hand list's log tolerance of e's adjClose return. The entries price from filings,
-    so their booked return isn't compared with the rebuild."""
+    so their booked return isn't compared with the rebuild. A hand_booked listing counts whatever the person's call
+    on it: the entry's own review is the call."""
     if not os.path.exists(path):
         return False
     tol = du.DATA_CHECKS_V3["factor_hand"]["log_tolerance"]
