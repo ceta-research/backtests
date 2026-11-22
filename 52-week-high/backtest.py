@@ -15,7 +15,7 @@ Signal: close / MAX(high over 252 trading days) per George & Hwang (2004).
 
 Universe: MCap > exchange threshold (from key_metrics FY). Price > $1.
 Portfolio: Equal weight top 30. Cash if < 10 qualify.
-Rebalancing: Quarterly (Jan/Apr/Jul/Oct), 2000-2025.
+Rebalancing: Quarterly (Jan/Apr/Jul/Oct), from 2000 to the latest close (METHODOLOGY.md, "Run Window").
 Costs: Size-tiered (see costs.py). Excludes: ASX, SAO (adjClose artifacts).
 
 Academic basis:
@@ -23,10 +23,13 @@ Academic basis:
   Journal of Finance, 59(5), 2145-2176.
 
 Usage:
-    python3 52-week-high/backtest.py                           # US default
-    python3 52-week-high/backtest.py --preset india
-    python3 52-week-high/backtest.py --global --output results/exchange_comparison.json
+    python3 52-week-high/backtest.py                           # US default, to the latest close
+    python3 52-week-high/backtest.py --preset india --end-date YYYY-MM-DD --output 52-week-high/results/returns_NSE.json
+    python3 52-week-high/backtest.py --global --end-year 2025 --output 52-week-high/results/exchange_comparison.json
     python3 52-week-high/backtest.py --preset us --no-costs --verbose
+
+    # --end-year YYYY ends the grid in that year with no partial period. Flags: --data-checks on|uncapped
+    # (default on), --full-holdings, --exit-method drop|ltp|both
 """
 
 import argparse
@@ -39,16 +42,16 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
-from data_utils import (query_parquet, get_prices, RunWindow, filter_returns,
+from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year, filter_returns,
                         entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations, utc_epoch,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V3, DataChecks)
-from metrics import (compute_metrics, compute_annual_returns, format_metrics,
+from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
-from cli_utils import (add_common_args, resolve_exchanges, print_header,
+from cli_utils import (add_common_args, add_end_date_arg, resolve_exchanges, print_header,
                        get_risk_free_rate, get_mktcap_threshold)
 
 # --- Signal parameters ---
@@ -70,7 +73,7 @@ FETCH_MEMORY_MB = 4096
 FETCH_THREADS = 2
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, win=None):
     """Fetch all data needed for 52-week high proximity backtest.
 
     Populates DuckDB tables:
@@ -80,8 +83,10 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
         prices_cache(symbol, trade_epoch, adjClose, close, high, volume)
             -- extended window: 52W lookback + entry date per rebalance date
 
+    win: the leg's data_utils.RunWindow; its fetch_end cuts the price windows at the run's end date.
     Returns DuckDB connection or None.
     """
+    win = win if win is not None else RunWindow.typed()
     # Campaign listing rule; sym_filter_sql carries it into the market-cap and price fetches.
     listing_cond = campaign_listing_condition(exchanges)
     listing_and = f" AND {listing_cond}" if listing_cond else ""
@@ -140,7 +145,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False):
     date_conditions = []
     for d in rebalance_dates:
         fetch_start = d - timedelta(days=HIGH_WINDOW_FETCH)
-        entry_end = d + timedelta(days=11)  # covers get_prices' [d+1, d+11] with offset_days=1
+        entry_end = win.fetch_end(d, 11)  # covers get_prices' [d+1, d+11] with offset_days=1
         date_conditions.append(
             f"(date >= '{fetch_start.isoformat()}' AND date <= '{entry_end.isoformat()}')"
         )
@@ -320,23 +325,27 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1):
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop", dc=None):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop", dc=None, win=None):
     """Run 52-week high proximity backtest. Returns list of period result dicts.
 
-    dc: the leg's data_utils.DataChecks (full_holdings lists every booked name per invested row)."""
+    dc: the leg's data_utils.DataChecks (full_holdings lists every booked name per invested row). win: the
+    leg's data_utils.RunWindow (its grid made rebalance_dates): the partial exit is priced at the close on the
+    end date (the caller marks the rows: RunWindow.mark)."""
     results = []
     dc = dc if dc is not None else DataChecks("uncapped", DATA_CHECKS)
+    win = win if win is not None else RunWindow.typed()
 
     for i in range(len(rebalance_dates) - 1):
         entry_date = rebalance_dates[i]
         exit_date = rebalance_dates[i + 1]
+        x_off = win.exit_offset(exit_date, offset_days)
 
         portfolio = screen_stocks(con, entry_date, mktcap_min, verbose=verbose, offset_days=offset_days)
 
-        if len(portfolio) < MIN_STOCKS:
-            bench_return = get_benchmark_return(
-                con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
+        bench_return = get_benchmark_return(
+            con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days, exit_offset_days=x_off)
 
+        if len(portfolio) < MIN_STOCKS:
             results.append({
                 "rebalance_date": entry_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
@@ -356,7 +365,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         mcaps = {s: mc for s, mc, _ in portfolio}
 
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
-        exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)
+        exit_prices = get_prices(con, symbols, exit_date, offset_days=x_off)
         # LTP fills only for periods that clear the entry-side cash guard below.
         ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
                              offset_days=offset_days, min_entry_price=MIN_ENTRY_PRICE)
@@ -391,9 +400,6 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         # not changed here.
         buyable = entry_buyable(symbol_data, min_entry_price=MIN_ENTRY_PRICE)
         if buyable < MIN_STOCKS:
-            bench_return = get_benchmark_return(
-                con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
-
             results.append({
                 "rebalance_date": entry_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
@@ -420,10 +426,6 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             returns.append(net_ret)
 
         port_return = sum(returns) / len(returns) if returns else 0.0
-
-        bench_return = get_benchmark_return(
-            con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days)
-
         avg_prox = sum(p for _, _, p in portfolio) / len(portfolio)
 
         results.append({
@@ -438,7 +440,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "avg_proximity_ratio": round(avg_prox, 4),
             "holdings": ",".join(sym for sym, _, _ in clean),
             **dc.holdings_full(con, clean, entry_prices, booked, ltp_fill if exit_method == "ltp" else {},
-                               entry_date, exit_date, offset_days, ltp),
+                               entry_date, exit_date, offset_days, ltp, exit_offset_days=x_off),
         })
         if exit_method == "both":
             c_ltp, _ = filter_returns(book(exit_ltp), min_entry_price=MIN_ENTRY_PRICE,
@@ -550,21 +552,22 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print("\nPhase 1: Fetching data via API...")
     rebalance_dates = win.grid(2000, frequency, months=DEFAULT_REBALANCE_MONTHS, offset_days=offset_days)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose, win=win)
     if con is None:
         print("No data available. Skipping.")
         return None
     fetch_time = time.time() - t0
     print(f"\nData fetched in {fetch_time:.0f}s")
 
-    print(f"\nPhase 2: Running {frequency} backtest (2000-2025)...")
+    print(f"\nPhase 2: Running {frequency} backtest ({rebalance_dates[0]} to {rebalance_dates[-1]})...")
     t1 = time.time()
     # Quarterly cache windows [R-390, R+11] span every holding period, so LTP reads the local cache.
-    ltp = LtpExits(cr, con, local=True, verbose=verbose) if exit_method != "drop" else None
+    ltp = LtpExits(cr, con, local=True, verbose=verbose, end_date=win.end_date) if exit_method != "drop" else None
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=verbose,
                            offset_days=offset_days, benchmark_symbol=benchmark_symbol,
-                           ltp=ltp, exit_method=exit_method, dc=dc)
+                           ltp=ltp, win=win, exit_method=exit_method, dc=dc)
+    win.mark(results)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
 
@@ -577,10 +580,12 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     port_returns = [r["portfolio_return"] for r in valid]
     spy_returns = [r["spy_return"] for r in valid]
 
+    fractions = win.fractions(valid)
     metrics = compute_metrics(port_returns, spy_returns, periods_per_year,
-                              risk_free_rate=risk_free_rate)
+                              risk_free_rate=risk_free_rate, fractions=fractions)
     print(format_metrics(metrics, "52W-High Proximity", benchmark_name))
-    ltp_block = ltp.results_block(exit_method, valid, periods_per_year, risk_free_rate) if ltp else None
+    ltp_block = (ltp.results_block(exit_method, valid, periods_per_year, risk_free_rate, fractions=fractions)
+                 if ltp else None)
 
     # B006: count over `executed` (every rebalance the strategy actually ran),
     # not `valid` (only those the benchmark can also price). Keeps the honest
@@ -593,13 +598,12 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(f"\n  Cash periods: {cash_periods} / {len(executed)}")
     print(f"  Avg stocks (invested): {avg_stocks:.1f}")
 
-    period_dates = [r["rebalance_date"] for r in valid]
-    annual = compute_annual_returns(port_returns, spy_returns, period_dates, periods_per_year)
+    annual, partial_year = win.annual(valid, periods_per_year)
     if annual:
         bench_label = benchmark_name[:10]
         print(f"\n  {'Year':<8} {'52W-High':>10} {bench_label:>10} {'Excess':>10}")
         print("  " + "-" * 40)
-        for ar in annual:
+        for ar in with_partial_year(annual, partial_year):
             print(f"  {ar['year']:<8} {ar['portfolio']*100:>9.1f}% {ar['benchmark']*100:>9.1f}% "
                   f"{ar['excess']*100:>+9.1f}%")
 
@@ -608,7 +612,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     output = build_output(metrics, annual, valid, results, universe_name,
                           frequency, periods_per_year, cash_periods, avg_stocks)
-    output.update({"listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
+    output.update({**win.fields(con, benchmark_symbol, valid, periods_per_year, partial_year, offset_days),
+                   "listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 
@@ -625,6 +630,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 def main():
     parser = argparse.ArgumentParser(description="52-Week High Proximity multi-exchange backtest")
     add_common_args(parser)
+    add_end_date_arg(parser)
     add_exit_method_arg(parser)
     parser.add_argument("--data-checks", choices=DataChecks.MODES, default="on",
                         help="Data checks dc-3 (default on). 'uncapped' turns every check off and sets no "
@@ -687,7 +693,8 @@ def main():
         ]
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
-        win = RunWindow.typed(2025)
+        # one end date for every leg: the latest day every leg traded, or the pin
+        win = RunWindow.from_args(args, cr, {"_".join(ex): ex for _, ex in presets_to_run})
 
         for preset_name, preset_exchanges in presets_to_run:
             uni_name = "_".join(preset_exchanges)
@@ -765,7 +772,7 @@ def main():
     # Single exchange mode
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
-    win = RunWindow.typed(2025)
+    win = RunWindow.from_args(args, cr, {universe_name: exchanges})
     run_single(cr, exchanges, universe_name, frequency, use_costs,
                risk_free_rate, args.verbose, args.output, offset_days=offset_days,
                exit_method=args.exit_method, data_checks=args.data_checks, full_holdings=args.full_holdings,

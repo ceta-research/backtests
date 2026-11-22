@@ -20,11 +20,18 @@ book, not an error.
 
 The run on test_data_checks' synthetic SET leg (wh52_source): run_single on --end-year 2025 books today's 103
 quarterly periods; each invested row's holdings string names every booked name, and --full-holdings adds
-holdings_full, every booked name in that order, changing nothing else. Its mutants must trip these checks.
+holdings_full, every booked name in that order, changing nothing else. The quarterly run window, with
+test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial 2026-10-01 period, its
+window exits and the benchmark's priced on the end date's close, a name with no bar after 2026-10-30 filled at
+its last bar, CAGR over span_years and the run window's keys written; main() takes --end-date, and --end-year 2025
+books the 103 periods. Their mutants must trip these checks.
 
 Usage:
     python scripts/test_52wh_selection.py [repo root]
 """
+import contextlib
+import io
+import json
 import os
 import sys
 import tempfile
@@ -39,6 +46,7 @@ with open(PATH) as fh:
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 import data_utils as du   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
+import test_latest_window_topics as tlw   # noqa: E402  (its 2026 bars, pinned window and partial period)
 
 D = date(2020, 4, 1)                    # the rebalance date R; bars are keyed by days from it
 PREV = date(2020, 1, 1)                 # the rebalance date before R: its fetch window reaches back past R-390
@@ -367,7 +375,7 @@ MUTANTS = {
                                 "compute_proximity(con, eligible, target_date)"),
     "entry floor a cent lower": ("MIN_ENTRY_PRICE = 1.0 ", "MIN_ENTRY_PRICE = 0.99 "),
     "entry floor a cent higher": ("MIN_ENTRY_PRICE = 1.0 ", "MIN_ENTRY_PRICE = 1.01 "),
-    "prices cached to R+10": ("entry_end = d + timedelta(days=11)", "entry_end = d + timedelta(days=10)"),
+    "prices cached to R+10": ("win.fetch_end(d, 11)", "win.fetch_end(d, 10)"),
     **TRADED_MUTANTS,
 }
 
@@ -433,6 +441,89 @@ RESULT_MUTANTS = {
 }
 
 
+def window_leg():
+    """The synthetic SET leg with test_latest_window_topics' 2026 bars, as a 52-week-high leg, built once."""
+    if "window" not in _LEGS:
+        _LEGS["window"] = tdc.wh52_source(tlw.extend(tdc.synthetic_source()))
+    return _LEGS["window"]
+
+
+def main_run(mod, leg, tmp, args):
+    """main() on the SET leg with args, CetaResearch standing in as test_data_checks' fake client: its results."""
+    out = os.path.join(tmp, f"main.{len(os.listdir(tmp))}.json")
+    mod.CetaResearch = lambda **_kw: tdc.FakeClient(leg)
+    argv, sys.argv = sys.argv, ["backtest.py", "--exchange", "SET", "--exit-method", "ltp", "--output", out, *args]
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            mod.main()
+    finally:
+        sys.argv = argv
+    with open(out) as fh:
+        return json.load(fh)
+
+
+def partial_failures(src):
+    """The quarterly run window: run_single pinned to test_latest_window_topics' END (2026-11-06) marks every row
+    and only the last, 2026-10-01 to the end date, partial (its PARTIAL["quarterly"] period); that row's window
+    exits and the benchmark's are the end date's closes, and HALT (no bar after 2026-10-30) fills at its last bar
+    under ltp; CAGR runs over span_years; the run window's keys are written. main() takes --end-date, and
+    --end-year 2025 books today's 103 periods with no run-window key."""
+    try:
+        mod, leg = load(src), window_leg()
+        with tempfile.TemporaryDirectory() as tmp:
+            r = tdc.run_topic(TOPIC, leg, "ltp", "on", tmp, mod=mod, full_holdings=True, win=tlw.window(leg, "pin"))[0]
+            by_date = main_run(load(src), leg, tmp, ["--end-date", tlw.END.isoformat()])
+            by_year = main_run(load(src), leg, tmp, ["--end-year", "2025"])
+    except (Exception, SystemExit) as e:  # an error, argparse's exit on an unknown flag too: caught here
+        return [f"error: {type(e).__name__}: {e}"]
+    out = []
+    part, rows = tlw.PARTIAL["quarterly"], r["period_data"]
+    if (r.get("partial_period"), r.get("end_date"), r.get("priced_to"), r.get("full_periods")) != \
+            (part, "2026-11-06", "2026-11-06", r["n_periods"] - 1):
+        out.append(f"window keys {[r.get(k) for k in ('partial_period', 'end_date', 'priced_to', 'full_periods')]}")
+    if [x.get("partial") for x in rows] != [False] * (len(rows) - 1) + [True] or \
+            rows[-1].get("fraction") != part["fraction"]:
+        out.append(f"partial flags {[x.get('partial') for x in rows][-3:]}, fraction {rows[-1].get('fraction')}")
+    last = rows[-1]
+    entry = date.fromisoformat(part["entry_day"])
+    want = round(tlw.bench_close(leg, tlw.END) / tlw.bench_close(leg, entry) - 1, 6)
+    if last["spy_return"] is None or abs(last["spy_return"] - want) > 1e-6:
+        out.append(f"the partial benchmark return {last['spy_return']}, want the end date's close {want}")
+    held = {h["symbol"]: h for h in last.get("holdings_full") or []}
+    off = sorted(s for s, h in held.items() if s not in (tlw.HALT, tlw.ZEROV)
+                 and (h["exit"], h["exit_bar"]) != ("window", "2026-11-06"))
+    if not held or off:
+        out.append(f"the partial row's window exits not on the end date: {off or 'nothing held'}")
+    if (held.get(tlw.HALT) or {}).get("exit_bar") != "2026-10-30" or (held.get(tlw.HALT) or {}).get("exit") != "last_traded":
+        out.append(f"{tlw.HALT} exits {held.get(tlw.HALT)}, want its last traded bar on 2026-10-30")
+    if not r.get("span_years"):
+        return out + ["no span_years"]
+    cagr = ((1 + r["portfolio"]["total_return"] / 100) ** (1 / r["span_years"]) - 1) * 100
+    if abs(cagr - r["portfolio"]["cagr"]) > 0.011:
+        out.append(f"CAGR {r['portfolio']['cagr']}, want {cagr:.2f} over span_years")
+    if (by_date.get("end_date"), by_date.get("partial_period")) != ("2026-11-06", part):
+        out.append(f"main() --end-date: {by_date.get('end_date')} {by_date.get('partial_period')}")
+    if len(by_year["period_data"]) != 103 or "end_date" in by_year or by_year["period_data"][-1]["exit_date"] != "2025-10-01":
+        out.append(f"main() --end-year 2025: {len(by_year['period_data'])} periods, end_date {by_year.get('end_date')}")
+    return out
+
+
+WINDOW_MUTANTS = {   # each must fail partial_failures, by a wrong row or by an error
+    "the fetch past the end date": ("entry_end = win.fetch_end(d, 11)", "entry_end = d + timedelta(days=11)"),
+    "stock exits priced next day": ("exit_prices = get_prices(con, symbols, exit_date, offset_days=x_off)",
+                                    "exit_prices = get_prices(con, symbols, exit_date, offset_days=offset_days)"),
+    "the benchmark's exit priced next day": ("offset_days=offset_days, exit_offset_days=x_off)",
+                                             "offset_days=offset_days)"),
+    "rows unmarked": ("    win.mark(results)\n", "\n"),
+    "CAGR over the period count": ("risk_free_rate=risk_free_rate, fractions=fractions)",
+                                   "risk_free_rate=risk_free_rate)"),
+    "the run window's keys not written": (
+        "**win.fields(con, benchmark_symbol, valid, periods_per_year, partial_year, offset_days),", ""),
+    "main() ignores --end-date": ("win = RunWindow.from_args(args, cr, {universe_name: exchanges})",
+                                  "win = RunWindow.typed(2025)"),
+}
+
+
 def mutant_results(mutants, check, must_book=()):
     """(survived, errored): the mutants of SRC no check catches, and those in must_book caught only by an error."""
     survived, errored = [], []
@@ -449,18 +540,20 @@ def mutant_results(mutants, check, must_book=()):
 
 
 def main():
-    base = failures(SRC) + results_failures(SRC)
+    base = failures(SRC) + results_failures(SRC) + partial_failures(SRC)
     if base:
         print("test_52wh_selection: FAIL", base)
         sys.exit(1)
     survived, errored = mutant_results(MUTANTS, failures, TRADED_MUTANTS)
     s2, e2 = mutant_results(RESULT_MUTANTS, results_failures, RESULT_MUTANTS)
-    survived, errored = survived + s2, errored + e2
+    s3, _ = mutant_results(WINDOW_MUTANTS, partial_failures)
+    survived, errored = survived + s2 + s3, errored + e2
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
     print(f"test_52wh_selection: PASS ({len(SIGNAL) + len(CUT)} listings, {len(MUTANTS)} mutants caught; the run on"
-          f" the synthetic SET leg, {len(RESULT_MUTANTS)} mutants caught)")
+          f" the synthetic SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window, {len(WINDOW_MUTANTS)}"
+          " mutants caught)")
 
 
 if __name__ == "__main__":
