@@ -365,6 +365,10 @@ def with_hand(fx, events=HAND_EVENTS):
     return res, bar_rows, split_rows
 
 
+# report_lines' word for each hand-booked kind: C's real entry reads as a person's call, as the not_artifact lines do
+REPORT_LABEL = {"rebuilt": "left out", "real": "a person's call", "kept": "a candidate"}
+
+
 def hand_failures(mod):
     """Spans the file books through a hand event, each listed in hand_booked with the rebuild it would make and its
     entry's kind, which report_lines prints: H's rebuilt entry leaves the rebuilds, both nets and the verdict, C's
@@ -379,7 +383,7 @@ def hand_failures(mod):
     lines = mod.report_lines("TEST", leg)
     for key, kind in ((H_KEY, "rebuilt"), (C_KEY, "real"), (F_KEY, "kept")):
         booked = [x for x in lines if key in x and "hand-booked" in x]
-        note = f"(entry {kind}), {'a candidate' if kind == 'kept' else 'left out'}"
+        note = f"(entry {kind}), {REPORT_LABEL[kind]}"
         if len(booked) != 1 or note not in booked[0] or sum(f"rebuilt {key} " in x for x in lines) != (kind == "kept"):
             out.append(f"report_lines on a hand-booked span ({kind}): {[x for x in lines if key in x]}")
     alone = mod.check_leg(*fixture(V_LEG), [])["net_move"]
@@ -716,8 +720,8 @@ MUTANTS = {
     "hand-booked spans not recorded": [('"hand_booked": score(res, held, booked)[0]', '"hand_booked": []')],
     "report_lines leaves out the hand-booked spans": [('for e in leg["hand_booked"]]', "for e in []]")],
     "report_lines leaves out the entry's kind": [("(entry {e['hand_kind']})", "(entry)")],
-    "report_lines calls a kept entry left out": [("'a candidate' if e['hand_kind'] == 'kept' else 'left out'",
-                                                  "'left out'")],
+    "report_lines calls a kept entry left out": [('"kept": "a candidate"', '"kept": "left out"')],
+    "report_lines calls a real entry left out": [('"real": "a person\'s call"', '"real": "left out"')],
 }
 
 

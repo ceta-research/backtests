@@ -63,6 +63,8 @@ SPLIT_DAYS = 3          # a splits_calendar row this many days from a step expla
 REVERSAL_BARS = 5       # a step undone within this many trading days nets out
 ROUND = (2, 3, 4, 5, 10, 20, 25, 50, 100)
 BAR = 0.15
+# report_lines' word for a hand-booked span, by its entry's kind: a real entry is a person's call, as not_artifact's are
+HAND_LABEL = {"rebuilt": "left out", "real": "a person's call", "kept": "a candidate"}
 MAX_SQL = 45000         # characters a query may run to: the API refuses one over 50,000
 
 
@@ -371,7 +373,7 @@ def report_lines(key, leg):
             f"in a book of {e['n']}, leg excess {e['leg_excess_move']:+.3f}pp" for e in leg["rebuilds"]]
     out += [f"  no change, a person's call: {e['key']} ({e['kind']}), leg excess {e['leg_excess_move']:+.3f}pp"
             for e in leg["not_artifact"]]
-    out += [f"  hand-booked (entry {e['hand_kind']}), {'a candidate' if e['hand_kind'] == 'kept' else 'left out'}: "
+    out += [f"  hand-booked (entry {e['hand_kind']}), {HAND_LABEL[e['hand_kind']]}: "
             f"{e['key']} ({e['kind']}) {e['r_booked']:+.4f} -> {e['r_rebuilt']:+.4f} in a book of {e['n']}, "
             f"leg excess {e['leg_excess_move']:+.3f}pp" for e in leg["hand_booked"]]
     return out + [f"  OVER THE BAR: {o}" for o in leg["over_bar"]]
