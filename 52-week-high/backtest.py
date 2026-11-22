@@ -266,7 +266,8 @@ def _candidates_sql(target_date, cap_test, events=False, clips=None):
     """
     extra = ", km.filing_epoch AS km_epoch, km.marketCap AS raw_cap" if events else ""
     start_epoch = utc_epoch(target_date - timedelta(days=HIGH_WINDOW_FETCH))
-    # Signal reads only bars on/before R; entry is the first bar from R+1, so no bar after entry leaks in.
+    # The signal reads bars on or before R (entry is the first bar from R+1), but remove_price_oscillations, run on
+    # the cache, flags a row using up to two bars after it, and its tier 2 counts over the whole run (README, limits).
     target_epoch = utc_epoch(target_date)
     signal_floor_epoch = utc_epoch(target_date - timedelta(days=SIGNAL_TOLERANCE_DAYS))
 
