@@ -4,11 +4,14 @@
 dc-3's hand list for check F (section H): on real rows, a rebuilt holding (KINV-B.ST 2014) books its entry, a
 real one (AKSO.OL 2024-10) keeps adjClose, a range (DLAR.L 2008) books its midpoint, a return moved past the
 tolerance is hand_stale, and a quarterly span, a filled name, the uncapped mode, record=False and a cash period
-add nothing; the list agrees with the committed results; factor_review finds the 24 flags at 0.1pp or more with
-their recorded effects and nothing left against the list; gate 15 refuses a dc-3 file with an unreviewed flag, a
-stale entry, an unbooked entry or a CAGR that doesn't reproduce; a found_in and the review read a diagnostics file
-(results/diagnostics/<name>.json); each of the five topics books a listed holding end to end in drop, ltp and
-both; and source mutants of data_utils, factor_review and two topics each fail.
+add nothing; the list agrees with the committed results, each entry's span a band flag, a check L listing (not an
+LTP fill's) or a confirmed or hand-booked candidate of the leg's split_check record, results/split_check/<leg>.json
+(on test trees, each basis passes, check_leg's record of test_split_check's leg after its hand entry books among
+them, and each near miss fails, each basis on another symbol among them); factor_review finds the 24 flags at
+0.1pp or more with their recorded effects and nothing left against the list; gate 15 refuses a dc-3 file with an
+unreviewed flag, a stale entry, an unbooked entry or a CAGR that doesn't reproduce; a found_in and the review read
+a diagnostics file (results/diagnostics/<name>.json); each of the five topics books a listed holding end to end in
+drop, ltp and both; and source mutants of data_utils, factor_review and two topics each fail.
 
 Each opted-in topic runs end to end on its synthetic leg with its own data checks version (DC_VERSIONS:
 fcf-conversion on dc-3, the other four on dc-1), and asset-growth and fcf-conversion with their universe rules
@@ -3043,6 +3046,13 @@ def results_file(root, where):
     return os.path.join(root, topic, "results", f"returns_{'/'.join(leg)}.json")
 
 
+def split_check_record(root, where):
+    """A leg's committed split_check record (scripts/split_check.py --json's output), as found_in names the leg:
+    <topic>/results/split_check/<leg>.json, outside review_files' globs."""
+    topic, *leg = where.split("/")
+    return os.path.join(root, topic, "results", "split_check", f"{'/'.join(leg)}.json")
+
+
 def review_files(root, topic):
     """(leg, path) for each committed results file of a topic that factor_review reads, legs named as
     results_file() reads them."""
@@ -3052,11 +3062,39 @@ def review_files(root, topic):
                for p in sorted(glob.glob(os.path.join(d, "diagnostics", "*.json")))])
 
 
+def hand_basis(root, where, res, e):
+    """Whether the found_in leg res gives the entry e a basis on its span: a band factor_flag, or check L's listing
+    (data_checks.large_moves), with the entry's adjClose return; or a candidate of the leg's committed split_check
+    record (split_check_basis). An LTP fill's listing isn't one: DataChecks.hand leaves a filled name alone."""
+    span, same = (e["symbol"], e["rebalance_date"]), lambda r: abs(r - e["return_adj"]) <= 1e-6
+    dcb = res.get("data_checks") or {}
+    flags = [x for x in dcb.get("events", []) if x["check"] == "factor_flag" and "band" in x["reasons"]
+             and (x["symbol"], x["rebalance_date"]) == span]
+    return ((len(flags) == 1 and same(flags[0]["r_adj"]))
+            or any((m["symbol"], m["rebalance_date"]) == span and same(m["return"]) for m in dcb.get("large_moves", []))
+            or split_check_basis(split_check_record(root, where), res["universe"], e))
+
+
+def split_check_basis(path, universe, e):
+    """Whether the split_check record at path lists e's span (symbol, rebalance, exit) among its universe's
+    rebuilds, or under hand_booked as a record taken after the entry books does, with an r_booked (the bars'
+    adjClose return) within the hand list's log tolerance of e's adjClose return. The entries price from filings,
+    so their booked return isn't compared with the rebuild. A hand_booked listing counts whatever the person's call
+    on it: the entry's own review is the call."""
+    if not os.path.exists(path):
+        return False
+    tol = du.DATA_CHECKS_V3["factor_hand"]["log_tolerance"]
+    legs = [leg for leg in json.load(open(path))["legs"].values() if leg["universe"] == universe]
+    return any((x["symbol"], x["rebalance"], x["exit"]) == (e["symbol"], e["rebalance_date"], e["exit_date"])
+               and abs(math.log1p(x["r_booked"]) - math.log1p(e["return_adj"])) <= tol
+               for leg in legs for x in leg["rebuilds"] + leg.get("hand_booked", []))
+
+
 def hand_list_failures(root=ROOT, entries=None):
     """The list against the committed results: each entry's span, in each leg it was found in (a diagnostics
-    file too), is a band factor_flag with the entry's adjClose return and exit date; spans are unique; kinds,
-    booked values and ranges are well formed; every entry carries evidence. root and entries: a test tree and
-    list in place of the repo's."""
+    file too), has the entry's exit date and a basis (hand_basis: a band factor_flag, a check L listing or the
+    leg's split_check record); spans are unique; kinds, booked values and ranges are well formed; every entry
+    carries evidence. root and entries: a test tree and list in place of the repo's."""
     f = []
     entries = du.DATA_CHECKS_V3["factor_hand"]["entries"] if entries is None else entries
     spans = [(e["symbol"], e["rebalance_date"], e["exit_date"]) for e in entries]
@@ -3074,11 +3112,11 @@ def hand_list_failures(root=ROOT, entries=None):
                 f.append(f"{e['symbol']} {e['rebalance_date']}: found_in {where} has no results file")
                 continue
             res = json.load(open(path))
-            ev = [x for x in (res.get("data_checks") or {}).get("events", []) if x["check"] == "factor_flag"
-                  and "band" in x["reasons"] and (x["symbol"], x["rebalance_date"]) == (e["symbol"], e["rebalance_date"])]
             exit_ = {r["rebalance_date"]: r["exit_date"] for r in res["period_data"]}.get(e["rebalance_date"])
-            if len(ev) != 1 or exit_ != e["exit_date"] or abs(ev[0]["r_adj"] - e["return_adj"]) > 1e-6:
-                f.append(f"{e['symbol']} {e['rebalance_date']} in {where}: {ev} exit {exit_}")
+            basis = hand_basis(root, where, res, e)
+            if exit_ != e["exit_date"] or not basis:
+                f.append(f"{e['symbol']} {e['rebalance_date']} in {where}: exit {exit_}, basis {basis} (a band flag, "
+                         "a check L listing or a split_check rebuild or hand_booked listing with its adjClose return)")
     return f
 
 
@@ -3157,6 +3195,96 @@ def diagnostics_failures(tmp):
             ("the arm's flags unrecorded", review_failures(root, {}, no_block=one), True),
             ("a block-less file of another topic", review_failures(other, effects, no_block=one), True),
             ("a block-less count other than the pinned one", review_failures(root, effects, no_block={"fcf-conversion": 2}), True)]
+
+
+KINV14 = ("KINV-B.ST", "2014-07-01")
+
+
+def basis_case(tmp, i, res, record=None, e=None):
+    """hand_list_failures on the entry e (default KINV-B.ST 2014's) over a test tree holding res as the results file
+    of e's found_in leg and record, when given, as that leg's split_check record."""
+    e = e or next(e for e in du.DATA_CHECKS_V3["factor_hand"]["entries"]
+                  if (e["symbol"], e["rebalance_date"]) == KINV14)
+    root = os.path.join(tmp, "basis_tree", str(i))
+    for path, doc in ((results_file(root, e["found_in"][0]), res), (split_check_record(root, e["found_in"][0]), record)):
+        if doc is not None:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            json.dump(doc, open(path, "w"))
+    return hand_list_failures(root, [e])
+
+
+def fixture_basis():
+    """test_split_check's TEST leg with its hand events booked, check L's listing taken off: (an entry on H's
+    span, a round-ratio step whose bars return +100%, the results, the split_check record check_leg gives, which
+    lists the span under hand_booked)."""
+    import split_check
+    import test_split_check as tsc   # it reads sys.argv at import
+    res, bar_rows, split_rows = tsc.with_hand(tsc.fixture())
+    res["data_checks"]["large_moves"] = []
+    leg = split_check.check_leg(res, bar_rows, split_rows, tsc.RATIO)
+    record = json.loads(json.dumps({"bar": split_check.BAR, "not_artifact": [],
+                                    "legs": {"TEST": dict(leg, file="returns_TEST.json")}}, default=str))
+    e = {"symbol": "H", "rebalance_date": tsc.P1[0], "exit_date": tsc.P1[1], "kind": "rebuilt", "booked": 0.0,
+         "range": None, "return_adj": 1.0, "found_in": ["split-fixture/TEST"],
+         "evidence": "test_split_check's H: adjClose and the close both double on one day, with no split row"}
+    return e, res, record
+
+
+def hand_basis_failures(tmp):
+    """The hand list's bases beside a band flag, on test trees of asset growth Sweden's file with KINV-B.ST 2014's
+    band flag taken out: a split_check record listing the span among the leg's rebuilds or under hand_booked,
+    r_booked within the log tolerance, check_leg's record of test_split_check's leg taken after its hand entry
+    books, and check L's listing (data_checks.large_moves) with the adjClose return, each pass; no basis, an
+    r_booked past the tolerance, test_split_check's record on another return, another exit, a person's "no
+    change", another leg's record, an LTP fill's listing (DataChecks.hand leaves a filled name alone), a listing on
+    another return or rebalance date, and each basis on another symbol each fail. Returns (name, failures,
+    must_fail) rows."""
+    sto = json.load(open(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json")))
+    bare = copy.deepcopy(sto)
+    bare["data_checks"]["events"] = [x for x in sto["data_checks"]["events"] if (x["symbol"], x["rebalance_date"])
+                                     != KINV14 or x["check"] != "factor_flag"]
+    r_adj, tol, other = 0.704348, du.DATA_CHECKS_V3["factor_hand"]["log_tolerance"], "KINV-A.ST"
+    flag = next(x for x in sto["data_checks"]["events"] if (x["symbol"], x["rebalance_date"]) == KINV14
+                and x["check"] == "factor_flag")
+    other_flag = copy.deepcopy(bare)
+    other_flag["data_checks"]["events"].append(dict(flag, symbol=other))
+
+    def record(r_booked=None, exit_="2015-07-01", field="rebuilds", universe="STO", symbol=KINV14[0]):
+        item = {"symbol": symbol, "rebalance": KINV14[1], "exit": exit_, "n": 20, "kind": "step",
+                "key": f"{symbol}:{KINV14[1]}:2015-05-19", "r_booked": r_booked or r_adj, "r_rebuilt": -0.05,
+                "leg_excess_move": 0.4}
+        leg = {"universe": universe, "rebuilds": [], "not_artifact": [], "hand_booked": [], field: [item]}
+        return {"bar": 0.15, "not_artifact": [], "legs": {universe: dict(leg, file="returns_STO.json")}}
+
+    def listed(where, ret=r_adj, reb=KINV14[1], symbol=KINV14[0]):
+        res = copy.deepcopy(bare)
+        block = res["data_checks"] if where == "data_checks" else res["ltp"]
+        block["large_moves"] = block["large_moves"] + [{"rebalance_date": reb, "symbol": symbol, "return": ret}]
+        return res
+
+    near, far = (1 + r_adj) * math.exp(tol * 0.8) - 1, (1 + r_adj) * math.exp(tol * 1.2) - 1
+    h, h_res, h_record = fixture_basis()
+    h_far = dict(h, return_adj=(1 + h["return_adj"]) * math.exp(tol * 1.2) - 1)
+    cases = [("the band flag", sto, None, False), ("no basis", bare, None, True),
+             ("a band flag on another symbol", other_flag, None, True),
+             ("a split_check rebuild within the log tolerance", bare, record(near), False),
+             ("a split_check rebuild past the log tolerance", bare, record(far), True),
+             ("a split_check rebuild on another exit", bare, record(exit_="2015-10-01"), True),
+             ("a split_check rebuild on another symbol", bare, record(symbol=other), True),
+             ("a split_check hand_booked listing within the log tolerance", bare, record(near, field="hand_booked"),
+              False),
+             ("a split_check hand_booked listing on another symbol", bare, record(field="hand_booked", symbol=other),
+              True),
+             ("test_split_check's record after its hand entry books", h_res, h_record, False, h),
+             ("test_split_check's record after its hand entry books, on another return", h_res, h_record, True, h_far),
+             ("a split_check candidate a person called no change", bare, record(field="not_artifact"), True),
+             ("another leg's split_check rebuild", bare, record(universe="OSL"), True),
+             ("check L's large_moves", listed("data_checks"), None, False),
+             ("check L's fills", listed("ltp"), None, True),
+             ("check L's listing on another return", listed("data_checks", ret=0.71), None, True),
+             ("check L's listing on another rebalance date", listed("data_checks", reb="2015-07-01"), None, True),
+             ("check L's listing on another symbol", listed("data_checks", symbol=other), None, True)]
+    return [(name, basis_case(tmp, i, res, rec, *e), bad) for i, (name, res, rec, bad, *e) in enumerate(cases)]
 
 
 def dc3_file(res, drop_listed=(), drop_hand=(), stale=False, cagr_shift=0.0, min_pp=None):
@@ -3506,6 +3634,8 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         for name, failures, must_fail in diagnostics_failures(tmp):
             (expect_fail if must_fail else expect)(f"H diagnostics: {name}", failures)
+        for name, failures, must_fail in hand_basis_failures(tmp):
+            (expect_fail if must_fail else expect)(f"H hand list basis: {name}", failures)
         expect("S mutants each fail a check", s_mutant_failures(tmp))
     # N
     expect("N twins", twin_failures())
