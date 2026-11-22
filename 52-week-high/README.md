@@ -20,7 +20,7 @@ proximity_ratio = close / MAX(high over the 252 bars ending at the signal bar)
 
 On each rebalance date, for every ordinary share on the market's exchanges:
 
-1. Keep it if its checked market cap is above the market's floor: the cap on its latest `key_metrics` fiscal-year row dated at least 45 days before the rebalance date, as data checks dc-3's check M reads it (divided where a later price scaling shows the vendor's cap sits on another basis, and failing where the row is ineligible). The row's date is the fiscal year end, not the date the figures were published.
+1. Keep it if its checked market cap is above the market's floor: the cap on its latest `key_metrics` fiscal-year row dated at least 45 days before the rebalance date, as data checks dc-3's check M reads it (divided where a later price scaling shows the vendor's cap sits on another basis, and failing where the row is ineligible). Check M reads every fiscal-year row over the floor, one with no return on equity included. The row's date is the fiscal year end, not the date the figures were published.
 2. Compute the ratio as above.
 3. Keep one line per security: one per ISIN, a Thai NVDR line keyed to its ordinary line (check N), and on SAO one line per company.
 4. Take the 30 highest ratios and hold them at equal weight for the quarter.

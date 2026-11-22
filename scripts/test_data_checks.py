@@ -16,7 +16,8 @@ committed files predate its data checks and carry no block (NO_BLOCK_FILES).
 
 Each opted-in topic runs end to end on its synthetic leg with its own data checks version (DC_VERSIONS:
 fcf-conversion and 52-week-high on dc-3, the other four on dc-1; the quarterly topics, FREQ, on the quarterly
-grid's dates), 52-week-high on its own copy of the SET leg with daily bars (wh52_source), and asset-growth and
+grid's dates), 52-week-high on its own copy of the SET leg with daily bars and no ROE on INFL.BK's FY rows, which
+its check M must still read (wh52_source), and asset-growth and
 fcf-conversion with their universe rules
 (ur-2, ur-3), each against a must-fail mutant on an older version, and fcf-conversion's class twins against one
 that never keys them. Gate 15's results check refuses a file holding BCE-PY.TO in a period that exits on or
@@ -68,7 +69,9 @@ the topic run on ur-1's rules must fail) and its prior-year guard are checked th
 Shared code: against the base commit (BASE, the last one before data checks), isin_dedup_sql
 (twin_key=False) returns the same SQL, LtpExits(traded_only=False) sends the same SQL and builds
 the same temp table, filter_returns' default gives the same output, and every other function,
-class and constant of data_utils is unchanged (ast). Each "must fail" check is also run on a
+class and constant of data_utils is unchanged (ast). cap_check_sql's default text is CAP_SQL_BASE's, the
+query before its require_roe opt-in, and only require_roe=False reads an FY row with no ROE. Each "must fail"
+check is also run on a
 mutant and has to fail: clean_price_cache stubbed (KIO books +299.5%), cap_check empty (SOS and
 ZEST pass the floor), F's detection stubbed, and gate 15 on mutated topic sources (opted-in
 topics with their wiring cut, capped topics with a None cap in any form, an uncapped results file).
@@ -110,6 +113,7 @@ from verify_floor_guard import dc_wiring, dc_uses, dc_results_problem, DATA_CHEC
 from test_floor_guard import NO_RETURN_CAP   # noqa: E402
 
 BASE = "e1ecb7c"   # backtests main before data checks
+CAP_SQL_BASE = "203203b"   # check M's server query before require_roe: its default text stays this one
 
 
 def check(cond, what):
@@ -570,6 +574,32 @@ def m_uint_epoch_failures():
         "DESCRIBE " + cap_check_sql("symbol IN ('EPOCH0')", 1e9, [("2004-11-01", "2004-12-31")])).fetchall()}
     if (types.get("filing_epoch"), types.get("next_split")) != ("BIGINT", "BIGINT"):
         f.append(f"filing_epoch {types.get('filing_epoch')}, next_split {types.get('next_split')}: want BIGINT")
+    return f
+
+
+def cap_sql_roe_failures():
+    """cap_check_sql reads only the FY rows with a returnOnEquity by default, as the topics ranking on ROE fetch
+    their metrics, and every FY row over the floor with require_roe=False, as 52-week-high's metrics keep them."""
+    src = cap_source()
+    fy = date(2019, 12, 31)
+    for s, roe in (("ROE", 0.29), ("NOROE", None)):
+        src.execute("INSERT INTO key_metrics VALUES (?, 'FY', '2019-12-31', ?, ?, 0.1, 5e9)", [s, ep(fy), roe])
+    got = {flag: [r[0] for r in src.execute(cap_check_sql("symbol IN ('ROE', 'NOROE')", 1e9, [("2019-11-16", "2019-12-31")],
+                                                          require_roe=flag)).fetchall()] for flag in (True, False)}
+    want = {True: ["ROE"], False: ["NOROE", "ROE"]}
+    return [] if got == want else [f"rows read {got}, want {want}"]
+
+
+def cap_sql_identity_failures(base_sql, new_sql=cap_check_sql):
+    """cap_check_sql's default text is base_sql's (CAP_SQL_BASE's), so a topic that passes no require_roe sends the
+    query it sent before: on dc-1's and dc-3's rules, a leg filter and none, a floor of 0 and two ranges or none."""
+    f = []
+    for cfg in (DATA_CHECKS_V1, du.DATA_CHECKS_V3):
+        for args in (("symbol IN ('SOS')", 1e9, [("2019-11-16", "2019-12-31")]),
+                     ("1=1", 1e11, [("2004-11-01", "2004-12-31"), ("2010-01-01", "2010-03-31")]),
+                     ("symbol IN (SELECT symbol FROM profile WHERE exchange IN ('SET'))", 0, [])):
+            if new_sql(*args, cfg) != base_sql(*args, cfg):
+                f.append(f"cap_check_sql{args[:2]} on {cfg['version']} differs from {CAP_SQL_BASE}'s")
     return f
 
 
@@ -2747,8 +2777,10 @@ def wh52_source(src=None):
     signal bar there (so, as in synthetic_source, the oscillation filter's neighbours of its bad print span more
     than its 10 and 20 days, and only check T moves the print).
     STD.BK so ranks on these bars and has no entry bar, so STD-R.BK stands in for it. Every bar's high is its
-    close, and the bars vary through vary(), so dc-2's rule S moves none."""
+    close, and the bars vary through vary(), so dc-2's rule S moves none. INFL.BK's FY rows carry no
+    returnOnEquity: the topic's metrics keep such rows, and check M must read them too."""
     src = synthetic_source() if src is None else src
+    src.execute("UPDATE key_metrics SET returnOnEquity = NULL WHERE symbol = 'INFL.BK'")
     rule_columns(src)
     src.execute("ALTER TABLE profile ADD COLUMN isAdr BOOLEAN")
     src.execute("UPDATE profile SET isAdr = FALSE")
@@ -3731,6 +3763,12 @@ def main():
     expect("M rule", cap_rule_failures())
     expect("M server SQL", cap_sql_failures())
     expect("M server SQL on UINTEGER epochs, a split record at epoch 0", m_uint_epoch_failures())
+    expect("M server SQL: a row with no ROE read only with require_roe=False", cap_sql_roe_failures())
+    with tempfile.TemporaryDirectory() as tmp:
+        cap_base = load_base(tmp, CAP_SQL_BASE)[0].cap_check_sql
+        expect(f"M server SQL: the default text is {CAP_SQL_BASE}'s", cap_sql_identity_failures(cap_base))
+        expect_fail("M server SQL with require_roe=False the default",
+                    cap_sql_identity_failures(cap_base, lambda *a: cap_check_sql(*a, require_roe=False)))
     expect("M at every floor", cap_screen_failures())
     expect_fail("M with cap_check empty (SOS, ZEST pass)", cap_screen_failures(with_check=False))
     # cases from the same-day runs

@@ -2201,8 +2201,9 @@ def empty_cap_check(con):
     con.execute(CAP_CHECK_DDL)
 
 
-def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
-    """Check M's server query: the inputs for every FY key_metrics row over the leg's floor.
+def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1, require_roe=True):
+    """Check M's server query: the inputs for every FY key_metrics row over the leg's floor, by default only the
+    rows with a returnOnEquity, as the topics ranking on ROE fetch their metrics; require_roe=False reads every row.
 
     Per (symbol, FY period end): marketCap, the same FY's net income, EPS and weighted shares, the
     last `bars` stock_eod dates up to the period end, one row per date with the traded row kept
@@ -2232,10 +2233,11 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
     dup, lt = int(c["split_dup_days"]) * 86400, math.log(float(c["share_tol"]))
     st_lo, st_hi = (float(v) for v in c["share_step"])
     days = lambda col: " OR ".join(f"({col} >= '{a}' AND {col} <= '{b}')" for a, b in date_ranges) or "FALSE"
+    roe = " AND returnOnEquity IS NOT NULL" if require_roe else ""
     return f"""
         WITH RECURSIVE km AS (
             SELECT symbol, CAST(dateEpoch AS BIGINT) AS fe, marketCap FROM key_metrics
-            WHERE period = 'FY' AND returnOnEquity IS NOT NULL AND marketCap > {float(mktcap_min)}
+            WHERE period = 'FY'{roe} AND marketCap > {float(mktcap_min)}
               AND {sym_filter_sql}
             QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol, dateEpoch ORDER BY marketCap DESC) = 1),
         inc AS (
@@ -2460,11 +2462,12 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
 
 
 def load_cap_check(client, con, sym_filter_sql, mktcap_min, cfg=DATA_CHECKS_V1, verbose=False,
-                   metrics_table="metrics_cache"):
+                   metrics_table="metrics_cache", require_roe=True):
     """Check M for a leg: one server query (cap_check_sql), then apply_cap_rule() into cap_check.
 
     metrics_table (symbol, marketCap, filing_epoch: the topic's FY key_metrics) bounds the bar scans
-    to the lookback before each FY period end over the floor. Returns apply_cap_rule()'s counts.
+    to the lookback before each FY period end over the floor. require_roe: cap_check_sql's, False for a topic
+    whose metrics keep the rows with no returnOnEquity. Returns apply_cap_rule()'s counts.
     """
     look = timedelta(days=int(cfg["cap"]["lookback_days"]))
     ranges = []
@@ -2478,7 +2481,8 @@ def load_cap_check(client, con, sym_filter_sql, mktcap_min, cfg=DATA_CHECKS_V1, 
     con.execute(CAP_INPUTS_DDL)
     if ranges:
         con.execute("DROP TABLE cap_inputs")
-        sql = cap_check_sql(sym_filter_sql, mktcap_min, [(a.isoformat(), b.isoformat()) for a, b in ranges], cfg)
+        sql = cap_check_sql(sym_filter_sql, mktcap_min, [(a.isoformat(), b.isoformat()) for a, b in ranges], cfg,
+                            require_roe=require_roe)
         if not query_parquet(client, sql, con, "cap_inputs", verbose=verbose, limit=5000000, timeout=600,
                              memory_mb=16384, threads=6):
             con.execute("DROP TABLE cap_inputs")   # query_parquet's empty placeholder has no columns

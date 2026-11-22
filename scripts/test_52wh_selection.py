@@ -36,8 +36,9 @@ lookback.
 The run on test_data_checks' synthetic SET leg (wh52_source): run_single on --end-year 2025 books today's 103
 quarterly periods; each invested row's holdings string names every booked name, and --full-holdings adds
 holdings_full, every booked name in that order, changing nothing else; check N keys an NVDR line to its ordinary
-line, which holds the slot, and the NVDR stands in for an ordinary line with no entry bar; the SAO company's
-preferred line stands in for its ordinary line in every invested book. The results file carries data_checks,
+line, which holds the slot, and the NVDR stands in for an ordinary line with no entry bar; check M reads INFL.BK's
+FY rows, which carry no ROE, so its inflated cap fails the floor at every rebalance and it is never held; the SAO
+company's preferred line stands in for its ordinary line in every invested book. The results file carries data_checks,
 universe_rules, signal_guard (its count on every rebalance, equal in drop and ltp) and cost_model after
 isin_dedup (the tiers at 35 baht a dollar, null on --no-costs), the fetch asks for no MTUM, entry_unpriced
 and the data checks' counts on each row, and in each holdings_full item the one-way rate the name paid
@@ -52,7 +53,7 @@ The gate's legs: scripts/gate_legs/wave3.json holds one 52-week-high leg per --g
 among them, each pinned to --end-year 2025 and installed as the file the global run writes.
 
 The live screen (screen.py) runs the backtest's fetch and screen on one date with data checks on, check M's server
-query standing in as cap_check rows: on a JPX leg a J-REIT (ur-4) and a fund (the semi-join) stay out, the floor
+query (the one reading every FY row over the floor) standing in as cap_check rows: on a JPX leg a J-REIT (ur-4) and a fund (the semi-join) stay out, the floor
 reads cap_used (a cap on the floor once divided is out, a unit over it in, an ineligible row out), ties go to the
 larger cap_used, then the symbol; on NYSE a day after COG's last own day CLR ranks alone; main() prints the book on
 today's leg as CSV and as a table, the fetch's progress on stderr. Its mutants must trip these checks.
@@ -467,6 +468,7 @@ SET_RATE = 0.005   # the synthetic caps, about 5e10 baht, are about 1.4B dollars
 # but the first, short_history when a bar falls in the 10 days to R (71 each) and no_traded_bar otherwise (31 each);
 # and DLST.BK's four quarters from its delisting until its last bar leaves the lookback (no_traded_bar)
 SET_GUARD = {"no_traded_bar": 66, "short_history": 142}
+NO_ROE = "INFL.BK"   # an inflated FY cap on rows with no ROE (wh52_source): check M must read them
 ROW_KEYS = ("entry_unpriced","entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost", "twins_collapsed",
             "cap_excluded", "factor_flags")
 
@@ -557,9 +559,13 @@ def results_failures(src):
         if names != (r["holdings"].split(",") if r["stocks_held"] else []):
             out.append(f"{r['rebalance_date']}: holdings_full {names}, holdings {r['holdings']!r}")
             break
+    # check M reads INFL.BK's FY rows, which carry no ROE: its inflated cap fails the floor at every rebalance
+    held_at, invested = tdc.held_dates(rows)
+    infl = [e for e in plain["data_checks"]["events"] if e["symbol"] == NO_ROE and e["check"] == "cap"]
+    if held_at(NO_ROE) or len(infl) != len(rows):
+        out.append(f"{NO_ROE} (no ROE) held at {len(held_at(NO_ROE))} rebalances, {len(infl)} cap events of {len(rows)}")
     # check N: an NVDR line shares its ordinary line's security (twin_key on the dedup), so TWN.BK holds the slot
     # and STD-R.BK stands in for STD.BK, which ranks with no entry bar
-    held_at, invested = tdc.held_dates(rows)
     if held_at("TWN-R.BK") or held_at("STD.BK") or held_at("TWN.BK") != invested or held_at("STD-R.BK") != invested:
         out.append(f"NVDR twins: TWN-R.BK held at {sorted(held_at('TWN-R.BK'))[:3]}, STD-R.BK at "
                    f"{len(held_at('STD-R.BK'))} and TWN.BK at {len(held_at('TWN.BK'))} of {len(invested)} invested")
@@ -594,6 +600,7 @@ RESULT_MUTANTS = {
     "the signal guard's block not written": ('        "signal_guard": gb,', ""),
     "MTUM fetched again": ("            symbol IN ({bench_list})\n",
                            "            symbol IN ({bench_list})\n            OR symbol = 'MTUM'\n"),
+    "check M on the rows with an ROE only": ("require_roe=False", "require_roe=True"),
 }
 
 
@@ -812,10 +819,13 @@ def bound(name, module):
 
 def screen_backtest(cap_rules):
     """The backtest screen.py imports: check M's server query stands in as cap_rules' cap_check rows (symbol ->
-    (rule, divisor) on its FY2019 row), and the oscillation filter is off, as in cache()."""
+    (rule, divisor) on its FY2019 row), and the oscillation filter is off, as in cache(). The query must be the
+    one that reads every FY row over the floor (require_roe=False)."""
     mod = load(SRC)
 
-    def load_cap_check(client, con, sym_filter_sql, mktcap_min, cfg, verbose=False):
+    def load_cap_check(client, con, sym_filter_sql, mktcap_min, cfg, verbose=False, require_roe=True):
+        if require_roe:
+            raise AssertionError("check M's query reads only the FY rows with an ROE")
         con.execute(du.CAP_INPUTS_DDL)
         con.execute(du.CAP_CHECK_DDL)
         con.executemany("INSERT INTO cap_check (symbol, filing_epoch, rule, cap_div) VALUES (?, ?, ?, ?)",

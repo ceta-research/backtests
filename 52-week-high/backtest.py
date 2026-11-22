@@ -150,9 +150,11 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     print(f"    -> {count} market cap rows")
 
     # Check M (the floor reads cap_used) and the splits check F flags; cap_check stays empty when off.
+    # metrics_cache keeps FY rows with no ROE, so check M reads every FY row over the floor.
     if checks:
         print("  Fetching market-cap check inputs and splits...")
-        dc.record_cap(load_cap_check(client, con, sym_filter_sql, mktcap_min, dc.cfg, verbose=verbose))
+        dc.record_cap(load_cap_check(client, con, sym_filter_sql, mktcap_min, dc.cfg, verbose=verbose,
+                                     require_roe=False))
         load_splits(client, con, sym_filter_sql, verbose=verbose)
     else:
         empty_cap_check(con)
