@@ -65,4 +65,4 @@ python3 relative-strength/generate_charts.py
 
 ## Data Source
 
-Ceta Research data warehouse (FMP financial data). Stock prices: `stock_eod` (~300M rows). Sector data: `profile.sector` (GICS). Market cap: `key_metrics` FY filings (point-in-time, 45-day lag).
+Ceta Research data warehouse (FMP financial data). Stock prices: `stock_eod` (~300M rows). Sector data: `profile.sector` (GICS), read once when the backtest runs and applied to every year. The warehouse's dated profile snapshots start in December 2025, so no sector record covers the years tested. A company that changed sector, such as Facebook (now Meta), which GICS moved from Technology to Communication Services in 2018, sits in its run-day sector throughout. The effect on results is not measured. Market cap: `key_metrics` FY filings (point-in-time, 45-day lag).
