@@ -231,7 +231,7 @@ def chart_comparison_cagr(filename):
         ax.text(x_pos, i, f"{cagr:.1f}%", va="center", fontsize=10, fontweight="bold")
 
     fig.text(0.5, -0.02,
-             "Data: Ceta Research | DivYield>2%, ROA>5%, CR>1, D/E<1.5, Payout<80%, annual rebalance",
+             "Data: Ceta Research | Yield 4-15%, payout < 80%, FCF > 0, ROE > 8%, D/E < 2.0, annual rebalance",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()
@@ -273,7 +273,7 @@ def chart_comparison_drawdown(filename):
         ax.text(x_pos, i, f"{dd:.1f}%", va="center", fontsize=10, fontweight="bold")
 
     fig.text(0.5, -0.02,
-             "Data: Ceta Research | DivYield>2%, ROA>5%, CR>1, D/E<1.5, Payout<80%, annual rebalance",
+             "Data: Ceta Research | Yield 4-15%, payout < 80%, FCF > 0, ROE > 8%, D/E < 2.0, annual rebalance",
              ha="center", fontsize=8, color="#7f8c8d")
 
     plt.tight_layout()

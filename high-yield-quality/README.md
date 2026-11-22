@@ -1,14 +1,15 @@
 # High Yield + Quality
 
-Dividend yield screen with Piotroski-inspired quality filters. Combines high yield (>2%) with financial health checks (ROA, leverage, liquidity, payout sustainability) to avoid yield traps.
+Dividend yield screen with quality filters. Combines a high yield (4% to 15%) with checks on profitability, free cash flow, leverage and payout sustainability to avoid yield traps.
 
 ## Strategy
 
-**Signal:** Stocks with dividend yield above 2% that pass four quality filters:
-- Return on Assets > 5% (profitability)
-- Current Ratio > 1.0 (liquidity)
-- Debt/Equity < 1.5 (leverage)
-- Dividend Payout Ratio < 80% (sustainability)
+**Signal:** Stocks with a dividend yield from 4% to 15% that pass these filters:
+- Return on Equity > 8% (profitability)
+- Free cash flow > 0 (cash generation)
+- Debt/Equity from 0 to under 2.0 (leverage)
+- Dividend Payout Ratio above 0 and under 80% (sustainability)
+- Market cap above the exchange's floor (`cli_utils.get_mktcap_threshold`)
 
 **Selection:** Top 30 by dividend yield (descending), equal weight.
 
