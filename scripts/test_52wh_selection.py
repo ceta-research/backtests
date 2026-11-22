@@ -9,7 +9,10 @@ by the larger latest eligible market cap, then symbol. The signal bar is the las
 [R - 10d, R] with volume > 0, never a later one (entry is the first bar from R + 1); a line with
 no such bar is not ranked, and a signal bar without a close drops the name. Untraded (zero or NULL
 volume) bars are never the signal but count in the 252-bar window that ends at it, toward its high
-and the 100-bar floor; an untraded twin of the signal bar sorts after it and takes no slot. The
+and the 100-bar floor; an untraded twin of the signal bar sorts after it and takes no slot. The signal guard
+counts, per rebalance, the lines over the floor it leaves unranked, by reason (no traded bar in the span: STALE and
+TV_STALE; fewer than 100 bars: H99), never a line under the floor, and check M's events read ranked lines only.
+There is no proximity cap: a close over the window's high ranks as it reads. The
 topic's own fetch SQL fills the caches from made-up warehouse rows, so it must carry close and
 volume and filter on neither. They are fetched over two rebalance dates, so they are
 continuous as in a real run and only the screen's own window start keeps a bar older than
@@ -35,7 +38,8 @@ quarterly periods; each invested row's holdings string names every booked name, 
 holdings_full, every booked name in that order, changing nothing else; check N keys an NVDR line to its ordinary
 line, which holds the slot, and the NVDR stands in for an ordinary line with no entry bar; the SAO company's
 preferred line stands in for its ordinary line in every invested book. The results file carries data_checks,
-universe_rules and cost_model after isin_dedup (the tiers at 35 baht a dollar, null on --no-costs), entry_unpriced
+universe_rules, signal_guard (its count on every rebalance, equal in drop and ltp) and cost_model after
+isin_dedup (the tiers at 35 baht a dollar, null on --no-costs), the fetch asks for no MTUM, entry_unpriced
 and the data checks' counts on each row, and in each holdings_full item the one-way rate the name paid
 (cost_rate), which with the item's return gives the row's return. Costs, with run_backtest's screen and prices
 stubbed: a JPX and an LSE cap pay the tier at their leg's FX rate, and a name with no cap the top one. The quarterly
@@ -165,9 +169,11 @@ SIGNAL = {
     # 100 bars are enough, 99 are not
     "H100": line(flat(100), cap=6e10),
     "H99": line(flat(99)),
-    # a close 10% over the window's high is kept, one tick more is a data error
-    "CAP_IN": line(bar(flat(120, 1000.0), 0, adj=1100.0, close=1100.0)),
+    # a close over the window's high ranks as it reads: the screen sets no proximity cap (a real bar's high holds its
+    # close, so a cap never acted)
     "CAP_OUT": line(bar(flat(120, 1000.0), 0, adj=1101.0, close=1101.0)),
+    # under the floor, and stale: the signal guard counts only the lines over the floor
+    "SMALL_STALE": line(flat(120, end=-11), cap=FLOOR),
     # size floor on the latest filing at the 45-day cutoff
     "ABOVE": line(flat(120), cap=FLOOR + 1),
     "AT_FLOOR": line(flat(120), cap=FLOOR),
@@ -202,15 +208,17 @@ CAPS = {
     "INELIG": line(flat(120), cap=1e12),                # ineligible: out
     "TIE_RAW": line(flat(120), cap=9e11),               # cap_used 9e9: after TIE_USED's 5e10, though its raw cap leads
     "TIE_USED": line(flat(120), cap=5e10),
+    "INELIG_STALE": line(flat(120, end=-11), cap=1e12),   # ineligible with no signal bar: no event, as it isn't ranked
 }
 CAP_RULES = {"DIV_AT": ("cap_over_k", 10.0), "DIV_OVER": ("cap_over_k", 10.0), "INELIG": ("ineligible", None),
-             "TIE_RAW": ("cap_over_k", 100.0)}
+             "TIE_RAW": ("cap_over_k", 100.0), "INELIG_STALE": ("ineligible", None)}
 CAP_EVENTS = [("DIV_AT", "cap_over_k"), ("INELIG", "ineligible")]   # over the floor on the raw cap, not on cap_used
+SIGNAL_GUARD = {"no_traded_bar": 2, "short_history": 1}   # STALE and TV_STALE; H99
 
 
 def signal_book(off, e11):
     """Proximity descending, then cap descending, then symbol."""
-    return [("CAP_IN", 1e10, 1100.0 / 1000.0), ("PAYER", 9e10, 1.0), ("LIMIT_UP", 8.5e10, 1.0), ("W253", 8e10, 1.0),
+    return [("CAP_OUT", 1e10, 1101.0 / 1000.0), ("PAYER", 9e10, 1.0), ("LIMIT_UP", 8.5e10, 1.0), ("W253", 8e10, 1.0),
             ("SPARSE_OUT", 7e10, 1.0), ("H100", 6e10, 1.0), ("ZV_FLOOR", 5.5e10, 1.0),
             ("EDGE_LAG", 5e10, 1.0), off, e11, ("LAGGED", 7e9, 1.0), ("ABOVE", FLOOR + 1, 1.0),
             ("DUP", 1e10, 0.99), ("NULL_VOL", 1e10, 98.0 / 100.0), ("EXDIV", 1e10, 0.97),
@@ -229,6 +237,8 @@ EXPECT = {
                         + [("K02", 3e9, 1.0)]),
     "check M": [("TIE_USED", 5e10, 1.0), ("TIE_RAW", 9e9, 1.0), ("DIV_OVER", FLOOR + 1, 1.0)],
     "check M's events": CAP_EVENTS,
+    "signal guard": {"keys": ["rule", "dropped", "by_reason", "by_period"], "dropped": 3, "by_reason": SIGNAL_GUARD,
+                     "by_period": [{"rebalance_date": D.isoformat(), **SIGNAL_GUARD}]},
 }
 
 
@@ -284,13 +294,15 @@ def failures(src):
         caps.executemany("INSERT INTO cap_check (symbol, filing_epoch, rule, cap_div) VALUES (?, ?, ?, ?)",
                          [(s, ep(FY19), rule, div) for s, (rule, div) in CAP_RULES.items()])
         du.mark_nvdr_twins(caps)   # the twin key's columns, as a data-checks run has them
-        dc = du.DataChecks("on", mod.DATA_CHECKS)
-        got = {"signal, entry next day": mod.screen_stocks(sig, D, FLOOR, offset_days=1),
+        dc, guard = du.DataChecks("on", mod.DATA_CHECKS), mod.SignalGuard()
+        got = {"signal, entry next day": mod.screen_stocks(sig, D, FLOOR, offset_days=1, guard=guard),
                "signal, entry same day": mod.screen_stocks(sig, D, FLOOR, offset_days=0),
                "signal, first rebalance date": mod.screen_stocks(first, D, FLOOR, offset_days=1),
                "ties at the cut": mod.screen_stocks(cut, D, FLOOR, offset_days=1),
                "check M": mod.screen_stocks(caps, D, FLOOR, offset_days=1, dc=dc)}
         got["check M's events"] = sorted((e["symbol"], e["rule"]) for e in dc.events if e["check"] == "cap")
+        b = guard.block()
+        got["signal guard"] = {"keys": list(b), **{k: b[k] for k in ("dropped", "by_reason", "by_period")}}
         for con in (sig, first, cut, caps):
             con.close()
     except Exception as e:  # a mutant that breaks the module fails loudly
@@ -308,7 +320,7 @@ FETCH_START = "fetch_start = d - timedelta(days=HIGH_WINDOW_FETCH)\n"           
 TARGET = "    target_epoch = utc_epoch(target_date)\n"
 LAG = "cutoff_epoch = utc_epoch(target_date - timedelta(days=45))"
 CUT_BY = "ORDER BY proximity_ratio DESC, marketCap DESC NULLS LAST, symbol\n"
-WRAP = "FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE,"
+WRAP = "FROM ({isin_dedup_sql(pool, target_date, offset_days, MIN_ENTRY_PRICE,"
 TWIN_KEY = 'twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get("class_twins")))'
 DEDUP = WRAP + "\n                              " + TWIN_KEY + "})"
 FLOOR_TEST = 'sql("km.cap_used > ?")'
@@ -363,10 +375,10 @@ MUTANTS = {
     "signal floor exclusive": (FLOOR_BAR, FLOOR_BAR.replace(">=", ">")),
     "close tested before the latest bar": (FLOOR_BAR, FLOOR_BAR + "              AND close > 0\n"),
     "close-passing-only fetch": (FETCH_PASS, FETCH_PASS + "          AND close > 0\n"),
-    "no close test": ("          AND l.close > 0\n", ""),
+    "no close test": ("AND s.close > 0)", "AND TRUE)"),
     "smaller close of two bars on R": ("ORDER BY trade_epoch DESC, close DESC NULLS LAST",
                                        "ORDER BY trade_epoch DESC, close ASC NULLS LAST"),
-    # the window, the history floor and the data-error cap, each one unit either side
+    # the window and the history floor, each one unit either side
     "window a bar short": (FRAME, FRAME.replace("251", "250")),
     "window a bar long": (FRAME, FRAME.replace("251", "252")),
     "window a day short": ("HIGH_WINDOW_FETCH = 390 ", "HIGH_WINDOW_FETCH = 389 "),
@@ -379,10 +391,15 @@ MUTANTS = {
     "window a day short, first fetch only": (FETCH_START, FETCH_START.replace("FETCH)", "FETCH - 1)")),
     "99 bars are enough": ("MIN_HISTORY_ROWS = 100 ", "MIN_HISTORY_ROWS = 99 "),
     "101 bars needed": ("MIN_HISTORY_ROWS = 100 ", "MIN_HISTORY_ROWS = 101 "),
-    "history floor exclusive": (">= {MIN_HISTORY_ROWS}", "> {MIN_HISTORY_ROWS}"),
-    "cap exclusive": ("<= {MAX_PROXIMITY}", "< {MAX_PROXIMITY}"),
-    "cap a tick higher": ("MAX_PROXIMITY = 1.1 ", "MAX_PROXIMITY = 1.101 "),
-    "no cap": ("          AND l.close / l.high_52w <= {MAX_PROXIMITY}\n", ""),
+    "history floor exclusive": ("< {MIN_HISTORY_ROWS}", "<= {MIN_HISTORY_ROWS}"),
+    "a proximity cap": ("AND s.close > 0)", "AND s.close > 0 AND s.close / s.high_52w <= 1.1)"),
+    # the signal guard: the unranked lines over the floor, by reason, and check M's events on ranked lines only
+    "signal guard not recorded": ("guard.record(con.execute(", "(lambda *a: None)(con.execute("),
+    "the guard counts lines under the floor": ("_signaled(candidates, 'IS NOT NULL')",
+                                               "_signaled(without_lines_sql(sql('? IS NOT NULL'), left_out), 'IS NOT NULL')"),
+    "a stale line counted as short history": ("THEN 'no_traded_bar'", "THEN 'short_history'"),
+    "check M's events on unranked lines": ("_signaled(without_lines_sql(sql(CAP_FAIL_TEST, events=True), left_out))",
+                                           "without_lines_sql(sql(CAP_FAIL_TEST, events=True), left_out)"),
     # the size floor: latest filing at the 45-day cutoff first, then the test on cap_used (check M)
     "size floor inclusive": (FLOOR_TEST, 'sql("km.cap_used >= ?")'),
     "no size floor": (FLOOR_TEST, 'sql("? IS NOT NULL")'),
@@ -404,8 +421,8 @@ MUTANTS = {
     "29 names": ("MAX_STOCKS = 30 ", "MAX_STOCKS = 29 "),
     "31 names": ("MAX_STOCKS = 30 ", "MAX_STOCKS = 31 "),
     # the same-security dedup: gone, after the cut, on the wrong entry bar, or blind to the R+11 bar
-    "no dedup": (DEDUP, "FROM ({candidates})"),
-    "cut before dedup": (WRAP, WRAP.replace("candidates,", "'SELECT * FROM (' + candidates + ') "
+    "no dedup": (DEDUP, "FROM ({pool})"),
+    "cut before dedup": (WRAP, WRAP.replace("pool,", "'SELECT * FROM (' + pool + ') "
                                             + CUT_BY.strip() + " LIMIT 30',")),
     "entry offset not passed": (WRAP, WRAP.replace("target_date, offset_days,", "target_date, 1,")),
     "entry floor a cent lower": ("MIN_ENTRY_PRICE = 1.0 ", "MIN_ENTRY_PRICE = 0.99 "),
@@ -435,7 +452,11 @@ def strip_full(res):
 
 COST_MODEL = {"function": "costs.tiered_cost", "fx_per_usd": 35.0}   # the SET leg: 35 baht a dollar
 SET_RATE = 0.005   # the synthetic caps, about 5e10 baht, are about 1.4B dollars: the 0.5% tier (0.1% unconverted)
-ROW_KEYS = ("entry_unpriced", "entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost", "twins_collapsed",
+# the signal guard on the SET leg: WH52_UNRANKED's two lines, whose sparse bars never make 100, at each rebalance
+# but the first, short_history when a bar falls in the 10 days to R (71 each) and no_traded_bar otherwise (31 each);
+# and DLST.BK's four quarters from its delisting until its last bar leaves the lookback (no_traded_bar)
+SET_GUARD = {"no_traded_bar": 66, "short_history": 142}
+ROW_KEYS = ("entry_unpriced","entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost", "twins_collapsed",
             "cap_excluded", "factor_flags")
 
 
@@ -458,7 +479,8 @@ def results_failures(src):
     """run_single on the synthetic SET leg, --end-year 2025: 103 quarterly periods from 2000-01-01; each invested
     row's holdings names every booked name (books of more than 10, so a cut shows); --full-holdings adds
     holdings_full, every booked name in the holdings' order, and changes nothing else. The results file: after
-    isin_dedup come data_checks, universe_rules and cost_model (then the LTP keys), cost_model the tiers at 35
+    isin_dedup come data_checks, universe_rules, signal_guard (SET_GUARD) and cost_model (then the LTP keys), the
+    fetch asks for no MTUM, cost_model the tiers at 35
     baht a dollar, the rate run_single passes to run_backtest, and null on a no-costs run; each row carries
     entry_unpriced (UNP.BK, which ranks with no entry bar, on every priced row; null when the screen held cash) and
     the data checks' counts; each holdings_full item records the one-way rate it paid (cost_rate: 0.5% here,
@@ -470,7 +492,7 @@ def results_failures(src):
         run_bt = mod.run_backtest
         mod.run_backtest = lambda *a, **k: fx.append(k.get("fx")) or run_bt(*a, **k)
         with tempfile.TemporaryDirectory() as tmp:
-            plain = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod)[0]
+            plain, sqls = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod)
             full = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod, full_holdings=True)[0]
             free = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod, full_holdings=True, use_costs=False,
                                  tag=".free")[0]
@@ -480,10 +502,17 @@ def results_failures(src):
     out = []
     if fx != [35.0] * 4:
         out.append(f"run_single passes fx {fx} to run_backtest, want 35.0 on every run")
+    if any("MTUM" in s for s in sqls):
+        out.append("the fetch asks for MTUM, which nothing reads")
+    g = plain.get("signal_guard") or {}
+    if drop.get("signal_guard") != g or list(g) != ["rule", "dropped", "by_reason", "by_period"] or \
+            g["by_reason"] != SET_GUARD or [p["rebalance_date"] for p in g["by_period"]] != [d.isoformat() for d in GRID[:-1]]:
+        out.append(f"signal_guard {g.get('by_reason')}, want {SET_GUARD} over every rebalance, equal in drop and ltp")
     for name, res in (("ltp", plain), ("no costs", free), ("drop", drop)):
         keys = list(res)
         tail = keys[keys.index("isin_dedup") + 1:] if "isin_dedup" in keys else keys
-        want = ["data_checks", "universe_rules", "cost_model"] + (["exit_method", "ltp"] if name != "drop" else [])
+        want = (["data_checks", "universe_rules", "signal_guard", "cost_model"]
+                + (["exit_method", "ltp"] if name != "drop" else []))
         if tail != want:
             out.append(f"{name}: keys after isin_dedup {tail}, want {want}")
         if res.get("cost_model", "missing") != (None if name == "no costs" else COST_MODEL):
@@ -551,6 +580,9 @@ RESULT_MUTANTS = {
         ""),
     "no unpriced names": ("unpriced = sorted(s for s in symbols if not entry_usable(entry_prices.get(s), MIN_ENTRY_PRICE))",
                           "unpriced = []"),
+    "the signal guard's block not written": ('        "signal_guard": gb,', ""),
+    "MTUM fetched again": ("            symbol IN ({bench_list})\n",
+                           "            symbol IN ({bench_list})\n            OR symbol = 'MTUM'\n"),
 }
 
 

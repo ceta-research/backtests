@@ -504,7 +504,7 @@ YIELD_CAP = 0.50        # dcf-discount's FCF_YIELD_MAX: a yield of exactly this 
 def rows_52wh(src, bars=HISTORY_BARS):
     """`bars` daily bars ending at D-1 with close = high: every line is at its 52-week high and ranks by the
     tie-break (larger market cap, then symbol). adjClose runs lower, by more on S29, where it also stood twice
-    as high early on: a signal read from adjClose ranks S29 last or puts every line over MAX_PROXIMITY. Plus the
+    as high early on: a signal read from adjClose ranks S29 last. Plus the
     columns its universe rules (ur-4) read, industry among them, none of which removes a line here."""
     rule_columns(src)
     src.execute("ALTER TABLE profile ADD COLUMN industry VARCHAR")

@@ -8,7 +8,8 @@ within each exchange. Quarterly rebalancing.
 Signal: close / MAX(high over 252 trading days) per George & Hwang (2004).
         Both split-adjusted, neither dividend-adjusted; adjClose prices returns only.
         Signal bar: the latest bar in [R - 10d, R] with volume > 0 (none: not ranked);
-        the high spans the 252 bars ending there, untraded (zero or NULL volume) bars included.
+        the high spans the 252 bars ending there, untraded (zero or NULL volume) bars included,
+        and fewer than 100 of them is not ranked either (signal_guard in the results counts both).
         Higher ratio = stock closer to its 52-week high = stronger momentum signal.
         Exact ties rank by larger market cap, then symbol.
         No skip-month needed (unlike classic 12-1 momentum).
@@ -56,7 +57,7 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V3, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
                         load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
-                        UniverseRules, load_universe, UNIVERSE_RULES_V4, without_lines_sql)
+                        UniverseRules, load_universe, UNIVERSE_RULES_V4, without_lines_sql, RowGuard, guarded_sql)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs, get_fx_per_usd
@@ -73,7 +74,6 @@ MIN_STOCKS = 10              # Hold cash if fewer qualify
 DEFAULT_FREQUENCY = "quarterly"
 DEFAULT_REBALANCE_MONTHS = [1, 4, 7, 10]   # Jan / Apr / Jul / Oct
 MIN_ENTRY_PRICE = 1.0        # Skip sub-$1 entry prices (price data artifacts)
-MAX_PROXIMITY = 1.1          # Proximity > 1.1 likely a data error (close > 52w high)
 # No return cap: data checks dc-3 (traded bars, NVDR twins, market-cap check at the floor, the reviewed
 # hand list) clean the inputs, and every kept move over +100% or under -50% is listed in the results.
 DATA_CHECKS = DATA_CHECKS_V3
@@ -189,7 +189,6 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
         WHERE ({date_filter})
           AND (
             symbol IN ({bench_list})
-            OR symbol = 'MTUM'
             OR symbol IN (
                 SELECT DISTINCT symbol FROM key_metrics
                 WHERE period = 'FY'
@@ -213,6 +212,27 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     return con
 
 
+SIGNAL_GUARD_REASONS = ("no_traded_bar", "short_history")
+
+
+class SignalGuard(RowGuard):
+    """One leg's signal record: per rebalance date, the screen's candidates left unranked for want of a traded
+    signal bar or of history (screen inputs only: equal in drop, ltp and both)."""
+
+    RULE = (f"the signal bar is the latest bar in [R - {SIGNAL_TOLERANCE_DAYS}d, R] with volume > 0, and the high "
+            f"spans the 252 bars ending there; a line is not ranked: no_traded_bar when no bar in that span traded, "
+            f"short_history when the 252 bars are fewer than {MIN_HISTORY_ROWS} (a lookback_clip line's from its "
+            f"first own day); counted per line before the security dedup, over the lines in the universe that pass "
+            f"the market-cap floor and have a bar in the {HIGH_WINDOW_FETCH} days to R")
+
+    def __init__(self):
+        super().__init__(self.RULE, SIGNAL_GUARD_REASONS)
+
+
+# The candidates with a signal ("IS NULL") or left unranked ("IS NOT NULL").
+_signaled = partial(guarded_sql, "signal_guard")
+
+
 def _frame_start_sql(clips):
     """clips: {symbol: first own day} of the leg's lookback_clip lines (ur-4), whose earlier bars are another
     company's or instrument's. A condition on a prices_cache row: such a line's frame starts on its first own day."""
@@ -224,8 +244,8 @@ def _frame_start_sql(clips):
 
 
 def _candidates_sql(target_date, cap_test, events=False, clips=None):
-    """The screen's candidates on target_date among the lines in `universe`, each with its proximity ratio and
-    market cap.
+    """The screen's candidates on target_date among the lines in `universe` with a bar in the lookback, each with
+    its proximity ratio, market cap and signal_guard (SignalGuard.RULE's reason; NULL when ranked).
 
     The floor reads cap_used (check M): each line's latest FY row filed by the 45-day cutoff (the first `?`), its
     cap over check M's divisor, NULL for an ineligible row. cap_test is the floor clause ("km.cap_used > ?", or
@@ -233,7 +253,8 @@ def _candidates_sql(target_date, cap_test, events=False, clips=None):
     marketCap, so the tie-break and the cost tier read it. clips: _frame_start_sql's.
 
     proximity_ratio = close(S) / MAX(high) over the 252 bars ending at S, untraded (zero or NULL volume)
-    bars included, S being the latest bar in [R - 10d, R] with volume > 0; a line with no such bar is not ranked.
+    bars included, S being the latest bar in [R - 10d, R] with volume > 0; a line with no such bar, or with fewer
+    than MIN_HISTORY_ROWS bars, is not ranked, and a line whose signal bar has no positive close drops.
 
     Price basis on both sides: split-adjusted, dividends left in. adjClose is back-adjusted for
     every later dividend, so it would rank a name by what it paid out after the rebalance date.
@@ -288,31 +309,38 @@ def _candidates_sql(target_date, cap_test, events=False, clips=None):
               AND volume > 0
             QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_epoch DESC, close DESC NULLS LAST,
                                        high_52w DESC NULLS LAST, row_count DESC) = 1
+        ),
+        signal AS (
+            SELECT w.symbol, l.close, l.high_52w, l.row_count,
+                CASE WHEN l.symbol IS NULL THEN 'no_traded_bar'
+                     WHEN l.row_count < {MIN_HISTORY_ROWS} THEN 'short_history' END AS signal_guard
+            FROM (SELECT DISTINCT symbol FROM windowed) w
+            LEFT JOIN latest l ON l.symbol = w.symbol
         )
         SELECT
-            l.symbol,
-            l.close / l.high_52w AS proximity_ratio,
+            s.symbol,
+            s.close / s.high_52w AS proximity_ratio,
             e.* EXCLUDE (symbol),
-            l.close,
-            l.high_52w,
-            l.row_count
-        FROM latest l
-        JOIN eligible e ON e.symbol = l.symbol
-        WHERE l.high_52w > 0
-          AND l.close > 0
-          AND l.row_count >= {MIN_HISTORY_ROWS}
-          AND l.close / l.high_52w <= {MAX_PROXIMITY}
+            s.close,
+            s.high_52w,
+            s.row_count,
+            s.signal_guard
+        FROM signal s
+        JOIN eligible e ON e.symbol = s.symbol
+        WHERE s.signal_guard IS NOT NULL
+           OR (s.high_52w > 0 AND s.close > 0)
     """
 
 
-def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1, dc=None, ur=None):
+def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1, dc=None, ur=None, guard=None):
     """Screen for 52-week high proximity stocks at target_date (_candidates_sql), the top MAX_STOCKS by
-    proximity ratio after the security dedup. Exact ties rank by larger cap_used, then symbol.
+    proximity ratio after the signal guard and the security dedup. Exact ties rank by larger cap_used, then symbol.
 
     dc (data_utils.DataChecks): when on, NVDR twins share a security (check N); it also records the
     screen's twin and market-cap events. ur-4's class twins share a security in every mode, so an SAO
     company holds one line. ur: the leg's data_utils.UniverseRules (its removals act at the fetch, its
-    line_starts, line_ends and lookback_clip here; it records the class twins each screen picks).
+    line_starts, line_ends and lookback_clip here; it records the class twins each screen picks). guard
+    (SignalGuard) records the unranked candidates.
     Returns list of (symbol, market_cap, proximity_ratio), the market cap being cap_used.
     """
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
@@ -322,11 +350,12 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1, dc
     clips = {s: ur.starts[s][0] for s in ur.clips} if ur is not None else {}
     sql = partial(_candidates_sql, target_date, clips=clips)
     candidates = without_lines_sql(sql("km.cap_used > ?"), left_out)
+    pool = _signaled(candidates)
     params = [cutoff_epoch, mktcap_min]
-    # One row per security BEFORE the top-N cut, so a collapsed twin frees its slot for the next name.
+    # One row per security BEFORE the top-N cut, so a collapsed twin or an unranked line frees its slot.
     rows = con.execute(f"""
         SELECT symbol, marketCap, proximity_ratio
-        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE,
+        FROM ({isin_dedup_sql(pool, target_date, offset_days, MIN_ENTRY_PRICE,
                               twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get("class_twins")))})
         ORDER BY proximity_ratio DESC, marketCap DESC NULLS LAST, symbol
         LIMIT ?
@@ -335,9 +364,12 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1, dc
     picked = [(r[0], r[1], r[2]) for r in rows]
     if ur is not None:
         ur.stand_ins([s for s, _, _ in picked], target_date)
+    if guard is not None:
+        guard.record(con.execute(f"SELECT DISTINCT symbol, signal_guard FROM ({_signaled(candidates, 'IS NOT NULL')})",
+                                 params).fetchall(), target_date)
     if dc is not None:
-        dc.twins(con, candidates, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _, _ in picked])
-        dc.caps(con, without_lines_sql(sql(CAP_FAIL_TEST, events=True), left_out), params + [mktcap_min],
+        dc.twins(con, pool, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _, _ in picked])
+        dc.caps(con, _signaled(without_lines_sql(sql(CAP_FAIL_TEST, events=True), left_out)), params + [mktcap_min],
                 target_date, mktcap_min)
     if verbose and picked:
         print(f"    Selected: {len(picked)} (prox range: {picked[-1][2]:.3f}-{picked[0][2]:.3f})")
@@ -346,11 +378,11 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1, dc
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
                  offset_days=1, benchmark_symbol="SPY", ltp=None, ur=None, win=None, fx=1.0, exit_method="drop",
-                 dc=None):
+                 dc=None, guard=None):
     """Run 52-week high proximity backtest. Returns list of period result dicts.
 
     dc: the leg's data_utils.DataChecks. Without one, no check runs (the "uncapped" mode); either way there is
-    no return cap. ur: the leg's data_utils.UniverseRules, passed to the screen. win: the leg's
+    no return cap. ur, guard: the leg's data_utils.UniverseRules and SignalGuard, passed to the screen. win: the leg's
     data_utils.RunWindow (its grid made rebalance_dates): the partial exit is priced at the close on the end date
     (the caller marks the rows: RunWindow.mark). fx: the leg's costs.get_fx_per_usd, which converts the USD cost
     tiers; each booked name pays its cap_used's tier, recorded as cost_rate in holdings_full."""
@@ -363,7 +395,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         exit_date = rebalance_dates[i + 1]
         x_off = win.exit_offset(exit_date, offset_days)
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min, verbose=verbose, offset_days=offset_days, dc=dc, ur=ur)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, verbose=verbose, offset_days=offset_days, dc=dc, ur=ur,
+                                  guard=guard)
 
         bench_return = get_benchmark_return(
             con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days, exit_offset_days=x_off)
@@ -567,6 +600,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
     dc = DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)
     ur = UniverseRules(UNIVERSE_RULES)
+    guard = SignalGuard()
     fx = get_fx_per_usd(exchanges)   # local currency per USD: the cost tiers' breakpoints in the leg's currency
     mktcap_threshold = get_mktcap_threshold(exchanges)
 
@@ -601,14 +635,14 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=verbose,
                            offset_days=offset_days, benchmark_symbol=benchmark_symbol,
-                           ltp=ltp, ur=ur, win=win, fx=fx, exit_method=exit_method, dc=dc)
+                           ltp=ltp, ur=ur, guard=guard, win=win, fx=fx, exit_method=exit_method, dc=dc)
     win.mark(results)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
     print(f"  {dc.summary()}")
-    ub = ur.block()
+    ub, gb = ur.block(), guard.block()
     print(f"  Universe rules: {ub['ordinary_shares']['removed_count']} lines not ordinary shares "
-          f"{ub['ordinary_shares']['by_reason']}")
+          f"{ub['ordinary_shares']['by_reason']}; signal guard: {gb['dropped']} unranked {gb['by_reason']}")
 
     valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
     if not valid:
@@ -658,6 +692,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both
     output.update({
         "universe_rules": ub,            # the fetch's removals and the screen's stand-ins: equal in drop, ltp and both
+        "signal_guard": gb,              # the screen only: equal in drop, ltp and both
         "cost_model": {"function": "costs.tiered_cost", "fx_per_usd": fx} if use_costs else None,
     })
     if ltp_block:
