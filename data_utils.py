@@ -3325,9 +3325,12 @@ NON_ORDINARY_KNOWN_V4 = NON_ORDINARY_KNOWN_V3 + (
     ("GACA.L", "preferred", "General Accident cumulative preference shares (GB0003692737), named only as the company, "
                             "which its profile calls a subsidiary of Aviva plc; closes at a median of 131.5p"),
     ("GACB.L", "preferred", "General Accident cumulative preference shares (GB0003692513), named only as the company, "
-                            "which its profile calls a subsidiary of Aviva plc; closes at a median of 118.25p"),
+                            "which its profile calls a fully-owned division of Aviva Plc; closes at a median of 118.25p"),
     ("BP-A.L", "preferred", "BP cumulative first preference shares (GB0001385250), named only as the company, closes "
                             "at a median of 148.5p; BP.L is the ordinary"),
+    ("BC88.L", "preferred", "Chemring Group's 7% cumulative preference shares of 1 pound each beside CHG.L, the "
+                            "ordinary share (Chemring Group, Annual Report and Accounts 2016, note 23), under its own "
+                            "ISIN (GB0001904845), closes near 101p"),
     ("BP-B.L", "preferred", "BP cumulative second preference shares (GB0001385474), named only as the company, closes "
                             "at a median of 163.5p; BP.L is the ordinary"),
     # Stockholm preference and D shares: the ticker says PREF or D, the name doesn't
@@ -3394,11 +3397,12 @@ NON_ORDINARY_KNOWN_V4 = NON_ORDINARY_KNOWN_V3 + (
                                      "under its own IN9 ISIN (IN9397D01014), beside BHARTIARTL.NS (INE397D01024)"),
     ("HGH", "debentures", "Hartford's fixed-to-floating debentures (the profile name ends DEB FIX/FLT 42), no ISIN, "
                           "closes 25.91 to 31.59 (median 29.24); HIG is the common"),
-    ("ATCOL", "notes", "Atlas Corp.'s 7.125% Notes due 2027 (its 20-F for 2024 lists them under ATCOL; redeemed "
-                       "2025-07-07), named only as the company under their own ISIN (US04926V2034), whose closes hold "
-                       "near 25 (23.40 to 26.59, median 25.01)"),
-    ("EXEEL", "warrant", "Expand Energy's Class C warrants to purchase common stock (its 10-K covers for 2024 and 2025 "
-                         "list them under EXEEL; they expired 2026-02-09), under their own ISIN (US1651671802) on "
+    ("ATCOL", "notes", "Atlas Corp.'s 7.125% Notes due 2027 (its Form 20-F for 2024 lists them under ATCOL, and its "
+                       "6-K of 2025-07-11 reports them redeemed on 2025-07-07), named only as the company under their "
+                       "own ISIN (US04926V2034), whose closes hold near 25 (23.40 to 26.59, median 25.01)"),
+    ("EXEEL", "warrant", "Expand Energy's Class C warrants to purchase common stock (its Form 10-K covers for 2024 and "
+                         "2025 list them under EXEEL, and the Class C Warrant Agreement of 2021-02-09 sets their "
+                         "expiry at 2026-02-09), under their own ISIN (US1651671802) on "
                          "EXE's CIK; its sibling EXEEZ falls to nasdaq_fifth_letter, but L isn't a fifth letter that "
                          "rule reads"),
     # lines that print another line's bars
@@ -3424,9 +3428,6 @@ NON_ORDINARY_KNOWN_V4 = NON_ORDINARY_KNOWN_V3 + (
     ("CLI", "renamed line", "Mack-Cali Realty's line, on VRE's (Veris Residential) CIK: VRE carries the same closes "
                             "(4,593 of 4,596 shared days) from 2003-09 and bars of its own from 1998-12, and CLI's "
                             "last bar is 2021-12-09"),
-    ("BC88.L", "preferred", "Chemring Group's 7% cumulative preference shares of 1 pound each beside CHG.L, the "
-                            "ordinary share (Chemring Group, Annual Report and Accounts 2016, note 23), under its own "
-                            "ISIN (GB0001904845), closes near 101p"),
 )
 LINE_STARTS_V4 = LINE_STARTS_V3 + (
     ("MER.TO", "2025-06-13", "Meren Energy (a new ISIN): its bars to 2025-06-12 repeat AOI.TO's (Africa Oil) closes "
@@ -3487,14 +3488,20 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
                               "2017-06-08"),
     ("AU", "2023-09-25", "AngloGold Ashanti: the NYSE line traded AngloGold Ashanti Limited's American depositary "
                          "shares through 2023-09-22 and AngloGold Ashanti plc's ordinary shares, under the same "
-                         "ticker, from 2023-09-25 (the plc's 6-K of 2023-09-25); the profile carries the plc's UK ISIN "
+                         "ticker, from 2023-09-25 (the plc's 6-K of 2023-09-25, \"AngloGold Ashanti plc completes the "
+                         "primary listing of its ordinary shares on the NYSE and commences trading\"); the bars don't "
+                         "pin the day (closes 18.15 and 18.38 either side); the profile carries the plc's UK ISIN "
                          "(GB00BRXH2664) and doesn't flag isAdr"),
     ("TTE", "2025-12-08", "TotalEnergies: the NYSE line traded American depositary receipts until the program ended "
-                          "and the ordinary shares from 2025-12-08 (its 6-K exhibit 99.1 of 2025-12-08); the profile "
+                          "and the ordinary shares from 2025-12-08 (its 6-K exhibit 99.1 of 2025-12-08, "
+                          "\"TotalEnergies announces the commencement of trading of its ordinary shares on the "
+                          "NYSE\"); the bars don't pin the day (closes 64.82 and 65.68 either side); the profile "
                           "carries the French ordinary share's ISIN (FR0000120271) and doesn't flag isAdr"),
     ("TEVA", "2026-09-14", "Teva: the NYSE line traded American depositary shares until the program ended and the "
-                           "ordinary shares from 2026-09-14 (its 8-K of 2026-09-14); the profile carries the Israeli "
-                           "ordinary share's ISIN (IL0006290147) and doesn't flag isAdr"),
+                           "ordinary shares from 2026-09-14 (its 8-K of 2026-09-14, which reports each ADS exchanged "
+                           "for one ordinary share that day); the bars don't pin the day (closes 37.09 and 38.72 "
+                           "either side); the profile carries the Israeli ordinary share's ISIN (IL0006290147) and "
+                           "doesn't flag isAdr"),
     # de-SPAC lines: the first day the combined company traded under its new ticker, from its filings
     ("CTOS", "2019-08-01", "Custom Truck One Source, then Nesco Holdings (the filer's CIK, 0001709682, is CTOS's in "
                            "the profile): Capitol Investment Corp. IV (NYSE: CIC), a blank-check shell, closed its "
@@ -3502,14 +3509,14 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
                            "on the NYSE as NSCO at that day's open; the bars don't pin the day (closes 8.66 to 9.05 "
                            "around it)"),
     ("GB", "2020-08-31", "Global Blue: Far Point Acquisition (NYSE: FPAC), a blank-check shell, closed the business "
-                         "combination 2020-08-28 (20-F filed 2020-09-03), and Global Blue's closing release that day "
-                         "expected GB to trade on the NYSE from 2020-08-31, when the volume rose from 54k to 152k"),
+                         "combination 2020-08-28, and Global Blue's closing release of 2020-08-28 expected GB to trade "
+                         "on the NYSE from 2020-08-31 (20-F filed 2020-09-03), when the volume rose from 54k to 152k"),
     ("FSR", "2020-10-30", "Fisker: Spartan Energy Acquisition (NYSE: SPAQ), a blank-check shell, closed the merger "
-                          "2020-10-29 (8-K filed 2020-11-04), and Fisker's closing release that day expected FSR to "
-                          "begin trading on the NYSE on 2020-10-30, when the volume rose from 4.3m to 21.2m"),
+                          "2020-10-29, and Fisker's closing release of 2020-10-29 expected FSR to begin trading on the "
+                          "NYSE on 2020-10-30 (8-K filed 2020-11-04), when the volume rose from 4.3m to 21.2m"),
     ("SDA", "2023-05-18", "SunCar Technology: Goldenbridge Acquisition (Nasdaq: GBRG), a blank-check shell, closed the "
-                          "business combination 2023-05-17 (20FR12B filed 2023-06-30), and SunCar's closing release "
-                          "that day said SDA would trade on Nasdaq from 2023-05-18"),
+                          "business combination 2023-05-17, and SunCar's closing release of 2023-05-17 said SDA would "
+                          "trade on Nasdaq from 2023-05-18 (20FR12B filed 2023-06-30)"),
     ("MVST", "2021-07-26", "Microvast: Tuscan Holdings (Nasdaq: THCB), a blank-check shell, closed the acquisition "
                            "2021-07-23 (8-K filed 2021-07-28), and the release filed as exhibit 99.1 to an 8-K on "
                            "2021-07-26 expected MVST to commence trading on Nasdaq that day, when the close fell from "
@@ -3524,7 +3531,8 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
                            "closed the business combination 2024-12-10 and CNCK began trading on Nasdaq on 2024-12-11 "
                            "(20-F filed 2024-12-16)"),
 )
-# line starts whose earlier bars are another company's or instrument's: a price lookback starts on the first own day
+# line starts whose earlier bars are a blank-check shell's, another company's still trading, or depositary receipts':
+# a price lookback starts on the first own day (renames, a merger's surviving line and a share-class change aren't)
 LOOKBACK_CLIP_V4 = ("1972.HK", "GETY", "CTOS", "GB", "FSR", "SDA", "MVST", "ECX", "GRND", "CNCK", "LUMI.ST", "AU",
                     "TTE", "TEVA")
 LINE_ENDS_V4 = LINE_ENDS_V3 + (
@@ -3536,8 +3544,8 @@ LINE_ENDS_V4 = LINE_ENDS_V3 + (
 LINE_START_RULE_V4 = LINE_START_RULE + (
     "; its earlier bars may also be another instrument's (receipts before a direct listing) or a blank-check shell's, "
     "and a merged company's first own day is then its first trading day under its new ticker; a line in "
-    "lookback_clip, whose earlier bars are another company's or instrument's, also has a price lookback cut at its "
-    "first own day")
+    "lookback_clip, whose earlier bars are a blank-check shell's, another company's still trading under its own "
+    "ticker, or depositary receipts', also has a price lookback cut at its first own day")
 LINE_END_RULE_V4 = LINE_END_RULE + (
     "; a line also ends when its later bars are another instrument's (BCE-PY.TO): its last own day is then the day "
     "before the last quarter ahead of those bars begins, so no quarterly book exits on them")

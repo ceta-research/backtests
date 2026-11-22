@@ -33,8 +33,9 @@ copies, as they run its load_universe (the universe fetch).
 ur-4 (cfg=UNIVERSE_RULES_V4, no topic's results store it yet, so it isn't in FROZEN_UR) is ur-3 plus the lines
 PROFILE_V4 holds (real profile rows: each added line reads known under ur-4 and None under ur-3), jpx_reit (a JPX
 line whose profile industry starts with REIT; JPX's other lines and REITs on other exchanges stay), its own rule,
-kept, line-start and line-end texts, the new line starts (de-SPAC lines and LUMI.ST among them), lookback_clip (the
-starts whose earlier bars are another company's or instrument's, listed in the block on a leg holding one) and
+kept, line-start and line-end texts, the new line starts (de-SPAC lines, LUMI.ST and US receipt switches among them),
+lookback_clip (the starts whose earlier bars are a shell's, another company's still trading or depositary receipts',
+listed in the block on a leg holding one) and
 BCE-PY.TO's line end, which acts on a keep-list line. Each has must-fail mutants.
 
 Usage: python scripts/test_universe_rules.py
@@ -1026,7 +1027,7 @@ NEW_STARTS_V4 = {"MER.TO": "2025-06-13", "VRN.TO": "2024-06-11", "SHA0.DE": "202
                  "1972.HK": "2012-01-18", "BRNK.DE": "2024-04-24", "UNITDSPR.NS": "2025-03-14",
                  "NORION.ST": "2023-10-04", "SHC.L": "2023-03-07", "AD": "2025-09-09", "TXNM": "2024-08-28",
                  "LUMI.ST": "2017-06-08", **RECEIPT_SWITCHES, **DESPAC}
-# the line starts whose earlier bars are another company's or instrument's; the same-company renames are not
+# the line starts whose earlier bars are a shell's, another company's still trading, or receipts'; renames are not
 LOOKBACK_CLIP = set(DESPAC) | set(RECEIPT_SWITCHES) | {"1972.HK", "GETY", "LUMI.ST"}
 NEW_ENDS_V4 = {"BCE-PY.TO": "2025-09-30"}
 REFS = re.compile(r"#\d|\bcall \d|tracker|DECISIONS", re.I)
