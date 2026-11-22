@@ -43,18 +43,19 @@ holding's corrections compounded, two periods per year, the partial period's fra
 own move. A leg with no artifact reads under the bar, and a move equal to the bar is over it (the bar set to a
 rebuild's exact move). A person's "no change" on H leaves it out of the rebuilds and
 the net and lists it in the leg's not_artifact, beside the every-candidate net; on a leg whose only artifact it is,
-the verdict turns under the bar. A span the file books through a hand event (H) is left out of the rebuilds, both
-nets and the verdict and listed with the rebuild it would make (report_lines prints it, and --not-artifact on its
-key matches no candidate), while a hand_stale span and hand events on spans that aren't held or rebuild nothing
-change nothing. main() runs the three queries per file on an in-memory warehouse for both legs
-with that call and writes the same records, its bars query reading no partial holding's bar past the exit date; a
-key that matches no candidate is refused, and so is a symbol holding a quote or a semicolon, before any SQL is
-built. A query limit under one query's length puts each leg's lines in groups (with one line held in two periods):
-every query at or under it, each line in one group, the groups' rows, check_leg's record and main's record those
-of the one query, a limit equal to the one query's length one group, and a line whose windows alone pass the
-limit refused. The warehouse loads each table with one INSERT. Every mutant of split_check.py (the reversal
-window, the split-row window, the absorption test, the rebuild's sign, each threshold above and more) must trip a
-check.
+the verdict turns under the bar. A span the file books through a hand event is listed with the rebuild it would
+make and its entry's kind (report_lines prints both): H's rebuilt entry and C's real one leave the rebuilds, both
+nets and the verdict (--not-artifact on their keys matches no candidate), and F's kept one stays a candidate as any
+other (on V's leg it stays over the bar until a person calls it no change), while a hand_stale span and hand events
+on spans that aren't held or rebuild nothing change nothing. main() runs the three queries per file on an
+in-memory warehouse for both legs with that call and writes the same records, its bars query reading no partial
+holding's bar past the exit date; a key that matches no candidate is refused, and so is a symbol holding a quote
+or a semicolon, before any SQL is built. A query limit under one query's length puts each leg's lines in groups
+(with one line held in two periods): every query at or under it, each line in one group, the groups' rows,
+check_leg's record and main's record those of the one query, a limit equal to the one query's length one group,
+and a line whose windows alone pass the limit refused. The warehouse loads each table with one INSERT. Every
+mutant of split_check.py (the reversal window, the split-row window, the absorption test, the rebuild's sign,
+each threshold above and more) must trip a check.
 
 Usage:
     python scripts/test_split_check.py [repo root]
@@ -242,11 +243,11 @@ def near(a, b, tol):
     return a is not None and b is not None and abs(a - b) <= tol
 
 
-def case_failures(universe, leg, not_artifact=(), hand=()):
+def case_failures(universe, leg, not_artifact=(), hand=None):
     """The leg's steps, split rows, rebuilds and nets against the case's, with not_artifact a person's calls and
-    hand the symbols whose span the file books through a hand event."""
+    hand {symbol: the kind of the hand entry its span books}: a rebuilt or real one leaves the candidates."""
     _, _, steps, split_rows, rebuilds = CASES[universe]
-    out = []
+    hand, out = hand or {}, []
     got = sorted((c["symbol"], c["date"], c["netted"], c["artifact"], c["why"]) for c in leg["steps"])
     if got != steps:
         out.append(f"{universe} steps {got}, want {steps}")
@@ -254,7 +255,7 @@ def case_failures(universe, leg, not_artifact=(), hand=()):
     if got != split_rows:
         out.append(f"{universe} split rows {got}, want {split_rows}")
     x0 = excess(STORED)
-    live = [k for k in rebuilds if k[0] not in hand]
+    live = [k for k in rebuilds if hand.get(k[0]) in (None, "kept")]
     kept = [k for k in live if key_of(universe, k) not in not_artifact]
     marked = [k for k in live if key_of(universe, k) in not_artifact]
     booked = [k for k in rebuilds if k[0] in hand]
@@ -271,11 +272,11 @@ def case_failures(universe, leg, not_artifact=(), hand=()):
             want_move = excess(moved(universe, [k])) - x0
             if not (near(e["r_booked"], r_b, 1e-5) and near(e["r_rebuilt"], (1 + r_b) * f - 1, 1e-5)
                     and e["n"] == n and e["kind"] == kind and near(e["leg_excess_move"], want_move, 1e-3)
-                    and e.get("key") == key_of(universe, k)):
+                    and e.get("key") == key_of(universe, k) and e.get("hand_kind") == hand.get(k[0])):
                 out.append(f"{universe} {field} {k}: booked {e.get('r_booked')} rebuilt {e.get('r_rebuilt')} n "
-                           f"{e.get('n')} kind {e.get('kind')} move {e.get('leg_excess_move')} key {e.get('key')}; "
-                           f"want {r_b:.6f}, {(1 + r_b) * f - 1:.6f}, {n}, {kind}, {want_move:.4f}, "
-                           f"{key_of(universe, k)}")
+                           f"{e.get('n')} kind {e.get('kind')} move {e.get('leg_excess_move')} key {e.get('key')} "
+                           f"hand kind {e.get('hand_kind')}; want {r_b:.6f}, {(1 + r_b) * f - 1:.6f}, {n}, {kind}, "
+                           f"{want_move:.4f}, {key_of(universe, k)}, {hand.get(k[0])}")
     x1, x_all = excess(moved(universe, kept)), excess(moved(universe, live))
     if not (near(leg["net_move"], x1 - x0, 1e-3) and near(leg.get("net_move_every_candidate"), x_all - x0, 1e-3)
             and near(leg["rebuilt"][1], x1, 0.006) and near(leg["recompounded"][1], x0, 0.006)):
@@ -344,40 +345,61 @@ def not_artifact_failures(mod):
     return out
 
 
-# (symbol, rebalance date, check): H's span books its hand entry; E's is hand_stale (it books adjClose); B holds no
-# span on P2 and D's absorbed split rebuilds nothing
-HAND_EVENTS = [("H", P1[0], "hand"), ("E", P2[0], "hand_stale"), ("B", P2[0], "hand"), ("D", P2[0], "hand")]
+# (symbol, rebalance date, check, kind): H's span books its rebuilt entry, C's its real one and F's its kept one;
+# E's is hand_stale (it books adjClose); B holds no span on P2 and D's absorbed split rebuilds nothing
+HAND_EVENTS = [("H", P1[0], "hand", "rebuilt"), ("C", P2[0], "hand", "real"), ("F", P3[0], "hand", "kept"),
+               ("E", P2[0], "hand_stale", "rebuilt"), ("B", P2[0], "hand", "rebuilt"), ("D", P2[0], "hand", "rebuilt")]
+HAND_KINDS = {"H": "rebuilt", "C": "real", "F": "kept"}   # the hand-booked spans with a rebuild
+C_KEY, F_KEY = f"C:{P2[0]}:{day(P2, 50)}", f"F:{P3[0]}:{day(P3, 40)}"
 
 
 def with_hand(fx, events=HAND_EVENTS):
     """A fixture whose results file carries the hand events, shaped as DataChecks._commit_hand writes them."""
     res, bar_rows, split_rows = fx
-    res["data_checks"]["events"] = [{"rebalance_date": r, "symbol": s, "check": c, "side": None, "kind": "rebuilt",
+    res["data_checks"]["events"] = [{"rebalance_date": r, "symbol": s, "check": c, "side": None, "kind": k,
                                      "booked": 0.0, "return_adj": 1.0, "listed_return_adj": 1.0, "range": None}
-                                    for s, r, c in events]
+                                    for s, r, c, k in events]
     return res, bar_rows, split_rows
 
 
 def hand_failures(mod):
-    """Spans the file books through a hand event: H's is left out of the rebuilds, both nets and the verdict and
-    listed in hand_booked with the rebuild it would make, which report_lines prints; E's hand_stale span, B's event
-    on a span B doesn't hold and D's on a span with no rebuild change nothing. V, the only artifact of its leg,
-    hand-booked, leaves the leg under the bar. A --not-artifact key on H matches no candidate."""
+    """Spans the file books through a hand event, each listed in hand_booked with the rebuild it would make and its
+    entry's kind, which report_lines prints: H's rebuilt entry and C's real one leave the rebuilds, both nets and
+    the verdict, and F's kept one stays in them as any candidate; E's hand_stale span, B's event on a span B
+    doesn't hold and D's on a span with no rebuild change nothing. V, the only artifact of its leg, booked
+    rebuilt or real leaves the leg under the bar, and booked kept leaves it over the bar until a person calls it
+    no change. A --not-artifact key on H or C matches no candidate."""
     res, bar_rows, split_rows = with_hand(fixture())
     leg = mod.check_leg(res, bar_rows, split_rows, RATIO)
-    out = case_failures("TEST", leg, hand={"H"})
-    lines = [x for x in mod.report_lines("TEST", leg) if H_KEY in x]
-    if len(lines) != 1 or "hand-booked" not in lines[0]:
-        out.append(f"report_lines on H's hand-booked span: {lines}")
-    v = mod.check_leg(*with_hand(fixture(V_LEG), [("V", P1[0], "hand")]), [])
-    if not (v["verdict"] == "under the bar" and not v["over_bar"] and not v["rebuilds"] and v["net_move"] == 0
-            and v["net_move_every_candidate"] == 0 and [e["key"] for e in v.get("hand_booked") or []] == [V_KEY]):
-        out.append(f"V hand-booked: verdict {v['verdict']}, over {v['over_bar']}, rebuilds {len(v['rebuilds'])}, net "
-                   f"{v['net_move']} (every candidate {v['net_move_every_candidate']}), hand_booked "
-                   f"{v.get('hand_booked')}")
-    rec, code = run_main(mod, Warehouse(bar_rows, split_rows), [res], ["--not-artifact", H_KEY])
-    if rec is not None or not code:
-        out.append(f"main took a --not-artifact on a hand-booked span ({H_KEY}): exit {code}")
+    out = case_failures("TEST", leg, hand=HAND_KINDS)
+    lines = mod.report_lines("TEST", leg)
+    for key, kind in ((H_KEY, "rebuilt"), (C_KEY, "real"), (F_KEY, "kept")):
+        booked = [x for x in lines if key in x and "hand-booked" in x]
+        note = f"(entry {kind}), {'a candidate' if kind == 'kept' else 'left out'}"
+        if len(booked) != 1 or note not in booked[0] or sum(f"rebuilt {key} " in x for x in lines) != (kind == "kept"):
+            out.append(f"report_lines on a hand-booked span ({kind}): {[x for x in lines if key in x]}")
+    alone = mod.check_leg(*fixture(V_LEG), [])["net_move"]
+    for kind in ("rebuilt", "real"):
+        v = mod.check_leg(*with_hand(fixture(V_LEG), [("V", P1[0], "hand", kind)]), [])
+        if not (v["verdict"] == "under the bar" and not v["over_bar"] and not v["rebuilds"] and v["net_move"] == 0
+                and v["net_move_every_candidate"] == 0
+                and [(e["key"], e.get("hand_kind")) for e in v.get("hand_booked") or []] == [(V_KEY, kind)]):
+            out.append(f"V booked {kind}: verdict {v['verdict']}, over {v['over_bar']}, rebuilds {len(v['rebuilds'])}, "
+                       f"net {v['net_move']} (every candidate {v['net_move_every_candidate']}), hand_booked "
+                       f"{v.get('hand_booked')}")
+    for calls in ((), {V_KEY}):
+        v = mod.check_leg(*with_hand(fixture(V_LEG), [("V", P1[0], "hand", "kept")]), [], calls)
+        listed = [(e["key"], e.get("hand_kind")) for e in v["not_artifact" if calls else "rebuilds"]]
+        if not (v["verdict"] == ("under the bar" if calls else "over the bar") and listed == [(V_KEY, "kept")]
+                and v["net_move"] == (0 if calls else alone) and v["net_move_every_candidate"] == alone != 0
+                and [(e["key"], e.get("hand_kind")) for e in v.get("hand_booked") or []] == [(V_KEY, "kept")]):
+            out.append(f"V booked kept{', called no change' if calls else ''}: verdict {v['verdict']}, rebuilds "
+                       f"{v['rebuilds']}, not_artifact {v['not_artifact']}, net {v['net_move']} (every candidate "
+                       f"{v['net_move_every_candidate']}), hand_booked {v.get('hand_booked')}")
+    for key in (H_KEY, C_KEY):
+        rec, code = run_main(mod, Warehouse(bar_rows, split_rows), [res], ["--not-artifact", key])
+        if rec is not None or not code:
+            out.append(f"main took a --not-artifact on a hand-booked span ({key}): exit {code}")
     return out
 
 
@@ -677,13 +699,19 @@ MUTANTS = {
     "a line over the limit alone taken": [
         ("raise ValueError(f\"{s}'s windows alone need a query over {max_len} characters\")", "pass")],
     "a hand-booked span rebuilt": [("hand, every, booked = hand_booked(res), [], []",
-                                    "hand, every, booked = set(), [], []")],
+                                    "hand, every, booked = {}, [], []")],
     "a hand_stale span left out too": [('if e["check"] == "hand"}', 'if e["check"].startswith("hand")}')],
-    "a hand event matched on its symbol alone": [('{(e["symbol"], e["rebalance_date"][:10]) for e in',
-                                                  '{e["symbol"] for e in'),
-                                                 ('if (i["symbol"], i["rebalance"]) in hand', 'if i["symbol"] in hand')],
+    "a hand event matched on its symbol alone": [('{(e["symbol"], e["rebalance_date"][:10]): e["kind"]',
+                                                  '{e["symbol"]: e["kind"]'),
+                                                 ('hand.get((i["symbol"], i["rebalance"]))', 'hand.get(i["symbol"])')],
+    "a real entry left among the candidates": [('if kind in (None, "kept"):', 'if kind != "rebuilt":')],
+    "a kept entry left out of the candidates": [('if kind in (None, "kept"):', "if kind is None:")],
+    "every hand kind recorded as rebuilt": [('i["hand_kind"] = kind', 'i["hand_kind"] = "rebuilt"')],
     "hand-booked spans not recorded": [('"hand_booked": score(res, held, booked)[0]', '"hand_booked": []')],
     "report_lines leaves out the hand-booked spans": [('for e in leg["hand_booked"]]', "for e in []]")],
+    "report_lines leaves out the entry's kind": [("(entry {e['hand_kind']})", "(entry)")],
+    "report_lines calls a kept entry left out": [("'a candidate' if e['hand_kind'] == 'kept' else 'left out'",
+                                                  "'left out'")],
 }
 
 

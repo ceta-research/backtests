@@ -31,11 +31,12 @@ both listed there, and LEG2A, which copies leg one's AAA: lines of two legs are 
 the NVDR twins. A bars file whose rows carry no ISIN exempts nothing by ISIN and lists SAME1 and SAME2 on leg one.
 main() exits 1 on legs one and two and 0 on leg three, and --fetch builds a bars file that gives the same records
 from one stock_eod query on an in-memory warehouse (test_split_check's, with a profile table whose ISINs come
-padded, in lower case, empty or twice for one line, as the vendor's can). Under a lowered limit the fetch goes in
-groups: every query at or under it, each line in one, the groups' rows the one query's, and main's record the
-same. Every mutant of same_bars_scan.py (each exemption and its scope, the one bar a day, the zero-volume rule,
-the volume match, the cent, the 3, the window's first and last day, the ISIN's reading, the fetch's groups, the
-exit code) must trip a check.
+padded, in lower case, empty or twice for one line, as the vendor's can, and SAME2 with a second, higher ISIN, so
+the fetch keys the lowest as the dedup does). Under a lowered limit the fetch goes in groups: every query at or
+under it, each line in one, the groups' rows the one query's, and main's record the same. Every mutant of
+same_bars_scan.py (each exemption and its scope, the one bar a day, the zero-volume rule, the volume match, the
+cent, the 3, the window's first and last day, the ISIN's reading, the fetch's groups, the exit code) must trip a
+check.
 
 Usage:
     python scripts/test_same_bars_scan.py [repo root]
@@ -76,7 +77,8 @@ COPIES = {"BBB": ("AAA", (0, 1, 2)), "NEAR2": ("NEAR1", (3, 4)), "XYZ-R.BK": ("X
 ISINS = {"SAME1": "ZZ0000000001", "SAME2": "ZZ0000000001", "DIF1": "ZZ0000000002", "DIF2": "ZZ0000000003",
          "EMP1": "", "EMP2": ""}
 PROFILE = [("SAME1", "ZZ0000000001"), ("SAME1", None), ("SAME2", " zz0000000001 "), ("DIF1", "ZZ0000000002"),
-           ("DIF2", "ZZ0000000003"), ("NUL1", None), ("EMP1", ""), ("EMP2", "   "), ("AAA", None)]   # no NUL2 row
+           ("DIF2", "ZZ0000000003"), ("NUL1", None), ("EMP1", ""), ("EMP2", "   "), ("AAA", None),   # no NUL2 row
+           ("SAME2", "ZZ0000000009")]   # a second ISIN above the shared one: the dedup keys a line's lowest
 CLOSE_ONLY = {"VOL2"}   # copies its source's close on its own volume
 CENT_APART = {"DIME1": 12.31, "DIME2": 12.32}   # their closes in DIME2's copied windows, on one volume
 LATE_BARS = {"GAP1", "GAP2"}   # every bar after a rebalance date is 12 days or more after it
@@ -322,6 +324,8 @@ MUTANTS = {
     "lines with no ISIN pair": [("isin.get(a) and isin.get(a) == isin.get(b)", "isin.get(a) == isin.get(b)")],
     "two ISINs exempt a pair": [("isin.get(a) and isin.get(a) == isin.get(b)", "isin.get(a) and isin.get(b)")],
     "the ISIN read raw": [("MIN(NULLIF(UPPER(TRIM(isin)), ''))", "MIN(isin)")],
+    "a line's highest ISIN read, not its lowest as the dedup": [("MIN(NULLIF(UPPER(TRIM(isin)), ''))",
+                                                                 "MAX(NULLIF(UPPER(TRIM(isin)), ''))")],
     "the last fetch group dropped": [("build, max_len or MAX_SQL)]", "build, max_len or MAX_SQL)[:-1]]")],
     "the fetch's limit not passed": [("max_len or MAX_SQL)", "MAX_SQL)")],
     "main sends the first fetch query only": [("for sql in fetch_sql([res for _, res in legs]):",

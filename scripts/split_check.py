@@ -27,10 +27,13 @@ with --not-artifact and the key its rebuild prints (SYMBOL:REBALANCE:DATE, the s
 bar): it then leaves the rebuilds, the net and the verdict, and the leg's not_artifact lists it. The record keeps
 the every-candidate net beside the confirmed one. A key that matches no candidate is refused. A leg over the bar
 lists why in over_bar; the script exits 0 either way.
-A span the file books through a hand event (data_checks.events: dc-3's hand list booked a reviewed return there)
-isn't rebuilt, which would correct it twice: its rebuilds stay out of the rebuilds, both nets and the verdict, and
-the leg's hand_booked lists each with its key and the rebuild it would make. A hand_stale span booked adjClose and
-is checked as any other; a --not-artifact key on a hand-booked span matches no candidate.
+A span the file books through a hand event (data_checks.events: dc-3's hand list reviewed it) has its rebuilds
+listed in the leg's hand_booked, each with its key, its returns (r_booked stays the bars' adjClose return) and its
+entry's kind, hand_kind. A rebuilt entry booked a corrected return (a range books its midpoint), so a rebuild
+would correct it twice, and a real entry is a person's no-change call: either keeps the span's rebuilds out of the
+rebuilds, both nets and the verdict, and a --not-artifact key on them matches no candidate. A kept entry booked
+adjClose (reviewed, couldn't be rebuilt), so its span's rebuilds stay candidates as any other, with hand_kind in
+the rebuilds too. A hand_stale span booked adjClose and is checked as any other.
 Limits: a split under 1.8x with no splits_calendar row doesn't show, and every candidate needs a person's
 verdict (a real one-day move can pass the round-ratio test).
 
@@ -291,9 +294,9 @@ def _rounded(x, nd=6):
 
 
 def hand_booked(res):
-    """The spans (symbol, rebalance date) res books through a hand event."""
-    return {(e["symbol"], e["rebalance_date"][:10]) for e in (res.get("data_checks") or {}).get("events", [])
-            if e["check"] == "hand"}
+    """{(symbol, rebalance date): its entry's kind} for each span res books through a hand event."""
+    return {(e["symbol"], e["rebalance_date"][:10]): e["kind"]
+            for e in (res.get("data_checks") or {}).get("events", []) if e["check"] == "hand"}
 
 
 def check_leg(res, bars, splits, ratio, not_artifact=()):
@@ -316,7 +319,12 @@ def check_leg(res, bars, splits, ratio, not_artifact=()):
     classify(cands)
     hand, every, booked = hand_booked(res), [], []
     for i, f in fixes(cands, tests):
-        (booked if (i["symbol"], i["rebalance"]) in hand else every).append((i, f))
+        kind = hand.get((i["symbol"], i["rebalance"]))
+        if kind is not None:
+            i["hand_kind"] = kind
+            booked.append((i, f))
+        if kind in (None, "kept"):
+            every.append((i, f))
     effects, x0, x_every = score(res, held, every)
     x1 = score(res, held, [(i, f) for i, f in every if i["key"] not in not_artifact])[2]
     kept = [e for e in effects if e["key"] not in not_artifact]
@@ -359,9 +367,9 @@ def report_lines(key, leg):
             f"in a book of {e['n']}, leg excess {e['leg_excess_move']:+.3f}pp" for e in leg["rebuilds"]]
     out += [f"  no change, a person's call: {e['key']} ({e['kind']}), leg excess {e['leg_excess_move']:+.3f}pp"
             for e in leg["not_artifact"]]
-    out += [f"  hand-booked, not rebuilt: {e['key']} ({e['kind']}) would be {e['r_booked']:+.4f} -> "
-            f"{e['r_rebuilt']:+.4f} in a book of {e['n']}, leg excess {e['leg_excess_move']:+.3f}pp"
-            for e in leg["hand_booked"]]
+    out += [f"  hand-booked (entry {e['hand_kind']}), {'a candidate' if e['hand_kind'] == 'kept' else 'left out'}: "
+            f"{e['key']} ({e['kind']}) {e['r_booked']:+.4f} -> {e['r_rebuilt']:+.4f} in a book of {e['n']}, "
+            f"leg excess {e['leg_excess_move']:+.3f}pp" for e in leg["hand_booked"]]
     return out + [f"  OVER THE BAR: {o}" for o in leg["over_bar"]]
 
 
