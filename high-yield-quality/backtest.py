@@ -3,11 +3,11 @@
 High Yield + Quality Backtest
 
 Dividend yield screen with quality filters (ROE, FCF, payout, debt).
-Annual rebalancing (July), top 30 by yield, equal weight.
+Annual rebalancing (January), top 30 by yield, equal weight.
 
 Signal: DivYield 4-15%, ROE > 8%, FCF > 0, D/E < 2.0, Payout < 80%
 Portfolio: Top 30 by dividend yield DESC, equal weight. Cash if < 10 qualify.
-Rebalancing: Annual (July), 2000-2025.
+Rebalancing: Annual (January), 2000-2025.
 
 Usage:
     python3 high-yield-quality/backtest.py
@@ -44,7 +44,7 @@ PAYOUT_MAX = 0.80           # Payout ratio < 80%
 MAX_STOCKS = 30
 MIN_STOCKS = 10
 DEFAULT_FREQUENCY = "annual"
-DEFAULT_MONTHS = [7]        # July
+DEFAULT_MONTHS = [7]        # not applied: the default annual run rebalances in January
 
 # --- Data quality guards ---
 MIN_ENTRY_PRICE = 1.0    # skip stocks with entry price < $1 (bad adjClose, penny stocks)
@@ -363,7 +363,7 @@ def main():
     freq_map = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}
     periods_per_year = freq_map[frequency]
 
-    # Use custom months for semi-annual (April/October)
+    # None on every run: the default frequency is annual, so annual runs rebalance in January
     months = DEFAULT_MONTHS if frequency == "semi-annual" and not args.frequency else None
 
     signal_desc = (f"DivYield {DIVIDEND_YIELD_MIN*100:.0f}-{DIVIDEND_YIELD_MAX*100:.0f}%, "

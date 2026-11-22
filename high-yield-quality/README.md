@@ -12,7 +12,7 @@ Dividend yield screen with Piotroski-inspired quality filters. Combines high yie
 
 **Selection:** Top 30 by dividend yield (descending), equal weight.
 
-**Rebalancing:** Semi-annual (April and October).
+**Rebalancing:** Annual, each January.
 
 **Min stocks:** 10 (holds cash if fewer qualify).
 
