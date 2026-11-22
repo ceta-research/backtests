@@ -2776,12 +2776,14 @@ class DataChecks:
         block["large_moves"] = sorted(moves, key=lambda m: (m["rebalance_date"], m["symbol"]))
 
     def holdings_full(self, con, clean, entry_prices, exit_prices, filled, entry_date, exit_date, offset_days,
-                      ltp=None, exit_offset_days=None):
+                      ltp=None, exit_offset_days=None, cost_rates=None):
         """{} unless full_holdings, else {"holdings_full": [...]}: one item per booked name of `clean`
         (filter_returns' (symbol, return, mcap), in its order) with the entry bar and price, the exit
         bar and price ("window": the exit window's bar; "last_traded": an LTP fill, with its last bar)
         and the booked return before costs. `exit_prices` is the map the book read, `filled` the
-        names whose exit came from an LTP fill (ltp holds the fills). exit_offset_days as in prices()."""
+        names whose exit came from an LTP fill (ltp holds the fills). exit_offset_days as in prices().
+        cost_rates: {symbol: the one-way cost rate the book charged it, None on a no-costs run}, written as each
+        item's cost_rate; None (the default) writes no cost_rate."""
         if not self.full_holdings:
             return {}
         syms = [s for s, _, _ in clean]
@@ -2803,6 +2805,8 @@ class DataChecks:
                 raise AssertionError(f"holdings_full: entry bar of {s} on {entry_date} reads {e}, book {ep}")
             out.append({"symbol": s, "entry_bar": e["date"], "entry_price": ep, "exit_bar": bar, "exit_price": xp,
                         "exit": src, "return": round(ret, 6)})
+            if cost_rates is not None:
+                out[-1]["cost_rate"] = cost_rates.get(s)
             adj = self._hand_booked.get((entry_date.isoformat(), s))
             if adj is not None:   # a dc-3 rebuilt holding: the booked return, its adjClose return beside it
                 out[-1]["return_adj"] = adj

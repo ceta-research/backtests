@@ -20,6 +20,12 @@ ineligible row is out, each with its event, and the tie-break follows cap_used, 
 mutant of the topic's source must trip a check; the traded-bar rule's must trip it on a wrong
 book, not an error.
 
+Universe rules ur-4, each leg through the topic's fetch: an SAO company holds one slot with data checks off (its
+preferred line stands in for an ordinary line with no entry bar); a JPX line whose profile industry starts with
+REIT is out on JPX and kept on another leg; a fund the fetch caches is never ranked (the universe semi-join); COG
+and CLR rank on their last own day and not the day after; GETY, a lookback_clip start, ranks on its own bars
+only, and DOC, a rename, on the 252 bars ending at its signal bar.
+
 Check T on the ranking cache, with data checks on: on a closed rebalance date a line's traded copy moves, so the
 line ranks on its last traded bar before it, while a copy 40 days back, outside every fetch window, stays in the
 lookback.
@@ -27,11 +33,16 @@ lookback.
 The run on test_data_checks' synthetic SET leg (wh52_source): run_single on --end-year 2025 books today's 103
 quarterly periods; each invested row's holdings string names every booked name, and --full-holdings adds
 holdings_full, every booked name in that order, changing nothing else; check N keys an NVDR line to its ordinary
-line, which holds the slot, and the NVDR stands in for an ordinary line with no entry bar. The quarterly run window, with
-test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial 2026-10-01 period, its
-window exits and the benchmark's priced on the end date's close, a name with no bar after 2026-10-30 filled at
-its last bar, CAGR over span_years and the run window's keys written; main() takes --end-date, and --end-year 2025
-books the 103 periods. Their mutants must trip these checks.
+line, which holds the slot, and the NVDR stands in for an ordinary line with no entry bar; the SAO company's
+preferred line stands in for its ordinary line in every invested book. The results file carries data_checks,
+universe_rules and cost_model after isin_dedup (the tiers at 35 baht a dollar, null on --no-costs), entry_unpriced
+and the data checks' counts on each row, and in each holdings_full item the one-way rate the name paid
+(cost_rate), which with the item's return gives the row's return. Costs, with run_backtest's screen and prices
+stubbed: a JPX and an LSE cap pay the tier at their leg's FX rate, and a name with no cap the top one. The quarterly
+run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial
+2026-10-01 period, its window exits and the benchmark's priced on the end date's close, a name with no bar after
+2026-10-30 filled at its last bar, CAGR over span_years and the run window's keys written; main() takes
+--end-date, and --end-year 2025 books the 103 periods. Their mutants must trip these checks.
 
 Usage:
     python scripts/test_52wh_selection.py [repo root]
@@ -54,6 +65,7 @@ with open(PATH) as fh:
     SRC = fh.read()
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 import data_utils as du   # noqa: E402
+from costs import get_fx_per_usd   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
 import test_latest_window_topics as tlw   # noqa: E402  (its 2026 bars, pinned window and partial period)
 
@@ -421,18 +433,70 @@ def strip_full(res):
     return {**res, "period_data": [{k: v for k, v in r.items() if k != "holdings_full"} for r in res["period_data"]]}
 
 
+COST_MODEL = {"function": "costs.tiered_cost", "fx_per_usd": 35.0}   # the SET leg: 35 baht a dollar
+SET_RATE = 0.005   # the synthetic caps, about 5e10 baht, are about 1.4B dollars: the 0.5% tier (0.1% unconverted)
+ROW_KEYS = ("entry_unpriced", "entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost", "twins_collapsed",
+            "cap_excluded", "factor_flags")
+
+
+def cost_failures(res, rate):
+    """Each holdings_full item's cost_rate is `rate` (the one-way rate it paid; None on a no-costs run), and each
+    invested row's return is the mean of its items' returns less the round trip."""
+    for r in res["period_data"]:
+        hf = r.get("holdings_full") or []
+        if any(h.get("cost_rate", "missing") != rate for h in hf):
+            return [f"{r['rebalance_date']}: cost_rate {sorted({str(h.get('cost_rate', 'missing')) for h in hf})}, "
+                    f"want {rate}"]
+        net = [h["return"] - 2 * (rate or 0.0) for h in hf]
+        if hf and abs(sum(net) / len(net) - r["portfolio_return"]) > 2e-6:
+            return [f"{r['rebalance_date']}: portfolio_return {r['portfolio_return']}, items less costs "
+                    f"{sum(net) / len(net):.6f}"]
+    return []
+
+
 def results_failures(src):
     """run_single on the synthetic SET leg, --end-year 2025: 103 quarterly periods from 2000-01-01; each invested
     row's holdings names every booked name (books of more than 10, so a cut shows); --full-holdings adds
-    holdings_full, every booked name in the holdings' order, and changes nothing else."""
+    holdings_full, every booked name in the holdings' order, and changes nothing else. The results file: after
+    isin_dedup come data_checks, universe_rules and cost_model (then the LTP keys), cost_model the tiers at 35
+    baht a dollar, the rate run_single passes to run_backtest, and null on a no-costs run; each row carries
+    entry_unpriced (UNP.BK, which ranks with no entry bar, on every priced row; null when the screen held cash) and
+    the data checks' counts; each holdings_full item records the one-way rate it paid (cost_rate: 0.5% here,
+    0.1% at one baht a dollar; null on a no-costs run), and each row's return is its items' less the round
+    trip."""
     try:
         mod = load(src)
+        fx = []
+        run_bt = mod.run_backtest
+        mod.run_backtest = lambda *a, **k: fx.append(k.get("fx")) or run_bt(*a, **k)
         with tempfile.TemporaryDirectory() as tmp:
             plain = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod)[0]
             full = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod, full_holdings=True)[0]
+            free = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod, full_holdings=True, use_costs=False,
+                                 tag=".free")[0]
+            drop = tdc.run_topic(TOPIC, set_leg(), "drop", "on", tmp, mod=mod)[0]
     except Exception as e:  # reported as an error: main() does not count it as a caught mutant
         return [f"error: {type(e).__name__}: {e}"]
     out = []
+    if fx != [35.0] * 4:
+        out.append(f"run_single passes fx {fx} to run_backtest, want 35.0 on every run")
+    for name, res in (("ltp", plain), ("no costs", free), ("drop", drop)):
+        keys = list(res)
+        tail = keys[keys.index("isin_dedup") + 1:] if "isin_dedup" in keys else keys
+        want = ["data_checks", "universe_rules", "cost_model"] + (["exit_method", "ltp"] if name != "drop" else [])
+        if tail != want:
+            out.append(f"{name}: keys after isin_dedup {tail}, want {want}")
+        if res.get("cost_model", "missing") != (None if name == "no costs" else COST_MODEL):
+            out.append(f"{name}: cost_model {res.get('cost_model', 'missing')}")
+    out += cost_failures(full, SET_RATE) + [f"no costs: {f}" for f in cost_failures(free, None)]
+    for r in plain["period_data"]:
+        priced = r["entry_buyable"] is not None
+        if [k for k in ROW_KEYS if k not in r] or (r["entry_unpriced"] is not None) != priced or \
+                (priced and (tdc.WH52_UNPRICED not in r["entry_unpriced"]
+                             or len(r["entry_unpriced"]) != r["screened"] - r["entry_buyable"])):
+            out.append(f"{r['rebalance_date']}: row keys {[k for k in ROW_KEYS if k not in r]}, entry_unpriced "
+                       f"{r.get('entry_unpriced', 'missing')}")
+            break
     rows = plain["period_data"]
     if [r["rebalance_date"] for r in rows] != [d.isoformat() for d in GRID[:-1]] or rows[-1]["exit_date"] != "2025-10-01":
         out.append(f"grid {rows[0]['rebalance_date']} to {rows[-1]['exit_date']}, {len(rows)} periods, want 103")
@@ -473,7 +537,63 @@ RESULT_MUTANTS = {
     "no twin key on the dedup": (TWIN_KEY, "twin_key=False)"),
     "class twins not marked": ("    ur.mark_twins(con)", "    None"),
     "stand-ins not recorded": ("ur.stand_ins([s for s, _, _ in picked], target_date)", "None"),
+    "costs ignore the leg's FX rate": ("tiered_cost(mc, fx_per_usd=fx)", "tiered_cost(mc)"),
+    "costs at one unit a dollar": ("fx = get_fx_per_usd(exchanges)", "fx = 1.0"),
+    "run_single doesn't pass the FX rate": ("win=win, fx=fx,", "win=win,"),
+    "a name with no cap charged nothing": ("if use_costs else None for s, _, mc in clean",
+                                           "if use_costs and mc else None for s, _, mc in clean"),
+    "cost_model not written": ('"cost_model": {"function": "costs.tiered_cost", "fx_per_usd": fx} if use_costs else None',
+                               '"cost_model": None'),
+    "cost_model written on a no-costs run": ('"fx_per_usd": fx} if use_costs else None', '"fx_per_usd": fx}'),
+    "cost_rate not written": ("cost_rates=rates)", "cost_rates=None)"),
+    "data_checks after the other blocks": (
+        '    output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both\n',
+        ""),
+    "no unpriced names": ("unpriced = sorted(s for s in symbols if not entry_usable(entry_prices.get(s), MIN_ENTRY_PRICE))",
+                          "unpriced = []"),
 }
+
+
+# run_backtest on one leg, the screen and prices stubbed: ten holdings at one market cap (cap_used) in the leg's
+# currency, each up 10% before costs. The cost tiers are in USD (over 10B 0.1%, over 2B 0.3%, else 0.5%), converted
+# at the leg's rate (costs.get_fx_per_usd); a name with no cap pays the top rate.
+COST_ENTRY, COST_EXIT, COST_RAW = date(2020, 4, 1), date(2020, 7, 1), 0.10
+COST_CASES = [   # (leg, market cap in its currency, one-way rate): JPX at 150 yen, LSE at 0.79 pounds a dollar
+    ("JPX", 1e12, 0.003),    # 1 trillion yen is about 6.7B dollars: the 0.3% tier, where 1e12 > 10B would read 0.1%
+    ("LSE", 8e9, 0.001),     # 8B pounds is about 10.1B dollars: the 0.1% tier, where 8e9 < 10B would read 0.3%
+    ("NYSE", None, 0.005),   # no cap: the 0.5% tier, where the topic charged nothing before
+]
+
+
+class FakeCon:
+    """A connection run_backtest must not read: the screen, prices and benchmark are stubbed."""
+
+    def __getattr__(self, name):
+        raise AssertionError(f"run_backtest read the connection ({name})")
+
+
+def cost_unit_failures(src):
+    """A holding's cost tier reads its cap_used against the USD tiers converted at the leg's FX rate."""
+    out = []
+    names = [f"C{i:02d}" for i in range(10)]
+    for exchange, cap, rate in COST_CASES:
+        try:
+            mod = load(src)
+            mod.screen_stocks = lambda *a, cap=cap, **k: [(s, cap, 1.0) for s in names]
+            mod.get_prices = lambda con, symbols, d, **k: {s: 10.0 * (1 + COST_RAW * (d == COST_EXIT)) for s in symbols}
+            mod.get_benchmark_return = lambda *a, **k: 0.05
+            got = mod.run_backtest(FakeCon(), [COST_ENTRY, COST_EXIT], 0.0, use_costs=True,
+                                   fx=get_fx_per_usd([exchange]))
+        except Exception as e:
+            return out + [f"error: {type(e).__name__}: {e}"]
+        want = round(COST_RAW - 2 * rate, 6)
+        if got[0]["portfolio_return"] != want:
+            out.append(f"costs: {exchange} at {cap} books {got[0]['portfolio_return']}, want {want} (the {rate:.1%} tier)")
+    return out
+
+
+def run_failures(src):
+    return cost_unit_failures(src) + results_failures(src)
 
 
 # ur-4 on the screen (UNIVERSE_RULES), each leg through the topic's fetch: an SAO company holds one slot with data
@@ -707,13 +827,13 @@ def mutant_results(mutants, check, must_book=()):
 
 
 def main():
-    base = failures(SRC) + rules_failures(SRC) + results_failures(SRC) + partial_failures(SRC) + t_failures(SRC)
+    base = failures(SRC) + rules_failures(SRC) + run_failures(SRC) + partial_failures(SRC) + t_failures(SRC)
     if base:
         print("test_52wh_selection: FAIL", base)
         sys.exit(1)
     survived, errored = mutant_results(MUTANTS, failures, TRADED_MUTANTS)
     s1, e1 = mutant_results(RULE_MUTANTS, rules_failures, RULE_MUTANTS)
-    s2, e2 = mutant_results(RESULT_MUTANTS, results_failures, RESULT_MUTANTS)
+    s2, e2 = mutant_results(RESULT_MUTANTS, run_failures, RESULT_MUTANTS)
     s3, _ = mutant_results(WINDOW_MUTANTS, partial_failures)
     s4, e4 = mutant_results(T_MUTANTS, t_failures, T_MUTANTS)
     survived, errored = survived + s1 + s2 + s3 + s4, errored + e1 + e2 + e4

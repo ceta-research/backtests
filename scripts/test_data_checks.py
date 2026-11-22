@@ -11,7 +11,7 @@ them, and each near miss fails, each basis on another symbol among them); factor
 0.1pp or more with their recorded effects and nothing left against the list; gate 15 refuses a dc-3 file with an
 unreviewed flag, a stale entry, an unbooked entry or a CAGR that doesn't reproduce; a found_in and the review read
 a diagnostics file (results/diagnostics/<name>.json); each of the six topics books a listed holding end to end in
-drop, ltp and both; and source mutants of data_utils, factor_review and two topics each fail. 52-week-high's
+drop, ltp and both; and source mutants of data_utils, factor_review and three topics each fail. 52-week-high's
 committed files predate its data checks and carry no block (NO_BLOCK_FILES).
 
 Each opted-in topic runs end to end on its synthetic leg with its own data checks version (DC_VERSIONS:
@@ -2445,6 +2445,10 @@ def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=N
         return json.load(fh), client.sqls
 
 
+ITEM_KEYS = {"symbol", "entry_bar", "entry_price", "exit_bar", "exit_price", "exit", "return"}
+COST_RATE_TOPICS = {"52-week-high"}   # each item also records the one-way rate it paid (cost_rate)
+
+
 def holdings_full_failures(topic, src, tmp):
     """--full-holdings: each invested period row lists every booked name (holdings_full) with its entry and
     exit bars, prices, exit source and return; nothing else in the file changes, cash rows carry no list,
@@ -2486,7 +2490,7 @@ def holdings_full_failures(topic, src, tmp):
         n_named += len(names) - len(shown)
         for h in hf:
             # dc-3: a rebuilt holding books its hand return, its adjClose return beside it as return_adj
-            if set(h) - {"return_adj"} != {"symbol", "entry_bar", "entry_price", "exit_bar", "exit_price", "exit", "return"} or \
+            if set(h) - {"return_adj"} != ITEM_KEYS | ({"cost_rate"} if topic in COST_RATE_TOPICS else set()) or \
                     abs(h.get("return_adj", h["return"]) - round(h["exit_price"] / h["entry_price"] - 1, 6)) > 1e-9 or \
                     not h["entry_bar"] < h["exit_bar"] or h["exit"] not in ("window", "last_traded"):
                 f.append(f"{topic} {r['rebalance_date']}: bad item {h}")
@@ -3534,6 +3538,15 @@ HAND_TOPIC_MUTANTS = {
     "the both-branch's hand list skipped": (
         "cyclical-timing",
         "            c_ltp = dc.hand(c_ltp, entry_date, exit_date, filled=ltp_fill, record=False)\n", ""),
+    "52-week-high's hand list applied after costs": (
+        "52-week-high",
+        "            clean = dc.hand(clean, entry_date, exit_date, filled=ltp_fill, record=record)   # dc-3's hand list\n"
+        "            rates = {s: tiered_cost(mc, fx_per_usd=fx) if use_costs else None for s, _, mc in clean}\n"
+        "            return clean, [rr if rates[s] is None else apply_costs(rr, rates[s]) for s, rr, _ in clean], rates",
+        "            rates = {s: tiered_cost(mc, fx_per_usd=fx) if use_costs else None for s, _, mc in clean}\n"
+        "            clean = dc.hand([(s, rr if rates[s] is None else apply_costs(rr, rates[s]), mc) for s, rr, mc in clean],"
+        " entry_date, exit_date, filled=ltp_fill, record=record)\n"
+        "            return clean, [rr for _, rr, _ in clean], rates"),
 }
 
 

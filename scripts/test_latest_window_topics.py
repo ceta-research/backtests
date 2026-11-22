@@ -50,7 +50,10 @@ from gate_ltp import check_stage_a, first_diff   # noqa: E402
 
 TOPICS = ("defensive-quality", "cyclical-timing", "deleveraging", "asset-growth", "fcf-conversion", "52-week-high")
 FREQ = tdc.FREQ   # the quarterly topics: deleveraging and 52-week-high
-UNPRICED_TOPICS = ("defensive-quality", "asset-growth", "fcf-conversion")   # cash rows: entry_unpriced None, or the list
+UNPRICED_TOPICS = ("defensive-quality", "asset-growth", "fcf-conversion", "52-week-high")   # cash rows: None, or the list
+# the partial period's unpriced names: DLST.BK (delisted in 2018, no entry price), and on 52-week-high, which ranks on
+# prices and never screens DLST.BK then, its leg's line with no entry bar
+UNPRICED = {"52-week-high": [tdc.WH52_UNPRICED]}
 END, TODAY = date(2026, 11, 6), date(2026, 11, 9)
 HALT, ZEROV = "A03.BK", "A04.BK"   # stops trading after 2026-10-30 (back on 11-09); no volume on END
 LEGS = {"SET": (["SET"], "^SET.BK")}
@@ -313,7 +316,7 @@ def cash_failures(topic, mod_of, src, tmp, tag=""):
             f.append(f"{topic} {name}: partial row {last.get('partial')} {last.get('fraction')} {last['stocks_held']}")
         if name == "cash.buyable" and (last.get("exits_lost") or 0) < 1:
             f.append(f"{topic} {name}: exits_lost {last.get('exits_lost')}: T's end-date window not read")
-        want = None if name == "cash.screen" else ["DLST.BK"]   # delisted in 2018: no entry price
+        want = None if name == "cash.screen" else UNPRICED.get(topic, ["DLST.BK"])
         if topic in UNPRICED_TOPICS and last.get("entry_unpriced", "missing") != want:
             f.append(f"{topic} {name}: entry_unpriced {last.get('entry_unpriced', 'missing')!r}, want {want!r}")
     return f
