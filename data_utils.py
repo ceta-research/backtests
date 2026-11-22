@@ -3517,10 +3517,10 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
     ("AZN", "2026-02-02", "AstraZeneca: the US line traded American depositary shares (two to an ordinary share from "
                           "2015-07-27) and the ordinary shares on the NYSE from 2026-02-02 (its release of 2026-02-02, "
                           "\"AstraZeneca begins trading on the New York Stock Exchange\", filed on a 6-K that day); "
-                          "the bars sit near the receipts' price in 2025 (84.53 on 2025-10-10) and near the share's "
-                          "before the switch (187.10 on 1,738 shares on 2026-01-30), and the volume marks the day "
-                          "(3.23m shares at 188.41); the profile carries the UK ordinary share's ISIN (GB0009895292) "
-                          "and doesn't flag isAdr"),
+                          "the bars sit near the receipts' price through 2025-10-10 (84.53 that day) and near the "
+                          "share's before the switch (187.10 on 1,738 shares on 2026-01-30), and the volume marks "
+                          "the day (3.23m shares at 188.41); the profile carries the UK ordinary share's ISIN "
+                          "(GB0009895292) and doesn't flag isAdr"),
     # de-SPAC lines: the first day the combined company traded under its new ticker, from its filings
     ("CTOS", "2019-08-01", "Custom Truck One Source, then Nesco Holdings (the filer's CIK, 0001709682, is CTOS's in "
                            "the profile): Capitol Investment Corp. IV (NYSE: CIC), a blank-check shell, closed its "
