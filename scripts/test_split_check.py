@@ -440,10 +440,10 @@ def twice_held(universe):
 
 def chunk_failures(mod):
     """A limit under one query's length splits each leg's lines into groups (one line, TW, held in two periods):
-    at every limit from the longest line's own query up, every query at or under it, each line in one group, and
-    the groups' rows the one query's rows; a limit equal to the one query's length keeps one group; at the lowest
-    limit, check_leg's record the same and main's record the same with its MAX_SQL lowered; and a line whose
-    windows alone pass the limit refused."""
+    at every limit from the longest line's own query up, every query at or under it and each line in one group,
+    and at 8 or 9 of those limits the groups' rows the one query's rows; a limit equal to the one query's length
+    keeps one group; at the lowest limit, check_leg's record the same and main's record the same with its MAX_SQL
+    lowered; and a line whose windows alone pass the limit refused."""
     out, keep = [], mod.MAX_SQL
     canon = lambda rows: sorted(json.dumps(r, sort_keys=True, default=str) for r in rows)
     for u in CASES:
@@ -458,15 +458,18 @@ def chunk_failures(mod):
         top = max(map(len, one[0]))
         if len(mod.queries(res, top)) != 1:
             out.append(f"{u}: a limit equal to the one query's length splits it")
-        whole = rows_of(wh, one)
-        for limit in range(lone, top, max(1, (top - lone) // 8)):
+        whole, sampled = rows_of(wh, one), set(range(lone, top, max(1, (top - lone) // 8)))
+        for limit in range(lone, top):
             groups = mod.queries(res, limit)
             if any(len(q) > limit for g in groups for q in g):
                 out.append(f"{u}: a query over the {limit}-character limit")
+                break
             if any(sum(f"'{s}'" in g[0] for g in groups) != 1 for s in lines):
                 out.append(f"{u}: a line read in two groups, or none, under a {limit}-character limit")
-            if any(canon(a) != canon(b) for a, b in zip(whole, rows_of(wh, groups))):
+                break
+            if limit in sampled and any(canon(a) != canon(b) for a, b in zip(whole, rows_of(wh, groups))):
                 out.append(f"{u}: the groups' rows aren't the one query's rows under a {limit}-character limit")
+                break
         limit = lone
         groups = mod.queries(res, limit)
         if len(groups) < 3:
