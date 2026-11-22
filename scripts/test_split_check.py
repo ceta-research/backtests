@@ -46,7 +46,9 @@ the net and lists it in the leg's not_artifact, beside the every-candidate net; 
 the verdict turns under the bar. main() runs the three queries per file on an in-memory warehouse for both legs
 with that call and writes the same records, its bars query reading no partial holding's bar past the exit date; a
 key that matches no candidate is refused, and so is a symbol holding a quote or a semicolon, before any SQL is
-built. The warehouse loads each table with one INSERT. Every mutant of split_check.py (the reversal window, the
+built. A query limit under one query's length puts each leg's lines in groups: every query at or under it, the
+groups' rows, check_leg's record and main's record those of the one query, and a line whose windows alone pass
+the limit refused. The warehouse loads each table with one INSERT. Every mutant of split_check.py (the reversal window, the
 split-row window, the absorption test, the rebuild's sign, each threshold above and more) must trip a check.
 
 Usage:
@@ -414,6 +416,61 @@ def run_main(mod, wh, legs, flags=()):
             return json.load(fh), None
 
 
+def rows_of(wh, groups):
+    """Every group's three queries run through wh, the rows added up by query: (ratio, bars, splits)."""
+    out = ([], [], [])
+    for group in groups:
+        for got, sql in zip(out, group):
+            got += wh.query(sql)
+    return out
+
+
+def chunk_failures(mod):
+    """A limit under one query's length splits each leg's lines into groups: every query at or under the limit,
+    the groups' rows the one query's rows with none read twice, check_leg's record the same, main's record the
+    same with its MAX_SQL lowered, and a line whose windows alone pass the limit refused."""
+    out, keep = [], mod.MAX_SQL
+    for u in CASES:
+        res, bar_rows, split_rows = case_fixture(u)
+        wh = Warehouse(bar_rows, split_rows)
+        one = mod.queries(res)
+        if len(one) != 1:
+            out.append(f"{u}: {len(one)} groups under the default limit, want 1")
+        sp = mod.spans(res)
+        lone = max(max(map(len, mod._queries([x for x in sp if x[0] == s]))) for s in {x[0] for x in sp})
+        limit = lone
+        groups = mod.queries(res, limit)
+        if len(groups) < 3:
+            out.append(f"{u}: {len(groups)} groups under a {limit}-character limit, want 3 or more")
+        if any(len(q) > limit for g in groups for q in g):
+            out.append(f"{u}: a query over the {limit}-character limit")
+        whole, parts = rows_of(wh, one), rows_of(wh, groups)
+        canon = lambda rows: sorted(json.dumps(r, sort_keys=True, default=str) for r in rows)
+        if any(canon(a) != canon(b) for a, b in zip(whole, parts)):
+            out.append(f"{u}: the groups' rows aren't the one query's rows")
+        rec = lambda q: json.loads(json.dumps(mod.check_leg(res, q[1], q[2], q[0], []), default=str))
+        if rec(whole) != rec(parts):
+            out.append(f"{u}: check_leg differs on the groups' rows")
+        try:
+            mod.queries(res, lone - 1)
+            out.append(f"{u}: a line whose windows alone pass the limit reached a query")
+        except ValueError:
+            pass
+        try:
+            base, _ = run_main(mod, Warehouse(bar_rows, split_rows), [res])
+            mod.MAX_SQL = limit
+            small_wh = Warehouse(bar_rows, split_rows)
+            small, _ = run_main(mod, small_wh, [res])
+        finally:
+            mod.MAX_SQL = keep
+        legs_of = lambda r: {k: {f: v for f, v in leg.items() if f != "file"} for k, leg in r["legs"].items()}
+        if base is None or small is None or legs_of(small) != legs_of(base):
+            out.append(f"{u}: main's record changes when its queries go in groups")
+        if len(small_wh.sqls) != 3 * len(groups):
+            out.append(f"{u}: main sent {len(small_wh.sqls)} queries in groups, want {3 * len(groups)}")
+    return out
+
+
 def main_failures(mod):
     """main() on both legs' files through the warehouse with a person's call on H: three queries a file, and the
     records check_leg gives on their rows with that call. A key matching no candidate is refused."""
@@ -426,7 +483,7 @@ def main_failures(mod):
         return [f"main on both legs with a person's call: exited {code}"]
     out = [] if len(wh.sqls) == 6 else [f"main sent {len(wh.sqls)} queries, want 6"]
     for u, (res, _, _) in legs.items():
-        ratio, got_bars, got_splits = (wh.query(q) for q in mod.queries(res))
+        ratio, got_bars, got_splits = rows_of(wh, mod.queries(res))
         want = json.loads(json.dumps(mod.check_leg(res, got_bars, got_splits, ratio, [H_KEY]), default=str))
         leg = (report.get("legs") or {}).get(u)
         if leg is None or leg.get("file") is None or {k: v for k, v in leg.items() if k != "file"} != want:
@@ -459,7 +516,7 @@ def failures(src):
         mod.__file__ = PATH
         exec(compile(src, PATH, "exec"), mod.__dict__)
         out = []
-        for check in (leg_failures, edge_failures, not_artifact_failures, bar_failures, main_failures):
+        for check in (leg_failures, edge_failures, not_artifact_failures, bar_failures, main_failures, chunk_failures):
             try:
                 out += check(mod)
             except Exception as e:   # reported as an error: main() does not count it as a caught mutant
@@ -539,6 +596,12 @@ MUTANTS = {
     "main ignores --not-artifact": [("check_leg(res, bars, splits, ratio, args.not_artifact)",
                                      "check_leg(res, bars, splits, ratio)")],
     "a key matching no candidate taken": [("    if unmatched:\n", "    if False:\n")],
+    "no groups: every line in one query": [("if group and max(map(len, _queries(group + by[s]))) > max_len:",
+                                            "if False:")],
+    "the last group dropped": [("return out + [_queries(group)]", "return out")],
+    "main reads the first group only": [("for group in queries(res) or ():", "for group in (queries(res) or ())[:1]:")],
+    "a line over the limit alone taken": [
+        ("raise ValueError(f\"{s}'s held windows alone need a query over {max_len} characters\")", "pass")],
 }
 
 

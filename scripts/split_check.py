@@ -31,7 +31,8 @@ Limits: a split under 1.8x with no splits_calendar row doesn't show, and every c
 verdict (a real one-day move can pass the round-ratio test).
 
 Usage: python scripts/split_check.py RESULTS.json [RESULTS.json ...] --json OUT [--not-artifact KEY ...]
-Needs CR_API_KEY: three read-only queries per file. Writes only OUT.
+Needs CR_API_KEY: three read-only queries per group of held lines, one group unless a query would pass MAX_SQL
+characters (a quarterly book's windows need several). Writes only OUT.
 """
 import argparse
 import collections
@@ -53,6 +54,7 @@ SPLIT_DAYS = 3          # a splits_calendar row this many days from a step expla
 REVERSAL_BARS = 5       # a step undone within this many trading days nets out
 ROUND = (2, 3, 4, 5, 10, 20, 25, 50, 100)
 BAR = 0.15
+MAX_SQL = 45000         # characters a query may run to: the API refuses one over 50,000
 
 
 def plus(d, n):
@@ -94,11 +96,30 @@ def sql_list(symbols):
     return _sql_list(symbols)
 
 
-def queries(res):
-    """The three read-only queries on res's held lines: the adjClose ratio, the window bars, the split rows."""
-    sp = spans(res)
+def queries(res, max_len=None):
+    """The three read-only queries on res's held lines, as one (ratio, bars, splits) triple per group of lines with
+    every query max_len (default MAX_SQL) characters or shorter: a quarterly book's windows overflow one query. A
+    line's windows sit in one group, so the groups' rows add up with no line read twice. None when res holds no
+    line."""
+    sp, max_len = spans(res), max_len or MAX_SQL
     if not sp:
         return None
+    by = collections.defaultdict(list)
+    for x in sp:
+        by[x[0]].append(x)
+    out, group = [], []
+    for s in sorted(by):
+        if group and max(map(len, _queries(group + by[s]))) > max_len:
+            out.append(_queries(group))
+            group = []
+        if max(map(len, _queries(by[s]))) > max_len:
+            raise ValueError(f"{s}'s held windows alone need a query over {max_len} characters")
+        group += by[s]
+    return out + [_queries(group)]
+
+
+def _queries(sp):
+    """The three read-only queries on the spans sp: the adjClose ratio, the window bars, the split rows."""
     lst = sql_list(sorted({s for s, *_ in sp}))
     vals = ", ".join(f"('{s}', {epoch(r)}, {epoch(end)})" for s, r, *_, end in sp)
     first, last = min(r for _, r, *_ in sp), max(end for *_, end in sp)
@@ -337,9 +358,10 @@ def main(argv=None):
     for path in args.results:
         with open(path) as fh:
             res = json.load(fh)
-        q = queries(res)
-        ratio, bars, splits = ([cr.query(sql, verbose=False, limit=1000000, timeout=600) or [] for sql in q]
-                               if q else ([], [], []))
+        ratio, bars, splits = [], [], []
+        for group in queries(res) or ():
+            for got, sql in zip((ratio, bars, splits), group):
+                got += cr.query(sql, verbose=False, limit=1000000, timeout=600) or []
         leg = check_leg(res, bars, splits, ratio, args.not_artifact)
         key = leg_key(report["legs"], leg["universe"], path)
         report["legs"][key] = {"file": path, **leg}
