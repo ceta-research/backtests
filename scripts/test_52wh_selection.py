@@ -187,8 +187,8 @@ SIGNAL = {
     # 100 bars are enough, 99 are not
     "H100": line(flat(100), cap=6e10),
     "H99": line(flat(99)),
-    # a close over the window's high ranks as it reads: the screen sets no proximity cap (a real bar's high holds its
-    # close, so a cap never acted)
+    # a close over the window's high ranks as it reads: the screen sets no proximity cap (on ASX and SAO no ranked
+    # ratio passes 1.0 and no ranked signal bar closes above its own high)
     "CAP_OUT": line(bar(flat(120, 1000.0), 0, adj=1101.0, close=1101.0)),
     # under the floor, and stale: the signal guard counts only the lines over the floor
     "SMALL_STALE": line(flat(120, end=-11), cap=FLOOR),
