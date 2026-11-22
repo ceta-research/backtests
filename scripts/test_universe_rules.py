@@ -1018,7 +1018,10 @@ NEW_KNOWN_V4 = {
     **dict.fromkeys(("STM.MI", "SIME.KL"), "second line"), **dict.fromkeys(("9086.T", "FFB.JO"), "vendor copy"),
     **dict.fromkeys(("REDD.L", "SNC.TO", "CLI"), "renamed line")}
 # US receipt lines that became directly listed ordinary shares: their first own day is the switch
-RECEIPT_SWITCHES = {"AU": "2023-09-25", "TTE": "2025-12-08", "TEVA": "2026-09-14"}
+RECEIPT_SWITCHES = {"AU": "2023-09-25", "TTE": "2025-12-08", "TEVA": "2026-09-14", "JHX": "2025-07-01",
+                    "AZN": "2026-02-02"}
+# ur-3's hand-list lines among them, which ur-4 leaves off its hand list
+DIRECT_LISTINGS = {"AZN", "JHX"}
 DESPAC = {"CTOS": "2019-08-01", "GB": "2020-08-31", "FSR": "2020-10-30", "SDA": "2023-05-18", "MVST": "2021-07-26",
           "ECX": "2022-12-21", "GRND": "2022-11-18", "CNCK": "2024-12-11"}
 NEW_STARTS_V4 = {"MER.TO": "2025-06-13", "VRN.TO": "2024-06-11", "SHA0.DE": "2024-10-29", "9A4U.SI": "2025-06-03",
@@ -1115,6 +1118,10 @@ PROFILE_V4 = [
      "Drug Manufacturers - Specialty & Generic", None, None),
     ("TTE", "NYSE", "TotalEnergies SE", "FR0000120271", "0000879764", F, F, F, "Oil & Gas Integrated", None, None),
     ("AU", "NYSE", "AngloGold Ashanti Plc", "GB00BRXH2664", "0001973832", F, F, F, "Gold", None, None),
+    ("AZN", "NYSE", "AstraZeneca PLC", "GB0009895292", "0000901832", F, F, F, "Drug Manufacturers - General", None,
+     "known"),
+    ("JHX", "NYSE", "James Hardie Industries plc", "IE000R94NGM2", "0001159152", F, F, F, "Construction Materials",
+     None, "known"),
     ("CEO", "NYSE", "CNOOC Limited", "US1261321095", "0001095595", F, F, F, "Oil & Gas Exploration & Production",
      "known", None),
     ("E1AIRTELPP.NS", "NSE", "Bharti Airtel Ltd. - Ordinary Shares (Partly Paid Rs.1.25)", "IN9397D01014", None, F, F,
@@ -1177,8 +1184,9 @@ PROFILE_V4 = [
 
 
 def v4_rows():
-    """PROFILE_V4, then every v3_rows case (no industry) wanting its ur-3 reason under ur-4 too."""
-    return PROFILE_V4 + [(*r[:8], None, r[8], r[8]) for r in v3_rows()]
+    """PROFILE_V4, then every v3_rows case (no industry) wanting its ur-3 reason under ur-4 too, but AZN and JHX
+    kept: ur-4 starts them at their direct listing."""
+    return PROFILE_V4 + [(*r[:8], None, None if r[0] in DIRECT_LISTINGS else r[8], r[8]) for r in v3_rows()]
 
 
 def v4_sql(p="p", profile="profile", **kw):
@@ -1200,13 +1208,15 @@ def v4_failures(m=du):
 
 
 def v4_shape_failures(m=du):
-    """ur-4 is ur-3's hand list plus NEW_KNOWN_V4, ur-2's keep list and name terms, ur-3's order with its own hand
-    list named and jpx_reit ahead of name_term, and ur-3's config plus the J-REIT switch, the lookback clip and its
-    own line-start and line-end texts; no text cites an issue, a decision or a call."""
+    """ur-4 is ur-3's hand list less AZN and JHX plus NEW_KNOWN_V4, ur-2's keep list and name terms, ur-3's order
+    with its own hand list named and jpx_reit ahead of name_term, and ur-3's config plus the J-REIT switch, the
+    lookback clip and its own line-start and line-end texts; no text cites an issue, a decision or a call."""
     f = []
-    known, n3, keep = m.NON_ORDINARY_KNOWN_V4, len(m.NON_ORDINARY_KNOWN_V3), m.ORDINARY_KNOWN_V2
-    if known[:n3] != m.NON_ORDINARY_KNOWN_V3:
-        f.append("ur-4's hand list does not start with ur-3's")
+    known, keep = m.NON_ORDINARY_KNOWN_V4, m.ORDINARY_KNOWN_V2
+    base = tuple(e for e in m.NON_ORDINARY_KNOWN_V3 if e[0] not in DIRECT_LISTINGS)
+    n3 = len(base)
+    if known[:n3] != base or len(base) != len(m.NON_ORDINARY_KNOWN_V3) - len(DIRECT_LISTINGS):
+        f.append("ur-4's hand list does not start with ur-3's less AZN and JHX")
     if {s: k for s, k, _ in known[n3:]} != NEW_KNOWN_V4 or len(known) - n3 != len(NEW_KNOWN_V4):
         f.append(f"ur-4's added lines {[e[:2] for e in known[n3:]]}")
     syms = [e[0] for e in known]
@@ -1421,9 +1431,15 @@ def v4_mutants():
     bce = du.LINE_ENDS_V4[-1]
     shape, rows, texts = (v4_shape_failures,), (v4_failures,), (v4_text_failures,)
     starts_checks, ends_checks = (v4_line_start_failures,), (v4_line_end_failures,)
+    listed = tuple(e for e in du.NON_ORDINARY_KNOWN_V3 if e[0] in DIRECT_LISTINGS)
+    known_all = du.NON_ORDINARY_KNOWN_V4 + listed
+    rules_all = dict(r4, known=r4["known"] + [{"symbol": s, "kind": k, "evidence": e} for s, k, e in listed])
     return {
         "a known entry dropped": (du_with(NON_ORDINARY_KNOWN_V4=known, ORDINARY_RULES_V4=rules,
                                           UNIVERSE_RULES_V4=dict(v4, ordinary=rules, known=known)), shape + rows),
+        "AZN and JHX left on ur-4's hand list": (
+            du_with(NON_ORDINARY_KNOWN_V4=known_all, ORDINARY_RULES_V4=rules_all,
+                    UNIVERSE_RULES_V4=dict(v4, ordinary=rules_all, known=known_all)), shape + rows),
         "ur-3's rules under the ur-4 name": (du_with(UNIVERSE_RULES_V4=dict(du.UNIVERSE_RULES_V3, version="ur-4")),
                                              shape + rows + texts + starts_checks + ends_checks),
         "the J-REIT rule off in ur-4's config": (with_v4(jpx_reit=False), shape + rows),

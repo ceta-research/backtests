@@ -3294,7 +3294,9 @@ UNIVERSE_RULES_V3 = {**UNIVERSE_RULES_V2, "version": "ur-3", "ordinary": ORDINAR
 # Universe rules ur-4, opt-in through cfg: ur-3 with more hand-list lines (blank-check shells, funds, preference and
 # D shares, receipts among them), J-REITs out of JPX books, more line starts (de-SPAC lines among them), a line end
 # on a keep-list line, and lookback_clip. ur-3 stays as its results files ran it.
-NON_ORDINARY_KNOWN_V4 = NON_ORDINARY_KNOWN_V3 + (
+# ur-3's ADR lines that later listed their ordinary shares directly: ur-4 starts them at the switch instead
+DIRECT_LISTINGS_V4 = ("AZN", "JHX")
+NON_ORDINARY_KNOWN_V4 = tuple(e for e in NON_ORDINARY_KNOWN_V3 if e[0] not in DIRECT_LISTINGS_V4) + (
     # blank-check shells: the profile's industry is Shell Companies
     ("AAC", "blank check", "a blank-check shell, industry Shell Companies: its bars from 2021-03 to 2023-11 close at "
                            "9.74 to 10.72 (median 9.87); the profile now names Ares Acquisition Corp. III, ipoDate "
@@ -3502,6 +3504,16 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
                            "for one ordinary share that day); the bars don't pin the day (closes 37.09 and 38.72 "
                            "either side); the profile carries the Israeli ordinary share's ISIN (IL0006290147) and "
                            "doesn't flag isAdr"),
+    ("JHX", "2025-07-01", "James Hardie: the NYSE line traded American depositary shares, one ordinary share each, "
+                          "and the ordinary shares from 2025-07-01 (its 6-K exhibit 99.1 of 2025-07-02, \"James "
+                          "Hardie Completes Acquisition of AZEK\", says the ADS program's termination took effect that "
+                          "day); the bars don't pin the day (closes 26.89 and 28.08 either side); the profile carries "
+                          "the Irish ordinary share's ISIN (IE000R94NGM2) and doesn't flag isAdr"),
+    ("AZN", "2026-02-02", "AstraZeneca: the US line traded American depositary shares, two to an ordinary share, and "
+                          "the ordinary shares on the NYSE from 2026-02-02 (its release of 2026-02-02, \"AstraZeneca "
+                          "begins trading on the New York Stock Exchange\", filed on a 6-K that day); the bars don't "
+                          "pin the day (closes 187.10 and 188.41 either side, the earlier on 1,738 shares); the "
+                          "profile carries the UK ordinary share's ISIN (GB0009895292) and doesn't flag isAdr"),
     # de-SPAC lines: the first day the combined company traded under its new ticker, from its filings
     ("CTOS", "2019-08-01", "Custom Truck One Source, then Nesco Holdings (the filer's CIK, 0001709682, is CTOS's in "
                            "the profile): Capitol Investment Corp. IV (NYSE: CIC), a blank-check shell, closed its "
@@ -3534,7 +3546,7 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
 # line starts whose earlier bars are a blank-check shell's, another company's still trading, or depositary receipts':
 # a price lookback starts on the first own day (renames, a merger's surviving line and a share-class change aren't)
 LOOKBACK_CLIP_V4 = ("1972.HK", "GETY", "CTOS", "GB", "FSR", "SDA", "MVST", "ECX", "GRND", "CNCK", "LUMI.ST", "AU",
-                    "TTE", "TEVA")
+                    "TTE", "TEVA", "JHX", "AZN")
 LINE_ENDS_V4 = LINE_ENDS_V3 + (
     ("BCE-PY.TO", "2025-09-30", "BCE's common price series through 2025, on the keep list: in 2026 its bars print a "
                                 "preferred's price (21.09 on 800 shares on 2026-07-03, when BCE.TO closed 30.37), and "
