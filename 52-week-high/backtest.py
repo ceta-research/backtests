@@ -249,7 +249,7 @@ def _candidates_sql(target_date, cap_test, events=False, clips=None):
     """The screen's candidates on target_date among the lines in `universe` with a bar in the lookback, each with
     its proximity ratio, market cap and signal_guard (SignalGuard.RULE's reason; NULL when ranked).
 
-    The floor reads cap_used (check M): each line's latest FY row filed by the 45-day cutoff (the first `?`), its
+    The floor reads cap_used (check M): each line's latest FY row dated by the 45-day cutoff (the first `?`), its
     cap over check M's divisor, NULL for an ineligible row. cap_test is the floor clause ("km.cap_used > ?", or
     CAP_FAIL_TEST for M's events, which also read km_epoch and raw_cap). The candidates carry cap_used as
     marketCap, so the tie-break and the cost tier read it. clips: _frame_start_sql's.

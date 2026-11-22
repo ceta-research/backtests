@@ -221,7 +221,7 @@ Added 2026-03-03. `filter_returns()` in `data_utils.py` provides reusable price 
 
 Used by: asset-growth. Should be adopted by all future strategies. Existing strategies (qarp, low-pe, interest-coverage) can be retrofitted.
 
-Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth, fcf-conversion and 52-week-high (its code; its committed results still ran with the cap) pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
+Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality, since November 2026 asset-growth and fcf-conversion, and 52-week-high's code (its committed results still ran with the cap) pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
 
 ### How to check a new exchange
 Before adding an exchange to a backtest, run these checks:
