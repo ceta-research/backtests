@@ -23,7 +23,7 @@ Universe: ordinary shares only (data_utils universe rules ur-4, METHODOLOGY.md):
 Portfolio: Equal weight top 30. Cash if < 10 qualify.
 Rebalancing: Quarterly (Jan/Apr/Jul/Oct), from 2000 to the latest close (METHODOLOGY.md, "Run Window").
 Costs: costs.tiered_cost on each booked name's cap_used, its USD tiers converted at the leg's
-        costs.get_fx_per_usd (cost_model in the results). Excludes: ASX, SAO (adjClose artifacts).
+        costs.get_fx_per_usd (cost_model in the results).
 
 Academic basis:
   George, T. & Hwang, C. (2004). "The 52-Week High and Momentum Investing."
@@ -747,8 +747,6 @@ def main():
 
         all_results = {}
 
-        # ASX excluded (adjClose split artifacts affect high column too).
-        # SAO excluded (adjClose artifacts).
         # PAR excluded (only 1 symbol with FY key_metrics MCap data — pipeline gap).
         # TWO: no FY key_metrics data → run TAI only, TWO stocks auto-excluded by MCap filter.
         # SES: using FMP code SES (not SGX — wrong in cli_utils preset).
@@ -771,6 +769,8 @@ def main():
             ("italy",       ["MIL"]),
             ("malaysia",    ["KLS"]),
             ("singapore",   ["SES"]),
+            ("australia",   ["ASX"]),
+            ("brazil",      ["SAO"]),
         ]
 
         cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)

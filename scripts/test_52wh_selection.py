@@ -48,9 +48,13 @@ run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the
 2026-10-30 filled at its last bar, CAGR over span_years and the run window's keys written; main() takes
 --end-date, and --end-year 2025 books the 103 periods. Their mutants must trip these checks.
 
+The gate's legs: scripts/gate_legs/wave3.json holds one 52-week-high leg per --global preset and no other, ASX and SAO
+among them, each pinned to --end-year 2025 and installed as the file the global run writes.
+
 Usage:
     python scripts/test_52wh_selection.py [repo root]
 """
+import ast
 import contextlib
 import io
 import json
@@ -69,6 +73,7 @@ with open(PATH) as fh:
     SRC = fh.read()
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 import data_utils as du   # noqa: E402
+from cli_utils import EXCHANGE_PRESETS   # noqa: E402
 from costs import get_fx_per_usd   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
 import test_latest_window_topics as tlw   # noqa: E402  (its 2026 bars, pinned window and partial period)
@@ -709,6 +714,50 @@ RULE_MUTANTS = {
 }
 
 
+# The gate's legs (scripts/gate_legs/wave3.json) are --global's presets_to_run, both ways, ASX and SAO among them.
+LEGS_FILE = os.path.join(ROOT, "scripts", "gate_legs", "wave3.json")
+LEG_PIN = ["--end-year", "2025"]
+RANKED_ADDED = ({"ASX"}, {"SAO"})   # the markets the port ranks
+
+
+def global_presets(src):
+    """{name: exchanges} of main()'s presets_to_run in src."""
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "presets_to_run" for t in node.targets):
+            return dict(ast.literal_eval(node.value))
+    raise ValueError("no presets_to_run")
+
+
+def leg_exchanges(args):
+    """A leg's exchanges: --exchange's list, or --preset's from cli_utils.EXCHANGE_PRESETS."""
+    flag, value = args[len(LEG_PIN)], args[len(LEG_PIN) + 1]
+    return value.split(",") if flag == "--exchange" else EXCHANGE_PRESETS[value]["exchanges"]
+
+
+def legs_failures(src):
+    """wave3.json's 52-week-high legs, one per --global preset and no other: each runs the preset's exchanges pinned to
+    --end-year 2025 before its exchange args, and installs as the returns_<exchanges>.json the global run writes."""
+    try:
+        want = global_presets(src)
+        with open(LEGS_FILE) as fh:
+            spec = json.load(fh)[TOPIC]
+        out = [f"legs {sorted(spec[k])} != presets {sorted(want)}" for k in ("legs", "_outputs")
+               if set(spec[k]) != set(want)]
+        for name, ex in want.items():
+            args = spec["legs"].get(name) or []
+            if args[:len(LEG_PIN)] != LEG_PIN or len(args) != len(LEG_PIN) + 2 or leg_exchanges(args) != ex:
+                out.append(f"leg {name}: {args}, want {LEG_PIN} then {ex}")
+            if spec["_outputs"].get(name) != f"returns_{'_'.join(ex)}.json":
+                out.append(f"leg {name} installs as {spec['_outputs'].get(name)}")
+        out += [f"{sorted(m)} not ranked" for m in RANKED_ADDED if m not in map(set, want.values())]
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    return out
+
+
+LEG_MUTANTS = {"australia left out of --global": ('            ("australia",   ["ASX"]),\n', "")}
+
+
 # Check T on the ranking cache: T_R, a rebalance date, and T_BACK, 40 days before it and outside every window, are
 # closed days on test_data_checks' synthetic leg (only A00.BK to A02.BK trade, as on its CLOSED days) where one line
 # prints a traded copy: T_COPY at 80% of its close on T_R (under the oscillation filter's thresholds), T_KEPT with
@@ -859,7 +908,8 @@ def mutant_results(mutants, check, must_book=()):
 
 
 def main():
-    base = failures(SRC) + rules_failures(SRC) + run_failures(SRC) + partial_failures(SRC) + t_failures(SRC)
+    base = (legs_failures(SRC) + failures(SRC) + rules_failures(SRC) + run_failures(SRC) + partial_failures(SRC)
+            + t_failures(SRC))
     if base:
         print("test_52wh_selection: FAIL", base)
         sys.exit(1)
@@ -868,7 +918,8 @@ def main():
     s2, e2 = mutant_results(RESULT_MUTANTS, run_failures, RESULT_MUTANTS)
     s3, _ = mutant_results(WINDOW_MUTANTS, partial_failures)
     s4, e4 = mutant_results(T_MUTANTS, t_failures, T_MUTANTS)
-    survived, errored = survived + s1 + s2 + s3 + s4, errored + e1 + e2 + e4
+    s5, e5 = mutant_results(LEG_MUTANTS, legs_failures, LEG_MUTANTS)
+    survived, errored = survived + s1 + s2 + s3 + s4 + s5, errored + e1 + e2 + e4 + e5
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
@@ -876,7 +927,7 @@ def main():
     print(f"test_52wh_selection: PASS ({len(SIGNAL) + len(CUT) + len(CAPS)} listings, {len(MUTANTS)} mutants caught;"
           f" universe rules ur-4 on {n_rules} listings, {len(RULE_MUTANTS)} mutants caught; the run on the synthetic"
           f" SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window, {len(WINDOW_MUTANTS)} mutants caught;"
-          f" check T, {len(T_MUTANTS)} mutants caught)")
+          f" check T, {len(T_MUTANTS)} mutants caught; the gate's legs, {len(LEG_MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":
