@@ -44,9 +44,10 @@ own move. A leg with no artifact reads under the bar, and a move equal to the ba
 rebuild's exact move). A person's "no change" on H leaves it out of the rebuilds and
 the net and lists it in the leg's not_artifact, beside the every-candidate net; on a leg whose only artifact it is,
 the verdict turns under the bar. A span the file books through a hand event is listed with the rebuild it would
-make and its entry's kind (report_lines prints both): H's rebuilt entry and C's real one leave the rebuilds, both
-nets and the verdict (--not-artifact on their keys matches no candidate), and F's kept one stays a candidate as any
-other (on V's leg it stays over the bar until a person calls it no change), while a hand_stale span and hand events
+make and its entry's kind (report_lines prints both): H's rebuilt entry leaves the rebuilds, both nets and the
+verdict, C's real one leaves the rebuilds, the confirmed net and the verdict as a person's call does (--not-artifact
+on either key matches no candidate), and F's kept one stays a candidate as any other (on V's leg it stays over the
+bar until a person calls it no change), while a hand_stale span and hand events
 on spans that aren't held or rebuild nothing change nothing. main() runs the three queries per file on an
 in-memory warehouse for both legs with that call and writes the same records, its bars query reading no partial
 holding's bar past the exit date; a key that matches no candidate is refused, and so is a symbol holding a quote
