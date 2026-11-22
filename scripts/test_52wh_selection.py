@@ -31,7 +31,9 @@ only, its first own day's among them, and DOC, a rename, on the 252 bars ending 
 
 Check T on the ranking cache, with data checks on: on a closed rebalance date a line's traded copy moves, so the
 line ranks on its last traded bar before it, while a copy 40 days back, outside every fetch window, stays in the
-lookback.
+lookback. The fetch runs check T, its sibling rule on, before the oscillation filter: a one-day spike outside every
+window goes, a spiked traded copy on the closed date is check T's to move, and an NVDR line's first bar after that
+date, off its ordinary line's scale, moves as a sibling gap.
 
 The run on test_data_checks' synthetic SET leg (wh52_source): run_single on --end-year 2025 books today's 103
 quarterly periods; each invested row's holdings string names every booked name, and --full-holdings adds
@@ -971,10 +973,17 @@ SCREEN_MUTANTS = {
 # Check T on the ranking cache: T_R, a rebalance date, and T_BACK, 40 days before it and outside every window, are
 # closed days on test_data_checks' synthetic leg (only A00.BK to A02.BK trade, as on its CLOSED days) where one line
 # prints a traded copy: T_COPY at 80% of its close on T_R (under the oscillation filter's thresholds), T_KEPT with
-# twice its high on T_BACK.
+# twice its high on T_BACK. The fetch's order, check T with the sibling rule and then the oscillation filter:
+# T_OSC prints 2.5 times its price on T_SPIKE, outside every window, which only the filter removes; T_FIRST prints a
+# traded copy at 3 times its price on T_R, which check T moves as a closed-day row before the filter could remove
+# it; T_THIN, an NVDR line that trades a tenth of its ordinary line's volume (siblings: one FY cap), opens T_R's
+# window at 0.6 of that line's close on T_AFTER, which only check T's sibling rule moves.
 T_R = date(2014, 1, 1)
 T_BACK = T_R - timedelta(days=40)
-T_COPY, T_KEPT = "A10.BK", "A11.BK"
+T_DATES = [date(2013, 7, 1), date(2013, 10, 1), T_R]   # the sibling rule's reference needs two other windows
+T_COPY, T_KEPT, T_OSC, T_FIRST = "A10.BK", "A11.BK", "A12.BK", "A13.BK"
+T_SPIKE, T_AFTER = date(2013, 11, 6), date(2014, 1, 2)
+T_THIN = "TWN-R.BK"
 
 
 def t_leg():
@@ -983,8 +992,11 @@ def t_leg():
         for d, s in ((T_R, T_COPY), (T_BACK, T_KEPT)):
             src.execute("UPDATE stock_eod SET volume = 0 WHERE date = ? AND symbol NOT IN"
                         " ('A00.BK', 'A01.BK', 'A02.BK', '^SET.BK', 'SPY', ?)", [d.isoformat(), s])
-        src.execute("UPDATE stock_eod SET adjClose = adjClose * 0.8, close = close * 0.8, high = high * 0.8"
-                    " WHERE date = ? AND symbol = ?", [T_R.isoformat(), T_COPY])
+        scale = "UPDATE stock_eod SET adjClose = adjClose * ?, close = close * ?, high = high * ? WHERE date = ? AND symbol = ?"
+        for k, d, s in ((0.8, T_R, T_COPY), (2.5, T_SPIKE, T_OSC), (3.0, T_R, T_FIRST), (0.6, T_AFTER, T_THIN)):
+            src.execute(scale, [k, k, k, d.isoformat(), s])
+        src.execute("UPDATE stock_eod SET volume = 1e5 WHERE date = ? AND symbol = ?", [T_R.isoformat(), T_FIRST])
+        src.execute("UPDATE stock_eod SET volume = volume / 10 WHERE symbol = ?", [T_THIN])
         src.execute("UPDATE stock_eod SET high = high * 2 WHERE date = ? AND symbol = ?", [T_BACK.isoformat(), T_KEPT])
         _LEGS["t"] = src
     return _LEGS["t"]
@@ -993,29 +1005,46 @@ def t_leg():
 def t_failures(src):
     """The fetch with data checks on cleans the grid's windows [d, d + 11] (check T) before the screen reads them:
     T_R's copy moves, so T_COPY ranks on its last traded bar before T_R, at 1.0, while T_BACK's copy stays in
-    T_KEPT's lookback and its high holds T_KEPT's ratio near 0.5. The block lists T_R as a closed date, not T_BACK."""
+    T_KEPT's lookback and its high holds T_KEPT's ratio near 0.5. The block lists T_R as a closed date, not T_BACK.
+    The oscillation filter runs after check T: T_OSC ranks at 1.0 without its spike, T_FIRST's copy on T_R lands in
+    prices_dropped as a closed-day row, and the block lists T_THIN's bar on T_AFTER as its one sibling gap."""
     try:
         mod, dc = load(src), du.DataChecks("on", du.DATA_CHECKS_V3)
         with contextlib.redirect_stdout(io.StringIO()):
-            con = mod.fetch_data_via_api(tdc.FakeClient(t_leg()), ["SET"], [date(2013, 10, 1), T_R], mktcap_min=1e9,
-                                         dc=dc)
+            con = mod.fetch_data_via_api(tdc.FakeClient(t_leg()), ["SET"], T_DATES, mktcap_min=1e9, dc=dc)
             prox = {s: p for s, _, p in mod.screen_stocks(con, T_R, 1e9, dc=dc)}
+        first = con.execute("SELECT reason FROM prices_dropped WHERE symbol = ? AND trade_epoch = ?",
+                            [T_FIRST, ep(T_R)]).fetchall()
     except Exception as e:
         return [f"error: {type(e).__name__}: {e}"]
     out = []
     if prox.get(T_COPY) != 1.0 or not 0.4 < (prox.get(T_KEPT) or 1.0) < 0.6:
         out.append(f"ratios {T_COPY} {prox.get(T_COPY)}, want 1.0; {T_KEPT} {prox.get(T_KEPT)}, want about 0.5")
-    closed = [x["date"] for x in dc.block()["closed_dates"]]
+    block = dc.block()
+    closed = [x["date"] for x in block["closed_dates"]]
     if T_R.isoformat() not in closed or T_BACK.isoformat() in closed:
         out.append(f"closed dates {closed}: want {T_R} and not {T_BACK}")
+    if prox.get(T_OSC) != 1.0:
+        out.append(f"{T_OSC} ranks at {prox.get(T_OSC)}: its spike on {T_SPIKE} stayed, want 1.0")
+    if first != [("closed_day",)]:
+        out.append(f"{T_FIRST}'s copy on {T_R} in prices_dropped as {first}, want closed_day (check T before the filter)")
+    gaps = [(g["symbol"], g["date"]) for g in block["sibling_gaps"]]
+    if gaps != [(T_THIN, T_AFTER.isoformat())]:
+        out.append(f"sibling gaps {gaps}, want {T_THIN} on {T_AFTER}")
     return out
 
 
 T_CALL = "clean_price_cache(con, bench_symbols, rebalance_dates, dc.cfg"
+OSC = "    remove_price_oscillations(con, verbose=verbose)\n"
+T_STEP = ("    if checks:   # check T: closed days, zero-volume and flat lines, non-positive prices, sibling-class gaps\n"
+          '        dc.record_clean(clean_price_cache(con, bench_symbols, rebalance_dates, dc.cfg, siblings="cap_inputs"))\n')
 T_MUTANTS = {
     "check T on no window": (T_CALL, T_CALL.replace("rebalance_dates", "[]")),
     "check T over the lookback": (T_CALL, T_CALL.replace(
         "rebalance_dates", "[x for d in rebalance_dates for x in (d - timedelta(days=40), d)]")),
+    "check T without the sibling rule": (', siblings="cap_inputs")', ")"),
+    "no oscillation filter": (OSC, ""),
+    "the oscillation filter before check T": (T_STEP + OSC, OSC + T_STEP),
 }
 
 
