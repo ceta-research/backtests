@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""52-Week High Proximity screen: the book a rebalance on the screen's day would hold.
+"""52-Week High Proximity screen: the 30 names a rebalance on the screen's day would pick.
 
 It runs the backtest's own fetch and screen on that one date (backtest.fetch_data_via_api, screen_stocks), with
 data checks dc-3 on, so it ranks as the backtest does:
   - Universe: ordinary shares under universe rules ur-4 (load_universe, then the screen's semi-join on its
     universe table), less the lines its line starts and line ends leave out on the day.
-  - Size: market cap over the leg's threshold, read as check M's cap_used (the latest FY row filed 45 days before
-    the day, over check M's divisor). The floor is in the reporting currency, as in the backtest.
+  - Size: market cap over the leg's threshold, read as check M's cap_used (the latest FY row dated at least 45 days
+    before the day, over check M's divisor). The floor is in the reporting currency, as in the backtest.
   - Signal: close / MAX(high) over the 252 bars ending at the last traded bar in the 10 days to the day
     [George & Hwang 2004], 100 bars at least; one line per security.
-  - Book: the top 30 by proximity ratio, exact ties to the larger cap_used, then the symbol.
-One leg at a time. The fetch's progress goes to stderr, the book to stdout.
+  - Picks: the top 30 by proximity ratio, exact ties to the larger cap_used, then the symbol. They come before the
+    backtest's entry test and cash rule, which need an entry bar the day doesn't have yet: a rebalance then drops a
+    pick with no entry price of at least 1.00 and holds cash when fewer than 10 picks pass.
+One leg at a time. The fetch's progress goes to stderr, the picks to stdout.
+
+Run it after the market's close: the screen ranks on the day's own bar when the vendor has one, and before the
+close that bar can be unfinished.
 
 On the day itself no later bar exists, so check T's closed-day test, which compares a date with three or more other
 dates in its window, is skipped (a vendor row on a market holiday that day can be the signal bar), and the dedup's
@@ -37,8 +42,8 @@ from backtest import DATA_CHECKS, UNIVERSE_RULES, fetch_data_via_api, screen_sto
 
 
 def screen(client, exchanges, day=None, verbose=False):
-    """The book on day (today in UTC when None) on these exchanges: [(symbol, cap_used, proximity_ratio)] in rank
-    order, [] when the leg has no data."""
+    """The picks on day (today in UTC when None) on these exchanges, before the entry test and cash rule:
+    [(symbol, cap_used, proximity_ratio)] in rank order, [] when the leg has no data."""
     day = day or datetime.now(timezone.utc).date()
     mktcap_min = get_mktcap_threshold(exchanges)
     dc, ur = DataChecks("on", DATA_CHECKS), UniverseRules(UNIVERSE_RULES)
@@ -52,7 +57,8 @@ def screen(client, exchanges, day=None, verbose=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="52-Week High Proximity screen (live): the backtest's book today")
+    parser = argparse.ArgumentParser(description="52-Week High Proximity screen (live): the backtest's 30 picks "
+                                                 "today, before its entry test; run after the close")
     parser.add_argument("--exchange", type=str,
                         help="Exchange code(s), comma-separated (e.g. SHZ,SHH)")
     parser.add_argument("--preset", type=str, choices=sorted(EXCHANGE_PRESETS.keys()),
