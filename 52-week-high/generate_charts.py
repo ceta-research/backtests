@@ -7,7 +7,8 @@ plus CAGR and max drawdown comparison charts.
 
 A run-window file's partial final year is the last point and the last, hatched bar, and its titles carry the
 window the file records. A typed-year file charts as before, but for the cumulative axis, which plots each value
-at its period's end, and the CAGR chart's count of the ranked legs that beat their own benchmark.
+at its period's end. The CAGR chart draws each ranked leg beside its benchmark and prints no count of the legs
+that beat it.
 
 Charts are saved to 52-week-high/charts/ and must be moved to:
   ts-content-creator/content/_current/momentum-02-52-week-high/blogs/{region}/
@@ -172,7 +173,6 @@ def plot_comparison_cagr(all_data, output_path):
     port_cagrs = []
     spy_cagrs = []
     has_proxy = False
-    beat = counted = 0
     legs, cut_note = ranked_legs(all_data)
 
     for uni, data in sorted(legs.items(),
@@ -185,10 +185,6 @@ def plot_comparison_cagr(all_data, output_path):
         exchanges.append(f"{uni.replace('_', '/')} vs {bench}{'*' if proxy else ''}")
         port_cagrs.append(data["portfolio"].get("cagr") or 0)
         spy_cagrs.append(data["spy"].get("cagr") or 0)
-        # Counted against its own index only: a CAGR against the S&P 500 in USD isn't a market's own result.
-        if not proxy:
-            counted += 1
-            beat += port_cagrs[-1] > spy_cagrs[-1]
 
     if not exchanges:
         return
@@ -220,10 +216,8 @@ def plot_comparison_cagr(all_data, output_path):
     ax.grid(True, alpha=0.3, linestyle=":", axis="y")
 
     plt.tight_layout()
-    count = (f"{beat} of {counted} beat their own benchmark"
-             + ("; the S&P 500 legs (*) aren't counted." if has_proxy else "."))
-    fig.text(0.5, -0.01, "\n".join(n for n in (count, cut_note) if n), ha="center", va="top", fontsize=9,
-             color="#555555")
+    if cut_note:
+        fig.text(0.5, -0.01, cut_note, ha="center", va="top", fontsize=9, color="#555555")
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_path}")

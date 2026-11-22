@@ -15,7 +15,7 @@ A run on the run window keeps full years in annual_returns and a short final yea
   4 CHARTS    for each topic in CHART_TOPICS (asset-growth, fcf-conversion, 52-week-high), its
               generate_charts.py draws every chart of its typed-year comparison file (pinned at the topic's
               legacy ref) as the base ref did (same files, titles, footers, lines and bars; 52-week-high's
-              with the port's two named changes, wh52_legacy), draws a partial leg with the helpers' series
+              with the port's one named change, wh52_legacy), draws a partial leg with the helpers' series
               and its own window text, and types no window in its source
   5 MUTANTS   each rule above, broken in a copy of chart_utils.py or a topic's generate_charts.py, fails a check
 
@@ -407,12 +407,10 @@ FCF_GC_MUTANTS = [
      "Max Drawdown by Exchange"),
 ]
 
-# 52-week-high's typed-year charts are the base's with the port's two changes. Each cumulative series is on
+# 52-week-high's typed-year charts are the base's with the port's one change: each cumulative series is on
 # growth_series' axis, its points a year later than before (each value at its period's end, as
-# benchmark_cumulative(period_end=True) has it), so the axis's automatic year ticks move with it. The CAGR chart's
-# footer counts the ranked legs that beat their own benchmark on fcf-conversion's basis: 17 drawn (Norway's
-# truncated window out), JNB, MIL and KLS (the S&P 500 in USD) not counted, XETRA (-0.11) behind.
-WH52_COUNT = "10 of 14 beat their own benchmark; the S&P 500 legs (*) aren't counted."
+# benchmark_cumulative(period_end=True) has it), so the axis's automatic year ticks move with it. The CAGR chart
+# prints no count of the legs that beat their own benchmark, so its footer is the base's.
 WH52_SLUGS = {"us": US, "india": "NSE", "uk": "LSE", "germany": "XETRA", "japan": "JPX", "china": "SHZ_SHH",
               "hongkong": "HKSE", "korea": "KSC", "taiwan": "TAI", "canada": "TSX", "switzerland": "SIX",
               "sweden": "STO", "thailand": "SET", "southafrica": "JNB", "norway": "OSL", "italy": "MIL",
@@ -420,15 +418,13 @@ WH52_SLUGS = {"us": US, "india": "NSE", "uk": "LSE", "germany": "XETRA", "japan"
 
 
 def wh52_legacy(name, fig, got):
-    """The base's snapshot of a 52-week-high typed-year chart, with the port's two changes (got: the new
-    snapshot, whose automatic ticks a cumulative chart takes)."""
+    """The base's snapshot of a 52-week-high typed-year chart, with the port's change (got: the new snapshot,
+    whose automatic ticks a cumulative chart takes)."""
     fig = copy.deepcopy(fig)
     if name.endswith("_cumulative_growth.png"):
         for ax, ax_got in zip(fig["axes"], got["axes"]):
             ax["lines"] = [[(x + 1, y) for x, y in ln] for ln in ax["lines"]]
             ax["xticks"] = ax_got["xticks"]
-    elif name == "1_comparison_cagr.png":
-        fig["footers"] = ["\n".join([WH52_COUNT, *fig["footers"]])]
     return fig
 
 
@@ -448,7 +444,6 @@ WH52_GC_MUTANTS = [
     ("annual title without the window", "{label}{leg_window(data, bars=True)}", "{label}"),
     ("CAGR title without the window", "Local Benchmark{run_window(all_data, list(legs))}", "Local Benchmark"),
     ("drawdown title without the window", "by Exchange{run_window(all_data, list(legs))}", "by Exchange"),
-    ("the S&P 500 legs counted", "        if not proxy:\n", "        if True:\n"),
     ("a truncated leg ranked", '        if data.get("window_truncated"):\n            cut.append',
      '        if False:\n            cut.append'),
 ]
