@@ -297,7 +297,7 @@ TARGET = "    target_epoch = utc_epoch(target_date)\n"
 LAG = "cutoff_epoch = utc_epoch(target_date - timedelta(days=45))"
 CUT_BY = "ORDER BY proximity_ratio DESC, marketCap DESC NULLS LAST, symbol\n"
 WRAP = "FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE,"
-TWIN_KEY = "twin_key=dc is not None and dc.on)"
+TWIN_KEY = 'twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get("class_twins")))'
 DEDUP = WRAP + "\n                              " + TWIN_KEY + "})"
 FLOOR_TEST = 'sql("km.cap_used > ?")'
 FETCH_COLS = "adjClose, close, high, volume\n"                                   # the fetch SQL's, not the docstring's
@@ -459,7 +459,10 @@ def results_failures(src):
     if held_at("TWN-R.BK") or held_at("STD.BK") or held_at("TWN.BK") != invested or held_at("STD-R.BK") != invested:
         out.append(f"NVDR twins: TWN-R.BK held at {sorted(held_at('TWN-R.BK'))[:3]}, STD-R.BK at "
                    f"{len(held_at('STD-R.BK'))} and TWN.BK at {len(held_at('TWN.BK'))} of {len(invested)} invested")
-    return out
+    # ur-4: its block, and the SAO company's preferred line standing in for its ordinary line, which has no bar
+    if (plain.get("universe_rules") or {}).get("version") != "ur-4":
+        return out + [f"universe_rules {(plain.get('universe_rules') or {}).get('version')}, want ur-4"]
+    return out + tdc.stand_in_failures(plain)
 
 
 RESULT_MUTANTS = {
@@ -468,6 +471,89 @@ RESULT_MUTANTS = {
     "--full-holdings ignored": ("DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)",
                                 "DataChecks(data_checks, DATA_CHECKS, full_holdings=False)"),
     "no twin key on the dedup": (TWIN_KEY, "twin_key=False)"),
+    "class twins not marked": ("    ur.mark_twins(con)", "    None"),
+    "stand-ins not recorded": ("ur.stand_ins([s for s, _, _ in picked], target_date)", "None"),
+}
+
+
+# ur-4 on the screen (UNIVERSE_RULES), each leg through the topic's fetch: an SAO company holds one slot with data
+# checks off (the ordinary line when it has an entry price, else its preferred line stands in); a JPX line whose
+# profile industry starts with REIT is out on JPX and kept on another leg; a line the rules remove (a fund) is never
+# ranked, though the fetch caches its rows; ur-3's line ends rank COG and CLR on their last own day and not the day
+# after; GETY, a lookback_clip start, ranks on its own bars only (none before 100 of them), DOC, a rename, on
+# the 252 bars ending at its signal bar.
+SAO = {"BRAA3.SA": line(flat(120), cap=6e10, isin="BRBRAAACNOR1"), "BRAA4.SA": line(flat(120), cap=6e10, isin="BRBRAAACNPR2"),
+       "BRBB3.SA": line(flat(120), cap=5e10, isin="BRBRBBACNOR1", after=()),   # no entry bar
+       "BRBB4.SA": line(flat(120), cap=5e10, isin="BRBRBBACNPR2")}
+JPX = {"8951.T": line(flat(120), industry="REIT - Office"), "8801.T": line(flat(120), industry="Real Estate - Development")}
+NSE_RULES = {"EMBASSY.NS": line(flat(120), industry="REIT - Office"),
+             "FUNDX.NS": line(flat(120), cap=2e10, isFund=True)}   # the larger cap, so it would rank first
+ENDS_AT = date(2023, 1, 12)
+ENDS = {s: line(flat(955), at=ENDS_AT, after=(), filings=[(date(2020, 12, 31), 1e10)]) for s in ("COG", "CLR")}
+END_SCREENS = {date(2021, 10, 1): ["CLR", "COG"], date(2021, 10, 2): ["CLR"], date(2022, 11, 22): ["CLR"],
+               date(2022, 11, 23): []}
+STARTS = {s: date.fromisoformat(d) for s, d, _ in du.UNIVERSE_RULES_V4["line_starts"] if s in ("GETY", "DOC")}
+
+
+def started(first):
+    """Bars from 250 days before a line's first own day to 130 after: the earlier ones (another company's or the
+    same one's under its old ticker) carry a high of 200 over a close of 100, the line's own close on their high."""
+    bars = {k: [100.0, 100.0, 200.0 if k < 0 else 100.0, 1e6] for k in range(-250, 131)}
+    return line(bars, at=first, after=(), filings=[(first - timedelta(days=400), 1e10)])
+
+
+CLIPS = {s: started(first) for s, first in STARTS.items()}
+CLIP_SCREENS = {"GETY": {-1: [], 70: [], 130: [("GETY", 1e10, 1.0)]}, "DOC": {-1: [], 70: [("DOC", 1e10, 0.5)]}}
+RULES_EXPECT = {
+    "SAO book, data checks off": [("BRAA3.SA", 6e10, 1.0), ("BRBB4.SA", 5e10, 1.0)],
+    "SAO stand-ins": [{"rebalance_date": D.isoformat(), "symbols": ["BRBB4.SA"]}],
+    "JPX book": [("8801.T", 1e10, 1.0)],
+    "NSE book": [("EMBASSY.NS", 1e10, 1.0)],
+    **{f"line ends {d}": want for d, want in END_SCREENS.items()},
+    **{f"{s} {k:+d} days": want for s, by in CLIP_SCREENS.items() for k, want in by.items()},
+}
+
+
+def rules_failures(src):
+    try:
+        mod = load(src)
+
+        def leg(uni, dates, ex=EX):
+            ur = du.UniverseRules(mod.UNIVERSE_RULES)
+            return cache(mod, uni, dates, ex=ex, ur=ur), ur
+
+        got = {}
+        con, ur = leg(SAO, [PREV, D], "SAO")
+        got["SAO book, data checks off"] = mod.screen_stocks(con, D, FLOOR, ur=ur)
+        got["SAO stand-ins"] = (ur.block().get("class_stand_ins") or {}).get("by_period")
+        for name, uni, ex in (("JPX book", JPX, "JPX"), ("NSE book", NSE_RULES, EX)):
+            con, ur = leg(uni, [PREV, D], ex)
+            got[name] = mod.screen_stocks(con, D, FLOOR, ur=ur)
+        con, ur = leg(ENDS, sorted(END_SCREENS))
+        for d in END_SCREENS:
+            got[f"line ends {d}"] = sorted(s for s, _, _ in mod.screen_stocks(con, d, FLOOR, ur=ur))
+        screens = {(s, k): STARTS[s] + timedelta(days=k) for s, by in CLIP_SCREENS.items() for k in by}
+        con, ur = leg(CLIPS, sorted(set(screens.values())))
+        for (s, k), d in screens.items():
+            got[f"{s} {k:+d} days"] = mod.screen_stocks(con, d, FLOOR, ur=ur)
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    return [f"{k}: {got[k]} != {want}" for k, want in RULES_EXPECT.items() if got[k] != want]
+
+
+CLIPPED = "for s in ur.clips}"
+RULE_MUTANTS = {
+    "ur-3 in place of ur-4": ("UNIVERSE_RULES = UNIVERSE_RULES_V4",
+                              "UNIVERSE_RULES = __import__('data_utils').UNIVERSE_RULES_V3"),
+    "class twins keyed only with data checks on": (TWIN_KEY, "twin_key=dc is not None and dc.on)"),
+    "stand-ins not recorded": ("ur.stand_ins([s for s, _, _ in picked], target_date)", "None"),
+    "no universe semi-join": ("              AND km.symbol IN (SELECT symbol FROM universe)\n", ""),
+    "no line starts": ("late = ur.not_started(target_date) if ur is not None else []", "late = []"),
+    "no line ends": ("gone = ur.ended(target_date) if ur is not None else []", "gone = []"),
+    "line ends read a day late": ("ur.ended(target_date)", "ur.ended(target_date - timedelta(days=1))"),
+    "line ends read a day early": ("ur.ended(target_date)", "ur.ended(target_date + timedelta(days=1))"),
+    "no lookback clip": (CLIPPED, "for s in ()}"),
+    "every line start clipped": (CLIPPED, "for s in ur.starts}"),
 }
 
 
@@ -621,21 +707,24 @@ def mutant_results(mutants, check, must_book=()):
 
 
 def main():
-    base = failures(SRC) + results_failures(SRC) + partial_failures(SRC) + t_failures(SRC)
+    base = failures(SRC) + rules_failures(SRC) + results_failures(SRC) + partial_failures(SRC) + t_failures(SRC)
     if base:
         print("test_52wh_selection: FAIL", base)
         sys.exit(1)
     survived, errored = mutant_results(MUTANTS, failures, TRADED_MUTANTS)
+    s1, e1 = mutant_results(RULE_MUTANTS, rules_failures, RULE_MUTANTS)
     s2, e2 = mutant_results(RESULT_MUTANTS, results_failures, RESULT_MUTANTS)
     s3, _ = mutant_results(WINDOW_MUTANTS, partial_failures)
     s4, e4 = mutant_results(T_MUTANTS, t_failures, T_MUTANTS)
-    survived, errored = survived + s2 + s3 + s4, errored + e2 + e4
+    survived, errored = survived + s1 + s2 + s3 + s4, errored + e1 + e2 + e4
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
+    n_rules = len(SAO) + len(JPX) + len(NSE_RULES) + len(ENDS) + len(CLIPS)
     print(f"test_52wh_selection: PASS ({len(SIGNAL) + len(CUT) + len(CAPS)} listings, {len(MUTANTS)} mutants caught;"
-          f" the run on the synthetic SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window,"
-          f" {len(WINDOW_MUTANTS)} mutants caught; check T, {len(T_MUTANTS)} mutants caught)")
+          f" universe rules ur-4 on {n_rules} listings, {len(RULE_MUTANTS)} mutants caught; the run on the synthetic"
+          f" SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window, {len(WINDOW_MUTANTS)} mutants caught;"
+          f" check T, {len(T_MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,12 @@ Signal: close / MAX(high over 252 trading days) per George & Hwang (2004).
         Exact ties rank by larger market cap, then symbol.
         No skip-month needed (unlike classic 12-1 momentum).
 
-Universe: MCap > exchange threshold (from key_metrics FY). Price > $1.
+Universe: ordinary shares only (data_utils universe rules ur-4, METHODOLOGY.md): preferreds, notes, units,
+        funds, US ADRs, US trusts and LPs, JPX REITs and the hand list's lines are out before the screen; on SAO a
+        company holds one line; a line whose earlier history copies another line's enters on its first own day
+        (ur-4 line_starts), its 252-bar frame starting there too when those bars are another company's or
+        instrument's (lookback_clip); a line whose later rows are not its listing's leaves after its last own day
+        (line_ends). MCap > exchange threshold (key_metrics FY, check M's cap_used). Price > $1.
 Portfolio: Equal weight top 30. Cash if < 10 qualify.
 Rebalancing: Quarterly (Jan/Apr/Jul/Oct), from 2000 to the latest close (METHODOLOGY.md, "Run Window").
 Costs: Size-tiered (see costs.py). Excludes: ASX, SAO (adjClose artifacts).
@@ -49,7 +54,8 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                          remove_price_oscillations, utc_epoch,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V3, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
-                        load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST)
+                        load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
+                        UniverseRules, load_universe, UNIVERSE_RULES_V4, without_lines_sql)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -70,17 +76,19 @@ MAX_PROXIMITY = 1.1          # Proximity > 1.1 likely a data error (close > 52w 
 # No return cap: data checks dc-3 (traded bars, NVDR twins, market-cap check at the floor, the reviewed
 # hand list) clean the inputs, and every kept move over +100% or under -50% is listed in the results.
 DATA_CHECKS = DATA_CHECKS_V3
+UNIVERSE_RULES = UNIVERSE_RULES_V4
 
 # Development compute (max resources)
 FETCH_MEMORY_MB = 4096
 FETCH_THREADS = 2
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap_min=None, dc=None, win=None):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap_min=None, dc=None, ur=None,
+                       win=None):
     """Fetch all data needed for 52-week high proximity backtest.
 
     Populates DuckDB tables:
-        universe(symbol VARCHAR)
+        universe(symbol VARCHAR): ordinary lines only
         metrics_cache(symbol, marketCap, filing_epoch, period)
             -- used for point-in-time market cap filter only
         prices_cache(symbol, trade_epoch, adjClose, close, high, volume)
@@ -89,10 +97,12 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
 
     dc: a data_utils.DataChecks; when on, the fetch runs checks T, N and M (mktcap_min is the floor). Check T
     cleans the grid's windows [d, d + 11] only: a lookback keeps the rows outside them (untraded rows among them).
+    ur: a data_utils.UniverseRules (UNIVERSE_RULES), which records the lines the ordinary-shares rule removes.
     win: the leg's data_utils.RunWindow; its fetch_end cuts the price windows at the run's end date.
     Returns DuckDB connection or None.
     """
     checks = dc is not None and dc.on
+    ur = ur if ur is not None else UniverseRules(UNIVERSE_RULES)
     win = win if win is not None else RunWindow.typed()
     # Campaign listing rule; sym_filter_sql carries it into the market-cap and price fetches.
     listing_cond = campaign_listing_condition(exchanges)
@@ -108,17 +118,9 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     con = duckdb.connect(":memory:")
     con.execute("SET memory_limit='8GB'")
 
-    # 1. Universe (exchange membership from profile)
-    print("  Fetching exchange membership...")
-    profile_sql = f"SELECT DISTINCT symbol, exchange FROM profile {exchange_where}"
-    profiles = client.query(profile_sql, verbose=verbose)
-    if not profiles:
-        print("  No symbols found for these exchanges.")
+    # 1. Universe: ordinary shares only (the CASE names why a line is not one; those lines stay out)
+    if load_universe(client, con, exchange_where, ur, UNIVERSE_RULES, verbose=verbose) is None:
         return None
-    print(f"  Universe: {len(profiles)} symbols")
-
-    sym_values = ",".join(f"('{r['symbol']}')" for r in profiles)
-    con.execute(f"CREATE TABLE universe(symbol VARCHAR); INSERT INTO universe VALUES {sym_values}")
 
     if exchanges:
         sym_filter_sql = (
@@ -130,6 +132,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
     if checks:   # check N: SET NVDR lines share their ordinary line's security key
         dc.record_twins_linked(mark_nvdr_twins(con))
+    ur.mark_twins(con)   # ur-4: an SAO preferred or unit line stands in for an unpriced ordinary line
 
     # 2. Historical market cap (from key_metrics FY filings, point-in-time)
     print("  Fetching historical market cap...")
@@ -209,13 +212,24 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     return con
 
 
-def _candidates_sql(target_date, cap_test, events=False):
-    """The screen's candidates on target_date, each with its proximity ratio and market cap.
+def _frame_start_sql(clips):
+    """clips: {symbol: first own day} of the leg's lookback_clip lines (ur-4), whose earlier bars are another
+    company's or instrument's. A condition on a prices_cache row: such a line's frame starts on its first own day."""
+    if not clips:
+        return "TRUE"
+    whens = " ".join("WHEN '{}' THEN {}".format(s.replace("'", "''"), utc_epoch(date.fromisoformat(d)))
+                     for s, d in sorted(clips.items()))
+    return f"trade_epoch >= CASE symbol {whens} ELSE 0 END"
+
+
+def _candidates_sql(target_date, cap_test, events=False, clips=None):
+    """The screen's candidates on target_date among the lines in `universe`, each with its proximity ratio and
+    market cap.
 
     The floor reads cap_used (check M): each line's latest FY row filed by the 45-day cutoff (the first `?`), its
     cap over check M's divisor, NULL for an ineligible row. cap_test is the floor clause ("km.cap_used > ?", or
     CAP_FAIL_TEST for M's events, which also read km_epoch and raw_cap). The candidates carry cap_used as
-    marketCap, so the tie-break and the cost tier read it.
+    marketCap, so the tie-break and the cost tier read it. clips: _frame_start_sql's.
 
     proximity_ratio = close(S) / MAX(high) over the 252 bars ending at S, untraded (zero or NULL volume)
     bars included, S being the latest bar in [R - 10d, R] with volume > 0; a line with no such bar is not ranked.
@@ -246,6 +260,7 @@ def _candidates_sql(target_date, cap_test, events=False):
             SELECT km.symbol, km.cap_used AS marketCap{extra}
             FROM km
             WHERE km.rn = 1
+              AND km.symbol IN (SELECT symbol FROM universe)
               AND {cap_test}
         ),
         windowed AS (
@@ -262,6 +277,7 @@ def _candidates_sql(target_date, cap_test, events=False):
             WHERE symbol IN (SELECT symbol FROM eligible)
               AND trade_epoch >= {start_epoch}
               AND trade_epoch <= {target_epoch}
+              AND {_frame_start_sql(clips)}
         ),
         latest AS (
             SELECT symbol, close, high_52w, row_count
@@ -288,43 +304,53 @@ def _candidates_sql(target_date, cap_test, events=False):
     """
 
 
-def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1, dc=None):
+def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1, dc=None, ur=None):
     """Screen for 52-week high proximity stocks at target_date (_candidates_sql), the top MAX_STOCKS by
     proximity ratio after the security dedup. Exact ties rank by larger cap_used, then symbol.
 
     dc (data_utils.DataChecks): when on, NVDR twins share a security (check N); it also records the
-    screen's twin and market-cap events.
+    screen's twin and market-cap events. ur-4's class twins share a security in every mode, so an SAO
+    company holds one line. ur: the leg's data_utils.UniverseRules (its removals act at the fetch, its
+    line_starts, line_ends and lookback_clip here; it records the class twins each screen picks).
     Returns list of (symbol, market_cap, proximity_ratio), the market cap being cap_used.
     """
     cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
-    sql = partial(_candidates_sql, target_date)
-    candidates = sql("km.cap_used > ?")
+    late = ur.not_started(target_date) if ur is not None else []
+    gone = ur.ended(target_date) if ur is not None else []
+    left_out = late + gone
+    clips = {s: ur.starts[s][0] for s in ur.clips} if ur is not None else {}
+    sql = partial(_candidates_sql, target_date, clips=clips)
+    candidates = without_lines_sql(sql("km.cap_used > ?"), left_out)
     params = [cutoff_epoch, mktcap_min]
-    # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot for the next name.
+    # One row per security BEFORE the top-N cut, so a collapsed twin frees its slot for the next name.
     rows = con.execute(f"""
         SELECT symbol, marketCap, proximity_ratio
         FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE,
-                              twin_key=dc is not None and dc.on)})
+                              twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get("class_twins")))})
         ORDER BY proximity_ratio DESC, marketCap DESC NULLS LAST, symbol
         LIMIT ?
     """, params + [MAX_STOCKS]).fetchall()
 
     picked = [(r[0], r[1], r[2]) for r in rows]
+    if ur is not None:
+        ur.stand_ins([s for s, _, _ in picked], target_date)
     if dc is not None:
         dc.twins(con, candidates, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _, _ in picked])
-        dc.caps(con, sql(CAP_FAIL_TEST, events=True), params + [mktcap_min], target_date, mktcap_min)
+        dc.caps(con, without_lines_sql(sql(CAP_FAIL_TEST, events=True), left_out), params + [mktcap_min],
+                target_date, mktcap_min)
     if verbose and picked:
         print(f"    Selected: {len(picked)} (prox range: {picked[-1][2]:.3f}-{picked[0][2]:.3f})")
     return picked
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
-                 offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop", dc=None, win=None):
+                 offset_days=1, benchmark_symbol="SPY", ltp=None, ur=None, win=None, exit_method="drop", dc=None):
     """Run 52-week high proximity backtest. Returns list of period result dicts.
 
     dc: the leg's data_utils.DataChecks. Without one, no check runs (the "uncapped" mode); either way there is
-    no return cap. win: the leg's data_utils.RunWindow (its grid made rebalance_dates): the partial exit is
-    priced at the close on the end date (the caller marks the rows: RunWindow.mark)."""
+    no return cap. ur: the leg's data_utils.UniverseRules, passed to the screen. win: the leg's
+    data_utils.RunWindow (its grid made rebalance_dates): the partial exit is priced at the close on the end date
+    (the caller marks the rows: RunWindow.mark)."""
     results = []
     dc = dc if dc is not None else DataChecks("uncapped", DATA_CHECKS)
     win = win if win is not None else RunWindow.typed()
@@ -334,7 +360,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         exit_date = rebalance_dates[i + 1]
         x_off = win.exit_offset(exit_date, offset_days)
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min, verbose=verbose, offset_days=offset_days, dc=dc)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, verbose=verbose, offset_days=offset_days, dc=dc, ur=ur)
 
         bench_return = get_benchmark_return(
             con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days, exit_offset_days=x_off)
@@ -531,6 +557,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     win = win.for_leg(universe_name)
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
     dc = DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)
+    ur = UniverseRules(UNIVERSE_RULES)
     mktcap_threshold = get_mktcap_threshold(exchanges)
 
     benchmark_symbol, benchmark_name = get_local_benchmark(exchanges)
@@ -549,7 +576,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = win.grid(2000, frequency, months=DEFAULT_REBALANCE_MONTHS, offset_days=offset_days)
     t0 = time.time()
     con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
-                             mktcap_min=mktcap_threshold, dc=dc, win=win)
+                             mktcap_min=mktcap_threshold, dc=dc, ur=ur, win=win)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -564,11 +591,14 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=verbose,
                            offset_days=offset_days, benchmark_symbol=benchmark_symbol,
-                           ltp=ltp, win=win, exit_method=exit_method, dc=dc)
+                           ltp=ltp, ur=ur, win=win, exit_method=exit_method, dc=dc)
     win.mark(results)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
     print(f"  {dc.summary()}")
+    ub = ur.block()
+    print(f"  Universe rules: {ub['ordinary_shares']['removed_count']} lines not ordinary shares "
+          f"{ub['ordinary_shares']['by_reason']}")
 
     valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
     if not valid:
@@ -616,6 +646,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     output.update({**win.fields(con, benchmark_symbol, valid, periods_per_year, partial_year, offset_days),
                    "listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
     output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both
+    output["universe_rules"] = ub        # the fetch's removals and the screen's stand-ins: equal in drop, ltp and both
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 
