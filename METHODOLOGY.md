@@ -236,7 +236,7 @@ Four topics keep their universe to ordinary shares, through opt-in helpers in `d
   - PEAK (Healthpeak's old ticker) after 2024-03-28: its bars end that day, when DOC took the listing, and its fiscal-year rows dated later are a part-copy of DOC's (equal FY2025 revenue, another net income).
   - GLT (Glatfelter) after 2024-12-03: its bars end that day, when it became Magnera, and its FY2025 row, dated after that day, reports Magnera's year (revenue 3,262m against Glatfelter's 1,386m for FY2023).
 
-  None of the four days is one of fcf-conversion's July rebalance dates. A screen dated on a last own day would keep the line and then find no entry price for it (`entry_unpriced`).
+  None of the four days is one of fcf-conversion's July rebalance dates. A screen dated on a last own day would keep the line and then find no entry price for it (`entry_unpriced`). COG's, 2021-10-01, is one of 52-week-high's quarterly rebalance dates: that screen keeps COG, and a pick of it has no entry price, so its slot stays empty.
 
 **ur-4 (52-week-high, its results to follow its rerun).** 52-week-high ranks a line by its price against its own trailing high, so the line's earlier bars count as much as its instrument: a line whose ticker carried another company's bars ranks on them. ur-4 is ur-3 (its keep list, reasons, name terms, class twins, line starts and line ends) with a longer hand list, one more reason, more line starts, a line end on a keep-list line, and `lookback_clip`. `non_ordinary_sql(cfg=UNIVERSE_RULES_V4)` gives its CASE.
 

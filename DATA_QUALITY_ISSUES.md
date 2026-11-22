@@ -1228,7 +1228,7 @@ still hold every listed line; read them with the measurements earlier in this se
 topics' committed results were rerun with it in October 2026; defensive-quality joined in November
 2026 (see "Lines that aren't ordinary shares" below), asset-growth with its November 2026 rerun,
 and fcf-conversion, on data checks dc-3, with its own November 2026 rerun. 52-week-high's code
-joined in November 2026 on dc-3; its committed results are still the October run's, with the cap.
+runs dc-3; its committed results are still the October run's, with the cap.
 The other topics keep their existing cap (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their
 own rerun.
 
@@ -1558,9 +1558,11 @@ code carries universe rules ur-3 (ur-2 with more hand-list lines, line starts an
 own statement window and pair test, and data checks dc-3, and its committed results are the
 November 2026 rerun's on all three. Where fcf-conversion's October books held the same kind of line,
 the entry gives its state too, and the last two entries are its own. 52-week-high's code carries
-universe rules ur-4 (ur-3 with more hand-list lines, line starts, BCE-PY.TO's line end and the
-lookback clip) and data checks dc-3; its committed results are the October 2026 run's and predate
-both, so an entry's ur-3 fix holds in 52-week-high's code too.
+universe rules ur-4 (ur-3 with more hand-list lines, `jpx_reit` for JPX's REITs, more line starts,
+BCE-PY.TO's line end and the lookback clip) and data checks dc-3; its committed results are the
+October 2026 run's and predate both. An entry's ur-3 fix holds in 52-week-high's code too, except
+that ur-4 takes AZN and JHX off the hand list and starts each at its direct listing (AZN on
+2026-02-02, JHX on 2025-07-01), so neither is out in every year there.
 
 ### KSC lines that duplicate KOSDAQ series
 
