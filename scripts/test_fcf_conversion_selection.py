@@ -513,8 +513,7 @@ DU_MUTANTS = {
     "a line left out on its last own day too": [(ENDED, "if d <= target_date.isoformat())")],
     "a line left out before its last own day, not after": [(ENDED, "if d > target_date.isoformat())")],
     "a line kept the day after its last own day": [(ENDED, "if d < (target_date - timedelta(days=1)).isoformat())")],
-    "line_ends not written to the block": [('("line_ends", LINE_END_RULE, "last_day", self.ends)',
-                                            '("line_ends", LINE_END_RULE, "last_day", {})')],
+    "line_ends not written to the block": [('("line_ends", "last_day", self.ends)', '("line_ends", "last_day", {})')],
 }
 
 

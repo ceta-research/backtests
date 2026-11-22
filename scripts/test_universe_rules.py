@@ -30,6 +30,13 @@ without_lines_sql (the line-start and line-end filter), RowGuard (a screen guard
 guard's paired or unranked candidates) are checked here too, with asset growth and fcf-conversion running data_utils'
 copies, as they run its load_universe (the universe fetch).
 
+ur-4 (cfg=UNIVERSE_RULES_V4, no topic's results store it yet, so it isn't in FROZEN_UR) is ur-3 plus the lines
+PROFILE_V4 holds (real profile rows: each added line reads known under ur-4 and None under ur-3), jpx_reit (a JPX
+line whose profile industry starts with REIT; JPX's other lines and REITs on other exchanges stay), its own rule,
+kept, line-start and line-end texts, the new line starts (de-SPAC lines and LUMI.ST among them), lookback_clip (the
+starts whose earlier bars are another company's or instrument's, listed in the block on a leg holding one) and
+BCE-PY.TO's line end, which acts on a keep-list line. Each has must-fail mutants.
+
 Usage: python scripts/test_universe_rules.py
 """
 import glob
@@ -113,8 +120,8 @@ PROFILE = [
 def profile_con():
     con = duckdb.connect()
     con.execute("CREATE TABLE profile(symbol VARCHAR, exchange VARCHAR, companyName VARCHAR, isin VARCHAR,"
-                " isFund BOOLEAN, isEtf BOOLEAN, isAdr BOOLEAN)")
-    con.executemany("INSERT INTO profile VALUES (?, ?, ?, ?, ?, ?, NULL)", [r[:6] for r in PROFILE])
+                " isFund BOOLEAN, isEtf BOOLEAN, isAdr BOOLEAN, industry VARCHAR)")
+    con.executemany("INSERT INTO profile VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)", [r[:6] for r in PROFILE])
     return con
 
 
@@ -387,6 +394,7 @@ KEEP = {"JUP.L", "1414.T", "4764.TW", "ABE.AX", "5243.T", "NOTE.ST", "SALE", "PT
         "BCE-PY.TO"}
 V2_ORDER = ["fund_flag", "known", "korean_preferred", "german_preference", "canadian_preferred", "us_suffix",
             "nasdaq_fifth_letter", "brazil_class", "us_adr", "us_trust_lp", "name_term"]
+V4_ORDER = V2_ORDER[:-1] + ["jpx_reit", "name_term"]
 
 
 def v2_sql(p="p", profile="profile", **kw):
@@ -402,12 +410,14 @@ def v2_rows():
     return PROFILE_V2 + [(s, ex, n, isin, None, fu, et, None, w, w) for s, ex, n, isin, fu, et, w in PROFILE]
 
 
-def profile_v2_con(rows=None):
+def profile_v2_con(rows=None, industry=False):
+    """The profile table on rows' first 8 fields, industry NULL; industry=True reads it from the 9th (ur-4's rows)."""
     con = duckdb.connect()
     con.execute("CREATE TABLE profile(i INTEGER, symbol VARCHAR, exchange VARCHAR, companyName VARCHAR, isin VARCHAR,"
-                " cik VARCHAR, isFund BOOLEAN, isEtf BOOLEAN, isAdr BOOLEAN)")
-    con.executemany("INSERT INTO profile VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    [(i, *r[:8]) for i, r in enumerate(v2_rows() if rows is None else rows)])
+                " cik VARCHAR, isFund BOOLEAN, isEtf BOOLEAN, isAdr BOOLEAN, industry VARCHAR)")
+    n = 9 if industry else 8
+    con.executemany(f"INSERT INTO profile VALUES ({', '.join('?' * (n + 1))}{'' if industry else ', NULL'})",
+                    [(i, *r[:n]) for i, r in enumerate(v2_rows() if rows is None else rows)])
     return con
 
 
@@ -459,23 +469,24 @@ def v2_mutants():
     }
 
 
-def reason_failures():
-    """Every reason each CASE can emit, in CASE order, is its rules' order; ur-2's and ur-3's order is V2_ORDER
-    and their keep list is their first WHEN."""
+def reason_failures(m=du):
+    """Every reason each CASE can emit, in CASE order, is its rules' order; ur-2's and ur-3's order is V2_ORDER,
+    ur-4's V4_ORDER, and their keep list is their first WHEN."""
     f = []
-    for name, sql, rules in (("ur-1", du.non_ordinary_sql("p"), du.ORDINARY_RULES),
-                             ("ur-2", v2_sql("p"), du.ORDINARY_RULES_V2),
-                             ("ur-3", v3_sql("p"), du.ORDINARY_RULES_V3)):
-        emitted = re.findall(r"THEN '([a-z_]+)'", sql)
+    sql = lambda v: m.non_ordinary_sql("p", cfg=getattr(m, f"UNIVERSE_RULES_{v}"))
+    versions = (("ur-2", sql("V2"), m.ORDINARY_RULES_V2, V2_ORDER), ("ur-3", sql("V3"), m.ORDINARY_RULES_V3, V2_ORDER),
+                ("ur-4", sql("V4"), m.ORDINARY_RULES_V4, V4_ORDER))
+    for name, text, rules in (("ur-1", m.non_ordinary_sql("p"), m.ORDINARY_RULES), *(v[:3] for v in versions)):
+        emitted = re.findall(r"THEN '([a-z_]+)'", text)
         if emitted != list(rules["order"]):
             f.append(f"{name} emits {emitted}, its rules order {list(rules['order'])}")
-    keep = f"CASE WHEN p.symbol IN ({du._sql_list(s for s, _ in du.ORDINARY_KNOWN_V2)}) THEN NULL WHEN "
-    for name, sql, rules in (("ur-2", v2_sql("p"), du.ORDINARY_RULES_V2), ("ur-3", v3_sql("p"), du.ORDINARY_RULES_V3)):
-        if list(rules["order"]) != V2_ORDER:
+    keep = f"CASE WHEN p.symbol IN ({m._sql_list(s for s, _ in m.ORDINARY_KNOWN_V2)}) THEN NULL WHEN "
+    for name, text, rules, order in versions:
+        if list(rules["order"]) != order:
             f.append(f"{name} order {list(rules['order'])}")
-        if not sql.startswith(keep):
+        if not text.startswith(keep):
             f.append(f"{name}'s keep list is not its first WHEN")
-    if "THEN NULL" in du.non_ordinary_sql("p"):
+    if "THEN NULL" in m.non_ordinary_sql("p"):
         f.append("ur-1 carries a keep list")
     return f
 
@@ -989,6 +1000,491 @@ def v3_mutants():
     }
 
 
+# ---------------------------------------------------------------- ur-4
+
+NEW_KNOWN_V4 = {
+    **dict.fromkeys(("AAC", "JWSM", "CVII", "WWAC", "CRHC", "KAHC", "PRPB", "ASZ", "BIOS", "GIG"), "blank check"),
+    **dict.fromkeys(("AV-A.L", "AV-B.L", "GACA.L", "GACB.L", "BP-A.L", "BP-B.L", "VOLO-PREF.ST", "HEIM-PREF.ST",
+                     "NP3-PREF.ST", "NYTTO-PREF.ST", "ENRO-PREF-B.ST", "CORE-PREF.ST", "K2A-PREF.ST", "BC88.L"),
+                    "preferred"),
+    **dict.fromkeys(("SAGA-D.ST", "AKEL-D.ST", "FPAR-D.ST", "SBB-D.ST", "CORE-D.ST"), "D share"),
+    **dict.fromkeys(("CLDN.L", "BBGI.L", "BGHS.L", "TFGS.L", "APAX.L", "TPOS.L", "155900.KS", "SPCE.SW", "MAIN",
+                     "ARCC", "GBDC", "HTGC"), "fund"),
+    "DANR.MI": "savings share",
+    **dict.fromkeys(("ALIV-SDB.ST", "TIGO-SDB.ST", "910322.TW"), "depositary receipt"),
+    **dict.fromkeys(("TEVA", "TTE", "AU", "CEO"), "ADR"),
+    "E1AIRTELPP.NS": "partly paid", "HGH": "debentures", "ATCOL": "notes", "EXEEL": "warrant",
+    **dict.fromkeys(("STM.MI", "SIME.KL"), "second line"), **dict.fromkeys(("9086.T", "FFB.JO"), "vendor copy"),
+    **dict.fromkeys(("REDD.L", "SNC.TO", "CLI"), "renamed line")}
+DESPAC = {"CTOS": "2019-08-01", "GB": "2020-08-31", "FSR": "2020-10-30", "SDA": "2023-05-18", "MVST": "2021-07-26",
+          "ECX": "2022-12-21", "GRND": "2022-11-18", "CNCK": "2024-12-11"}
+NEW_STARTS_V4 = {"MER.TO": "2025-06-13", "VRN.TO": "2024-06-11", "SHA0.DE": "2024-10-29", "9A4U.SI": "2025-06-03",
+                 "SET.SI": "2025-07-11", "SWR.L": "2025-03-15", "BGC": "2023-07-01", "FLG": "2024-11-23",
+                 "GETY": "2022-07-23", "NVRI": "2023-06-17", "PSKY": "2025-08-09", "PRMB": "2024-11-20",
+                 "1972.HK": "2012-01-18", "BRNK.DE": "2024-04-24", "UNITDSPR.NS": "2025-03-14",
+                 "NORION.ST": "2023-10-04", "SHC.L": "2023-03-07", "AD": "2025-09-09", "TXNM": "2024-08-28",
+                 "LUMI.ST": "2017-06-08", **DESPAC}
+# the line starts whose earlier bars are another company's or instrument's; the same-company renames are not
+LOOKBACK_CLIP = set(DESPAC) | {"1972.HK", "GETY", "LUMI.ST"}
+NEW_ENDS_V4 = {"BCE-PY.TO": "2025-09-30"}
+REFS = re.compile(r"#\d|\bcall \d|tracker|DECISIONS", re.I)
+# symbol, exchange, companyName, isin, cik, isFund, isEtf, isAdr, industry, then the ur-4 and ur-3 reasons wanted.
+# Real profile rows: ur-4's added lines, the lines beside them, J-REITs and JPX's other lines, and REITs elsewhere.
+PROFILE_V4 = [
+    ("AAC", "NYSE", "Ares Acquisition Corp. III Class A", "KYG3303U1040", "0002128115", F, F, F, "Shell Companies",
+     "known", None),
+    ("JWSM", "NYSE", "Jaws Mustang Acquisition Corporation", "KYG507371089", "0001831359", F, F, F, "Shell Companies",
+     "known", None),
+    ("CVII", "NYSE", "Churchill Capital Corp VII", "US17144M1027", "0001828248", F, F, F, "Shell Companies", "known",
+     None),
+    ("WWAC", "NASDAQ", "Worldwide Webb Acquisition Corp.", "KYG0136H1020", "0001853044", F, F, F, "Shell Companies",
+     "known", None),
+    ("CRHC", "NYSE", "Cohn Robbins Holdings Corp.", "KYG237261055", "0001818212", F, F, F, "Shell Companies", "known",
+     None),
+    ("KAHC", "NYSE", "KKR Acquisition Holdings I Corp.", "US48253T1097", "0001843212", F, F, F, "Shell Companies",
+     "known", None),
+    ("PRPB", "NYSE", "CC Neuberger Principal Holdings II", "KYG3166T1031", "0001812667", F, F, F, "Shell Companies",
+     "known", None),
+    ("ASZ", "NYSE", "Austerlitz Acquisition Corporation II", "KYG0633U1013", "0001839191", F, F, F, "Shell Companies",
+     "known", None),
+    ("BIOS", "NASDAQ", "BioPlus Acquisition Corp.", "KYG112171171", "0001856653", F, F, F, "Shell Companies", "known",
+     None),
+    ("GIG", "NASDAQ", "GigCapital7 Corp.", "US40500A1088", "0002023730", F, F, F, "Shell Companies", "known", None),
+    ("AV-A.L", "LSE", "Aviva PLC", "GB0002124963", None, F, F, F, "Insurance - Diversified", "known", None),
+    ("AV-B.L", "LSE", "Aviva PLC", "GB0002114154", None, F, F, F, "Insurance - Diversified", "known", None),
+    ("GACA.L", "LSE", "General Accident PLC", "GB0003692737", None, F, F, F, "Financial - Credit Services", "known",
+     None),
+    ("GACB.L", "LSE", "General Accident PLC", "GB0003692513", None, F, F, F, "Financial - Credit Services", "known",
+     None),
+    ("BP-A.L", "LSE", "BP p.l.c.", "GB0001385250", None, F, F, F, "Oil & Gas Integrated", "known", None),
+    ("BP-B.L", "LSE", "BP p.l.c.", "GB0001385474", None, F, F, F, "Oil & Gas Integrated", "known", None),
+    ("VOLO-PREF.ST", "STO", "Volati AB", "SE0009143670", None, F, F, F, "Conglomerates", "known", None),
+    ("SAGA-D.ST", "STO", "AB Sagax (publ)", "SE0009161052", None, F, F, F, "Real Estate - Development", "known", None),
+    ("AKEL-D.ST", "STO", "Akelius Residential Property AB (publ)", "SE0013110186", None, F, F, F,
+     "Real Estate - Services", "known", None),
+    ("HEIM-PREF.ST", "STO", "Heimstaden AB (publ)", "SE0015949037", None, F, F, F, "Real Estate - Development",
+     "known", None),
+    ("NP3-PREF.ST", "STO", "NP3 Fastigheter AB (publ)", "SE0010820514", None, F, F, F, "Real Estate - Development",
+     "known", None),
+    ("FPAR-D.ST", "STO", "FastPartner AB (publ)", "SE0013512514", None, F, F, F, "Real Estate - Diversified", "known",
+     None),
+    ("NYTTO-PREF.ST", "STO", "Svenska Nyttobostäder AB (publ)", "SE0014808861", None, F, F, F,
+     "Real Estate - Services", "known", None),
+    ("ENRO-PREF-B.ST", "STO", "Eniro Group AB (publ)", None, None, F, F, F, "Advertising Agencies", "known", None),
+    ("SBB-D.ST", "STO", "Samhällsbyggnadsbolaget i Norden AB (publ)", "SE0011844091", None, F, F, F,
+     "Real Estate - Development", "known", None),
+    ("CORE-PREF.ST", "STO", "Corem Property Group AB (publ)", "SE0010714311", None, F, F, F,
+     "Real Estate - Diversified", "known", None),
+    ("CORE-D.ST", "STO", "Corem Property Group AB (publ)", "SE0015961594", None, F, F, F, "Real Estate - Diversified",
+     "known", None),
+    ("K2A-PREF.ST", "STO", "K2A Knaust & Andersson Fastigheter AB (publ)", "SE0006852075", None, F, F, F,
+     "Real Estate - Development", "known", None),
+    ("CLDN.L", "LSE", "Caledonia Investments plc", "GB00BTNQ8K38", None, F, F, F, "Asset Management", "known", None),
+    ("BBGI.L", "LSE", "BBGI Global Infrastructure S.A.", "LU0686550053", None, F, F, F, "Asset Management - Global",
+     "known", None),
+    ("BGHS.L", "LSE", "Boussard & Gavaudan Holding Limited", "GG00B39VMM07", None, F, F, F, "Asset Management",
+     "known", None),
+    ("TFGS.L", "LSE", "Tetragon Financial Group Limited", "GG00B1RMC548", None, F, F, F, "Asset Management", "known",
+     None),
+    ("APAX.L", "LSE", "Apax Global Alpha Limited", "GG00BWWYMV85", None, F, F, F, "Asset Management - Global",
+     "known", None),
+    ("TPOS.L", "LSE", "Third Point Investors Limited", "GG00B1YQ7219", None, F, F, F, "Asset Management", "known",
+     None),
+    ("155900.KS", "KSC", "Badaro No. 19 Ship Investment Company", None, None, F, F, F, "Marine Shipping", "known",
+     None),
+    ("SPCE.SW", "SIX", "Spice Private Equity AG", "CH0009153310", None, F, F, F, "Asset Management", "known", None),
+    ("MAIN", "NYSE", "Main Street Capital Corporation", "US56035L1044", "0001396440", F, F, F, "Asset Management",
+     "known", None),
+    ("ARCC", "NASDAQ", "Ares Capital Corporation", "US04010L1035", "0001287750", F, F, F, "Asset Management", "known",
+     None),
+    ("GBDC", "NASDAQ", "Golub Capital BDC, Inc.", "US38173M1027", "0001476765", F, F, F, "Asset Management", "known",
+     None),
+    ("HTGC", "NYSE", "Hercules Capital, Inc.", "US4270965084", "0001280784", F, F, F, "Asset Management", "known",
+     None),
+    ("DANR.MI", "MIL", "Danieli & C. Officine Meccaniche S.p.A.", "IT0000076486", None, F, F, F,
+     "Industrial - Machinery", "known", None),
+    ("ALIV-SDB.ST", "STO", "Autoliv, Inc.", "SE0021309614", None, F, F, F, "Auto - Parts", "known", None),
+    ("TIGO-SDB.ST", "STO", "Millicom International Cellular S.A.", "SE0001174970", None, F, F, F,
+     "Telecommunications Services", "known", None),
+    ("910322.TW", "TAI", "Tingyi (Cayman Islands) Holding Corp.", "TW0009103226", None, F, F, F, "Packaged Foods",
+     "known", None),
+    ("TEVA", "NYSE", "Teva Pharmaceutical Industries Limited", "IL0006290147", "0000818686", F, F, F,
+     "Drug Manufacturers - Specialty & Generic", "known", None),
+    ("TTE", "NYSE", "TotalEnergies SE", "FR0000120271", "0000879764", F, F, F, "Oil & Gas Integrated", "known", None),
+    ("AU", "NYSE", "AngloGold Ashanti Plc", "GB00BRXH2664", "0001973832", F, F, F, "Gold", "known", None),
+    ("CEO", "NYSE", "CNOOC Limited", "US1261321095", "0001095595", F, F, F, "Oil & Gas Exploration & Production",
+     "known", None),
+    ("E1AIRTELPP.NS", "NSE", "Bharti Airtel Ltd. - Ordinary Shares (Partly Paid Rs.1.25)", "IN9397D01014", None, F, F,
+     F, "Telecommunications Services", "known", None),
+    ("HGH", "NYSE", "The Hartford Financial Services Group, Inc. DEB FIX/FLT 42", None, "0000874766", F, F, F,
+     "Insurance - Diversified", "known", None),
+    ("ATCOL", "NASDAQ", "Atlas Corp.", "US04926V2034", "0001794846", F, F, F, "Asset Management", "known", None),
+    ("EXEEL", "NASDAQ", "Expand Energy Corporation", "US1651671802", "0000895126", F, F, F, "Oil & Gas Energy",
+     "known", None),
+    ("STM.MI", "MIL", "STMicroelectronics N.V.", None, None, F, F, F, "Semiconductors", "known", None),
+    ("9086.T", "JPX", "Hitachi Transport System, Ltd.", "JP3791200003", None, F, F, F,
+     "Integrated Freight & Logistics", "known", None),
+    ("FFB.JO", "JNB", "Fortress REIT Limited", "ZAE000248506", None, F, F, F, "REIT - Diversified", "known", None),
+    ("SIME.KL", "KLS", "Sime Darby Berhad", "MYL4197OO009", None, F, F, F, "Industrial - Distribution", "known", None),
+    ("REDD.L", "LSE", "Redde Northgate plc", "GB00B41H7391", None, F, F, F, "Rental & Leasing Services", "known",
+     None),
+    ("SNC.TO", "TSX", "SNC-Lavalin Group Inc.", "CA78460T1057", None, F, F, F, "Engineering & Construction", "known",
+     None),
+    ("CLI", "NYSE", "Mack-Cali Realty Corporation", None, "0000924901", F, F, F, "REIT - Office", "known", None),
+    ("BC88.L", "LSE", "Chemring Group PLC", "GB0001904845", None, F, F, F, "Aerospace & Defense", "known", None),
+    ("AV.L", "LSE", "Aviva plc", "GB00BPQY8M80", None, F, F, F, "Insurance - Diversified", None, None),
+    ("BP.L", "LSE", "BP p.l.c.", "GB0007980591", None, F, F, F, "Oil & Gas Integrated", None, None),
+    ("CHG.L", "LSE", "Chemring Group PLC", "GB00B45C9X44", None, F, F, F, "Aerospace & Defense", None, None),
+    ("DAN.MI", "MIL", "Danieli & C. Officine Meccaniche S.p.A.", "IT0000076502", None, F, F, F,
+     "Industrial - Machinery", None, None),
+    ("EXE", "NASDAQ", "Expand Energy Corporation", "US1651677353", "0000895126", F, F, F,
+     "Oil & Gas Exploration & Production", None, None),
+    ("EXEEZ", "NASDAQ", "Expand Energy Corporation", "US1651671729", "0000895126", F, F, F, "Oil & Gas Energy",
+     "nasdaq_fifth_letter", "nasdaq_fifth_letter"),
+    ("HIG", "NYSE", "The Hartford Insurance Group, Inc.", "US4165151048", "0000874766", F, F, F,
+     "Insurance - Diversified", None, None),
+    ("BHARTIARTL.NS", "NSE", "Bharti Airtel Limited", "INE397D01024", None, F, F, F, "Telecommunications Services",
+     None, None),
+    ("VOLO.ST", "STO", "Volati AB", "SE0009143662", None, F, F, F, "Conglomerates", None, None),
+    ("SAGA-B.ST", "STO", "AB Sagax (publ)", "SE0005127818", None, F, F, F, "Real Estate - Development", None, None),
+    ("STMMI.MI", "MIL", "STMicroelectronics N.V.", "NL0000226223", None, F, F, F, "Semiconductors", None, None),
+    ("6501.T", "JPX", "Hitachi, Ltd.", "JP3788600009", None, F, F, F, "Conglomerates", None, None),
+    ("4197.KL", "KLS", "Sime Darby Berhad", "MYL4197OO009", None, F, F, F, "Auto - Manufacturers", None, None),
+    ("ZIG.L", "LSE", "Zigup Plc", "GB00B41H7391", None, F, F, F, "Rental & Leasing Services", None, None),
+    ("ATRL.TO", "TSX", "AtkinsRéalis Group Inc.", "CA04764T1049", None, F, F, F, "Engineering & Construction", None,
+     None),
+    ("GETY", "NYSE", "Getty Images Holdings, Inc.", "US3742751056", "0001898496", F, F, F,
+     "Internet Content & Information", None, None),
+    # J-REITs leave JPX books by their industry, whatever the name says; JPX's other lines and REITs elsewhere stay
+    ("8951.T", "JPX", "Nippon Building Fund Incorporation", None, None, F, F, F, "REIT - Office", "jpx_reit", None),
+    ("3269.T", "JPX", "Advance Residence Investment Corporation", None, None, F, F, F, "REIT - Residential",
+     "jpx_reit", None),
+    ("3289.T", "JPX", "Tokyu Fudosan Holdings Corporation", None, None, F, F, F, "Real Estate - Diversified", None,
+     None),
+    ("8801.T", "JPX", "Mitsui Fudosan Co., Ltd.", None, None, F, F, F, "Real Estate - Diversified", None, None),
+    ("1495.T", "JPX", "Listed Index Fund Asian REIT ETF", None, None, F, T, F, "Asset Management - Global",
+     "fund_flag", "fund_flag"),
+    ("9A4U.SI", "SES", "ESR REIT", "SGXC55341835", None, F, F, F, "REIT - Industrial", None, None),
+    ("FFA.JO", "JNB", "Fortress REIT Limited", "ZAE000248498", None, F, F, F, "REIT - Diversified", None, None),
+    ("VRE", "NYSE", "Veris Residential, Inc.", "US5544891048", "0000924901", F, F, F, "REIT - Residential", None,
+     None),
+    ("MINDSPACE.NS", "NSE", "Mindspace Business Parks REIT Unit", "INE0CCU25019", None, F, F, F, "REIT - Office",
+     None, None),
+]
+
+
+def v4_rows():
+    """PROFILE_V4, then every v3_rows case (no industry) wanting its ur-3 reason under ur-4 too."""
+    return PROFILE_V4 + [(*r[:8], None, r[8], r[8]) for r in v3_rows()]
+
+
+def v4_sql(p="p", profile="profile", **kw):
+    return du.non_ordinary_sql(p, profile, cfg=du.UNIVERSE_RULES_V4, **kw)
+
+
+def v4_failures(m=du):
+    """ur-4's and ur-3's reasons on v4_rows: each added line reads known and a JPX line the profile files under a
+    REIT industry reads jpx_reit under ur-4 alone; JPX's other lines and REITs on other exchanges stay."""
+    con, rows = profile_v2_con(v4_rows(), industry=True), v4_rows()
+    f = []
+    for label, cfg, col in (("ur-4", m.UNIVERSE_RULES_V4, 9), ("ur-3", m.UNIVERSE_RULES_V3, 10)):
+        sql = m.non_ordinary_sql("p", cfg=cfg)
+        if ";" in sql or "\x08" in sql:
+            f.append(f"{label} SQL carries a ';' or a backspace")
+        got = dict(con.execute(f"SELECT p.i, {sql} FROM profile p").fetchall())
+        f += [f"{label} {r[0]} ({r[3]!r}): {got[i]!r}, want {r[col]!r}" for i, r in enumerate(rows) if got[i] != r[col]]
+    return f
+
+
+def v4_shape_failures(m=du):
+    """ur-4 is ur-3's hand list plus NEW_KNOWN_V4, ur-2's keep list and name terms, ur-3's order with its own hand
+    list named and jpx_reit ahead of name_term, and ur-3's config plus the J-REIT switch, the lookback clip and its
+    own line-start and line-end texts; no text cites an issue, a decision or a call."""
+    f = []
+    known, n3, keep = m.NON_ORDINARY_KNOWN_V4, len(m.NON_ORDINARY_KNOWN_V3), m.ORDINARY_KNOWN_V2
+    if known[:n3] != m.NON_ORDINARY_KNOWN_V3:
+        f.append("ur-4's hand list does not start with ur-3's")
+    if {s: k for s, k, _ in known[n3:]} != NEW_KNOWN_V4 or len(known) - n3 != len(NEW_KNOWN_V4):
+        f.append(f"ur-4's added lines {[e[:2] for e in known[n3:]]}")
+    syms = [e[0] for e in known]
+    if len(set(syms)) != len(syms) or set(syms) & {s for s, _ in keep}:
+        f.append("ur-4's hand list repeats a symbol or shares one with the keep list")
+    if not all(len(e) == 3 and all(isinstance(x, str) and x.strip() for x in e) for e in known):
+        f.append("ur-4's hand list has an empty or missing field")
+    r, r3 = m.ORDINARY_RULES_V4, m.ORDINARY_RULES_V3
+    if list(r) != list(r3):
+        f.append(f"ORDINARY_RULES_V4 keys {list(r)}")
+    others = lambda order: {k: v for k, v in order.items() if k not in ("known", "jpx_reit")}
+    if list(r["order"]) != V4_ORDER or others(r["order"]) != others(r3["order"]) or \
+            "NON_ORDINARY_KNOWN_V4" not in r["order"]["known"] or \
+            not all(t in r["order"].get("jpx_reit", "") for t in ("JPX", "industry", "REIT")):
+        f.append(f"ur-4's order {r['order']}")
+    if r["known"] != [{"symbol": s, "kind": k, "evidence": e} for s, k, e in known] or r["keep"] != r3["keep"]:
+        f.append("ORDINARY_RULES_V4's lists are not its hand list and ur-2's keep list")
+    v4, v3 = m.UNIVERSE_RULES_V4, m.UNIVERSE_RULES_V3
+    want = {**v3, "version": "ur-4", "ordinary": r, "known": known, "line_starts": m.LINE_STARTS_V4,
+            "line_ends": m.LINE_ENDS_V4, "jpx_reit": True, "lookback_clip": m.LOOKBACK_CLIP_V4,
+            "line_start_rule": m.LINE_START_RULE_V4, "line_end_rule": m.LINE_END_RULE_V4}
+    if v4 != want or list(v4) != list(want) or v4["ordinary"] is not r or v4["known"] is not known or \
+            v4["keep"] is not keep or v4["line_starts"] is not m.LINE_STARTS_V4 or \
+            v4["line_ends"] is not m.LINE_ENDS_V4 or v4["lookback_clip"] is not m.LOOKBACK_CLIP_V4:
+        f.append("UNIVERSE_RULES_V4 is not ur-3's config with ur-4's objects and keys")
+    if any(k in v for v in (m.UNIVERSE_RULES_V1, m.UNIVERSE_RULES_V2, v3)
+           for k in ("jpx_reit", "lookback_clip", "line_start_rule", "line_end_rule")):
+        f.append("an older version carries one of ur-4's keys")
+    if REFS.search(json.dumps(v4)):
+        f.append("ur-4's config cites an issue, a decision or a call")
+    b = m.UniverseRules(v4).block()
+    if list(b) != ["version", "ordinary_shares", "class_stand_ins"] or b["version"] != "ur-4" or \
+            b["ordinary_shares"]["rules"] is not r:
+        f.append(f"UniverseRules(V4).block() keys {list(b)}, version {b.get('version')}")
+    if {x[0] for x in PROFILE_V4 if x[9:] == ("known", None)} != set(NEW_KNOWN_V4):
+        f.append("PROFILE_V4 lacks a row for an added hand-list line")
+    return f
+
+
+def v4_text_failures(m=du):
+    """ur-4's texts: the rule adds the Nikkei 225 beside the S&P 500 and the Ibovespa; kept keeps REITs outside Japan
+    only and share classes without the Swedish D shares and preference lines, its other clauses ur-3's; the
+    line-start text is ur-3's plus the de-SPAC day and the lookback clip; the line-end text is ur-3's plus lines
+    whose later bars are another instrument's."""
+    f = []
+    r, r3 = m.ORDINARY_RULES_V4, m.ORDINARY_RULES_V3
+    rule = r["rule"]
+    if rule == r3["rule"] or not all(t in rule for t in (
+            "the S&P 500 holds no ADRs, royalty trusts or LPs", "the Ibovespa no BDRs", "the Nikkei 225 no REITs",
+            "Nikkei Stock Average Index Guidebook", "section 2(1)", "ETFs and REITs", "`keep` line stays")):
+        f.append(f"ur-4's rule text {rule!r}")
+    kept = r["kept"]
+    if kept == r3["kept"] or "REITs and their units outside Japan" not in kept or \
+            "REITs and their units, " in kept or not all(t in kept for t in (
+                "share classes (BF-B, MKC-V, CENTA, the Swedish ser. B lines; not the Swedish fixed-dividend D shares "
+                "or preference lines, which the known list removes)", "until a book holds one",
+                "listed first elsewhere", "trust units and LPs outside the US", "class twins", "`keep` lines below")):
+        f.append(f"ur-4's kept text {kept!r}")
+    start, end = m.UNIVERSE_RULES_V4.get("line_start_rule", ""), m.UNIVERSE_RULES_V4.get("line_end_rule", "")
+    if not start.startswith(m.LINE_START_RULE) or start == m.LINE_START_RULE or not all(t in start for t in (
+            "blank-check shell", "first trading day under", "lookback_clip", "price lookback", "first own day")):
+        f.append(f"ur-4's line-start text {start!r}")
+    if not end.startswith(m.LINE_END_RULE) or end == m.LINE_END_RULE or not all(
+            t in end for t in ("another instrument's", "BCE-PY.TO", "quarterly")):
+        f.append(f"ur-4's line-end text {end!r}")
+    if any(REFS.search(t) for t in (rule, kept, start, end)):
+        f.append("a ur-4 text cites an issue, a decision or a call")
+    return f
+
+
+def leg_row(s, why=None, exchange="X"):
+    return {"symbol": s, "exchange": exchange, "cik": None, "companyName": s, "non_ordinary": why}
+
+
+def v4_line_start_failures(m=du, rules=None):
+    """ur-4's line_starts: ur-3's, then NEW_STARTS_V4's, each on neither list, with an ISO day and evidence. A leg
+    that keeps them all leaves each out of a screen the day before its first own day, not on it (the de-SPAC lines on
+    their first day under the new ticker, LUMI.ST on its first day as directly listed shares), lists them with ur-4's
+    line-start text, and lists the lookback_clip lines it holds under lookback_clip with their first own day; a leg
+    with no clip line, a leg that removed one, and ur-3 write no lookback_clip key, and ur-3 keeps its own text."""
+    rules = m.UniverseRules if rules is None else rules
+    f = []
+    v4 = m.UNIVERSE_RULES_V4
+    starts, n3 = v4["line_starts"], len(m.LINE_STARTS_V3)
+    if starts[:n3] != m.LINE_STARTS_V3 or {s: d for s, d, _ in starts[n3:]} != NEW_STARTS_V4 or \
+            len(starts) - n3 != len(NEW_STARTS_V4):
+        f.append(f"ur-4's line starts {[e[:2] for e in starts[n3:]]}")
+    listed = {s for s, _, _ in v4["known"]} | {s for s, _ in v4["keep"]}
+    for s, d, e in starts:
+        if s in listed or not e.strip() or REFS.search(e) or date.fromisoformat(d).isoformat() != d:
+            f.append(f"line_starts entry {s} {d}")
+    clip = v4.get("lookback_clip", ())
+    if set(clip) != LOOKBACK_CLIP or len(clip) != len(set(clip)) or not set(clip) <= {s for s, _, _ in starts}:
+        f.append(f"lookback_clip {clip}")
+    leg = [leg_row(s) for s in sorted({s for s, _, _ in starts})]
+    ur = rules(v4)
+    ur.sector_rows(leg)
+    for s, d, _ in starts:
+        day = date.fromisoformat(d)
+        before, on = ur.not_started(day - timedelta(days=1)), ur.not_started(day)
+        if s not in before or s in on:
+            f.append(f"{s}: left out the day before {d}: {s in before}, on it: {s in on}")
+    for s, out, kept in (("CTOS", date(2019, 7, 1), date(2019, 10, 1)), ("GRND", date(2022, 10, 1), date(2023, 1, 1)),
+                         ("GETY", date(2022, 7, 1), date(2022, 10, 1)),
+                         ("LUMI.ST", date(2017, 4, 1), date(2017, 7, 1))):
+        if s not in ur.not_started(out) or s in ur.not_started(kept):
+            f.append(f"{s}: a quarterly screen on {out} keeps it or one on {kept} leaves it out")
+    b = ur.block()
+    want = {"rule": m.LINE_START_RULE_V4,
+            "lines": [{"symbol": s, "first_day": d, "evidence": e} for s, d, e in sorted(starts)]}
+    clipped = {"lines": [{"symbol": s, "first_day": d} for s, d, _ in sorted(starts) if s in LOOKBACK_CLIP]}
+    if b.get("line_starts") != want or b.get("lookback_clip") != clipped:
+        f.append(f"ur-4 block: line_starts text {b.get('line_starts', {}).get('rule')!r}, "
+                 f"lookback_clip {b.get('lookback_clip')}")
+    v3_starts = sorted(s for s, _, _ in m.LINE_STARTS_V3)
+    for label, rows, cfg, lines, rule in (
+            ("a leg with no clip line", [leg_row("MER.TO"), leg_row("AOI.TO")], v4, ["MER.TO"], m.LINE_START_RULE_V4),
+            ("a leg that removed GETY", [leg_row("GETY", "known"), leg_row("MER.TO")], v4, ["MER.TO"],
+             m.LINE_START_RULE_V4),
+            ("a leg with no listed line", [leg_row("AOI.TO")], v4, [], None),
+            ("ur-3", leg, m.UNIVERSE_RULES_V3, v3_starts, m.LINE_START_RULE)):
+        u = rules(cfg)
+        u.sector_rows(rows)
+        b = u.block()
+        got = [x["symbol"] for x in b.get("line_starts", {}).get("lines", [])]
+        if "lookback_clip" in b or got != lines or ("line_starts" in b) != bool(lines) or \
+                b.get("line_starts", {}).get("rule") != rule:
+            f.append(f"{label}: lookback_clip {b.get('lookback_clip')}, line_starts {got}, keys {list(b)}")
+    return f
+
+
+def v4_line_end_failures(m=du, rules=None):
+    """ur-4's line_ends: ur-3's, then BCE-PY.TO's, the one end on the keep list. BCE-PY.TO's profile row runs through
+    the CASE, sector_rows, ended() and without_lines_sql: kept by the keep list, it stays in a 2025-07-01 screen and a
+    2025-09-30 one and leaves a 2025-10-01 one under ur-4, and stays in all three under ur-3. A leg that keeps every
+    end leaves each out the day after its last own day, not on it, and lists them with ur-4's line-end text; ur-3
+    keeps its own."""
+    rules = m.UniverseRules if rules is None else rules
+    f = []
+    v4 = m.UNIVERSE_RULES_V4
+    ends, n3 = v4.get("line_ends", ()), len(m.LINE_ENDS_V3)
+    if ends[:n3] != m.LINE_ENDS_V3 or {s: d for s, d, _ in ends[n3:]} != NEW_ENDS_V4 or len(ends) - n3 != 1:
+        f.append(f"ur-4's line ends {[e[:2] for e in ends]}")
+    keep = {s for s, _ in v4["keep"]}
+    other = {s for s, _, _ in v4["known"]} | {s for s, _, _ in v4["line_starts"]}
+    for s, d, e in ends:
+        if s in other or (s in keep) != (s in NEW_ENDS_V4) or not e.strip() or REFS.search(e) or \
+                date.fromisoformat(d).isoformat() != d:
+            f.append(f"line_ends entry {s} {d}")
+    bce = [r for r in v4_rows() if r[0] in ("BCE-PY.TO", "BCE-PA.TO", "BCE.TO")]
+    con = profile_v2_con(bce, industry=True)
+    days = (date(2025, 7, 1), date(2025, 9, 30), date(2025, 10, 1))
+    cands = "SELECT * FROM (VALUES ('BCE-PY.TO'), ('BCE.TO')) t(symbol)"
+    for label, cfg, out, block in (("ur-4", v4, [[], [], ["BCE-PY.TO"]], ["BCE-PY.TO"]),
+                                   ("ur-3", m.UNIVERSE_RULES_V3, [[], [], []], None)):
+        sql = m.non_ordinary_sql("p", cfg=cfg)
+        u = rules(cfg)
+        kept = u.sector_rows([leg_row(s, why, ex) for s, ex, why in con.execute(
+            f"SELECT symbol, exchange, {sql} FROM profile p").fetchall()])
+        if sorted(r["symbol"] for r in kept) != ["BCE-PY.TO", "BCE.TO"]:
+            f.append(f"{label} keeps {sorted(r['symbol'] for r in kept)} of BCE's lines")
+        for day, gone in zip(days, out):
+            screen = m.without_lines_sql(cands, u.not_started(day) + u.ended(day))
+            left = sorted(x[0] for x in con.execute(screen).fetchall())
+            if u.ended(day) != gone or left != sorted({"BCE-PY.TO", "BCE.TO"} - set(gone)):
+                f.append(f"{label} on {day}: ended {u.ended(day)}, screened {left}")
+        listed = u.block().get("line_ends")
+        if (listed and [x["symbol"] for x in listed["lines"]]) != (block or None):
+            f.append(f"{label}'s block on BCE's leg: line_ends {listed}")
+    leg = [leg_row(s) for s in sorted({s for s, _, _ in ends} | {"CTRA"})]
+    ur = rules(v4)
+    ur.sector_rows(leg)
+    for s, d, _ in ends:
+        day = date.fromisoformat(d)
+        on, after = ur.ended(day), ur.ended(day + timedelta(days=1))
+        if s in on or s not in after:
+            f.append(f"{s}: left out on {d}: {s in on}, the day after: {s in after}")
+    want = {"rule": m.LINE_END_RULE_V4,
+            "lines": [{"symbol": s, "last_day": d, "evidence": e} for s, d, e in sorted(ends)]}
+    if ur.block().get("line_ends") != want:
+        f.append(f"ur-4 line_ends block {ur.block().get('line_ends')}")
+    for label, rows, cfg, rule in (("a leg that removed COG", [leg_row("COG", "known"), leg_row("CTRA")], v4, None),
+                                   ("ur-3", leg, m.UNIVERSE_RULES_V3, m.LINE_END_RULE)):
+        u = rules(cfg)
+        u.sector_rows(rows)
+        if u.block().get("line_ends", {}).get("rule") != rule:
+            f.append(f"{label}: line_ends {u.block().get('line_ends')}")
+    return f
+
+
+def v4_sql_mutant(old, new):
+    """du with ur-4's CASE text changed, ur-1's to ur-3's as they are."""
+    def sql(p="p", profile="profile", known=None, cfg=None):
+        text = du.non_ordinary_sql(p, profile, known, cfg)
+        return text.replace(old, new) if cfg is du.UNIVERSE_RULES_V4 else text
+    check(sql("p", cfg=du.UNIVERSE_RULES_V4) != v4_sql("p"), f"ur-4 SQL mutant {old!r} changed nothing")
+    return du_with(non_ordinary_sql=sql)
+
+
+def v4_mutants():
+    """name: (data_utils with ur-4 changed, the checks each of which must fail)."""
+    v4, r4 = du.UNIVERSE_RULES_V4, du.ORDINARY_RULES_V4
+    drop = "CEO"
+    known = tuple(e for e in du.NON_ORDINARY_KNOWN_V4 if e[0] != drop)
+    rules = dict(r4, known=[x for x in r4["known"] if x["symbol"] != drop])
+    with_v4 = lambda **kw: du_with(UNIVERSE_RULES_V4=dict(v4, **kw))
+    with_rules = lambda **kw: du_with(ORDINARY_RULES_V4=dict(r4, **kw),
+                                      UNIVERSE_RULES_V4=dict(v4, ordinary=dict(r4, **kw)))
+    kept = lambda old, new: with_rules(kept=r4["kept"].replace(old, new))
+    starts = tuple(e for e in du.LINE_STARTS_V4 if e[0] != "GRND")
+    lumi = tuple((s, "2017-06-09" if s == "LUMI.ST" else d, e) for s, d, e in du.LINE_STARTS_V4)
+    bce = du.LINE_ENDS_V4[-1]
+    shape, rows, texts = (v4_shape_failures,), (v4_failures,), (v4_text_failures,)
+    starts_checks, ends_checks = (v4_line_start_failures,), (v4_line_end_failures,)
+    return {
+        "a known entry dropped": (du_with(NON_ORDINARY_KNOWN_V4=known, ORDINARY_RULES_V4=rules,
+                                          UNIVERSE_RULES_V4=dict(v4, ordinary=rules, known=known)), shape + rows),
+        "ur-3's rules under the ur-4 name": (du_with(UNIVERSE_RULES_V4=dict(du.UNIVERSE_RULES_V3, version="ur-4")),
+                                             shape + rows + texts + starts_checks + ends_checks),
+        "the J-REIT rule off in ur-4's config": (with_v4(jpx_reit=False), shape + rows),
+        "the J-REIT rule on ur-3": (du_with(UNIVERSE_RULES_V3=dict(du.UNIVERSE_RULES_V3, jpx_reit=True)), shape + rows),
+        "the J-REIT rule emits nothing": (v4_sql_mutant("THEN 'jpx_reit'", "THEN NULL"), rows),
+        "the J-REIT rule on every exchange": (v4_sql_mutant("p.exchange = 'JPX' AND COALESCE(p.industry",
+                                                            "COALESCE(p.industry"), rows),
+        "the J-REIT rule read from the name": (v4_sql_mutant("COALESCE(p.industry, '') LIKE 'REIT%'",
+                                                             "COALESCE(p.companyName, '') LIKE '%REIT%'"), rows),
+        "jpx_reit after name_term in the order": (with_rules(order={**du.ORDINARY_RULES_V3["order"],
+                                                                    "known": r4["order"]["known"],
+                                                                    "jpx_reit": r4["order"]["jpx_reit"]}),
+                                                  shape + (reason_failures,)),
+        "ur-3's rule text": (with_rules(rule=du.ORDINARY_RULES_V3["rule"]), texts),
+        "ur-3's kept text": (with_rules(kept=du.ORDINARY_RULES_V3["kept"]), texts),
+        "REITs kept in Japan too": (kept(" outside Japan", ""), texts),
+        "ur-3's share-class clause": (kept("; not the Swedish fixed-dividend D shares or preference lines, which the "
+                                           "known list removes", ""), texts),
+        "ur-3's line-start text": (with_v4(line_start_rule=du.LINE_START_RULE), texts + starts_checks),
+        "the line-start text without the de-SPAC clause": (
+            with_v4(line_start_rule=du.LINE_START_RULE_V4.replace("blank-check shell", "predecessor")), texts),
+        "the line-start text without the lookback clip": (
+            with_v4(line_start_rule=du.LINE_START_RULE_V4.replace("price lookback", "lookback")), texts),
+        "ur-3's line-end text": (with_v4(line_end_rule=du.LINE_END_RULE), texts + ends_checks),
+        "a de-SPAC line start dropped": (with_v4(line_starts=starts), starts_checks),
+        "LUMI.ST's first own day a day late": (with_v4(line_starts=lumi), starts_checks),
+        "no lookback clip": (with_v4(lookback_clip=()), starts_checks),
+        "every line start clipped": (with_v4(lookback_clip=tuple(s for s, _, _ in du.LINE_STARTS_V4)), starts_checks),
+        "BCE-PY.TO's end dropped": (with_v4(line_ends=du.LINE_ENDS_V3), ends_checks),
+        "BCE-PY.TO's end a quarter late": (with_v4(line_ends=du.LINE_ENDS_V3 + (("BCE-PY.TO", "2025-12-31", bce[2]),)),
+                                           ends_checks),
+    }
+
+
+def v4_rules_mutants():
+    """UniverseRules mutants each ur-4 line check must fail: the keep list winning over a line end, and the
+    lookback clip on every leg, on a removed line, or left out of the block."""
+    class KeepFirst(du.UniverseRules):
+        def sector_rows(self, rows):
+            kept = super().sector_rows(rows)
+            self.ends = {s: v for s, v in self.ends.items() if s not in {k for k, _ in self.cfg["keep"]}}
+            return kept
+
+    class ClipEveryLeg(du.UniverseRules):
+        def block(self):
+            return {"lookback_clip": {}, **super().block()}
+
+    class ClipRemovedToo(du.UniverseRules):
+        def sector_rows(self, rows):
+            kept = super().sector_rows(rows)
+            self.starts = {s: (d, e) for s, d, e in self.cfg.get("line_starts", ()) if s in {r["symbol"] for r in rows}}
+            self.clips = sorted(s for s in self.cfg.get("lookback_clip", ()) if s in self.starts)
+            return kept
+
+    class NoClip(du.UniverseRules):
+        def block(self):
+            return {k: v for k, v in super().block().items() if k != "lookback_clip"}
+
+    return {"the keep list ahead of a line end": (KeepFirst, v4_line_end_failures),
+            "lookback_clip on every leg": (ClipEveryLeg, v4_line_start_failures),
+            "a removed line still clipped": (ClipRemovedToo, v4_line_start_failures),
+            "no lookback_clip in the block": (NoClip, v4_line_start_failures)}
+
+
 # ---------------------------------------------------------------- shared screen helpers
 
 def without_lines_failures(fn=None):
@@ -1139,6 +1635,25 @@ def main():
     for label, (m, checks) in v3_mutants().items():
         for fn in checks:
             expect_fail(f"ur-3 {fn.__name__}, {label}", fn(m))
+    expect("ur-4: the added lines known, J-REITs out of JPX books, JPX's other lines and REITs elsewhere kept; ur-3"
+           " unchanged on the same rows", v4_failures())
+    expect("ur-4 on the ur-1 cases, pasted as a filter too", ordinary_failures(v4_sql))
+    expect("ur-4 hand list, keep list, order, config and empty block", v4_shape_failures())
+    expect("ur-4 texts: the Nikkei 225, REITs outside Japan, share classes, de-SPAC starts, the lookback clip, a line"
+           " end on another instrument's bars", v4_text_failures())
+    expect("ur-4 line_starts and lookback_clip: each out before its first own day, the clip lines listed on their leg"
+           " only", v4_line_start_failures())
+    expect("ur-4 line_ends: BCE-PY.TO through the keep list, the CASE and the screen filter, out from 2025-10-01",
+           v4_line_end_failures())
+    for label, (m, checks) in v4_mutants().items():
+        for fn in checks:
+            expect_fail(f"ur-4 {fn.__name__}, {label}", fn(m))
+    for label, (cls, fn) in v4_rules_mutants().items():
+        expect_fail(f"ur-4 {fn.__name__}, {label}", fn(rules=cls))
+    for label, cls in line_start_mutants().items():
+        expect_fail(f"ur-4 line_starts, {label}", v4_line_start_failures(rules=cls))
+    for label, cls in line_end_mutants().items():
+        expect_fail(f"ur-4 line_ends, {label}", v4_line_end_failures(rules=cls))
     expect("without_lines_sql: unchanged with no line out, the listed lines dropped", without_lines_failures())
     expect_fail("without_lines_sql, nothing dropped", without_lines_failures(lambda sql, lines: sql))
     expect("RowGuard: counts by reason, a date replaced, block keys and order", row_guard_failures())

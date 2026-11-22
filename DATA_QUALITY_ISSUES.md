@@ -1591,7 +1591,8 @@ days), so no hand-list entry takes them, and they stay in the code's Korea leg.
 ### BCE's three TSX lines
 
 **Status:** refused at publication, not fixed. ur-2 and ur-3 keep BCE-PY.TO and remove BCE-PA.TO.
-Gate 15 of `scripts/verify_floor_guard.py` refuses a committed results file of a data-checks topic
+ur-4 also ends BCE-PY.TO after 2025-09-30, so a quarterly screen from 2025-10-01 leaves it out; an
+annual book entered on 2025-07-01 still exits in 2026. Gate 15 of `scripts/verify_floor_guard.py` refuses a committed results file of a data-checks topic
 that holds BCE-PY.TO in a period exiting on or after 2026-01-01 (it reads `holdings` and
 `holdings_full`), so a run whose 2025 or 2026 book holds it can't be published as it stands.
 Nothing maps BCE's common to BCE.TO in 2026 yet.
@@ -1617,7 +1618,7 @@ BCE-PY.TO with BCE-PA.TO in 9 years, the last at the 2024 rebalance, which exits
 **Status:** GUD.AX and AZZA3.SA fixed in asset-growth (ur-2's hand list and line starts). Universe
 rules ur-3, in fcf-conversion, fix the renamed pairs below by line starts or hand entries,
 and end two dead lines; asset-growth's committed files predate ur-3. BC88.L, ABG.AX, SHA.DE, 9511.SR
-and CORE-PREF.ST are open.
+and CORE-PREF.ST are open; ur-4's hand list removes BC88.L and CORE-PREF.ST, and no topic runs it yet.
 
 GUD Holdings was renamed Amotiv on 2024-06-18. AOV.AX, the new line, carries GUD's price history
 under a different ISIN, with the same close on every July bar from 1990 to 2024, so the same-ISIN

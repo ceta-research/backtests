@@ -2945,7 +2945,7 @@ def _sql_list(values):
 
 def non_ordinary_sql(p="p", profile="profile", known=None, cfg=None):
     """A CASE over a profile row aliased `p`: the first reason in cfg's rules (UNIVERSE_RULES_V1 when None,
-    or UNIVERSE_RULES_V2 or V3) the line is not a company's ordinary share, else NULL. `profile` is the table the
+    or UNIVERSE_RULES_V2, V3 or V4) the line is not a company's ordinary share, else NULL. `profile` is the table the
     German and Brazil sibling tests read; `known` replaces cfg's hand list (tests). Paste as `AND (<this>) IS NULL` to
     keep ordinary lines only (the share-link SQL)."""
     cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
@@ -2978,6 +2978,8 @@ def non_ordinary_sql(p="p", profile="profile", known=None, cfg=None):
             f"WHEN {p}.exchange IN ({us}) AND regexp_matches(COALESCE({p}.companyName, ''),"
             f" '{US_TRUST_LP_TERMS}', 'i') THEN 'us_trust_lp'",
         ]
+    if cfg.get("jpx_reit"):
+        whens.append(f"WHEN {p}.exchange = 'JPX' AND COALESCE({p}.industry, '') LIKE 'REIT%' THEN 'jpx_reit'")
     whens.append(f"WHEN regexp_matches(COALESCE({p}.companyName, ''), '{cfg['name_terms']}', 'i') THEN 'name_term'")
     return "CASE " + " ".join(whens) + " END"
 
@@ -3016,14 +3018,15 @@ def cik_shared(rows):
 
 
 class UniverseRules:
-    """One leg's universe rules (cfg: UNIVERSE_RULES_V1 when None, or UNIVERSE_RULES_V2 or V3): the ordinary-shares
-    removals and, when cfg has the yield rule, the yield drops, for the results file's universe_rules block
-    (screen inputs only: equal in drop, ltp and both)."""
+    """One leg's universe rules (cfg: UNIVERSE_RULES_V1 when None, or UNIVERSE_RULES_V2, V3 or V4): the
+    ordinary-shares removals and, when cfg has the yield rule, the yield drops, for the results file's universe_rules
+    block (screen inputs only: equal in drop, ltp and both). clips: the leg's lookback_clip lines (ur-4), whose price
+    lookback starts on their first own day (starts)."""
 
     def __init__(self, cfg=None):
         self.cfg = UNIVERSE_RULES_V1 if cfg is None else cfg
         self.lines, self.removed, self.cik, self.drops = 0, [], [], []
-        self.class_twins, self.class_held, self.starts, self.ends = set(), {}, {}, {}
+        self.class_twins, self.class_held, self.starts, self.ends, self.clips = set(), {}, {}, {}, []
 
     def not_started(self, target_date):
         """The leg's line_starts lines a screen on target_date leaves out: before its first own day."""
@@ -3061,6 +3064,7 @@ class UniverseRules:
         kept_symbols = {r["symbol"] for r in kept}
         listed = lambda key: {s: (d, e) for s, d, e in self.cfg.get(key, ()) if s in kept_symbols}
         self.starts, self.ends = listed("line_starts"), listed("line_ends")
+        self.clips = sorted(s for s in self.cfg.get("lookback_clip", ()) if s in self.starts)
         return kept
 
     def yield_drops(self, rows, target_date):
@@ -3084,11 +3088,14 @@ class UniverseRules:
             by_period = [{"rebalance_date": d, "symbols": s} for d, s in sorted(self.class_held.items())]
             out["class_stand_ins"] = {"rule": CLASS_TWIN_RULE, "lines_keyed": len(self.class_twins),
                                       "picked": sum(len(p["symbols"]) for p in by_period), "by_period": by_period}
-        for key, rule, day, lines in (("line_starts", LINE_START_RULE, "first_day", self.starts),
-                                      ("line_ends", LINE_END_RULE, "last_day", self.ends)):
+        texts = {"line_starts": self.cfg.get("line_start_rule", LINE_START_RULE),
+                 "line_ends": self.cfg.get("line_end_rule", LINE_END_RULE)}
+        for key, day, lines in (("line_starts", "first_day", self.starts), ("line_ends", "last_day", self.ends)):
             if lines:   # only a leg that holds a listed line, so every other leg's block is unchanged
-                out[key] = {"rule": rule, "lines": [
+                out[key] = {"rule": texts[key], "lines": [
                     {"symbol": s, day: d, "evidence": e} for s, (d, e) in sorted(lines.items())]}
+        if self.clips:
+            out["lookback_clip"] = {"lines": [{"symbol": s, "first_day": self.starts[s][0]} for s in self.clips]}
         return out
 
 
@@ -3282,6 +3289,269 @@ ORDINARY_RULES_V3 = {
 }
 UNIVERSE_RULES_V3 = {**UNIVERSE_RULES_V2, "version": "ur-3", "ordinary": ORDINARY_RULES_V3,
                      "known": NON_ORDINARY_KNOWN_V3, "line_starts": LINE_STARTS_V3, "line_ends": LINE_ENDS_V3}
+
+# Universe rules ur-4, opt-in through cfg: ur-3 with more hand-list lines (blank-check shells, funds, preference and
+# D shares, receipts among them), J-REITs out of JPX books, more line starts (de-SPAC lines among them), a line end
+# on a keep-list line, and lookback_clip. ur-3 stays as its results files ran it.
+NON_ORDINARY_KNOWN_V4 = NON_ORDINARY_KNOWN_V3 + (
+    # blank-check shells: the profile's industry is Shell Companies
+    ("AAC", "blank check", "a blank-check shell, industry Shell Companies: its bars from 2021-03 to 2023-11 close at "
+                           "9.74 to 10.72 (median 9.87); the profile now names Ares Acquisition Corp. III, ipoDate "
+                           "2026-06-30, on the same ticker"),
+    ("JWSM", "blank check", "Jaws Mustang Acquisition, a blank-check shell, industry Shell Companies (closes 9.75 to "
+                            "11.24, median 10.03)"),
+    ("CVII", "blank check", "Churchill Capital Corp VII, a blank-check shell, industry Shell Companies (closes 9.72 to "
+                            "10.76, median 9.97)"),
+    ("WWAC", "blank check", "Worldwide Webb Acquisition, a blank-check shell, industry Shell Companies (closes 9.74 to "
+                            "10.59, median 10.08)"),
+    ("CRHC", "blank check", "Cohn Robbins Holdings, a blank-check shell, industry Shell Companies (closes 9.71 to "
+                            "10.65, median 9.92)"),
+    ("KAHC", "blank check", "KKR Acquisition Holdings I, a blank-check shell, industry Shell Companies (closes 9.72 to "
+                            "10.02, median 9.79)"),
+    ("PRPB", "blank check", "CC Neuberger Principal Holdings II, a blank-check shell, industry Shell Companies (closes "
+                            "9.78 to 10.63, median 9.91); GETY carries its bars to 2022-07-22"),
+    ("ASZ", "blank check", "Austerlitz Acquisition Corporation II, a blank-check shell, industry Shell Companies "
+                           "(closes 9.70 to 9.94, median 9.78)"),
+    ("BIOS", "blank check", "BioPlus Acquisition, a blank-check shell, industry Shell Companies (closes 9.87 to 10.79, "
+                            "median 10.19)"),
+    ("GIG", "blank check", "GigCapital7, a blank-check shell, industry Shell Companies (closes 9.93 to 10.41, median "
+                           "10.13)"),
+    # UK preference lines named only as their company
+    ("AV-A.L", "preferred", "Aviva cumulative preference shares (GB0002124963), named only as the company, closes at a "
+                            "median of 133.5p; AV.L is the ordinary"),
+    ("AV-B.L", "preferred", "Aviva cumulative preference shares (GB0002114154), named only as the company, closes at a "
+                            "median of 128.25p; AV.L is the ordinary"),
+    ("GACA.L", "preferred", "General Accident cumulative preference shares (GB0003692737), named only as the company, "
+                            "which its profile calls a subsidiary of Aviva plc; closes at a median of 131.5p"),
+    ("GACB.L", "preferred", "General Accident cumulative preference shares (GB0003692513), named only as the company, "
+                            "which its profile calls a subsidiary of Aviva plc; closes at a median of 118.25p"),
+    ("BP-A.L", "preferred", "BP cumulative first preference shares (GB0001385250), named only as the company, closes "
+                            "at a median of 148.5p; BP.L is the ordinary"),
+    ("BP-B.L", "preferred", "BP cumulative second preference shares (GB0001385474), named only as the company, closes "
+                            "at a median of 163.5p; BP.L is the ordinary"),
+    # Stockholm preference and D shares: the ticker says PREF or D, the name doesn't
+    ("VOLO-PREF.ST", "preferred", "Volati's preference line (SE0009143670), closes at a median of SEK 628; VOLO.ST is "
+                                  "the ordinary"),
+    ("SAGA-D.ST", "D share", "Sagax's class D shares (SE0009161052), closes at a median of SEK 31.50; SAGA-B.ST is the "
+                             "B share"),
+    ("AKEL-D.ST", "D share", "Akelius Residential Property's class D shares (SE0013110186), quoted in EUR (the "
+                             "profile's currency), closes at a median of EUR 1.68"),
+    ("HEIM-PREF.ST", "preferred", "Heimstaden's preference line (SE0015949037), closes at a median of SEK 29.19"),
+    ("NP3-PREF.ST", "preferred", "NP3 Fastigheter's preference line (SE0010820514), closes at a median of SEK 31.30; "
+                                 "NP3.ST is the ordinary"),
+    ("FPAR-D.ST", "D share", "FastPartner's class D shares (SE0013512514), closes at a median of SEK 74.32; FPAR-A.ST "
+                             "is the A share"),
+    ("NYTTO-PREF.ST", "preferred", "Svenska Nyttobostäder's preference line (SE0014808861), closes at a median of "
+                                   "SEK 85.75"),
+    ("ENRO-PREF-B.ST", "preferred", "Eniro's class B preference line, no ISIN in the profile, closes at a median of "
+                                    "SEK 148; ENRO.ST is the ordinary"),
+    ("SBB-D.ST", "D share", "Samhällsbyggnadsbolaget i Norden's class D shares (SE0011844091), closes at a median of "
+                            "SEK 23.15"),
+    ("CORE-PREF.ST", "preferred", "Corem Property Group's preference line (SE0010714311), closes at a median of "
+                                  "SEK 294.50"),
+    ("CORE-D.ST", "D share", "Corem Property Group's class D shares (SE0015961594), closes at a median of SEK 233.50"),
+    ("K2A-PREF.ST", "preferred", "K2A Knaust & Andersson Fastigheter's preference line (SE0006852075), closes at a "
+                                 "median of SEK 274"),
+    # closed-end funds, investment companies and BDCs the profile doesn't flag isFund, each in its profile's words
+    ("CLDN.L", "fund", "Caledonia Investments, which its profile calls an autonomously managed investment trust, and "
+                       "doesn't flag isFund"),
+    ("BBGI.L", "fund", "BBGI Global Infrastructure, which its profile calls an investment company acquiring "
+                       "infrastructure assets, and doesn't flag isFund"),
+    ("BGHS.L", "fund", "Boussard & Gavaudan Holding, which its profile calls a closed-ended fund-of-funds, and doesn't "
+                       "flag isFund"),
+    ("TFGS.L", "fund", "Tetragon Financial Group, which its profile calls a closed-ended feeder fund, and doesn't flag "
+                       "isFund"),
+    ("APAX.L", "fund", "Apax Global Alpha, whose profile describes a fund-of-funds investment strategy, and doesn't "
+                       "flag isFund"),
+    ("TPOS.L", "fund", "Third Point Investors, which its profile calls a closed-ended feeder fund investing all its "
+                       "capital in Third Point Offshore Fund, and doesn't flag isFund"),
+    ("155900.KS", "fund", "Badaro No. 19 Ship Investment Company, a ship investment company by its name, with no ISIN "
+                          "in the profile, which doesn't flag isFund"),
+    ("SPCE.SW", "fund", "Spice Private Equity, which its profile calls a private equity and venture capital firm, "
+                        "quoted in USD, and doesn't flag isFund"),
+    ("MAIN", "fund", "Main Street Capital, which its profile calls a business development company, and doesn't flag "
+                     "isFund"),
+    ("ARCC", "fund", "Ares Capital, which its profile calls a business development company, and doesn't flag isFund"),
+    ("GBDC", "fund", "Golub Capital BDC, which its profile calls an externally managed closed-end investment company "
+                     "and business development company, and doesn't flag isFund"),
+    ("HTGC", "fund", "Hercules Capital, which its profile calls a business development company, and doesn't flag "
+                     "isFund"),
+    # an Italian savings share
+    ("DANR.MI", "savings share", "Danieli's risparmio (savings) share line (IT0000076486), under the same company "
+                                 "name as DAN.MI (IT0000076502), the ordinary share"),
+    # depositary receipts
+    ("ALIV-SDB.ST", "depositary receipt", "Autoliv's Swedish depository receipts (SDB in the ticker, a Swedish ISIN, "
+                                          "SE0021309614) on the US company's common stock"),
+    ("TIGO-SDB.ST", "depositary receipt", "Millicom's Swedish depository receipts (SDB in the ticker, SE0001174970) on "
+                                          "the Luxembourg company's shares"),
+    ("910322.TW", "depositary receipt", "Tingyi's Taiwan depositary receipt (a 91-coded TDR) on the Cayman company's "
+                                        "Hong Kong-listed share"),
+    ("TEVA", "ADR", "Teva's NYSE American depositary shares (its Form 10-K for 2024, cover page); the profile carries "
+                    "the Israeli ordinary share's ISIN (IL0006290147) and doesn't flag isAdr"),
+    ("TTE", "ADR", "TotalEnergies' NYSE American depositary shares (its Form 20-F for 2024, cover page); the profile "
+                   "carries the French ordinary share's ISIN (FR0000120271) and doesn't flag isAdr"),
+    ("AU", "ADR", "AngloGold Ashanti's US line, American depositary shares of the South African company (AngloGold "
+                  "Ashanti Limited's Form 20-F for 2022, cover page); the profile now names AngloGold Ashanti plc, "
+                  "carries its UK ISIN (GB00BRXH2664) and doesn't flag isAdr"),
+    ("CEO", "ADR", "CNOOC's NYSE line under a US ISIN (US1261321095) on a Hong Kong company (the profile's country), "
+                   "which the profile doesn't flag isAdr"),
+    # other instruments named as their company
+    ("E1AIRTELPP.NS", "partly paid", "Bharti Airtel's partly paid line (the profile name says Partly Paid Rs.1.25) "
+                                     "under its own IN9 ISIN (IN9397D01014), beside BHARTIARTL.NS (INE397D01024)"),
+    ("HGH", "debentures", "Hartford's fixed-to-floating debentures (the profile name ends DEB FIX/FLT 42), no ISIN, "
+                          "closes 25.91 to 31.59 (median 29.24); HIG is the common"),
+    ("ATCOL", "notes", "a second Atlas Corp. line under its own ISIN (US04926V2034), named only as the company, whose "
+                       "closes hold near 25 (23.40 to 26.59, median 25.01)"),
+    ("EXEEL", "warrant", "a second Expand Energy line under its own ISIN (US1651671802) on EXE's CIK, beside EXE "
+                         "(closed 101.36 on 2025-04-01 against EXE's 112.74); its sibling EXEEZ falls to "
+                         "nasdaq_fifth_letter, but L isn't a fifth letter that rule reads"),
+    # lines that print another line's bars
+    ("STM.MI", "second line", "a second MIL line of STMicroelectronics with no ISIN, last bar 2023-05-12: its closes "
+                              "sit within 0.5% of STMMI.MI's (NL0000226223) on 6,034 of 6,193 shared days, and no "
+                              "security key collapses the two"),
+    ("9086.T", "vendor copy", "Hitachi Transport System's line prints Hitachi's bars: the same close as 6501.T on "
+                              "every shared day from 2005 to its last bar, 2024-08-21 (5,876 of 6,039 from 2000)"),
+    ("FFB.JO", "vendor copy", "Fortress REIT's B line prints the A line's (FFA.JO) close and volume in 26 of the "
+                              "same-bars scan's quarterly windows from 2013 to 2021; one line start or end can't "
+                              "cover the windows, so the line goes whole"),
+    # same-ISIN lines a line start would cut while the other line trades on
+    ("SIME.KL", "second line", "a second Sime Darby line on 4197.KL's ISIN (MYL4197OO009), last bar 2023-05-23: its "
+                               "closes run at 3.64 times 4197.KL's from 2003 to 2016 and equal them from 2018-01-25, "
+                               "while 4197.KL trades on"),
+    ("REDD.L", "renamed line", "Redde Northgate's line on ZIG.L's (Zigup) ISIN, GB00B41H7391: its bars from 2013-01-21 "
+                               "to its last, 2024-07-18, repeat ZIG.L's closes (2,899 of 2,903 shared days), and ZIG.L "
+                               "carries the line's bars from 1998"),
+    # old tickers whose new line holds bars no other line holds, so the new line keeps its whole history
+    ("SNC.TO", "renamed line", "SNC-Lavalin's line: ATRL.TO (AtkinsRéalis) carries the same closes (5,319 of 5,339 "
+                               "shared days) from 2002-07 and bars of its own from 1998-12, and SNC.TO's last bar is "
+                               "2023-10-10"),
+    ("CLI", "renamed line", "Mack-Cali Realty's line, on VRE's (Veris Residential) CIK: VRE carries the same closes "
+                            "(4,593 of 4,596 shared days) from 2003-09 and bars of its own from 1998-12, and CLI's "
+                            "last bar is 2021-12-09"),
+    ("BC88.L", "preferred", "Chemring Group's 7% cumulative preference shares of 1 pound each beside CHG.L, the "
+                            "ordinary share (Chemring Group, Annual Report and Accounts 2016, note 23), under its own "
+                            "ISIN (GB0001904845), closes near 101p"),
+)
+LINE_STARTS_V4 = LINE_STARTS_V3 + (
+    ("MER.TO", "2025-06-13", "Meren Energy (a new ISIN): its bars to 2025-06-12 repeat AOI.TO's (Africa Oil) closes "
+                             "(6,656 of 6,661 shared days), and AOI.TO's last bar is 2025-06-12"),
+    ("VRN.TO", "2024-06-11", "Veren (a new ISIN): its bars to 2024-06-10 repeat CPG.TO's (Crescent Point Energy) "
+                             "closes (all 5,448 shared days), and CPG.TO's last bar is 2024-06-10"),
+    ("SHA0.DE", "2024-10-29", "Schaeffler's ordinary line (a new ISIN): its bars to 2024-10-28 repeat SHA.DE's, the "
+                              "preference line's (DE000SHA0159; the same close on 1,917 of 2,304 shared days, within "
+                              "0.5% on 2,284), and SHA.DE's last bar is 2024-10-28"),
+    ("9A4U.SI", "2025-06-03", "ESR REIT (a new ISIN): its bars to 2025-06-02 repeat J91U.SI's (ESR-Logos REIT) closes "
+                              "and volumes (all 4,848 shared days), and J91U.SI's last bar is 2025-06-02"),
+    ("SET.SI", "2025-07-11", "Stoneweg European REIT (a new ISIN): its bars to 2025-07-10 repeat CWBU.SI's (Cromwell "
+                             "European Real Estate Investment Trust) closes (1,956 of 1,957 shared days), and "
+                             "CWBU.SI's last bar is 2025-07-10"),
+    ("SWR.L", "2025-03-15", "Smurfit Westrock (a new ISIN): its bars to 2025-03-14 carry SKG.L's (Smurfit Kappa) "
+                            "volumes (3,604 of 3,620 shared days) and, from 2016, its closes (at 0.8 of them before), "
+                            "and SKG.L's last bar is 2025-03-14"),
+    ("BGC", "2023-07-01", "BGC Group (a new ISIN on BGCP's CIK): its bars to 2023-06-30 carry BGCP's (BGC Partners) "
+                          "closes from 2008 (at 1.555 times them before), and BGCP's last bar is 2023-06-30"),
+    ("FLG", "2024-11-23", "Flagstar Financial (a new ISIN on NYCB's CIK): its bars to 2024-11-22 repeat NYCB's (New "
+                          "York Community Bancorp) closes (6,287 of 6,534 shared days, within 0.5% on 6,527), and "
+                          "NYCB's last bar is 2024-11-22"),
+    ("GETY", "2022-07-23", "Getty Images: its bars to 2022-07-22 repeat the closes of PRPB (CC Neuberger Principal "
+                           "Holdings II, a blank-check shell on the known list) on all 462 shared days, and PRPB's "
+                           "last bar is 2022-07-22"),
+    ("NVRI", "2023-06-17", "Enviri (a new ISIN): its bars to 2023-06-16 repeat HSC's (Harsco) closes (4,883 of 6,172 "
+                           "shared days, within 0.5% on 6,171), and HSC's last bar is 2023-06-16"),
+    ("PSKY", "2025-08-09", "Paramount Skydance: its bars to 2025-08-08 repeat PARA's closes (4,418 of 4,950 shared "
+                           "days), and PARA's last bar is 2025-08-08 (the profile now names another company on that "
+                           "ticker)"),
+    ("PRMB", "2024-11-20", "Primo Brands: its bars to 2024-11-19 repeat PRMW's (Primo Water) closes (all 6,531 shared "
+                           "days), and PRMW's last bar is 2024-11-19"),
+    ("1972.HK", "2012-01-18", "Swire Properties: its bars to 2012-01-17 carry 0019.HK's (Swire Pacific) volumes on "
+                              "3,002 of 3,046 shared days, with closes within 0.5% on 2,962, and its own price starts "
+                              "2012-01-18, the profile's ipoDate, at 17.26 on 51.7 million shares"),
+    # same-ISIN pairs: the ISIN dedup already books one line a quarter, so these clear the same-bars scan
+    ("BRNK.DE", "2024-04-24", "Branicks (DIC.DE's ISIN): its bars to 2024-04-23 are DIC.DE's (DIC Asset), at 0.98 of "
+                              "its closes to 2022 and the same close from 2023-03-31, and DIC.DE's last bar is "
+                              "2024-04-23"),
+    ("UNITDSPR.NS", "2025-03-14", "United Spirits (MCDOWELL-N.NS's ISIN): its bars to 2025-03-13 repeat "
+                                  "MCDOWELL-N.NS's closes (4,162 of 4,408 shared days, within 0.5% on 4,363), and "
+                                  "MCDOWELL-N.NS's last bar is 2025-03-13"),
+    ("NORION.ST", "2023-10-04", "Norion Bank (COLL.ST's ISIN, Collector Bank): its bars from 2022-08-15 to 2023-10-03 "
+                                "sit within 0.5% of COLL.ST's closes on all 289 shared days, and COLL.ST's last bar "
+                                "is 2023-10-03"),
+    ("SHC.L", "2023-03-07", "Shaftesbury Capital (CAPC.L's ISIN, Capital & Counties Properties): its bars to "
+                            "2023-03-06 sit within 0.5% of CAPC.L's closes on 3,231 of 3,235 shared days, and CAPC.L's "
+                            "last bar is 2023-03-06"),
+    ("AD", "2025-09-09", "Array Digital Infrastructure (USM's ISIN and CIK, United States Cellular): its bars to "
+                         "2025-09-08 repeat USM's closes (6,679 of 6,729 shared days), and USM's last bar is "
+                         "2025-09-08"),
+    ("TXNM", "2024-08-28", "TXNM Energy (PNM's ISIN and CIK, PNM Resources): its bars to 2024-08-27 repeat PNM's "
+                           "closes (all 6,472 shared days), and PNM's last bar is 2024-08-27"),
+    ("LUMI.ST", "2017-06-08", "Lundin Mining: the Stockholm line traded Swedish depository receipts (ISIN "
+                              "SE0001134529) on the TSX-listed common shares through 2017-06-07 and the shares "
+                              "themselves from 2017-06-08 (Lundin Mining's release of 2017-05-02 on its direct listing "
+                              "on Nasdaq Stockholm); the profile carries the Canadian share's ISIN and an ipoDate of "
+                              "2017-06-08"),
+    # de-SPAC lines: the first day the combined company traded under its new ticker, from its filings
+    ("CTOS", "2019-08-01", "Custom Truck One Source, then Nesco Holdings (the filer's CIK, 0001709682, is CTOS's in "
+                           "the profile): Capitol Investment Corp. IV (NYSE: CIC), a blank-check shell, closed its "
+                           "merger 2019-07-31 and the common stock began trading on the NYSE as NSCO on 2019-08-01 "
+                           "(8-K filed 2019-08-01)"),
+    ("GB", "2020-08-31", "Global Blue: Far Point Acquisition (NYSE: FPAC), a blank-check shell, closed the business "
+                         "combination 2020-08-28 (20-F filed 2020-09-03) and GB began trading on the NYSE on "
+                         "2020-08-31 (Global Blue's closing release, 2020-08-28)"),
+    ("FSR", "2020-10-30", "Fisker: Spartan Energy Acquisition (NYSE: SPAQ), a blank-check shell, closed the merger "
+                          "2020-10-29 (8-K filed 2020-11-04) and FSR began trading on the NYSE on 2020-10-30 (Fisker's "
+                          "closing release, 2020-10-29), the volume up from 4.3m to 21.2m that day"),
+    ("SDA", "2023-05-18", "SunCar Technology: Goldenbridge Acquisition (Nasdaq: GBRG), a blank-check shell, closed the "
+                          "business combination 2023-05-17 (20FR12B filed 2023-06-30) and SDA began trading on Nasdaq "
+                          "on 2023-05-18 (SunCar's closing release, 2023-05-17)"),
+    ("MVST", "2021-07-26", "Microvast: Tuscan Holdings (Nasdaq: THCB), a blank-check shell, closed the acquisition "
+                           "2021-07-23 (8-K filed 2021-07-28) and MVST began trading on Nasdaq on 2021-07-26 (8-K "
+                           "exhibit 99.1 filed 2021-07-26)"),
+    ("ECX", "2022-12-21", "ECARX: COVA Acquisition (Nasdaq: COVA), a blank-check shell, closed the business "
+                          "combination 2022-12-20 and ECX began trading on Nasdaq on 2022-12-21 (COVA's 8-K filed "
+                          "2022-12-21)"),
+    ("GRND", "2022-11-18", "Grindr: Tiga Acquisition (NYSE: TINV), a blank-check shell, closed the mergers and GRND "
+                           "began trading on the NYSE the same day, 2022-11-18 (8-K filed 2022-11-23), the volume up "
+                           "from 0.13m to 2.7m that day"),
+    ("CNCK", "2024-12-11", "Coincheck Group: Thunder Bridge Capital Partners IV (Nasdaq: THCP), a blank-check shell, "
+                           "closed the business combination 2024-12-10 and CNCK began trading on Nasdaq on 2024-12-11 "
+                           "(20-F filed 2024-12-16)"),
+)
+# line starts whose earlier bars are another company's or instrument's: a price lookback starts on the first own day
+LOOKBACK_CLIP_V4 = ("1972.HK", "GETY", "CTOS", "GB", "FSR", "SDA", "MVST", "ECX", "GRND", "CNCK", "LUMI.ST")
+LINE_ENDS_V4 = LINE_ENDS_V3 + (
+    ("BCE-PY.TO", "2025-09-30", "BCE's common price series through 2025, on the keep list: in 2026 its bars print a "
+                                "preferred's price (21.09 on 800 shares on 2026-07-03, when BCE.TO closed 30.37), and "
+                                "BCE.TO has bars only in 2026, so a screen on 2025-10-01, whose quarter exits in 2026, "
+                                "leaves it out"),
+)
+LINE_START_RULE_V4 = LINE_START_RULE + (
+    "; its earlier bars may also be another instrument's (receipts before a direct listing) or a blank-check shell's, "
+    "and a merged company's first own day is then its first trading day under its new ticker; a line in "
+    "lookback_clip, whose earlier bars are another company's or instrument's, also has a price lookback cut at its "
+    "first own day")
+LINE_END_RULE_V4 = LINE_END_RULE + (
+    "; a line also ends when its later bars are another instrument's (BCE-PY.TO): its last own day is then the day "
+    "before the last quarter ahead of those bars begins, so no quarterly book exits on them")
+ORDINARY_RULES_V4 = {
+    "rule": ORDINARY_RULES_V3["rule"].replace("the Ibovespa no BDRs;", (
+        "the Ibovespa no BDRs, the Nikkei 225 no REITs (the Nikkei Stock Average Index Guidebook, 2026-10-01, section "
+        "2(1), excludes non-ordinary shares such as ETFs and REITs);")),
+    # ur-3's reasons with the longer hand list, then jpx_reit ahead of name_term
+    "order": {**{k: v for k, v in ORDINARY_RULES_V3["order"].items() if k != "name_term"},
+              "known": "NON_ORDINARY_KNOWN_V4, the hand list below",
+              "jpx_reit": "JPX line whose profile industry starts with REIT",
+              "name_term": ORDINARY_RULES_V3["order"]["name_term"]},
+    "kept": ORDINARY_RULES_V3["kept"].replace(
+        "REITs and their units, ", "REITs and their units outside Japan, ").replace(
+        "the Swedish ser. B lines)", "the Swedish ser. B lines; not the Swedish fixed-dividend D shares or preference "
+                                     "lines, which the known list removes)"),
+    "known": [{"symbol": s, "kind": k, "evidence": e} for s, k, e in NON_ORDINARY_KNOWN_V4],
+    "keep": ORDINARY_RULES_V2["keep"],
+}
+UNIVERSE_RULES_V4 = {**UNIVERSE_RULES_V3, "version": "ur-4", "ordinary": ORDINARY_RULES_V4,
+                     "known": NON_ORDINARY_KNOWN_V4, "line_starts": LINE_STARTS_V4, "line_ends": LINE_ENDS_V4,
+                     "jpx_reit": True, "lookback_clip": LOOKBACK_CLIP_V4, "line_start_rule": LINE_START_RULE_V4,
+                     "line_end_rule": LINE_END_RULE_V4}
 
 
 def _sao_issuer_sql(t):
