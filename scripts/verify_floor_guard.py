@@ -98,6 +98,8 @@ SCOPE_ALLOW = {
     "asset-growth/screen.py",
     # The live screen takes fcf-conversion's universe rules ur-3.
     "fcf-conversion/screen.py",
+    # The live screen runs 52-week-high's own fetch and screen: ur-4, check M's floor and the tie order.
+    "52-week-high/screen.py",
     # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
     # same-day duplicate rows compare against; the note records that and the prod
     # check to run before publishing.

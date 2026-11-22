@@ -51,6 +51,12 @@ run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the
 The gate's legs: scripts/gate_legs/wave3.json holds one 52-week-high leg per --global preset and no other, ASX and SAO
 among them, each pinned to --end-year 2025 and installed as the file the global run writes.
 
+The live screen (screen.py) runs the backtest's fetch and screen on one date with data checks on, check M's server
+query standing in as cap_check rows: on a JPX leg a J-REIT (ur-4) and a fund (the semi-join) stay out, the floor
+reads cap_used (a cap on the floor once divided is out, a unit over it in, an ineligible row out), ties go to the
+larger cap_used, then the symbol; on NYSE a day after COG's last own day CLR ranks alone; main() prints the book on
+today's leg as CSV and as a table, the fetch's progress on stderr. Its mutants must trip these checks.
+
 Usage:
     python scripts/test_52wh_selection.py [repo root]
 """
@@ -73,7 +79,7 @@ with open(PATH) as fh:
     SRC = fh.read()
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 import data_utils as du   # noqa: E402
-from cli_utils import EXCHANGE_PRESETS   # noqa: E402
+from cli_utils import EXCHANGE_PRESETS, get_mktcap_threshold   # noqa: E402
 from costs import get_fx_per_usd   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
 import test_latest_window_topics as tlw   # noqa: E402  (its 2026 bars, pinned window and partial period)
@@ -90,10 +96,10 @@ def ep(d):
     return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp())
 
 
-def load(src):
+def load(src, path=PATH):
     mod = types.ModuleType("wh52_selection")
-    mod.__file__ = PATH
-    exec(compile(src, PATH, "exec"), mod.__dict__)
+    mod.__file__ = path
+    exec(compile(src, path, "exec"), mod.__dict__)
     return mod
 
 
@@ -758,6 +764,131 @@ def legs_failures(src):
 LEG_MUTANTS = {"australia left out of --global": ('            ("australia",   ["ASX"]),\n', "")}
 
 
+# The live screen (screen.py): the backtest's fetch and screen on one date, with data checks on.
+SCREEN_PATH = os.path.join(ROOT, "52-week-high", "screen.py")
+with open(SCREEN_PATH) as fh:
+    SCREEN_SRC = fh.read()
+JF = get_mktcap_threshold(["JPX"])   # the JPX leg's floor
+# The JPX leg on D: a J-REIT ur-4 removes and a fund the semi-join leaves out, both over the floor; check M's lines
+# (on the floor and a unit over it once divided, ineligible, and two in cap_used's order, not the raw cap's); two
+# lines equal in ratio and cap, in symbol order; a line 1% under its high, after every 1.0.
+SCREEN_LEG = {
+    "8951.T": line(flat(120), cap=8 * JF, industry="REIT - Office", after=()),
+    "FUND.T": line(flat(120), cap=7 * JF, isFund=True, after=()),
+    "M_AT.T": line(flat(120), cap=10 * JF, after=()),
+    "M_OVER.T": line(flat(120), cap=10 * JF + 10, after=()),
+    "M_INEL.T": line(flat(120), cap=20 * JF, after=()),
+    "M_RAW.T": line(flat(120), cap=300 * JF, after=()),
+    "M_USED.T": line(flat(120), cap=4 * JF, after=()),
+    "TIE_B.T": line(flat(120), cap=2 * JF, after=()),
+    "TIE_A.T": line(flat(120), cap=2 * JF, after=()),
+    "NEAR.T": line(bar(flat(120), 0, adj=99.0, close=99.0), cap=50 * JF, after=()),
+}
+SCREEN_CAP_RULES = {"M_AT.T": ("cap_over_k", 10.0), "M_OVER.T": ("cap_over_k", 10.0),
+                    "M_INEL.T": ("ineligible", None), "M_RAW.T": ("cap_over_k", 100.0)}
+SCREEN_BOOK = [("M_USED.T", 4 * JF, 1.0), ("M_RAW.T", 3 * JF, 1.0), ("TIE_A.T", 2 * JF, 1.0),
+               ("TIE_B.T", 2 * JF, 1.0), ("M_OVER.T", JF + 1, 1.0), ("NEAR.T", 50 * JF, 0.99)]
+SCREEN_ENDS_DAY = date(2021, 10, 2)   # COG's line ends the day before; CLR's on 2022-11-22
+TODAY = datetime.now(timezone.utc).date()
+LIVE_LEG = {"8951.T": line(flat(120), cap=8 * JF, industry="REIT - Office", at=TODAY, after=()),
+            "LIVE_A.T": line(flat(120), cap=3 * JF, at=TODAY, after=()),
+            "LIVE_B.T": line(bar(flat(120), 0, adj=95.0, close=95.0), cap=5 * JF, at=TODAY, after=())}
+LIVE_BOOK = ["LIVE_A.T", "LIVE_B.T"]
+
+
+@contextlib.contextmanager
+def bound(name, module):
+    """sys.modules[name] is module while the block runs (screen.py's `from backtest import ...`)."""
+    saved = sys.modules.get(name)
+    sys.modules[name] = module
+    try:
+        yield
+    finally:
+        if saved is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = saved
+
+
+def screen_backtest(cap_rules):
+    """The backtest screen.py imports: check M's server query stands in as cap_rules' cap_check rows (symbol ->
+    (rule, divisor) on its FY2019 row), and the oscillation filter is off, as in cache()."""
+    mod = load(SRC)
+
+    def load_cap_check(client, con, sym_filter_sql, mktcap_min, cfg, verbose=False):
+        con.execute(du.CAP_INPUTS_DDL)
+        con.execute(du.CAP_CHECK_DDL)
+        con.executemany("INSERT INTO cap_check (symbol, filing_epoch, rule, cap_div) VALUES (?, ?, ?, ?)",
+                        [(s, ep(FY19), rule, div) for s, (rule, div) in cap_rules.items()])
+        return {}
+
+    mod.load_cap_check = load_cap_check
+    mod.remove_price_oscillations = lambda *a, **k: None
+    return mod
+
+
+def screen_client(uni, ex):
+    """test_data_checks' fake client on seed()'s warehouse, with the splits table a data-checks fetch reads."""
+    src = seed(uni, ex)
+    src.execute("CREATE TABLE splits_calendar(symbol VARCHAR, dateEpoch BIGINT, numerator DOUBLE, denominator DOUBLE)")
+    return tdc.FakeClient(src)
+
+
+def screen_main(mod, client, args):
+    """screen.py's main() with args, CetaResearch standing in as client: its stdout."""
+    out, argv, sys.argv = io.StringIO(), sys.argv, ["screen.py", *args]
+    mod.CetaResearch = lambda **_kw: client
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            mod.main()
+    finally:
+        sys.argv = argv
+    return out.getvalue()
+
+
+def screen_failures(src):
+    """screen.py on the backtest's rules: on the JPX leg on D the book is SCREEN_BOOK (ur-4's J-REIT and the fund
+    out; check M's cap_used at the floor and in the tie order, then the symbol); on NYSE on SCREEN_ENDS_DAY, CLR
+    alone (COG's line ends the day before); main() on today's JPX leg prints LIVE_BOOK, as CSV and as a table, and
+    sends the fetch's progress to stderr."""
+    try:
+        with bound("backtest", screen_backtest(SCREEN_CAP_RULES)):
+            mod = load(src, SCREEN_PATH)
+        with contextlib.redirect_stdout(io.StringIO()):
+            got = {"JPX": mod.screen(screen_client(SCREEN_LEG, "JPX"), ["JPX"], D),
+                   "NYSE": mod.screen(screen_client(ENDS, "NYSE"), ["NYSE"], SCREEN_ENDS_DAY)}
+        live = screen_client(LIVE_LEG, "JPX")
+        csv_out = screen_main(mod, live, ["--exchange", "JPX", "--csv"]).splitlines()
+        table = screen_main(mod, live, ["--exchange", "JPX"]).splitlines()
+    except (Exception, SystemExit) as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    out = [f"{k} book {got[k]} != {want}" for k, want in (("JPX", SCREEN_BOOK), ("NYSE", [("CLR", 1e10, 1.0)]))
+           if got[k] != want]
+    rows = [r.split(",") for r in csv_out[1:]]
+    if csv_out[:1] != ["rank,symbol,market_cap,proximity_ratio,pct_below_high"] or \
+            [(r[0], r[1]) for r in rows] != [(str(i), s) for i, s in enumerate(LIVE_BOOK, 1)]:
+        out.append(f"main --csv printed {csv_out}")
+    listed = [ln.split()[1] for ln in table if ln.split()[:1] and ln.split()[0].isdigit()]
+    if listed != LIVE_BOOK:
+        out.append(f"main's table lists {listed}, want {LIVE_BOOK}")
+    return out
+
+
+SCREEN_MUTANTS = {
+    "the screen's line lists from ur-2": ("UniverseRules(UNIVERSE_RULES)",
+                                          "UniverseRules(__import__('data_utils').UNIVERSE_RULES_V2)"),
+    "the screen with data checks off": ('DataChecks("on", DATA_CHECKS)', 'DataChecks("uncapped", DATA_CHECKS)'),
+    "the screen with no floor": ("mktcap_min = get_mktcap_threshold(exchanges)\n", "mktcap_min = 0\n"),
+    "the screen ignores its day": ("day = day or datetime.now(timezone.utc).date()",
+                                   "day = datetime.now(timezone.utc).date()"),
+    "the screen without the line lists": ("screen_stocks(con, day, mktcap_min, verbose=verbose, dc=dc, ur=ur)",
+                                          "screen_stocks(con, day, mktcap_min, verbose=verbose, dc=dc)"),
+    "main ignores --exchange": ('exchanges = [e.strip().upper() for e in args.exchange.split(",")]',
+                                'exchanges = ["NYSE", "NASDAQ", "AMEX"]'),
+    "main's progress on stdout": ("with contextlib.redirect_stdout(sys.stderr):", "if True:"),
+}
+
+
 # Check T on the ranking cache: T_R, a rebalance date, and T_BACK, 40 days before it and outside every window, are
 # closed days on test_data_checks' synthetic leg (only A00.BK to A02.BK trade, as on its CLOSED days) where one line
 # prints a traded copy: T_COPY at 80% of its close on T_R (under the oscillation filter's thresholds), T_KEPT with
@@ -892,14 +1023,14 @@ WINDOW_MUTANTS = {   # each must fail partial_failures, by a wrong row or by an 
 }
 
 
-def mutant_results(mutants, check, must_book=()):
-    """(survived, errored): the mutants of SRC no check catches, and those in must_book caught only by an error."""
+def mutant_results(mutants, check, must_book=(), src=SRC):
+    """(survived, errored): the mutants of src no check catches, and those in must_book caught only by an error."""
     survived, errored = [], []
     for name, (old, new) in mutants.items():
-        if SRC.count(old) != 1:
+        if src.count(old) != 1:
             print(f"test_52wh_selection: FAIL (mutant anchor not unique: {name})")
             sys.exit(1)
-        got = check(SRC.replace(old, new))
+        got = check(src.replace(old, new))
         if not got:
             survived.append(name)
         elif name in must_book and all(f.startswith("error:") for f in got):
@@ -908,8 +1039,8 @@ def mutant_results(mutants, check, must_book=()):
 
 
 def main():
-    base = (legs_failures(SRC) + failures(SRC) + rules_failures(SRC) + run_failures(SRC) + partial_failures(SRC)
-            + t_failures(SRC))
+    base = (legs_failures(SRC) + screen_failures(SCREEN_SRC) + failures(SRC) + rules_failures(SRC)
+            + run_failures(SRC) + partial_failures(SRC) + t_failures(SRC))
     if base:
         print("test_52wh_selection: FAIL", base)
         sys.exit(1)
@@ -919,7 +1050,8 @@ def main():
     s3, _ = mutant_results(WINDOW_MUTANTS, partial_failures)
     s4, e4 = mutant_results(T_MUTANTS, t_failures, T_MUTANTS)
     s5, e5 = mutant_results(LEG_MUTANTS, legs_failures, LEG_MUTANTS)
-    survived, errored = survived + s1 + s2 + s3 + s4 + s5, errored + e1 + e2 + e4 + e5
+    s6, e6 = mutant_results(SCREEN_MUTANTS, screen_failures, SCREEN_MUTANTS, src=SCREEN_SRC)
+    survived, errored = survived + s1 + s2 + s3 + s4 + s5 + s6, errored + e1 + e2 + e4 + e5 + e6
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
@@ -927,7 +1059,8 @@ def main():
     print(f"test_52wh_selection: PASS ({len(SIGNAL) + len(CUT) + len(CAPS)} listings, {len(MUTANTS)} mutants caught;"
           f" universe rules ur-4 on {n_rules} listings, {len(RULE_MUTANTS)} mutants caught; the run on the synthetic"
           f" SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window, {len(WINDOW_MUTANTS)} mutants caught;"
-          f" check T, {len(T_MUTANTS)} mutants caught; the gate's legs, {len(LEG_MUTANTS)} mutants caught)")
+          f" check T, {len(T_MUTANTS)} mutants caught; the gate's legs, {len(LEG_MUTANTS)} mutants caught;"
+          f" the live screen, {len(SCREEN_MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":
