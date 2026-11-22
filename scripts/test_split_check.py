@@ -46,10 +46,12 @@ the net and lists it in the leg's not_artifact, beside the every-candidate net; 
 the verdict turns under the bar. main() runs the three queries per file on an in-memory warehouse for both legs
 with that call and writes the same records, its bars query reading no partial holding's bar past the exit date; a
 key that matches no candidate is refused, and so is a symbol holding a quote or a semicolon, before any SQL is
-built. A query limit under one query's length puts each leg's lines in groups: every query at or under it, the
-groups' rows, check_leg's record and main's record those of the one query, and a line whose windows alone pass
-the limit refused. The warehouse loads each table with one INSERT. Every mutant of split_check.py (the reversal window, the
-split-row window, the absorption test, the rebuild's sign, each threshold above and more) must trip a check.
+built. A query limit under one query's length puts each leg's lines in groups (with one line held in two periods):
+every query at or under it, each line in one group, the groups' rows, check_leg's record and main's record those
+of the one query, a limit equal to the one query's length one group, and a line whose windows alone pass the
+limit refused. The warehouse loads each table with one INSERT. Every mutant of split_check.py (the reversal
+window, the split-row window, the absorption test, the rebuild's sign, each threshold above and more) must trip a
+check.
 
 Usage:
     python scripts/test_split_check.py [repo root]
@@ -425,29 +427,51 @@ def rows_of(wh, groups):
     return out
 
 
+def twice_held(universe):
+    """case_fixture(universe) with one more line, TW, held in P1 and again in P2: two windows, which overlap."""
+    res, bar_rows, split_rows = case_fixture(universe)
+    bar_rows = bar_rows + bars("TW", P1) + bars("TW", P2, first=4)
+    for row in res["period_data"]:
+        if row["rebalance_date"] in (P1[0], P2[0]):
+            row["holdings"] += ",TW"
+            row["stocks_held"] += 1
+    return res, bar_rows, split_rows
+
+
 def chunk_failures(mod):
-    """A limit under one query's length splits each leg's lines into groups: every query at or under the limit,
-    the groups' rows the one query's rows with none read twice, check_leg's record the same, main's record the
-    same with its MAX_SQL lowered, and a line whose windows alone pass the limit refused."""
+    """A limit under one query's length splits each leg's lines into groups (one line, TW, held in two periods):
+    at every limit from the longest line's own query up, every query at or under it, each line in one group, and
+    the groups' rows the one query's rows; a limit equal to the one query's length keeps one group; at the lowest
+    limit, check_leg's record the same and main's record the same with its MAX_SQL lowered; and a line whose
+    windows alone pass the limit refused."""
     out, keep = [], mod.MAX_SQL
+    canon = lambda rows: sorted(json.dumps(r, sort_keys=True, default=str) for r in rows)
     for u in CASES:
-        res, bar_rows, split_rows = case_fixture(u)
+        res, bar_rows, split_rows = twice_held(u)
         wh = Warehouse(bar_rows, split_rows)
         one = mod.queries(res)
         if len(one) != 1:
             out.append(f"{u}: {len(one)} groups under the default limit, want 1")
         sp = mod.spans(res)
-        lone = max(max(map(len, mod._queries([x for x in sp if x[0] == s]))) for s in {x[0] for x in sp})
+        lines = {x[0] for x in sp}
+        lone = max(max(map(len, mod._queries([x for x in sp if x[0] == s]))) for s in lines)
+        top = max(map(len, one[0]))
+        if len(mod.queries(res, top)) != 1:
+            out.append(f"{u}: a limit equal to the one query's length splits it")
+        whole = rows_of(wh, one)
+        for limit in range(lone, top, max(1, (top - lone) // 8)):
+            groups = mod.queries(res, limit)
+            if any(len(q) > limit for g in groups for q in g):
+                out.append(f"{u}: a query over the {limit}-character limit")
+            if any(sum(f"'{s}'" in g[0] for g in groups) != 1 for s in lines):
+                out.append(f"{u}: a line read in two groups, or none, under a {limit}-character limit")
+            if any(canon(a) != canon(b) for a, b in zip(whole, rows_of(wh, groups))):
+                out.append(f"{u}: the groups' rows aren't the one query's rows under a {limit}-character limit")
         limit = lone
         groups = mod.queries(res, limit)
         if len(groups) < 3:
             out.append(f"{u}: {len(groups)} groups under a {limit}-character limit, want 3 or more")
-        if any(len(q) > limit for g in groups for q in g):
-            out.append(f"{u}: a query over the {limit}-character limit")
-        whole, parts = rows_of(wh, one), rows_of(wh, groups)
-        canon = lambda rows: sorted(json.dumps(r, sort_keys=True, default=str) for r in rows)
-        if any(canon(a) != canon(b) for a, b in zip(whole, parts)):
-            out.append(f"{u}: the groups' rows aren't the one query's rows")
+        parts = rows_of(wh, groups)
         rec = lambda q: json.loads(json.dumps(mod.check_leg(res, q[1], q[2], q[0], []), default=str))
         if rec(whole) != rec(parts):
             out.append(f"{u}: check_leg differs on the groups' rows")
@@ -600,6 +624,9 @@ MUTANTS = {
                                             "if False:")],
     "the last group dropped": [("return out + [_queries(group)]", "return out")],
     "main reads the first group only": [("for group in queries(res) or ():", "for group in (queries(res) or ())[:1]:")],
+    "groups by window, not by line": [("by[x[0]].append(x)", "by[x].append(x)")],
+    "a group closed at the limit, not over it": [("if group and max(map(len, _queries(group + by[s]))) > max_len:",
+                                                  "if group and max(map(len, _queries(group + by[s]))) >= max_len:")],
     "a line over the limit alone taken": [
         ("raise ValueError(f\"{s}'s held windows alone need a query over {max_len} characters\")", "pass")],
 }
