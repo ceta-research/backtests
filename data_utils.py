@@ -3034,7 +3034,8 @@ class UniverseRules:
 
     def ended(self, target_date):
         """The leg's line_ends lines a screen on target_date leaves out: after its last own day. A screen on the
-        last own day keeps the line, and its entry, on a later bar, then finds no price (entry_unpriced)."""
+        last own day keeps the line, and its entry, on a later bar, then finds no price (entry_unpriced) when the
+        line's bars end that day."""
         return sorted(s for s, (d, _) in self.ends.items() if d < target_date.isoformat())
 
     def mark_twins(self, con, universe="universe"):
@@ -3380,19 +3381,18 @@ NON_ORDINARY_KNOWN_V4 = NON_ORDINARY_KNOWN_V3 + (
     ("DANR.MI", "savings share", "Danieli's risparmio (savings) share line (IT0000076486), under the same company "
                                  "name as DAN.MI (IT0000076502), the ordinary share"),
     # depositary receipts
-    ("ALIV-SDB.ST", "depositary receipt", "Autoliv's Swedish depository receipts (SDB in the ticker, a Swedish ISIN, "
-                                          "SE0021309614) on the US company's common stock"),
+    ("ALIV-SDB.ST", "depositary receipt", "Autoliv, Inc.'s Swedish depository receipts (SDB in the ticker, a Swedish "
+                                          "ISIN, SE0021309614)"),
     ("TIGO-SDB.ST", "depositary receipt", "Millicom's Swedish depository receipts (SDB in the ticker, SE0001174970) on "
-                                          "the Luxembourg company's shares"),
-    ("910322.TW", "depositary receipt", "Tingyi's Taiwan depositary receipt (a 91-coded TDR) on the Cayman company's "
-                                        "Hong Kong-listed share"),
-    ("TEVA", "ADR", "Teva's NYSE American depositary shares (its Form 10-K for 2024, cover page); the profile carries "
-                    "the Israeli ordinary share's ISIN (IL0006290147) and doesn't flag isAdr"),
-    ("TTE", "ADR", "TotalEnergies' NYSE American depositary shares (its Form 20-F for 2024, cover page); the profile "
-                   "carries the French ordinary share's ISIN (FR0000120271) and doesn't flag isAdr"),
-    ("AU", "ADR", "AngloGold Ashanti's US line, American depositary shares of the South African company (AngloGold "
-                  "Ashanti Limited's Form 20-F for 2022, cover page); the profile now names AngloGold Ashanti plc, "
-                  "carries its UK ISIN (GB00BRXH2664) and doesn't flag isAdr"),
+                                          "a Luxembourg company (the profile's country)"),
+    ("910322.TW", "depositary receipt", "Tingyi's Taiwan depositary receipt (a 91-coded TDR) on the Cayman company "
+                                        "the profile names"),
+    ("TEVA", "ADR", "Teva's NYSE line in USD, which the profile carries under the Israeli ordinary share's ISIN "
+                    "(IL0006290147) and doesn't flag isAdr"),
+    ("TTE", "ADR", "TotalEnergies' NYSE line in USD, which the profile carries under the French ordinary share's ISIN "
+                   "(FR0000120271) and doesn't flag isAdr"),
+    ("AU", "ADR", "AngloGold Ashanti's NYSE line in USD: the profile now names AngloGold Ashanti plc, carries its UK "
+                  "ISIN (GB00BRXH2664) and doesn't flag isAdr"),
     ("CEO", "ADR", "CNOOC's NYSE line under a US ISIN (US1261321095) on a Hong Kong company (the profile's country), "
                    "which the profile doesn't flag isAdr"),
     # other instruments named as their company
@@ -3492,20 +3492,22 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
     # de-SPAC lines: the first day the combined company traded under its new ticker, from its filings
     ("CTOS", "2019-08-01", "Custom Truck One Source, then Nesco Holdings (the filer's CIK, 0001709682, is CTOS's in "
                            "the profile): Capitol Investment Corp. IV (NYSE: CIC), a blank-check shell, closed its "
-                           "merger 2019-07-31 and the common stock began trading on the NYSE as NSCO on 2019-08-01 "
-                           "(8-K filed 2019-08-01)"),
+                           "merger 2019-07-31, and the 8-K filed 2019-08-01 said the common stock would begin trading "
+                           "on the NYSE as NSCO at that day's open; the bars don't pin the day (closes 8.66 to 9.05 "
+                           "around it)"),
     ("GB", "2020-08-31", "Global Blue: Far Point Acquisition (NYSE: FPAC), a blank-check shell, closed the business "
-                         "combination 2020-08-28 (20-F filed 2020-09-03) and GB began trading on the NYSE on "
-                         "2020-08-31 (Global Blue's closing release, 2020-08-28)"),
+                         "combination 2020-08-28 (20-F filed 2020-09-03), and Global Blue's closing release that day "
+                         "expected GB to trade on the NYSE from 2020-08-31, when the volume rose from 54k to 152k"),
     ("FSR", "2020-10-30", "Fisker: Spartan Energy Acquisition (NYSE: SPAQ), a blank-check shell, closed the merger "
-                          "2020-10-29 (8-K filed 2020-11-04) and FSR began trading on the NYSE on 2020-10-30 (Fisker's "
-                          "closing release, 2020-10-29), the volume up from 4.3m to 21.2m that day"),
+                          "2020-10-29 (8-K filed 2020-11-04), and Fisker's closing release that day expected FSR to "
+                          "begin trading on the NYSE on 2020-10-30, when the volume rose from 4.3m to 21.2m"),
     ("SDA", "2023-05-18", "SunCar Technology: Goldenbridge Acquisition (Nasdaq: GBRG), a blank-check shell, closed the "
-                          "business combination 2023-05-17 (20FR12B filed 2023-06-30) and SDA began trading on Nasdaq "
-                          "on 2023-05-18 (SunCar's closing release, 2023-05-17)"),
+                          "business combination 2023-05-17 (20FR12B filed 2023-06-30), and SunCar's closing release "
+                          "that day said SDA would trade on Nasdaq from 2023-05-18"),
     ("MVST", "2021-07-26", "Microvast: Tuscan Holdings (Nasdaq: THCB), a blank-check shell, closed the acquisition "
-                           "2021-07-23 (8-K filed 2021-07-28) and MVST began trading on Nasdaq on 2021-07-26 (8-K "
-                           "exhibit 99.1 filed 2021-07-26)"),
+                           "2021-07-23 (8-K filed 2021-07-28), and the release filed as exhibit 99.1 to an 8-K on "
+                           "2021-07-26 expected MVST to commence trading on Nasdaq that day, when the close fell from "
+                           "10.00 to 8.74 and the volume rose from 1.8m to 3.9m"),
     ("ECX", "2022-12-21", "ECARX: COVA Acquisition (Nasdaq: COVA), a blank-check shell, closed the business "
                           "combination 2022-12-20 and ECX began trading on Nasdaq on 2022-12-21 (COVA's 8-K filed "
                           "2022-12-21)"),
