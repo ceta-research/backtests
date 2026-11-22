@@ -879,6 +879,8 @@ The fundamental screens apply a 45-day lag: at a rebalance date a screen reads o
 
 **Limitation:** The lag counts from the fiscal period end, not from the filing. US annual reports are filed 60 to 90 days after the fiscal year end, and deadlines can be longer in other markets, so a screen can read figures that weren't public on the rebalance date. The rerun topics' published runs rebalance on the first day of January, April, July or October. A year that ended on December 31 is first used on April 1, 91 or 92 days later, in the quarterly and April topics, and later than that in the July and January topics. A year that ended 45 to 90 days before a rebalance is the exposed case in the US. How many holdings that affects, and what it does to a result, isn't measured. Not fixed.
 
+**Sectors:** The data holds one sector per company, its current one, from the `profile` row. A topic that groups, ranks or filters by sector (relative-strength's sector averages among them) applies that sector to every year, so a company that changed sector sits in its current sector throughout. The effect on results is not measured.
+
 ### Currency Effects
 
 **Status:** Not adjusted
