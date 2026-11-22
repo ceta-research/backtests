@@ -12,6 +12,10 @@ data checks dc-3 on, so it ranks as the backtest does:
   - Book: the top 30 by proximity ratio, exact ties to the larger cap_used, then the symbol.
 One leg at a time. The fetch's progress goes to stderr, the book to stdout.
 
+On the day itself no later bar exists, so check T's closed-day test, which compares a date with three or more other
+dates in its window, is skipped (a vendor row on a market holiday that day can be the signal bar), and the dedup's
+preference for the line buyable at entry has no entry bar to read.
+
 Usage:
     python3 52-week-high/screen.py                     # US (default)
     python3 52-week-high/screen.py --preset india

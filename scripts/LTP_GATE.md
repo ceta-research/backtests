@@ -320,7 +320,7 @@ re-gating. Every other topic has only had the both-mode drop==published check, n
 
 What a topic's `--exit-method` wiring must satisfy. Reference implementations: `low-pe/backtest.py`
 (inline loop), `graham-net-net/backtest.py` (filter_returns), `piotroski/backtest.py` (several tracks
-per period, per-track audit), `52-week-high/backtest.py` (local full price cache:
+per period, per-track audit), `52-week-low/backtest.py` (local full price cache:
 `LtpExits(cr, con, local=True)`). `git show 419594e -- <file>` shows what the wiring added.
 
 - `drop`: no LtpExits object, no extra query, no new key in the results JSON, the same code path as
