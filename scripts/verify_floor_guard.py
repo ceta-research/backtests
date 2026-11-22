@@ -666,7 +666,7 @@ def forward_hits(tree):
 # market-cap floors. The cap may go only where check M reads every floor (cap_used): without M an
 # inflated market cap lets a name into the book whose return only the cap used to drop (SOS, ZEST).
 DATA_CHECKS_TOPICS = {"deleveraging": 1, "cyclical-timing": 2, "defensive-quality": 1, "asset-growth": 1,
-                      "fcf-conversion": 1}
+                      "fcf-conversion": 1, "52-week-high": 1}
 # BCE-PY.TO stands in for BCE's common line (ur-2's keep list), but from 2026 its series is a preferred's price: a
 # committed data-checks file may not hold it in a period that exits on or after this day.
 BCE_PY_FROM = "2026-01-01"

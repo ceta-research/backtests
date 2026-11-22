@@ -10,11 +10,14 @@ LTP fill's) or a confirmed or hand-booked candidate of the leg's split_check rec
 them, and each near miss fails, each basis on another symbol among them); factor_review finds the 24 flags at
 0.1pp or more with their recorded effects and nothing left against the list; gate 15 refuses a dc-3 file with an
 unreviewed flag, a stale entry, an unbooked entry or a CAGR that doesn't reproduce; a found_in and the review read
-a diagnostics file (results/diagnostics/<name>.json); each of the five topics books a listed holding end to end in
-drop, ltp and both; and source mutants of data_utils, factor_review and two topics each fail.
+a diagnostics file (results/diagnostics/<name>.json); each of the six topics books a listed holding end to end in
+drop, ltp and both; and source mutants of data_utils, factor_review and two topics each fail. 52-week-high's
+committed files predate its data checks and carry no block (NO_BLOCK_FILES).
 
 Each opted-in topic runs end to end on its synthetic leg with its own data checks version (DC_VERSIONS:
-fcf-conversion on dc-3, the other four on dc-1), and asset-growth and fcf-conversion with their universe rules
+fcf-conversion and 52-week-high on dc-3, the other four on dc-1; the quarterly topics, FREQ, on the quarterly
+grid's dates), 52-week-high on its own copy of the SET leg with daily bars (wh52_source), and asset-growth and
+fcf-conversion with their universe rules
 (ur-2, ur-3), each against a must-fail mutant on an older version, and fcf-conversion's class twins against one
 that never keys them. Gate 15's results check refuses a file holding BCE-PY.TO in a period that exits on or
 after 2026-01-01.
@@ -2726,15 +2729,21 @@ WH52_ADDED = {AG_BR_ORD: (AG_RULES[AG_BR_ORD][0], AG_RULES[AG_BR_ORD][2], 5.04e1
               AG_BR_PREF: (AG_RULES[AG_BR_PREF][0], AG_RULES[AG_BR_PREF][2], 5.05e10),
               WH52_UNPRICED: ("Unpriced Holdings PCL", "TH3000060001", 5.06e10)}
 WH52_THIN = "A07.BK"   # its added bars trade 10 shares, as its FY2010 December bars do: check M finds no evidence
+# no added bars: two fillers that never reach 100 bars in a lookback, so the uncapped arm, which ranks the NVDR lines
+# and INFL.BK too, still fits the top 30 (else A07.BK's thin 2010 closes cut it there on 2011-01-01)
+WH52_UNRANKED = ("A18.BK", "A19.BK")
 
 
 def wh52_source(src=None):
     """synthetic_source() as a 52-week-high leg, or src, a copy of it with more rows (the run window's): the universe
     rules' profile columns with isAdr and industry, WH52_ADDED's lines, a bar for every line on each weekday from
     1999-01-04 on which the filler A00.BK has none (so a 252-bar lookback holds daily rows), at the quarter's
-    price, except on a day the line already has one, after DLST.BK's delisting, and for AG_BR_ORD, whose
-    preferred line then stands in. STD.BK so ranks on these bars and has no entry bar, so STD-R.BK stands in for it.
-    Every bar's high is its close, and the bars vary through vary(), so dc-2's rule S moves none."""
+    price, except on a day the line already has one, after DLST.BK's delisting, for AG_BR_ORD (whose preferred line
+    then stands in) and WH52_UNRANKED, and for BAD.BK in the 20 days before each CLOSED day but the 11th, its
+    signal bar there (so, as in synthetic_source, the oscillation filter's neighbours of its bad print span more
+    than its 10 and 20 days, and only check T moves the print).
+    STD.BK so ranks on these bars and has no entry bar, so STD-R.BK stands in for it. Every bar's high is its
+    close, and the bars vary through vary(), so dc-2's rule S moves none."""
     src = synthetic_source() if src is None else src
     rule_columns(src)
     src.execute("ALTER TABLE profile ADD COLUMN isAdr BOOLEAN")
@@ -2753,8 +2762,9 @@ def wh52_source(src=None):
                     [(AG_BR_PREF, d.isoformat(), ep(d), price(AG_BR_PREF, d), price(AG_BR_PREF, d),
                       0.0 if d in CLOSED else 1e5) for d in sorted(map(date.fromisoformat, traded))])
     days = [d for d in weekdays(date(1999, 1, 4), date.fromisoformat(max(traded))) if d.isoformat() not in traded]
-    lines = [r[0] for r in src.execute("SELECT DISTINCT symbol FROM profile WHERE symbol <> ? ORDER BY 1",
-                                       [AG_BR_ORD]).fetchall()]
+    lines = [r[0] for r in src.execute("SELECT DISTINCT symbol FROM profile ORDER BY 1").fetchall()
+             if r[0] not in (AG_BR_ORD, *WH52_UNRANKED)]
+    quiet = [(c - timedelta(days=k)).isoformat() for c in CLOSED for k in range(1, 21) if k != 11]   # BAD.BK's
     src.execute("CREATE TEMP TABLE _wh52_px(symbol VARCHAR, q INTEGER, px DOUBLE)")
     quarters = sorted({(d.year - 2000) * 4 + (d.month - 1) // 3: d for d in days}.items())
     src.executemany("INSERT INTO _wh52_px VALUES (?, ?, ?)", [(s, q, price(s, d)) for s in lines for q, d in quarters])
@@ -2766,7 +2776,8 @@ def wh52_source(src=None):
         FROM _wh52_px p JOIN _wh52_days d ON d.q = p.q
         WHERE NOT EXISTS (SELECT 1 FROM stock_eod x WHERE x.symbol = p.symbol AND x.date = d.day)
           AND NOT (p.symbol = 'DLST.BK' AND d.day > ?)
-        ORDER BY p.symbol, d.e""", [WH52_THIN, DELISTED.isoformat()])
+          AND NOT (p.symbol = 'BAD.BK' AND list_contains(?, d.day))
+        ORDER BY p.symbol, d.e""", [WH52_THIN, DELISTED.isoformat(), quiet])
     src.execute("DROP TABLE _wh52_px")
     src.execute("DROP TABLE _wh52_days")
     src.execute("ALTER TABLE stock_eod ADD COLUMN high DOUBLE")
@@ -2776,7 +2787,7 @@ def wh52_source(src=None):
 
 # The data checks each opted-in topic runs: its block's version, and its rules the version's config
 DC_VERSIONS = {"deleveraging": "dc-1", "cyclical-timing": "dc-1", "defensive-quality": "dc-1", "asset-growth": "dc-1",
-               "fcf-conversion": "dc-3"}
+               "fcf-conversion": "dc-3", "52-week-high": "dc-3"}
 DC_CONFIGS = {"dc-1": du.DATA_CHECKS_V1, "dc-2": du.DATA_CHECKS_V2, "dc-3": du.DATA_CHECKS_V3}
 
 
@@ -3184,8 +3195,8 @@ def hand_list_failures(root=ROOT, entries=None):
     return f
 
 
-# Every data-checks topic's committed files carry a data_checks block.
-NO_BLOCK_FILES = {}
+# The data-checks topics' committed files with no data_checks block, by topic: 52-week-high's predate its data checks.
+NO_BLOCK_FILES = {"52-week-high": 18}
 
 
 def review_failures(root=ROOT, effects=None, entries=None, no_block=None):
@@ -3750,7 +3761,7 @@ def main():
             expect(name, failures + ([stale] if failures else []))
     # every opted-in topic end to end, and gate 15
     srcs = {"defensive-quality": defensive_source(), "asset-growth": asset_growth_source(),
-            "fcf-conversion": fcf_source()}
+            "fcf-conversion": fcf_source(), "52-week-high": wh52_source()}
     src = synthetic_source()
     with tempfile.TemporaryDirectory() as tmp:
         for t in DATA_CHECKS_TOPICS:

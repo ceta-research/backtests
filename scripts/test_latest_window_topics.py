@@ -8,8 +8,9 @@
              in a subprocess on its own tree (its .py files archived to a temp dir) and its own
              test_data_checks.py, with the shared modules checked to load from there
   2 WINDOW   with FY2025 rows and 2026 bars to 2026-11-10 added, each topic runs pinned to 2026-11-06
-             and through RunWindow.latest (run day 2026-11-09), fcf-conversion too (it moved to the run
-             window after the base, so it joins section 1 once the base has it):
+             and through RunWindow.latest (run day 2026-11-09), fcf-conversion and 52-week-high too (they
+             moved to the run window after the base, so each joins section 1 once the base has it;
+             52-week-high quarterly, on its own copy of the leg with daily bars, test_data_checks.wh52_source):
                the leg's keys and values, every row marked and only the last partial
                the partial row's window exits on the end date, and the benchmark's too
                a held name that stops trading before the end date (and trades again after it) fills
@@ -47,8 +48,8 @@ import scan_results_invariant as sri   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
 from gate_ltp import check_stage_a, first_diff   # noqa: E402
 
-TOPICS = ("defensive-quality", "cyclical-timing", "deleveraging", "asset-growth", "fcf-conversion")
-FREQ = {"deleveraging": "quarterly"}
+TOPICS = ("defensive-quality", "cyclical-timing", "deleveraging", "asset-growth", "fcf-conversion", "52-week-high")
+FREQ = tdc.FREQ   # the quarterly topics: deleveraging and 52-week-high
 UNPRICED_TOPICS = ("defensive-quality", "asset-growth", "fcf-conversion")   # cash rows: entry_unpriced None, or the list
 END, TODAY = date(2026, 11, 6), date(2026, 11, 9)
 HALT, ZEROV = "A03.BK", "A04.BK"   # stops trading after 2026-10-30 (back on 11-09); no volume on END
@@ -167,7 +168,8 @@ def sources():
     synthetic = extend(tdc.synthetic_source())
     return {"defensive-quality": extend(tdc.defensive_source()), "cyclical-timing": synthetic, "deleveraging": synthetic,
             "asset-growth": extend(tdc.asset_growth_source()),
-            "fcf-conversion": tdc.vary(extend(tdc.fcf_source()))}   # dc-3's rule S: the 2026 bars vary too
+            "fcf-conversion": tdc.vary(extend(tdc.fcf_source())),   # dc-3's rule S: the 2026 bars vary too
+            "52-week-high": tdc.wh52_source(extend(tdc.synthetic_source()))}   # its daily bars added after 2026's
 
 
 _WINDOWS = {}   # one window per fixture and kind: run_single copies it (for_leg) before grid() changes it

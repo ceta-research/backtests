@@ -14,13 +14,20 @@ topic's own fetch SQL fills the caches from made-up warehouse rows, so it must c
 volume and filter on neither. They are fetched over two rebalance dates, so they are
 continuous as in a real run and only the screen's own window start keeps a bar older than
 R - 390d out; a one-date cache is the first rebalance, where the fetch's start is the bound.
-The same-security dedup still runs before the top-30 cut, on the run's own entry offset. Every
+The same-security dedup still runs before the top-30 cut, on the run's own entry offset. The floor, the
+book's market cap and the tie-break read cap_used (check M): a cap that check M divides onto the floor is out, an
+ineligible row is out, each with its event, and the tie-break follows cap_used, not the raw cap. Every
 mutant of the topic's source must trip a check; the traded-bar rule's must trip it on a wrong
 book, not an error.
 
+Check T on the ranking cache, with data checks on: on a closed rebalance date a line's traded copy moves, so the
+line ranks on its last traded bar before it, while a copy 40 days back, outside every fetch window, stays in the
+lookback.
+
 The run on test_data_checks' synthetic SET leg (wh52_source): run_single on --end-year 2025 books today's 103
 quarterly periods; each invested row's holdings string names every booked name, and --full-holdings adds
-holdings_full, every booked name in that order, changing nothing else. The quarterly run window, with
+holdings_full, every booked name in that order, changing nothing else; check N keys an NVDR line to its ordinary
+line, which holds the slot, and the NVDR stands in for an ordinary line with no entry bar. The quarterly run window, with
 test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial 2026-10-01 period, its
 window exits and the benchmark's priced on the end date's close, a name with no bar after 2026-10-30 filled at
 its last bar, CAGR over span_years and the run window's keys written; main() takes --end-date, and --end-year 2025
@@ -37,6 +44,8 @@ import sys
 import tempfile
 import types
 from datetime import date, datetime, timedelta, timezone
+
+import duckdb
 
 ROOT = (os.path.abspath(sys.argv[1]) if len(sys.argv) > 1
         else os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -88,10 +97,12 @@ def untraded(bars, days, **cols):
     return bars
 
 
-def line(bars, cap=1e10, isin=None, filings=None, after=((1, 5.0),), dup=()):
-    """One listing. `after`: (day, adjClose) bars past R, each closing on a new high the signal must not read."""
+def line(bars, cap=1e10, isin=None, filings=None, after=((1, 5.0),), dup=(), at=D, **profile):
+    """One listing. `after`: (day, adjClose) bars past R, each closing on a new high the signal must not read.
+    Bars are keyed by days from `at` (default D). profile: its profile row's other columns (companyName, isFund,
+    industry ...)."""
     rows = [(k, *v) for k, v in bars.items()] + [(k, adj, 1000.0, 1000.0, 1e6) for k, adj in after] + list(dup)
-    return {"bars": rows, "filings": filings or [(FY19, cap)], "isin": isin}
+    return {"bars": rows, "filings": filings or [(FY19, cap)], "isin": isin, "at": at, "profile": profile}
 
 
 SIGNAL = {
@@ -171,6 +182,18 @@ CUT.update({
     "TWIN_A": line(flat(120), cap=9e11, isin="X1", after=((1, 0.99),)),
     "TWIN_B": line(flat(120), cap=8e11, isin="X1", after=((1, 1.0),)),
 })
+# Check M: the floor, the book's cap and the tie-break read cap_used, the FY cap over check M's divisor (none when
+# the row is ineligible). CAP_RULES: symbol -> (rule, divisor), check M's row for the line's FY2019 cap.
+CAPS = {
+    "DIV_AT": line(flat(120), cap=FLOOR * 10),          # cap_used on the floor: out
+    "DIV_OVER": line(flat(120), cap=FLOOR * 10 + 10),   # cap_used a unit over it: in
+    "INELIG": line(flat(120), cap=1e12),                # ineligible: out
+    "TIE_RAW": line(flat(120), cap=9e11),               # cap_used 9e9: after TIE_USED's 5e10, though its raw cap leads
+    "TIE_USED": line(flat(120), cap=5e10),
+}
+CAP_RULES = {"DIV_AT": ("cap_over_k", 10.0), "DIV_OVER": ("cap_over_k", 10.0), "INELIG": ("ineligible", None),
+             "TIE_RAW": ("cap_over_k", 100.0)}
+CAP_EVENTS = [("DIV_AT", "cap_over_k"), ("INELIG", "ineligible")]   # over the floor on the raw cap, not on cap_used
 
 
 def signal_book(off, e11):
@@ -192,6 +215,8 @@ EXPECT = {
     "signal, first rebalance date": signal_book(("OFF_B", 4e10, 1.0), ("E11_B", 2e10, 1.0)),
     "ties at the cut": ([("TWIN_B", 8e11, 1.0)] + [(f"K{i:02d}", i * 1e9, 1.0) for i in range(31, 3, -1)]
                         + [("K02", 3e9, 1.0)]),
+    "check M": [("TIE_USED", 5e10, 1.0), ("TIE_RAW", 9e9, 1.0), ("DIV_OVER", FLOOR + 1, 1.0)],
+    "check M's events": CAP_EVENTS,
 }
 
 
@@ -203,53 +228,39 @@ def values(rows):
     return ", ".join("(" + ", ".join(sql(v) for v in r) + ")" for r in rows)
 
 
-def seed(con, uni):
-    """The made-up warehouse (profile, key_metrics, stock_eod) and the leg's isin_map."""
-    con.execute("CREATE TABLE profile(symbol VARCHAR, exchange VARCHAR)")
-    con.execute("CREATE TABLE key_metrics(symbol VARCHAR, marketCap DOUBLE, dateEpoch BIGINT, period VARCHAR)")
-    con.execute("CREATE TABLE stock_eod(symbol VARCHAR, date DATE, dateEpoch BIGINT, adjClose DOUBLE, close DOUBLE,"
+PROFILE = (("isin", "VARCHAR"), ("isActivelyTrading", "BOOLEAN"), ("currency", "VARCHAR"), ("cik", "VARCHAR"),
+           ("companyName", "VARCHAR"), ("isFund", "BOOLEAN"), ("isEtf", "BOOLEAN"), ("isAdr", "BOOLEAN"),
+           ("industry", "VARCHAR"))
+
+
+def seed(uni, ex):
+    """The made-up warehouse on leg `ex`: profile (the isin map's and the universe rules' columns: each line named by
+    its symbol, live, in the leg's currency, no fund or ADR flag unless its profile says), key_metrics, stock_eod."""
+    src = duckdb.connect()
+    src.execute("CREATE TABLE profile(symbol VARCHAR, exchange VARCHAR, "
+                + ", ".join(f"{c} {t}" for c, t in PROFILE) + ")")
+    src.execute("CREATE TABLE key_metrics(symbol VARCHAR, marketCap DOUBLE, dateEpoch BIGINT, period VARCHAR)")
+    src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date DATE, dateEpoch BIGINT, adjClose DOUBLE, close DOUBLE,"
                 " high DOUBLE, volume DOUBLE)")
-    con.execute("CREATE TABLE isin_map(symbol VARCHAR, isin VARCHAR, isActivelyTrading BOOLEAN, home_ccy BOOLEAN)")
-    con.execute("INSERT INTO profile VALUES " + values((s, EX) for s in uni))
-    con.execute("INSERT INTO isin_map VALUES " + values((s, x["isin"], True, True) for s, x in uni.items()))
-    con.execute("INSERT INTO key_metrics VALUES "
+    base = {"isActivelyTrading": True, "currency": du.leg_quote_currency([ex]), "cik": None, "isFund": False,
+            "isEtf": False, "isAdr": False, "industry": None}
+    src.execute("INSERT INTO profile VALUES " + values(
+        (s, ex, *({**base, "isin": x["isin"], "companyName": s, **x["profile"]}[c] for c, _ in PROFILE))
+        for s, x in uni.items()))
+    src.execute("INSERT INTO key_metrics VALUES "
                 + values((s, cap, ep(d), "FY") for s, x in uni.items() for d, cap in x["filings"]))
-    con.execute("INSERT INTO stock_eod VALUES " + values(
-        (s, (D + timedelta(days=k)).isoformat(), ep(D + timedelta(days=k)), adj, close, high, vol)
+    src.execute("INSERT INTO stock_eod VALUES " + values(
+        (s, (x["at"] + timedelta(days=k)).isoformat(), ep(x["at"] + timedelta(days=k)), adj, close, high, vol)
         for s, x in uni.items() for k, adj, close, high, vol in x["bars"]))
+    return src
 
 
-class _Client:
-    """Stands in for CetaResearch in fetch_data_via_api: the universe's profile rows, nothing else."""
-
-    def __init__(self, uni):
-        self.uni = uni
-
-    def query(self, sql, **kw):
-        return [{"symbol": s, "exchange": EX} for s in self.uni]
-
-
-def cache(mod, uni, dates):
-    """The topic's own fetch over the made-up warehouse for `dates`: its SQL builds metrics_cache and prices_cache."""
-    seeded = []
-
-    def warehouse(con):
-        if not seeded:
-            seeded.append(seed(con, uni))
-
-    def fake_isin_map(client, con, *a, **kw):
-        warehouse(con)
-        return len(uni)
-
-    def fake_query_parquet(client, sql, con, table_name, **kw):
-        warehouse(con)
-        con.execute(f"CREATE TABLE {table_name} AS {sql}")
-        return con.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
-
-    mod.load_isin_map, mod.query_parquet = fake_isin_map, fake_query_parquet
+def cache(mod, uni, dates, ex=EX, **kw):
+    """The topic's own fetch over the made-up warehouse for `dates` (test_data_checks' fake client runs its SQL):
+    it builds universe, metrics_cache, prices_cache and the isin map. kw: fetch_data_via_api's own (ur, dc ...)."""
     mod.remove_price_oscillations = lambda *a, **k: None
-    mod.print = lambda *a, **k: None
-    return mod.fetch_data_via_api(_Client(uni), [EX], dates)
+    with contextlib.redirect_stdout(io.StringIO()):
+        return mod.fetch_data_via_api(tdc.FakeClient(seed(uni, ex)), [ex], dates, **kw)
 
 
 def failures(src):
@@ -257,13 +268,19 @@ def failures(src):
         mod = load(src)
         # [PREV, D]: bars older than R-390 are in the cache, as on every date but a run's first; [D]: the first
         sig, first, cut = cache(mod, SIGNAL, [PREV, D]), cache(mod, SIGNAL, [D]), cache(mod, CUT, [PREV, D])
+        caps = cache(mod, CAPS, [PREV, D])
+        caps.executemany("INSERT INTO cap_check (symbol, filing_epoch, rule, cap_div) VALUES (?, ?, ?, ?)",
+                         [(s, ep(FY19), rule, div) for s, (rule, div) in CAP_RULES.items()])
+        du.mark_nvdr_twins(caps)   # the twin key's columns, as a data-checks run has them
+        dc = du.DataChecks("on", mod.DATA_CHECKS)
         got = {"signal, entry next day": mod.screen_stocks(sig, D, FLOOR, offset_days=1),
                "signal, entry same day": mod.screen_stocks(sig, D, FLOOR, offset_days=0),
                "signal, first rebalance date": mod.screen_stocks(first, D, FLOOR, offset_days=1),
-               "ties at the cut": mod.screen_stocks(cut, D, FLOOR, offset_days=1)}
-        sig.close()
-        first.close()
-        cut.close()
+               "ties at the cut": mod.screen_stocks(cut, D, FLOOR, offset_days=1),
+               "check M": mod.screen_stocks(caps, D, FLOOR, offset_days=1, dc=dc)}
+        got["check M's events"] = sorted((e["symbol"], e["rule"]) for e in dc.events if e["check"] == "cap")
+        for con in (sig, first, cut, caps):
+            con.close()
     except Exception as e:  # a mutant that breaks the module fails loudly
         return [f"error: {type(e).__name__}: {e}"]
     return [f"{k}: book {got[k]} != {want}" for k, want in EXPECT.items() if got[k] != want]
@@ -279,7 +296,10 @@ FETCH_START = "fetch_start = d - timedelta(days=HIGH_WINDOW_FETCH)\n"           
 TARGET = "    target_epoch = utc_epoch(target_date)\n"
 LAG = "cutoff_epoch = utc_epoch(target_date - timedelta(days=45))"
 CUT_BY = "ORDER BY proximity_ratio DESC, marketCap DESC NULLS LAST, symbol\n"
-WRAP = "FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})"
+WRAP = "FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE,"
+TWIN_KEY = "twin_key=dc is not None and dc.on)"
+DEDUP = WRAP + "\n                              " + TWIN_KEY + "})"
+FLOOR_TEST = 'sql("km.cap_used > ?")'
 FETCH_COLS = "adjClose, close, high, volume\n"                                   # the fetch SQL's, not the docstring's
 FETCH_PASS = "          AND adjClose > 0\n          AND high > 0\n"
 TRADED = "              AND volume > 0\n"                                                  # the signal bar's volume test
@@ -351,11 +371,15 @@ MUTANTS = {
     "cap exclusive": ("<= {MAX_PROXIMITY}", "< {MAX_PROXIMITY}"),
     "cap a tick higher": ("MAX_PROXIMITY = 1.1 ", "MAX_PROXIMITY = 1.101 "),
     "no cap": ("          AND l.close / l.high_52w <= {MAX_PROXIMITY}\n", ""),
-    # the size floor: latest filing at the 45-day cutoff first, then the test
-    "size floor inclusive": ("          AND marketCap > ?", "          AND marketCap >= ?"),
-    "no size floor": ("          AND marketCap > ?", "          AND ? IS NOT NULL"),
-    "size test before latest": ("            WHERE filing_epoch <= ?\n",
-                                "            WHERE filing_epoch <= ? AND marketCap > 500000000\n"),
+    # the size floor: latest filing at the 45-day cutoff first, then the test on cap_used (check M)
+    "size floor inclusive": (FLOOR_TEST, 'sql("km.cap_used >= ?")'),
+    "no size floor": (FLOOR_TEST, 'sql("? IS NOT NULL")'),
+    "the floor on the raw cap": (FLOOR_TEST, 'sql("km.marketCap > ?")'),
+    "the book and the tie-break on the raw cap": ("SELECT km.symbol, km.cap_used AS marketCap",
+                                                  "SELECT km.symbol, km.marketCap AS marketCap"),
+    "check M's events not recorded": ("dc.caps(con, ", "(lambda *a: None)(con, "),
+    "size test before latest": ("            WHERE m.filing_epoch <= ?\n",
+                                "            WHERE m.filing_epoch <= ? AND m.marketCap > 500000000\n"),
     "no lag": (LAG, "cutoff_epoch = utc_epoch(target_date)"),
     "lag a day short": (LAG, LAG.replace("45", "44")),
     "lag a day long": (LAG, LAG.replace("45", "46")),
@@ -368,11 +392,10 @@ MUTANTS = {
     "29 names": ("MAX_STOCKS = 30 ", "MAX_STOCKS = 29 "),
     "31 names": ("MAX_STOCKS = 30 ", "MAX_STOCKS = 31 "),
     # the same-security dedup: gone, after the cut, on the wrong entry bar, or blind to the R+11 bar
-    "no dedup": (WRAP, "FROM ({candidates})"),
+    "no dedup": (DEDUP, "FROM ({candidates})"),
     "cut before dedup": (WRAP, WRAP.replace("candidates,", "'SELECT * FROM (' + candidates + ') "
                                             + CUT_BY.strip() + " LIMIT 30',")),
-    "entry offset not passed": ("compute_proximity(con, eligible, target_date, offset_days=offset_days)",
-                                "compute_proximity(con, eligible, target_date)"),
+    "entry offset not passed": (WRAP, WRAP.replace("target_date, offset_days,", "target_date, 1,")),
     "entry floor a cent lower": ("MIN_ENTRY_PRICE = 1.0 ", "MIN_ENTRY_PRICE = 0.99 "),
     "entry floor a cent higher": ("MIN_ENTRY_PRICE = 1.0 ", "MIN_ENTRY_PRICE = 1.01 "),
     "prices cached to R+10": ("win.fetch_end(d, 11)", "win.fetch_end(d, 10)"),
@@ -430,6 +453,12 @@ def results_failures(src):
         if names != (r["holdings"].split(",") if r["stocks_held"] else []):
             out.append(f"{r['rebalance_date']}: holdings_full {names}, holdings {r['holdings']!r}")
             break
+    # check N: an NVDR line shares its ordinary line's security (twin_key on the dedup), so TWN.BK holds the slot
+    # and STD-R.BK stands in for STD.BK, which ranks with no entry bar
+    held_at, invested = tdc.held_dates(rows)
+    if held_at("TWN-R.BK") or held_at("STD.BK") or held_at("TWN.BK") != invested or held_at("STD-R.BK") != invested:
+        out.append(f"NVDR twins: TWN-R.BK held at {sorted(held_at('TWN-R.BK'))[:3]}, STD-R.BK at "
+                   f"{len(held_at('STD-R.BK'))} and TWN.BK at {len(held_at('TWN.BK'))} of {len(invested)} invested")
     return out
 
 
@@ -438,6 +467,58 @@ RESULT_MUTANTS = {
                                  '"holdings": ",".join(sym for sym, _, _ in clean[:10]),'),
     "--full-holdings ignored": ("DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)",
                                 "DataChecks(data_checks, DATA_CHECKS, full_holdings=False)"),
+    "no twin key on the dedup": (TWIN_KEY, "twin_key=False)"),
+}
+
+
+# Check T on the ranking cache: T_R, a rebalance date, and T_BACK, 40 days before it and outside every window, are
+# closed days on test_data_checks' synthetic leg (only A00.BK to A02.BK trade, as on its CLOSED days) where one line
+# prints a traded copy: T_COPY at 80% of its close on T_R (under the oscillation filter's thresholds), T_KEPT with
+# twice its high on T_BACK.
+T_R = date(2014, 1, 1)
+T_BACK = T_R - timedelta(days=40)
+T_COPY, T_KEPT = "A10.BK", "A11.BK"
+
+
+def t_leg():
+    if "t" not in _LEGS:
+        src = tdc.wh52_source()
+        for d, s in ((T_R, T_COPY), (T_BACK, T_KEPT)):
+            src.execute("UPDATE stock_eod SET volume = 0 WHERE date = ? AND symbol NOT IN"
+                        " ('A00.BK', 'A01.BK', 'A02.BK', '^SET.BK', 'SPY', ?)", [d.isoformat(), s])
+        src.execute("UPDATE stock_eod SET adjClose = adjClose * 0.8, close = close * 0.8, high = high * 0.8"
+                    " WHERE date = ? AND symbol = ?", [T_R.isoformat(), T_COPY])
+        src.execute("UPDATE stock_eod SET high = high * 2 WHERE date = ? AND symbol = ?", [T_BACK.isoformat(), T_KEPT])
+        _LEGS["t"] = src
+    return _LEGS["t"]
+
+
+def t_failures(src):
+    """The fetch with data checks on cleans the grid's windows [d, d + 11] (check T) before the screen reads them:
+    T_R's copy moves, so T_COPY ranks on its last traded bar before T_R, at 1.0, while T_BACK's copy stays in
+    T_KEPT's lookback and its high holds T_KEPT's ratio near 0.5. The block lists T_R as a closed date, not T_BACK."""
+    try:
+        mod, dc = load(src), du.DataChecks("on", du.DATA_CHECKS_V3)
+        with contextlib.redirect_stdout(io.StringIO()):
+            con = mod.fetch_data_via_api(tdc.FakeClient(t_leg()), ["SET"], [date(2013, 10, 1), T_R], mktcap_min=1e9,
+                                         dc=dc)
+            prox = {s: p for s, _, p in mod.screen_stocks(con, T_R, 1e9, dc=dc)}
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    out = []
+    if prox.get(T_COPY) != 1.0 or not 0.4 < (prox.get(T_KEPT) or 1.0) < 0.6:
+        out.append(f"ratios {T_COPY} {prox.get(T_COPY)}, want 1.0; {T_KEPT} {prox.get(T_KEPT)}, want about 0.5")
+    closed = [x["date"] for x in dc.block()["closed_dates"]]
+    if T_R.isoformat() not in closed or T_BACK.isoformat() in closed:
+        out.append(f"closed dates {closed}: want {T_R} and not {T_BACK}")
+    return out
+
+
+T_CALL = "clean_price_cache(con, bench_symbols, rebalance_dates, dc.cfg"
+T_MUTANTS = {
+    "check T on no window": (T_CALL, T_CALL.replace("rebalance_dates", "[]")),
+    "check T over the lookback": (T_CALL, T_CALL.replace(
+        "rebalance_dates", "[x for d in rebalance_dates for x in (d - timedelta(days=40), d)]")),
 }
 
 
@@ -540,20 +621,21 @@ def mutant_results(mutants, check, must_book=()):
 
 
 def main():
-    base = failures(SRC) + results_failures(SRC) + partial_failures(SRC)
+    base = failures(SRC) + results_failures(SRC) + partial_failures(SRC) + t_failures(SRC)
     if base:
         print("test_52wh_selection: FAIL", base)
         sys.exit(1)
     survived, errored = mutant_results(MUTANTS, failures, TRADED_MUTANTS)
     s2, e2 = mutant_results(RESULT_MUTANTS, results_failures, RESULT_MUTANTS)
     s3, _ = mutant_results(WINDOW_MUTANTS, partial_failures)
-    survived, errored = survived + s2 + s3, errored + e2
+    s4, e4 = mutant_results(T_MUTANTS, t_failures, T_MUTANTS)
+    survived, errored = survived + s2 + s3 + s4, errored + e2 + e4
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
-    print(f"test_52wh_selection: PASS ({len(SIGNAL) + len(CUT)} listings, {len(MUTANTS)} mutants caught; the run on"
-          f" the synthetic SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window, {len(WINDOW_MUTANTS)}"
-          " mutants caught)")
+    print(f"test_52wh_selection: PASS ({len(SIGNAL) + len(CUT) + len(CAPS)} listings, {len(MUTANTS)} mutants caught;"
+          f" the run on the synthetic SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window,"
+          f" {len(WINDOW_MUTANTS)} mutants caught; check T, {len(T_MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":

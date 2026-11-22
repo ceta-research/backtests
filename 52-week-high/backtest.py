@@ -39,15 +39,17 @@ import os
 import sys
 import time
 from datetime import date, datetime, timedelta
+from functools import partial
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cr_client import CetaResearch
 from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year, filter_returns,
-                        entry_buyable, entry_buyable_prices, LtpExits, add_exit_method_arg,
+                        entry_buyable, LtpExits, add_exit_method_arg,
                         get_local_benchmark, get_benchmark_return, LOCAL_INDEX_BENCHMARKS,
                          remove_price_oscillations, utc_epoch,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
-                        DATA_CHECKS_V3, DataChecks)
+                        DATA_CHECKS_V3, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
+                        load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, apply_costs
@@ -63,9 +65,10 @@ MAX_STOCKS = 30              # Top N by proximity, equal weight
 MIN_STOCKS = 10              # Hold cash if fewer qualify
 DEFAULT_FREQUENCY = "quarterly"
 DEFAULT_REBALANCE_MONTHS = [1, 4, 7, 10]   # Jan / Apr / Jul / Oct
-MAX_SINGLE_RETURN = 2.0      # Cap at 200% per stock (data quality guard)
 MIN_ENTRY_PRICE = 1.0        # Skip sub-$1 entry prices (price data artifacts)
 MAX_PROXIMITY = 1.1          # Proximity > 1.1 likely a data error (close > 52w high)
+# No return cap: data checks dc-3 (traded bars, NVDR twins, market-cap check at the floor, the reviewed
+# hand list) clean the inputs, and every kept move over +100% or under -50% is listed in the results.
 DATA_CHECKS = DATA_CHECKS_V3
 
 # Development compute (max resources)
@@ -73,7 +76,7 @@ FETCH_MEMORY_MB = 4096
 FETCH_THREADS = 2
 
 
-def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, win=None):
+def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap_min=None, dc=None, win=None):
     """Fetch all data needed for 52-week high proximity backtest.
 
     Populates DuckDB tables:
@@ -82,10 +85,14 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, win=No
             -- used for point-in-time market cap filter only
         prices_cache(symbol, trade_epoch, adjClose, close, high, volume)
             -- extended window: 52W lookback + entry date per rebalance date
+        cap_check (empty unless dc is on), and with dc on: splits, prices_dropped
 
+    dc: a data_utils.DataChecks; when on, the fetch runs checks T, N and M (mktcap_min is the floor). Check T
+    cleans the grid's windows [d, d + 11] only: a lookback keeps the rows outside them (untraded rows among them).
     win: the leg's data_utils.RunWindow; its fetch_end cuts the price windows at the run's end date.
     Returns DuckDB connection or None.
     """
+    checks = dc is not None and dc.on
     win = win if win is not None else RunWindow.typed()
     # Campaign listing rule; sym_filter_sql carries it into the market-cap and price fetches.
     listing_cond = campaign_listing_condition(exchanges)
@@ -119,8 +126,10 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, win=No
         )
     else:
         sym_filter_sql = "1=1"
-    # symbol -> ISIN (+ live, home-currency flags) for compute_proximity's same-security dedup, every leg.
+    # symbol -> ISIN (+ live, home-currency flags) for screen_stocks' same-security dedup, every leg.
     load_isin_map(client, con, exchanges, sym_filter_sql, verbose=verbose)
+    if checks:   # check N: SET NVDR lines share their ordinary line's security key
+        dc.record_twins_linked(mark_nvdr_twins(con))
 
     # 2. Historical market cap (from key_metrics FY filings, point-in-time)
     print("  Fetching historical market cap...")
@@ -135,6 +144,14 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, win=No
     count = query_parquet(client, metrics_sql, con, "metrics_cache", verbose=verbose,
                           memory_mb=FETCH_MEMORY_MB, threads=FETCH_THREADS)
     print(f"    -> {count} market cap rows")
+
+    # Check M (the floor reads cap_used) and the splits check F flags; cap_check stays empty when off.
+    if checks:
+        print("  Fetching market-cap check inputs and splits...")
+        dc.record_cap(load_cap_check(client, con, sym_filter_sql, mktcap_min, dc.cfg, verbose=verbose))
+        load_splits(client, con, sym_filter_sql, verbose=verbose)
+    else:
+        empty_cap_check(con)
 
     # 3. Prices — HIGH_WINDOW_FETCH days before each rebalance through entry end (R+11)
     # adjClose prices entry/exit returns; close and high (split-adjusted, dividends left in) make the signal.
@@ -184,38 +201,21 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, win=No
                           verbose=verbose, limit=15000000, timeout=600,
                           memory_mb=FETCH_MEMORY_MB, threads=FETCH_THREADS)
     con.execute("CREATE INDEX idx_prices_sym_epoch ON prices_cache(symbol, trade_epoch)")
+    if checks:   # check T: closed days, zero-volume and flat lines, non-positive prices, sibling-class gaps
+        dc.record_clean(clean_price_cache(con, bench_symbols, rebalance_dates, dc.cfg, siblings="cap_inputs"))
     remove_price_oscillations(con, verbose=verbose)
     print(f"    -> {count} price rows (adjClose + close/high, {HIGH_WINDOW_FETCH}-day window per date)")
 
     return con
 
 
-def get_eligible_symbols(con, target_date, mktcap_min):
-    """Get symbols passing market cap filter at target_date.
+def _candidates_sql(target_date, cap_test, events=False):
+    """The screen's candidates on target_date, each with its proximity ratio and market cap.
 
-    Uses 45-day filing lag for point-in-time integrity.
-    Returns dict: {symbol: market_cap}
-    """
-    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
-
-    rows = con.execute("""
-        WITH met AS (
-            SELECT symbol, marketCap, filing_epoch,
-                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY filing_epoch DESC, marketCap DESC NULLS LAST) AS rn
-            FROM metrics_cache
-            WHERE filing_epoch <= ?
-        )
-        SELECT symbol, marketCap
-        FROM met
-        WHERE rn = 1
-          AND marketCap > ?
-    """, [cutoff_epoch, mktcap_min]).fetchall()
-
-    return {r[0]: r[1] for r in rows}
-
-
-def compute_proximity(con, eligible, target_date, offset_days=1):
-    """Compute 52-week high proximity ratio for the eligible symbols at target_date.
+    The floor reads cap_used (check M): each line's latest FY row filed by the 45-day cutoff (the first `?`), its
+    cap over check M's divisor, NULL for an ineligible row. cap_test is the floor clause ("km.cap_used > ?", or
+    CAP_FAIL_TEST for M's events, which also read km_epoch and raw_cap). The candidates carry cap_used as
+    marketCap, so the tie-break and the cost tier read it.
 
     proximity_ratio = close(S) / MAX(high) over the 252 bars ending at S, untraded (zero or NULL volume)
     bars included, S being the latest bar in [R - 10d, R] with volume > 0; a line with no such bar is not ranked.
@@ -224,24 +224,29 @@ def compute_proximity(con, eligible, target_date, offset_days=1):
     every later dividend, so it would rank a name by what it paid out after the rebalance date.
 
     Higher ratio = stock is closer to its 52-week high.
-    Ratio of 1.0 means the stock closed exactly at its 52-week high.
-
-    eligible: {symbol: market_cap} from get_eligible_symbols. Exact ties rank by larger cap, then symbol.
-
-    Returns list of (symbol, proximity_ratio) sorted descending.
+    Ratio of 1.0 means the stock closed on its 52-week high.
     """
-    if not eligible:
-        return []
-
+    extra = ", km.filing_epoch AS km_epoch, km.marketCap AS raw_cap" if events else ""
     start_epoch = utc_epoch(target_date - timedelta(days=HIGH_WINDOW_FETCH))
     # Signal reads only bars on/before R; entry is the first bar from R+1, so no bar after entry leaks in.
     target_epoch = utc_epoch(target_date)
     signal_floor_epoch = utc_epoch(target_date - timedelta(days=SIGNAL_TOLERANCE_DAYS))
 
     # Duplicates sort by close, high, volume DESC NULLS LAST: fixed frames, untraded twin outside the traded bar's frame.
-    candidates = f"""
-        WITH eligible AS (
-            SELECT unnest(?::VARCHAR[]) AS symbol, unnest(?::DOUBLE[]) AS marketCap
+    return f"""
+        WITH km AS (
+            SELECT m.symbol, m.marketCap, m.filing_epoch,
+                {cap_used_sql()} AS cap_used,
+                ROW_NUMBER() OVER (PARTITION BY m.symbol ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST) AS rn
+            FROM metrics_cache m
+            LEFT JOIN cap_check cc ON cc.symbol = m.symbol AND cc.filing_epoch = m.filing_epoch
+            WHERE m.filing_epoch <= ?
+        ),
+        eligible AS (
+            SELECT km.symbol, km.cap_used AS marketCap{extra}
+            FROM km
+            WHERE km.rn = 1
+              AND {cap_test}
         ),
         windowed AS (
             SELECT symbol, trade_epoch, close, high, volume,
@@ -270,7 +275,7 @@ def compute_proximity(con, eligible, target_date, offset_days=1):
         SELECT
             l.symbol,
             l.close / l.high_52w AS proximity_ratio,
-            e.marketCap,
+            e.* EXCLUDE (symbol),
             l.close,
             l.high_52w,
             l.row_count
@@ -281,56 +286,45 @@ def compute_proximity(con, eligible, target_date, offset_days=1):
           AND l.row_count >= {MIN_HISTORY_ROWS}
           AND l.close / l.high_52w <= {MAX_PROXIMITY}
     """
+
+
+def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1, dc=None):
+    """Screen for 52-week high proximity stocks at target_date (_candidates_sql), the top MAX_STOCKS by
+    proximity ratio after the security dedup. Exact ties rank by larger cap_used, then symbol.
+
+    dc (data_utils.DataChecks): when on, NVDR twins share a security (check N); it also records the
+    screen's twin and market-cap events.
+    Returns list of (symbol, market_cap, proximity_ratio), the market cap being cap_used.
+    """
+    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    sql = partial(_candidates_sql, target_date)
+    candidates = sql("km.cap_used > ?")
+    params = [cutoff_epoch, mktcap_min]
     # One row per ISIN BEFORE the top-N cut, so a collapsed twin frees its slot for the next name.
     rows = con.execute(f"""
-        SELECT symbol, proximity_ratio, close, high_52w, row_count
-        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE)})
+        SELECT symbol, marketCap, proximity_ratio
+        FROM ({isin_dedup_sql(candidates, target_date, offset_days, MIN_ENTRY_PRICE,
+                              twin_key=dc is not None and dc.on)})
         ORDER BY proximity_ratio DESC, marketCap DESC NULLS LAST, symbol
-        LIMIT {MAX_STOCKS}
-    """, [list(eligible), list(eligible.values())]).fetchall()
+        LIMIT ?
+    """, params + [MAX_STOCKS]).fetchall()
 
-    return [(r[0], r[1]) for r in rows]  # list of (symbol, proximity_ratio)
-
-
-def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1):
-    """Screen for 52-week high proximity stocks at target_date.
-
-    1. Get universe passing market cap filter (point-in-time)
-    2. Compute proximity ratio for universe
-    3. Select top MAX_STOCKS by proximity ratio
-
-    Returns list of (symbol, market_cap, proximity_ratio).
-    """
-    eligible = get_eligible_symbols(con, target_date, mktcap_min)
-    if not eligible:
-        return []
-
-    proximity_ranked = compute_proximity(con, eligible, target_date, offset_days=offset_days)
-
-    result = [
-        (sym, eligible.get(sym, 0), prox)
-        for sym, prox in proximity_ranked
-        if sym in eligible
-    ]
-
-    if verbose and result:
-        top_prox = result[0][2]
-        bot_prox = result[-1][2]
-        print(f"    MCap-eligible: {len(eligible)}, "
-              f"with proximity: {len(proximity_ranked)}, "
-              f"Selected: {len(result)} "
-              f"(prox range: {bot_prox:.3f}–{top_prox:.3f})")
-
-    return result
+    picked = [(r[0], r[1], r[2]) for r in rows]
+    if dc is not None:
+        dc.twins(con, candidates, params, target_date, offset_days, MIN_ENTRY_PRICE, [s for s, _, _ in picked])
+        dc.caps(con, sql(CAP_FAIL_TEST, events=True), params + [mktcap_min], target_date, mktcap_min)
+    if verbose and picked:
+        print(f"    Selected: {len(picked)} (prox range: {picked[-1][2]:.3f}-{picked[0][2]:.3f})")
+    return picked
 
 
 def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False,
                  offset_days=1, benchmark_symbol="SPY", ltp=None, exit_method="drop", dc=None, win=None):
     """Run 52-week high proximity backtest. Returns list of period result dicts.
 
-    dc: the leg's data_utils.DataChecks (full_holdings lists every booked name per invested row). win: the
-    leg's data_utils.RunWindow (its grid made rebalance_dates): the partial exit is priced at the close on the
-    end date (the caller marks the rows: RunWindow.mark)."""
+    dc: the leg's data_utils.DataChecks. Without one, no check runs (the "uncapped" mode); either way there is
+    no return cap. win: the leg's data_utils.RunWindow (its grid made rebalance_dates): the partial exit is
+    priced at the close on the end date (the caller marks the rows: RunWindow.mark)."""
     results = []
     dc = dc if dc is not None else DataChecks("uncapped", DATA_CHECKS)
     win = win if win is not None else RunWindow.typed()
@@ -340,7 +334,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         exit_date = rebalance_dates[i + 1]
         x_off = win.exit_offset(exit_date, offset_days)
 
-        portfolio = screen_stocks(con, entry_date, mktcap_min, verbose=verbose, offset_days=offset_days)
+        portfolio = screen_stocks(con, entry_date, mktcap_min, verbose=verbose, offset_days=offset_days, dc=dc)
 
         bench_return = get_benchmark_return(
             con, benchmark_symbol, entry_date, exit_date, offset_days=offset_days, exit_offset_days=x_off)
@@ -355,6 +349,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "screened": len(portfolio),
                 "entry_buyable": None,
                 "min_stocks": MIN_STOCKS,
+                **dc.row(entry_date, screened=True, priced=False),
                 "holdings": f"CASH ({len(portfolio)} passed, need {MIN_STOCKS})",
             })
             if verbose:
@@ -366,22 +361,26 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
         entry_prices = get_prices(con, symbols, entry_date, offset_days=offset_days)
         exit_prices = get_prices(con, symbols, exit_date, offset_days=x_off)
+
+        symbol_data = [(sym, entry_prices.get(sym), exit_prices.get(sym), mcaps.get(sym))
+                       for sym in symbols]
         # LTP fills only for periods that clear the entry-side cash guard below.
         ltp_fill = (ltp.fill(symbols, entry_prices, exit_prices, entry_date, exit_date,
                              offset_days=offset_days, min_entry_price=MIN_ENTRY_PRICE)
-                    if ltp and entry_buyable_prices(symbols, entry_prices, MIN_ENTRY_PRICE) >= MIN_STOCKS else {})
+                    if ltp and entry_buyable(symbol_data, min_entry_price=MIN_ENTRY_PRICE) >= MIN_STOCKS else {})
         exit_ltp = {**exit_prices, **ltp_fill}
 
-        def book(xmap):
-            return [(sym, entry_prices.get(sym), xmap.get(sym), mcaps.get(sym)) for sym in symbols]
+        def book(xmap, verbose=verbose, record=True):
+            # symbol_data with the exit slot taken from xmap
+            clean, skipped = filter_returns([(sym, ep, xmap.get(sym), mcap) for sym, ep, _, mcap in symbol_data],
+                                            min_entry_price=MIN_ENTRY_PRICE,
+                                            max_single_return=None,   # no return cap (data checks dc-3)
+                                            verbose=verbose)
+            clean = dc.hand(clean, entry_date, exit_date, filled=ltp_fill, record=record)   # dc-3's hand list
+            return clean, [apply_costs(rr, tiered_cost(mc)) if use_costs and mc else rr for _, rr, mc in clean]
 
-        # symbol_data keeps the DROP exits so the entry-only cash guard below reads it unchanged.
-        symbol_data = book(exit_prices)
         booked = exit_ltp if exit_method == "ltp" else exit_prices
-        clean, skipped = filter_returns(book(booked),
-                                        min_entry_price=MIN_ENTRY_PRICE,
-                                        max_single_return=MAX_SINGLE_RETURN,
-                                        verbose=verbose)
+        clean, returns = book(booked)
 
         # The cash rule has to be re-checked HERE, not just on the screen count.
         # Screening can pass 30 names while only a handful of them have a usable
@@ -389,8 +388,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         # as a diversified portfolio return.
         #
         # Checked on `buyable`, NOT on len(clean). filter_returns also drops a
-        # name for a missing EXIT price and for a realised return over
-        # MAX_SINGLE_RETURN, neither of which is knowable on the rebalance date.
+        # name for a missing EXIT price, which is not knowable on the rebalance
+        # date (this topic sets no return cap; a cap would be a second such drop).
         # Deciding cash from those is look-ahead and it flatters: a period the
         # strategy really held and really lost gets rewritten as a flat 0.0%. If
         # the book cleared the floor at entry the strategy ENTERED, so the
@@ -400,6 +399,9 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         # not changed here.
         buyable = entry_buyable(symbol_data, min_entry_price=MIN_ENTRY_PRICE)
         if buyable < MIN_STOCKS:
+            # window bars only: T's bar events, no book to flag
+            dc.prices(con, entry_date, exit_date, symbol_data, offset_days, MIN_ENTRY_PRICE, held=False,
+                      exit_offset_days=x_off)
             results.append({
                 "rebalance_date": entry_date.isoformat(),
                 "exit_date": exit_date.isoformat(),
@@ -409,6 +411,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 "screened": len(portfolio),
                 "entry_buyable": buyable,
                 "min_stocks": MIN_STOCKS,
+                **dc.row(entry_date, screened=True, priced=True),
                 "holdings": f"CASH ({buyable} buyable at entry of {len(portfolio)} screened)",
             })
             if verbose:
@@ -416,17 +419,11 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                       f"names were buyable at entry (< {MIN_STOCKS}), CASH")
             continue
 
-        returns = []
-        for sym, raw_ret, mcap in clean:
-            if use_costs and mcap:
-                cost = tiered_cost(mcap)
-                net_ret = apply_costs(raw_ret, cost)
-            else:
-                net_ret = raw_ret
-            returns.append(net_ret)
-
         port_return = sum(returns) / len(returns) if returns else 0.0
         avg_prox = sum(p for _, _, p in portfolio) / len(portfolio)
+        # window bars only (never the LTP fills): T's bar events, L and F's flags
+        dc.prices(con, entry_date, exit_date, symbol_data, offset_days, MIN_ENTRY_PRICE, held=True,
+                  exit_offset_days=x_off)
 
         results.append({
             "rebalance_date": entry_date.isoformat(),
@@ -437,15 +434,14 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             "screened": len(portfolio),
             "entry_buyable": buyable,
             "min_stocks": MIN_STOCKS,
+            **dc.row(entry_date, screened=True, priced=True),
             "avg_proximity_ratio": round(avg_prox, 4),
             "holdings": ",".join(sym for sym, _, _ in clean),
             **dc.holdings_full(con, clean, entry_prices, booked, ltp_fill if exit_method == "ltp" else {},
                                entry_date, exit_date, offset_days, ltp, exit_offset_days=x_off),
         })
         if exit_method == "both":
-            c_ltp, _ = filter_returns(book(exit_ltp), min_entry_price=MIN_ENTRY_PRICE,
-                                      max_single_return=MAX_SINGLE_RETURN)
-            r_ltp = [apply_costs(rr, tiered_cost(mc)) if use_costs and mc else rr for _, rr, mc in c_ltp]
+            c_ltp, r_ltp = book(exit_ltp, verbose=False, record=False)
             results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
                                 "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
 
@@ -552,7 +548,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print("\nPhase 1: Fetching data via API...")
     rebalance_dates = win.grid(2000, frequency, months=DEFAULT_REBALANCE_MONTHS, offset_days=offset_days)
     t0 = time.time()
-    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose, win=win)
+    con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
+                             mktcap_min=mktcap_threshold, dc=dc, win=win)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -561,8 +558,9 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
 
     print(f"\nPhase 2: Running {frequency} backtest ({rebalance_dates[0]} to {rebalance_dates[-1]})...")
     t1 = time.time()
-    # Quarterly cache windows [R-390, R+11] span every holding period, so LTP reads the local cache.
-    ltp = LtpExits(cr, con, local=True, verbose=verbose, end_date=win.end_date) if exit_method != "drop" else None
+    # LTP reads remote stock_eod: check T's rules (dc-3's rule S among them) clean a fill on the remote path only.
+    ltp = (LtpExits(cr, con, verbose=verbose, traded_only=dc.on, end_date=win.end_date, cfg=dc.cfg)
+           if exit_method != "drop" else None)
     results = run_backtest(con, rebalance_dates, mktcap_threshold,
                            use_costs=use_costs, verbose=verbose,
                            offset_days=offset_days, benchmark_symbol=benchmark_symbol,
@@ -570,6 +568,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     win.mark(results)
     bt_time = time.time() - t1
     print(f"Backtest completed in {bt_time:.0f}s")
+    print(f"  {dc.summary()}")
 
     valid = [r for r in results if r["portfolio_return"] is not None and r["spy_return"] is not None]
     if not valid:
@@ -586,6 +585,8 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     print(format_metrics(metrics, "52W-High Proximity", benchmark_name))
     ltp_block = (ltp.results_block(exit_method, valid, periods_per_year, risk_free_rate, fractions=fractions)
                  if ltp else None)
+    if ltp_block:
+        dc.annotate_ltp(con, ltp, ltp_block)   # F's flags on the fills, inside the ltp block
 
     # B006: count over `executed` (every rebalance the strategy actually ran),
     # not `valid` (only those the benchmark can also price). Keeps the honest
@@ -614,6 +615,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
                           frequency, periods_per_year, cash_periods, avg_stocks)
     output.update({**win.fields(con, benchmark_symbol, valid, periods_per_year, partial_year, offset_days),
                    "listing_filter": campaign_listing_label(exchanges), "isin_dedup": True})
+    output["data_checks"] = dc.block()   # window bars and the screen only: equal in drop, ltp and both
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
 
