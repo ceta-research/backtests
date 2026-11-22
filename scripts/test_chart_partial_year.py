@@ -20,12 +20,14 @@ A run on the run window keeps full years in annual_returns and a short final yea
   5 MUTANTS   each rule above, broken in a copy of chart_utils.py or a topic's generate_charts.py, fails a check
 
 52-week-high's committed results predate its run window, so its legacy file is its typed-year comparison at
-the ref the port branched from, as fcf-conversion's was until its rerun.
+the ref the port branched from, as fcf-conversion's was until its rerun. Its base script is pinned there too
+(base_ref), since wh52_legacy turns that script's charts into the port's.
 
 Nothing is written under a topic's folder: savefig (pyplot's and Figure's) is replaced by a recorder, and
 each chart script runs from a copy in a temp dir.
 
-Usage:  python scripts/test_chart_partial_year.py [--base REF]   (REF defaults to the merge base with origin/main)
+Usage:  python scripts/test_chart_partial_year.py [--base REF]   (REF defaults to the merge base with origin/main;
+        a topic with a base_ref reads its base script there whatever REF is)
 """
 import argparse
 import contextlib
@@ -451,7 +453,8 @@ WH52_GC_MUTANTS = [
      '        if False:\n            cut.append'),
 ]
 
-# What differs by topic: the legacy comparison file (ref) and the chart count it draws, how a file name names its
+# What differs by topic: the legacy comparison file (ref) and the chart count it draws, the base script's ref when the
+# legacy transform assumes one (base_ref; else the run's base), how a file name names its
 # leg (slugs, the name's part at slug_at), how the partial legs reach the script (module data set after import, or
 # its results/ file, which main() reads), how a title ends (one ending, or a tuple of them), the per-leg footer and
 # end label (asset-growth's), the annual bars' order, the cumulative series' start (initial, 10000 unless given), the
@@ -463,7 +466,8 @@ CHART_TOPICS = {
     "fcf-conversion": {"legacy_ref": "2a741b7", "charts": 34, "slugs": FCF_SLUGS, "slug_at": 1, "partial": "results",
                        "title_end": "{})", "leg_footer": False, "end_label": False,
                        "bar_order": ("portfolio", "spy"), "mutants": FCF_GC_MUTANTS},
-    "52-week-high": {"legacy_ref": "203203b", "charts": 38, "slugs": WH52_SLUGS, "slug_at": 1, "partial": "results",
+    "52-week-high": {"legacy_ref": "203203b", "base_ref": "203203b", "charts": 38, "slugs": WH52_SLUGS, "slug_at": 1,
+                     "partial": "results",
                      "title_end": ("{}", "{})"), "leg_footer": False, "end_label": False,
                      "bar_order": ("portfolio", "spy"), "initial": 1.0, "legacy": wh52_legacy,
                      "mutants": WH52_GC_MUTANTS},
@@ -510,7 +514,7 @@ def main():
             check(False, x)
         bases, srcs, tdata = {}, {}, {}
         for t, spec in CHART_TOPICS.items():
-            bases[t] = base_figures(tmp, ref, t)
+            bases[t] = base_figures(tmp, spec.get("base_ref", ref), t)
             check(len(bases[t]) == spec["charts"], f"{t}: the base drew {len(bases[t])} charts, not {spec['charts']}")
             srcs[t] = open(os.path.join(ROOT, t, "generate_charts.py")).read()
             tdata[t] = json.loads(legacy_json(t))
