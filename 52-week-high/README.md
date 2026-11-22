@@ -14,31 +14,37 @@ Buys the 30 stocks trading closest to their 52-week high, every quarter, at equa
 proximity_ratio = close / MAX(high over the 252 bars ending at the signal bar)
 ```
 
-- **Signal bar:** the latest bar on or up to 10 days before the rebalance date with volume above 0. A line with no traded bar in those 10 days is not ranked. The 52-week high is the highest `high` over the 252 bars ending at the signal bar, untraded (zero or NULL volume) bars included, and a line needs at least 100 of them.
-- **Price basis:** `close` and `high` are both split-adjusted and neither is dividend-adjusted, so the ratio compares like with like. A ratio of 1.0 means the stock closed at its 52-week high; 0.95 means 5% below it.
-- **Ranking:** highest ratio first. Exact ties at the cut (names sitting on their high, such as Chinese limit-up closes) go to the larger market cap, then to the symbol.
+- **Signal bar:** the latest bar on or up to 10 days before the rebalance date with volume above 0. A line with no traded bar in those 10 days is not ranked. The 52-week high is the highest `high` over the 252 bars ending at the signal bar, untraded (zero or NULL volume) bars included, and a line needs at least 100 of them. A line on ur-4's lookback-clip list counts its bars from its first own day (Universe, below).
+- **Price basis:** `close` and `high` are both split-adjusted and neither is dividend-adjusted, so the ratio compares like with like. A ratio of 1.0 means the stock closed at its 52-week high; 0.95 means 5% below it. The ratio has no cap.
+- **Ranking:** highest ratio first. Exact ties at the cut (names sitting on their high, such as Chinese limit-up closes) go to the larger checked market cap, then to the symbol.
 
-On each rebalance date, for every line on the market's exchanges:
+On each rebalance date, for every ordinary share on the market's exchanges:
 
-1. Keep it if the market cap on its latest `key_metrics` fiscal-year row dated at least 45 days before the rebalance date is above the market's floor. The row's date is the fiscal year end, not the date the figures were published.
+1. Keep it if its checked market cap is above the market's floor: the cap on its latest `key_metrics` fiscal-year row dated at least 45 days before the rebalance date, as data checks dc-3's check M reads it (divided where a later price scaling shows the vendor's cap sits on another basis, and failing where the row is ineligible). The row's date is the fiscal year end, not the date the figures were published.
 2. Compute the ratio as above.
-3. Keep one line per ISIN.
+3. Keep one line per security: one per ISIN, a Thai NVDR line keyed to its ordinary line (check N), and on SAO one line per company.
 4. Take the 30 highest ratios and hold them at equal weight for the quarter.
+
+Each results file counts the lines over the floor that step 2 leaves unranked, per rebalance date and by reason, under `signal_guard`: `no_traded_bar` (no traded bar in the 10 days) or `short_history` (fewer than 100 of the 252 bars), per line before step 3 ([METHODOLOGY.md](../METHODOLOGY.md#filing-and-selection-rules-rerun-topics), Filing and Selection Rules).
+
+**Universe: ordinary shares only** (universe rules `ur-4`, [METHODOLOGY.md](../METHODOLOGY.md#universe-rules)). Preferred and preference shares, notes, units, warrants, rights, funds and second lines at their own price never enter the universe, and neither do ADRs, trusts and LPs on NYSE, NASDAQ and AMEX, BDRs on SAO, or J-REITs on JPX (the Nikkei 225 holds no REITs). The hand list adds lines no pattern reads: blank-check shells, Stockholm preference and D shares, funds the profile doesn't flag, receipts, and lines that print another line's bars. On SAO a company holds one line, its ordinary share, with its priced preferred or unit line standing in when the ordinary line has no entry price (`universe_rules.class_stand_ins`). A line whose earlier bars copy another line's enters on its first own day (`universe_rules.line_starts`, 42 lines). For 16 of them the earlier bars are another company's or instrument's (1972.HK's are Swire Pacific's, GETY's and eight de-SPAC lines' their blank-check shells', LUMI.ST's and five US lines' depositary receipts'), and the 252-bar window starts on the first own day too (`universe_rules.lookback_clip`). A renamed line keeps its old ticker's bars in its window. A line whose later rows aren't its listing's leaves after its last own day (`universe_rules.line_ends`): COG, CLR, PEAK and GLT, and BCE-PY.TO after 2025-09-30, when its bars turn into a preferred's. Every results file records the rules and what they removed under `universe_rules`.
 
 ## Parameters
 
-- **Rebalancing:** quarterly, on 1 January, April, July and October, executed at the next available close. 103 quarters, January 2000 to July 2025; the last exit is 1 October 2025.
+- **Rebalancing:** quarterly, on 1 January, April, July and October, executed at the next available close, from January 2000 to the latest close every market in the run traded, the last quarter partial and priced at that close (METHODOLOGY.md, "Run Window"). `--end-year 2025` stops at the 1 October 2025 exit: 103 quarters, January 2000 to July 2025, the committed files' grid.
 - **Min stocks:** 10. The quarter is held in cash if fewer than 10 names pass the screen, or if fewer than 10 of them pass the entry test: a price of at least 1.00 in local units in the 10-day entry window. The entry test reads `adjClose`, which is back-adjusted for every later dividend, not the `close` the ratio uses. In an invested quarter, a name that fails the entry test is dropped from the book and its slot isn't refilled from lower ranks, so a book can hold fewer than 30 names. A cash quarter earns 0%. The floor is checked at entry only.
 - **Max stocks:** 30, equal weight.
-- **Size floor:** the market's entry in `MKTCAP_THRESHOLD_MAP` (`cli_utils.py`), in local currency: $1B in the US, ₹20B on NSE, ¥100B on JPX, ₩500B on KSC, NT$10B on TAI, ฿10B on SET, €500M on XETRA and MIL, £500M on the LSE.
-- **Return cap:** a single holding's quarterly return above 200% is treated as a data error and left out of that quarter's average.
-- **Transaction costs:** size-tiered, one-way: 0.1% above $10B market cap, 0.3% for $2-10B, 0.5% below $2B, charged on entry and on exit. The tier thresholds are in US dollars and market caps aren't converted.
-- **Exits:** a holding with no price in the 10-day window after the exit date exits at its last traded price (`--exit-method ltp`, the default).
-- **Listing rules:** XETRA holds Germany-domiciled companies only, SIX Switzerland-domiciled companies only, and LSE pence-quoted (GBp) lines only. On every market, a security listed under more than one ticker (same ISIN) is held once. Share classes, preference shares and Thai NVDR lines have their own ISINs, so two lines of one company can both be held (see Known limits).
-- **Benchmark:** each market's own index, in local currency. The US is measured against SPY. South Africa, Italy and Malaysia have no local index in the data and are measured against the S&P 500 (SPY) in USD. China (SHZ + SHH) is measured against the SSE Composite, Norway against the Oslo All Share (`^OSEAX`).
+- **Size floor:** the market's entry in `MKTCAP_THRESHOLD_MAP` (`cli_utils.py`), in local currency: $1B in the US, ₹20B on NSE, ¥100B on JPX, ₩500B on KSC, NT$10B on TAI, ฿10B on SET, €500M on XETRA and MIL, £500M on the LSE, A$500M on ASX, R$1B on SAO. It's read against the checked cap (check M, step 1).
+- **Data checks:** no return cap. Data checks `dc-3` ([METHODOLOGY.md](../METHODOLOGY.md#data-checks)) clean each rebalance date's 12-day price window before the oscillation filter (check T: closed days, untraded and stale rows, the signal bar's day included), hold a Thai NVDR and its ordinary line once (N), test the size floor and the tie-break on a checked cap (M), book reviewed rebuilds from the hand list (F), and list every return above +100% or below -50% (L). Each results file carries them under `data_checks`.
+- **Transaction costs:** size-tiered, one-way: 0.1% above $10B market cap, 0.3% for $2-10B, 0.5% below $2B, charged on entry and on exit, on each booked name's checked cap. The dollar breakpoints are converted to the leg's currency at a fixed rate per exchange (`costs.get_fx_per_usd`), recorded under `cost_model` (`null` on a `--no-costs` run). With `--full-holdings`, each booked name in `holdings_full` carries `cost_rate`, the one-way rate it paid at that rebalance as a fraction.
+- **Exits:** a holding with no price in the 10-day window after the exit date exits at its last traded price (`--exit-method ltp`, the default), read from the warehouse with check T's rules (a stale copy of the last trade doesn't count as one), and check F's flags on those fills sit in the `ltp` block.
+- **Listing rules:** XETRA holds Germany-domiciled companies only, SIX Switzerland-domiciled companies only, and LSE pence-quoted (GBp) lines only. On every market, a security listed under more than one ticker (same ISIN) is held once. Share classes have their own ISINs, so two classes of one company can both be held (see Known limits).
+- **Benchmark:** each market's own index, in local currency. The US is measured against SPY. South Africa, Italy and Malaysia have no local index in the data and are measured against the S&P 500 (SPY) in USD. China (SHZ + SHH) is measured against the SSE Composite, Norway against the Oslo All Share (`^OSEAX`), Australia against the ASX 200 (`^AXJO`) and Brazil against the Bovespa (`^BVSP`).
 - **Risk-free rate (Sharpe):** fixed per market, from `REGIONAL_RISK_FREE_RATES` in `cli_utils.py` (2.0% US, 6.5% India, 0.1% Japan, 0.5% Switzerland, 3.5% UK).
 
-## Results (January 2000 to October 2025)
+## Results (October 2026 run, January 2000 to October 2025)
+
+These are the October 2026 run's results, and they predate the code above. That run had a 200% cap on a single stock's return and a 1.1 cap on the ratio, no data checks and no universe rules, the market cap's floor and tie-break on the unchecked cap, cost tiers in unconverted dollars, a grid typed to end in 2025, and no Australia or Brazil leg. The current code doesn't reproduce them, and a rerun on it replaces them.
 
 Of the 14 markets measured against their own index over the full window, the screen beat it in 10: Taiwan (+7.61pp a year), Hong Kong (+6.81), Korea (+4.84), Sweden (+4.80), Switzerland (+4.39), Thailand (+4.29), India (+3.00), the UK (+2.83), Canada (+2.16) and Singapore (+1.48). Germany ties the DAX (0.11pp behind, under the 0.2pp line). The US (-3.45pp against SPY), China (-0.93) and Japan (-0.84) trail. Norway beat the Oslo All Share by 3.60pp a year, measured 2013-2025 only, so it isn't ranked with them. Every market was invested in at least half of its quarters (Norway in all 50 of its measured quarters), so none is too thin to test.
 
@@ -83,7 +89,7 @@ These results replace a run from June 2026. The whole topic was rerun with the c
 - **Listing rules and same-ISIN dedup**, as under Parameters. The dedup runs before the top-30 cut, so a removed twin frees its slot.
 - **Entry-side cash rule.** A quarter is cash when fewer than 10 screened names pass the entry test (an entry `adjClose` of at least 1.00, see Parameters). The June run decided cash on the screen count alone.
 - **Price basis of the ratio.** The June run divided `adjClose` by the 52-week high. `adjClose` is back-adjusted for every later dividend, so a company scored lower the more it paid out after the rebalance date: the ranking used future dividends and shut dividend payers out. The ratio is now `close` over the high, both on the same basis. Before the rerun this was measured to change 45.4% of book slots across the 18 markets, from 4.9% in Norway to 76.8% in the US.
-- **Signal bar.** The June run took the latest bar up to 5 days after the rebalance date, while entry is the first close after it, so the first days of a rise counted towards both the ranking and the return. The signal bar is now the last traded bar in the 10 days up to the rebalance date. Lines that didn't trade (fund share classes, suspended stocks) had sat exactly on their high and won ties; the traded-bar rule changes 4.2% of holdings.
+- **Signal bar.** The June run took the latest bar up to 5 days after the rebalance date, while entry is the first close after it, so the first days of a rise counted towards both the ranking and the return. The signal bar is now the last traded bar in the 10 days up to the rebalance date. Lines that didn't trade (fund share classes, suspended stocks) had sat on their high and won ties; the traded-bar rule changes 4.2% of holdings.
 - **Ties** at the cut go to the larger market cap, then the symbol.
 
 The selection changes drive the large moves, and no run separates them. The US fell from 12.52% to 4.57% (from 4.51pp ahead of SPY to 3.45pp behind), Japan from 8.43% to 2.56% (from 5.03pp ahead of the Nikkei to 0.84pp behind), India from 18.96% to 14.12%, Germany from 8.23% to 5.01% (from 3.11pp ahead of the DAX to a tie), Korea from 12.07% to 9.64% and Thailand from 10.47% to 8.05%. China rose from -2.25% to 3.26%, Taiwan from 9.18% to 11.99%, Switzerland from 4.47% to 6.50% and Malaysia from 6.42% to 8.50%. Cash quarters rose by 2 in Korea and 3 in Thailand, and by 4 in Italy, 9 in Singapore and 1 in Malaysia (all from the entry-side rule); Switzerland's fell by 2. Benchmark returns are unchanged in all 18 markets.
@@ -92,24 +98,30 @@ The selection changes drive the large moves, and no run separates them. The US f
 
 Run from the repository root. `--exit-method` defaults to `ltp`. The listing rules need no flag: they apply whenever XETRA, SIX or LSE is run as its own market.
 
-The committed files were made one market at a time, each with an explicit `--output`:
+A run goes to the latest close every market in it traded, with the last quarter partial (METHODOLOGY.md, "Run Window"). `--end-year 2025` stops at the October 2025 exit, the committed files' grid. The committed files are the October 2026 run's, made one market at a time before the current code, so no command here reproduces them. A rerun for new figures gives every market one `--end-date` (`scripts/data_end.py --legs-file scripts/gate_legs/wave3.json --topic 52-week-high` prints the common date), so the comparison file holds one window: `rebuild_comparison.py` refuses markets that end on different dates.
 
 ```bash
-# One market, written to the committed results file
-python3 52-week-high/backtest.py --exchange XETRA --output 52-week-high/results/returns_XETRA.json
-python3 52-week-high/backtest.py --preset us --output 52-week-high/results/returns_NYSE_NASDAQ_AMEX.json
+# US (NYSE + NASDAQ + AMEX), to the latest close
+python3 52-week-high/backtest.py --preset us --verbose
 
-# After all 18: rebuild the comparison file the charts read, then check it against the per-market files
+# One market to a pinned end date, written to its results file
+python3 52-week-high/backtest.py --end-date YYYY-MM-DD --exchange XETRA --output 52-week-high/results/returns_XETRA.json
+python3 52-week-high/backtest.py --end-date YYYY-MM-DD --preset us --output 52-week-high/results/returns_NYSE_NASDAQ_AMEX.json
+
+# One market on the committed files' grid, with every booked name and its cost rate listed
+python3 52-week-high/backtest.py --end-year 2025 --exchange SAO --full-holdings
+
+# After all 20: rebuild the comparison file the charts read, then check it against the per-market files
 python3 scripts/rebuild_comparison.py 52-week-high
 python3 scripts/rebuild_comparison.py 52-week-high --check
 
 # Charts from results/exchange_comparison.json, written to 52-week-high/charts/
 python3 52-week-high/generate_charts.py
 
-# The old exit rule (doesn't reproduce the June results: the other changes above still apply)
+# The old exit rule
 python3 52-week-high/backtest.py --exchange LSE --exit-method drop
 
-# Current screen (see Known limits)
+# The book a rebalance today would hold, on the backtest's own fetch and screen
 python3 52-week-high/screen.py --preset us
 ```
 
@@ -133,33 +145,41 @@ python3 52-week-high/screen.py --preset us
 | Italy | `--exchange MIL` | `returns_MIL.json` | |
 | Malaysia | `--exchange KLS` | `returns_KLS.json` | |
 | Singapore | `--exchange SES` | `returns_SES.json` | |
+| Australia | `--exchange ASX` | `returns_ASX.json` | |
+| Brazil | `--exchange SAO` | `returns_SAO.json` | |
 
 The arguments set the universe name written into the file: `--preset us` writes `US_MAJOR`, as the committed file has. `--preset canada` adds TSXV and `--preset taiwan` adds TWO, so neither reproduces the TSX or TAI file.
 
-`--global` loops over the same 18 exchange sets and writes `returns_<exchanges>.json` next to the `--output` path, plus a comparison file. It isn't how these files were made: its US file carries the universe name `NYSE_NASDAQ_AMEX`, and a market that fails inside the loop is recorded as an error entry while its old file stays on disk. Run the `--check` above after any rerun.
+`--global` loops over the same 20 exchange sets, on one end date for all of them, and writes `returns_<exchanges>.json` next to the `--output` path, plus a comparison file. It isn't how these files were made: its US file carries the universe name `NYSE_NASDAQ_AMEX`, and a market that fails inside the loop is recorded as an error entry while its old file stays on disk. Run the `--check` above after any rerun.
 
 ## Known limits
 
 - **Survivorship.** The price data holds almost no company that stopped trading before 2015 (US) or 2020 (other markets), so the earlier years are measured on companies that survived at least that long. Last-traded-price exits can only capture companies that stopped trading after those dates. See METHODOLOGY.md (Limitations: Survivorship Bias).
-- **Not only ordinary shares.** The screen has no instrument filter. Income lines (funds, preferred shares, notes, REITs) sit near their 52-week high much of the time, and Thai NVDR lines rank beside their ordinary lines. Each period record lists the first 10 names held, in rank order. Among those, by ticker pattern and name (not by a fund flag in the data), the share of slots held by funds, ETFs, preferred or note lines, warrants and NVDRs is: Thailand 27.4% (NVDR lines 216 of 860, infrastructure and property funds 20), Korea 20.7% (preferred lines, 172 of 830), the UK 20.4% (investment trusts 182 of 1,030, preference shares 28), Canada 19.4% (preferred lines 185 of 1,030, closed-end funds and bullion trusts 15), the US 9.1% (closed-end funds 46 of 1,030, notes and debentures 26, preferred lines 19, warrants 3) and Germany 8.9% (preference shares, 92 of 1,030). REIT and trust units, not counted there, are 16.4% of Singapore's recorded slots. The effect of these lines on the results isn't measured.
-- **Two lines of one company.** One line per ISIN isn't one line per company. Among the recorded names, at least one company has two lines in the book in 81 quarters in Sweden (A and B shares), 73 in Thailand (ordinary and NVDR), 50 in Korea (ordinary and preferred, or two preferred series), 40 in Canada, 37 in Germany (HEN.DE with HEN3.DE in 20 of them) and 28 in Switzerland (Roche's RO.SW with ROG.SW in 24, Swatch's UHR.SW with UHRN.SW in 16). Avg names counts lines.
-- **Size floor.** The floor compares `key_metrics` market cap, in the company's reporting currency, with a floor set in the listing currency, and takes the latest filing at least 45 days old with no upper age limit.
+- **Not only ordinary shares, in the October books.** That run had no instrument filter, so income lines (funds, preferred shares, notes, REITs), which sit near their 52-week high much of the time, and Thai NVDR lines beside their ordinary lines took slots. Its period records list the first 10 names held, in rank order. Among those, by ticker pattern and name (not by a fund flag in the data), the share of slots held by funds, ETFs, preferred or note lines, warrants and NVDRs is: Thailand 27.4% (NVDR lines 216 of 860, infrastructure and property funds 20), Korea 20.7% (preferred lines, 172 of 830), the UK 20.4% (investment trusts 182 of 1,030, preference shares 28), Canada 19.4% (preferred lines 185 of 1,030, closed-end funds and bullion trusts 15), the US 9.1% (closed-end funds 46 of 1,030, notes and debentures 26, preferred lines 19, warrants 3) and Germany 8.9% (preference shares, 92 of 1,030). REIT and trust units, not counted there, are 16.4% of Singapore's recorded slots. The current code removes the preferred, preference, fund, note and warrant lines ur-4 names, holds an NVDR with its ordinary line once, and lists every booked name; REITs and their units outside Japan stay (ur-4's keep list).
+- **Two lines of one company.** One line per ISIN isn't one line per company. Among the October books' recorded names, at least one company has two lines in the book in 81 quarters in Sweden (A and B shares), 73 in Thailand (ordinary and NVDR), 50 in Korea (ordinary and preferred, or two preferred series), 40 in Canada, 37 in Germany (HEN.DE with HEN3.DE in 20 of them) and 28 in Switzerland (Roche's RO.SW with ROG.SW in 24, Swatch's UHR.SW with UHRN.SW in 16). Under the current code share classes still stay, so Sweden's A and B shares and Swatch's two lines can both be held. Avg names counts lines.
+- **Size floor.** The floor compares the checked `key_metrics` market cap, in the company's reporting currency, with a floor set in the listing currency, unconverted, and takes the latest filing at least 45 days old with no upper age limit.
+- **Splits inside the lookback.** The ratio reads the vendor's split-adjusted close and high. A split the vendor left unadjusted inside a line's 252 bars puts the window's high on another price scale until the split leaves the window, so the line ranks on a ratio that is too low or too high for up to a year. In the October books 38 booked line-quarters ranked on such a window, China 16 and Taiwan 15, mostly bonus issues and stock dividends. No check cleans a lookback: the data checks and `scripts/split_check.py` read the held windows, and a hand-list entry rebuilds a held return, not a ranking.
+- **Closed-day rows outside the windows.** Check T cleans the 12-day window from each rebalance date, so a closed-day copy on the rebalance date moves and the signal falls back to the last traded bar. A closed-day row anywhere else in the 252 bars stays and can set the high: rows on another price scale (CM.TO's and TIH.TO's on 2003-12-26, DB1.DE's on 2002-12-24) set those lines' highs for the year after.
+- **China's B shares.** They are ordinary shares and stay, priced in US dollars (Shanghai) or Hong Kong dollars (Shenzhen) inside a leg measured in yuan against the SSE Composite, so their returns carry the currency move.
+- **Lines listed first elsewhere.** A company's ordinary share listed on this market as well as its home one stays, at its local price: AZN.ST, ABB.ST, NDA-SE.ST, 0945.HK, AD.MI and FERG.L are among the October books' holdings.
+- **Clipped starts.** A line on ur-4's lookback-clip list ranks on its own bars only, so it can't rank until it has 100 of them, about five months after its first own day. A renamed line keeps its old ticker's bars in its window, and a shell, copy or receipt line the list doesn't name ranks on its predecessor's bars.
 - **Entry floor.** The 1.00 entry test reads `adjClose`, which is back-adjusted for every dividend paid after the rebalance date, so it sits below the printed close, by more the earlier the quarter and the higher the payout. A name whose printed close was above 1.00 fails the test when later dividends push its adjusted price under 1.00. That is the same dependence on later dividends the rerun removed from the ratio. Here it decides which screened names are held and, in 14 quarters (Italy 4, Malaysia 1, Singapore 9), whether the book is invested at all. In invested quarters the test drops 40.2% of screened names in Singapore, 12.4% in Malaysia, 8.0% in Hong Kong, 7.1% in Italy, 2.3% in China and 1.1% or less in the other 13 markets (none in Japan, Korea, Taiwan or Germany). These counts include the rare name with no entry bar in the window. How many dropped names had a printed close above 1.00, and what that does to the results, isn't measured.
-- **Charts.** The CAGR and drawdown comparison charts leave Norway out, because its CAGR and drawdown cover 2013-2025 only, and name it in a footnote. Its own growth chart is titled "measured 2013-2025", and its "Cash" footer counts the 50 measured quarters (0%).
-- **`screen.py`** (the current-day screen) still ranks on `adjClose / MAX(high)`, with no traded-bar rule, no listing rules and no dedup. The backtest doesn't use it.
+- **Charts.** The CAGR and drawdown comparison charts leave out a leg measured over a shorter window (Norway's CAGR and drawdown cover 2013-2025 only), one never invested and one with no benchmark CAGR, and name each in a footnote. The CAGR chart counts the ranked legs that beat their own index and leaves the S&P 500 legs out of the count. Norway's own growth chart is titled "measured 2013-2025", and its "Cash" footer counts the 50 measured quarters (0%). On a run-window file the partial final year is the last point and the last, hatched bar, and the titles carry the file's window.
+- **`screen.py`** runs one market at a time: it fetches the market's last 390 days of bars and its rules' inputs, as one rebalance of the backtest does.
 
 ## Data Requirements
 
 - `stock_eod`: close, high and volume for the signal; adjClose for the 1.00 entry test, for entry and exit returns, and for the last traded price at exit
 - `key_metrics` (FY): marketCap
-- `profile`: exchange, country (XETRA and SIX rule), currency (LSE rule, dedup tie-break), isin and isActivelyTrading (dedup tie-break)
+- `income_statement`, `stock_prices_non_split_adjusted_daily`, `splits_calendar`: the market-cap check and the split flags (data checks M and F)
+- `profile`: exchange, country (XETRA and SIX rule), currency (LSE rule, dedup tie-break), isin and isActivelyTrading (dedup tie-break), companyName, isFund, isEtf, isAdr, cik and industry (universe rules `ur-4`)
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `backtest.py` | Historical backtest (2000-2025) |
-| `screen.py` | Current stock screen (see Known limits) |
+| `backtest.py` | Historical backtest (January 2000 to the latest close) |
+| `screen.py` | The book a rebalance today would hold, on the backtest's own fetch and screen |
 | `generate_charts.py` | Charts from `results/exchange_comparison.json` |
 | `README.md` | This file |
 | `results/` | `returns_<market>.json` per market and `exchange_comparison.json` |
