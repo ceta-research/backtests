@@ -3387,12 +3387,6 @@ NON_ORDINARY_KNOWN_V4 = NON_ORDINARY_KNOWN_V3 + (
                                           "a Luxembourg company (the profile's country)"),
     ("910322.TW", "depositary receipt", "Tingyi's Taiwan depositary receipt (a 91-coded TDR) on the Cayman company "
                                         "the profile names"),
-    ("TEVA", "ADR", "Teva's NYSE line in USD, which the profile carries under the Israeli ordinary share's ISIN "
-                    "(IL0006290147) and doesn't flag isAdr"),
-    ("TTE", "ADR", "TotalEnergies' NYSE line in USD, which the profile carries under the French ordinary share's ISIN "
-                   "(FR0000120271) and doesn't flag isAdr"),
-    ("AU", "ADR", "AngloGold Ashanti's NYSE line in USD: the profile now names AngloGold Ashanti plc, carries its UK "
-                  "ISIN (GB00BRXH2664) and doesn't flag isAdr"),
     ("CEO", "ADR", "CNOOC's NYSE line under a US ISIN (US1261321095) on a Hong Kong company (the profile's country), "
                    "which the profile doesn't flag isAdr"),
     # other instruments named as their company
@@ -3400,11 +3394,13 @@ NON_ORDINARY_KNOWN_V4 = NON_ORDINARY_KNOWN_V3 + (
                                      "under its own IN9 ISIN (IN9397D01014), beside BHARTIARTL.NS (INE397D01024)"),
     ("HGH", "debentures", "Hartford's fixed-to-floating debentures (the profile name ends DEB FIX/FLT 42), no ISIN, "
                           "closes 25.91 to 31.59 (median 29.24); HIG is the common"),
-    ("ATCOL", "notes", "a second Atlas Corp. line under its own ISIN (US04926V2034), named only as the company, whose "
-                       "closes hold near 25 (23.40 to 26.59, median 25.01)"),
-    ("EXEEL", "warrant", "a second Expand Energy line under its own ISIN (US1651671802) on EXE's CIK, beside EXE "
-                         "(closed 101.36 on 2025-04-01 against EXE's 112.74); its sibling EXEEZ falls to "
-                         "nasdaq_fifth_letter, but L isn't a fifth letter that rule reads"),
+    ("ATCOL", "notes", "Atlas Corp.'s 7.125% Notes due 2027 (its 20-F for 2024 lists them under ATCOL; redeemed "
+                       "2025-07-07), named only as the company under their own ISIN (US04926V2034), whose closes hold "
+                       "near 25 (23.40 to 26.59, median 25.01)"),
+    ("EXEEL", "warrant", "Expand Energy's Class C warrants to purchase common stock (its 10-K covers for 2024 and 2025 "
+                         "list them under EXEEL; they expired 2026-02-09), under their own ISIN (US1651671802) on "
+                         "EXE's CIK; its sibling EXEEZ falls to nasdaq_fifth_letter, but L isn't a fifth letter that "
+                         "rule reads"),
     # lines that print another line's bars
     ("STM.MI", "second line", "a second MIL line of STMicroelectronics with no ISIN, last bar 2023-05-12: its closes "
                               "sit within 0.5% of STMMI.MI's (NL0000226223) on 6,034 of 6,193 shared days, and no "
@@ -3489,6 +3485,16 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
                               "themselves from 2017-06-08 (Lundin Mining's release of 2017-05-02 on its direct listing "
                               "on Nasdaq Stockholm); the profile carries the Canadian share's ISIN and an ipoDate of "
                               "2017-06-08"),
+    ("AU", "2023-09-25", "AngloGold Ashanti: the NYSE line traded AngloGold Ashanti Limited's American depositary "
+                         "shares through 2023-09-22 and AngloGold Ashanti plc's ordinary shares, under the same "
+                         "ticker, from 2023-09-25 (the plc's 6-K of 2023-09-25); the profile carries the plc's UK ISIN "
+                         "(GB00BRXH2664) and doesn't flag isAdr"),
+    ("TTE", "2025-12-08", "TotalEnergies: the NYSE line traded American depositary receipts until the program ended "
+                          "and the ordinary shares from 2025-12-08 (its 6-K exhibit 99.1 of 2025-12-08); the profile "
+                          "carries the French ordinary share's ISIN (FR0000120271) and doesn't flag isAdr"),
+    ("TEVA", "2026-09-14", "Teva: the NYSE line traded American depositary shares until the program ended and the "
+                           "ordinary shares from 2026-09-14 (its 8-K of 2026-09-14); the profile carries the Israeli "
+                           "ordinary share's ISIN (IL0006290147) and doesn't flag isAdr"),
     # de-SPAC lines: the first day the combined company traded under its new ticker, from its filings
     ("CTOS", "2019-08-01", "Custom Truck One Source, then Nesco Holdings (the filer's CIK, 0001709682, is CTOS's in "
                            "the profile): Capitol Investment Corp. IV (NYSE: CIC), a blank-check shell, closed its "
@@ -3519,7 +3525,8 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
                            "(20-F filed 2024-12-16)"),
 )
 # line starts whose earlier bars are another company's or instrument's: a price lookback starts on the first own day
-LOOKBACK_CLIP_V4 = ("1972.HK", "GETY", "CTOS", "GB", "FSR", "SDA", "MVST", "ECX", "GRND", "CNCK", "LUMI.ST")
+LOOKBACK_CLIP_V4 = ("1972.HK", "GETY", "CTOS", "GB", "FSR", "SDA", "MVST", "ECX", "GRND", "CNCK", "LUMI.ST", "AU",
+                    "TTE", "TEVA")
 LINE_ENDS_V4 = LINE_ENDS_V3 + (
     ("BCE-PY.TO", "2025-09-30", "BCE's common price series through 2025, on the keep list: in 2026 its bars print a "
                                 "preferred's price (21.09 on 800 shares on 2026-07-03, when BCE.TO closed 30.37), and "

@@ -1012,10 +1012,12 @@ NEW_KNOWN_V4 = {
                      "ARCC", "GBDC", "HTGC"), "fund"),
     "DANR.MI": "savings share",
     **dict.fromkeys(("ALIV-SDB.ST", "TIGO-SDB.ST", "910322.TW"), "depositary receipt"),
-    **dict.fromkeys(("TEVA", "TTE", "AU", "CEO"), "ADR"),
+    "CEO": "ADR",
     "E1AIRTELPP.NS": "partly paid", "HGH": "debentures", "ATCOL": "notes", "EXEEL": "warrant",
     **dict.fromkeys(("STM.MI", "SIME.KL"), "second line"), **dict.fromkeys(("9086.T", "FFB.JO"), "vendor copy"),
     **dict.fromkeys(("REDD.L", "SNC.TO", "CLI"), "renamed line")}
+# US receipt lines that became directly listed ordinary shares: their first own day is the switch
+RECEIPT_SWITCHES = {"AU": "2023-09-25", "TTE": "2025-12-08", "TEVA": "2026-09-14"}
 DESPAC = {"CTOS": "2019-08-01", "GB": "2020-08-31", "FSR": "2020-10-30", "SDA": "2023-05-18", "MVST": "2021-07-26",
           "ECX": "2022-12-21", "GRND": "2022-11-18", "CNCK": "2024-12-11"}
 NEW_STARTS_V4 = {"MER.TO": "2025-06-13", "VRN.TO": "2024-06-11", "SHA0.DE": "2024-10-29", "9A4U.SI": "2025-06-03",
@@ -1023,9 +1025,9 @@ NEW_STARTS_V4 = {"MER.TO": "2025-06-13", "VRN.TO": "2024-06-11", "SHA0.DE": "202
                  "GETY": "2022-07-23", "NVRI": "2023-06-17", "PSKY": "2025-08-09", "PRMB": "2024-11-20",
                  "1972.HK": "2012-01-18", "BRNK.DE": "2024-04-24", "UNITDSPR.NS": "2025-03-14",
                  "NORION.ST": "2023-10-04", "SHC.L": "2023-03-07", "AD": "2025-09-09", "TXNM": "2024-08-28",
-                 "LUMI.ST": "2017-06-08", **DESPAC}
+                 "LUMI.ST": "2017-06-08", **RECEIPT_SWITCHES, **DESPAC}
 # the line starts whose earlier bars are another company's or instrument's; the same-company renames are not
-LOOKBACK_CLIP = set(DESPAC) | {"1972.HK", "GETY", "LUMI.ST"}
+LOOKBACK_CLIP = set(DESPAC) | set(RECEIPT_SWITCHES) | {"1972.HK", "GETY", "LUMI.ST"}
 NEW_ENDS_V4 = {"BCE-PY.TO": "2025-09-30"}
 REFS = re.compile(r"#\d|\bcall \d|tracker|DECISIONS", re.I)
 # symbol, exchange, companyName, isin, cik, isFund, isEtf, isAdr, industry, then the ur-4 and ur-3 reasons wanted.
@@ -1109,9 +1111,9 @@ PROFILE_V4 = [
     ("910322.TW", "TAI", "Tingyi (Cayman Islands) Holding Corp.", "TW0009103226", None, F, F, F, "Packaged Foods",
      "known", None),
     ("TEVA", "NYSE", "Teva Pharmaceutical Industries Limited", "IL0006290147", "0000818686", F, F, F,
-     "Drug Manufacturers - Specialty & Generic", "known", None),
-    ("TTE", "NYSE", "TotalEnergies SE", "FR0000120271", "0000879764", F, F, F, "Oil & Gas Integrated", "known", None),
-    ("AU", "NYSE", "AngloGold Ashanti Plc", "GB00BRXH2664", "0001973832", F, F, F, "Gold", "known", None),
+     "Drug Manufacturers - Specialty & Generic", None, None),
+    ("TTE", "NYSE", "TotalEnergies SE", "FR0000120271", "0000879764", F, F, F, "Oil & Gas Integrated", None, None),
+    ("AU", "NYSE", "AngloGold Ashanti Plc", "GB00BRXH2664", "0001973832", F, F, F, "Gold", None, None),
     ("CEO", "NYSE", "CNOOC Limited", "US1261321095", "0001095595", F, F, F, "Oil & Gas Exploration & Production",
      "known", None),
     ("E1AIRTELPP.NS", "NSE", "Bharti Airtel Ltd. - Ordinary Shares (Partly Paid Rs.1.25)", "IN9397D01014", None, F, F,
