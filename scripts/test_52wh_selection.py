@@ -567,7 +567,8 @@ def results_failures(src):
             break
     # check M reads INFL.BK's FY rows, which carry no ROE: its inflated cap fails the floor at every rebalance
     held_at, invested = tdc.held_dates(rows)
-    infl = [e for e in plain["data_checks"]["events"] if e["symbol"] == NO_ROE and e["check"] == "cap"]
+    infl = [e for e in (plain.get("data_checks") or {}).get("events", [])
+            if e["symbol"] == NO_ROE and e["check"] == "cap"]
     if held_at(NO_ROE) or len(infl) != len(rows):
         out.append(f"{NO_ROE} (no ROE) held at {len(held_at(NO_ROE))} rebalances, {len(infl)} cap events of {len(rows)}")
     # check N: an NVDR line shares its ordinary line's security (twin_key on the dedup), so TWN.BK holds the slot
