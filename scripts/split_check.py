@@ -27,6 +27,10 @@ with --not-artifact and the key its rebuild prints (SYMBOL:REBALANCE:DATE, the s
 bar): it then leaves the rebuilds, the net and the verdict, and the leg's not_artifact lists it. The record keeps
 the every-candidate net beside the confirmed one. A key that matches no candidate is refused. A leg over the bar
 lists why in over_bar; the script exits 0 either way.
+A span the file books through a hand event (data_checks.events: dc-3's hand list booked a reviewed return there)
+isn't rebuilt, which would correct it twice: its rebuilds stay out of the rebuilds, both nets and the verdict, and
+the leg's hand_booked lists each with its key and the rebuild it would make. A hand_stale span booked adjClose and
+is checked as any other; a --not-artifact key on a hand-booked span matches no candidate.
 Limits: a split under 1.8x with no splits_calendar row doesn't show, and every candidate needs a person's
 verdict (a real one-day move can pass the round-ratio test).
 
@@ -98,24 +102,28 @@ def sql_list(symbols):
 
 def queries(res, max_len=None):
     """The three read-only queries on res's held lines, as one (ratio, bars, splits) triple per group of lines with
-    every query max_len (default MAX_SQL) characters or shorter: a quarterly book's windows overflow one query. A
-    line's windows sit in one group, so the groups' rows add up with no line read twice. None when res holds no
-    line."""
-    sp, max_len = spans(res), max_len or MAX_SQL
-    if not sp:
-        return None
+    every query max_len (default MAX_SQL) characters or shorter: a quarterly book's windows overflow one query.
+    None when res holds no line."""
+    sp = spans(res)
+    return grouped(sp, _queries, max_len or MAX_SQL) if sp else None
+
+
+def grouped(items, build, max_len):
+    """[build(group)] over groups of items (tuples, each led by its line's symbol), every query build returns
+    max_len characters or shorter. A line's items sit in one group, so the groups' rows add up with no line read
+    twice; a line whose items alone need a longer query is refused. same_bars_scan groups its fetch with this."""
     by = collections.defaultdict(list)
-    for x in sp:
+    for x in items:
         by[x[0]].append(x)
     out, group = [], []
     for s in sorted(by):
-        if group and max(map(len, _queries(group + by[s]))) > max_len:
-            out.append(_queries(group))
+        if group and max(map(len, build(group + by[s]))) > max_len:
+            out.append(build(group))
             group = []
-        if max(map(len, _queries(by[s]))) > max_len:
-            raise ValueError(f"{s}'s held windows alone need a query over {max_len} characters")
+        if max(map(len, build(by[s]))) > max_len:
+            raise ValueError(f"{s}'s windows alone need a query over {max_len} characters")
         group += by[s]
-    return out + [_queries(group)]
+    return out + [build(group)]
 
 
 def _queries(sp):
@@ -282,6 +290,12 @@ def _rounded(x, nd=6):
     return x
 
 
+def hand_booked(res):
+    """The spans (symbol, rebalance date) res books through a hand event."""
+    return {(e["symbol"], e["rebalance_date"][:10]) for e in (res.get("data_checks") or {}).get("events", [])
+            if e["check"] == "hand"}
+
+
 def check_leg(res, bars, splits, ratio, not_artifact=()):
     """The split check's record of one results file from the three queries' rows (no network). not_artifact holds
     the keys of the candidates a person called no change."""
@@ -300,7 +314,9 @@ def check_leg(res, bars, splits, ratio, not_artifact=()):
         cands += [{**span, **c} for c in steps(seq, ent, ext, rows_s)]
         tests += [{**span, **t} for t in split_tests(seq, ent, ext, rows_s)]
     classify(cands)
-    every = fixes(cands, tests)
+    hand, every, booked = hand_booked(res), [], []
+    for i, f in fixes(cands, tests):
+        (booked if (i["symbol"], i["rebalance"]) in hand else every).append((i, f))
     effects, x0, x_every = score(res, held, every)
     x1 = score(res, held, [(i, f) for i, f in every if i["key"] not in not_artifact])[2]
     kept = [e for e in effects if e["key"] not in not_artifact]
@@ -323,7 +339,8 @@ def check_leg(res, bars, splits, ratio, not_artifact=()):
         "ratio_over_100": sum(1 for r in ratios if r["price_ratio"] > 100),
         "held_lines": len({s for s, *_ in sp}), "held_line_periods": len(sp), "line_periods_priced": len(held),
         "steps": cands, "split_rows_in_windows": tests, "rebuilds": kept,
-        "not_artifact": [e for e in effects if e["key"] in not_artifact]})
+        "not_artifact": [e for e in effects if e["key"] in not_artifact],
+        "hand_booked": score(res, held, booked)[0]})
 
 
 def report_lines(key, leg):
@@ -342,6 +359,9 @@ def report_lines(key, leg):
             f"in a book of {e['n']}, leg excess {e['leg_excess_move']:+.3f}pp" for e in leg["rebuilds"]]
     out += [f"  no change, a person's call: {e['key']} ({e['kind']}), leg excess {e['leg_excess_move']:+.3f}pp"
             for e in leg["not_artifact"]]
+    out += [f"  hand-booked, not rebuilt: {e['key']} ({e['kind']}) would be {e['r_booked']:+.4f} -> "
+            f"{e['r_rebuilt']:+.4f} in a book of {e['n']}, leg excess {e['leg_excess_move']:+.3f}pp"
+            for e in leg["hand_booked"]]
     return out + [f"  OVER THE BAR: {o}" for o in leg["over_bar"]]
 
 

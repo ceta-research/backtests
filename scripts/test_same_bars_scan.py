@@ -21,13 +21,21 @@ and volume, and every line carries the same bar on each rebalance date, which is
   VOL1, VOL2          the same close in 3 windows on different volumes: not a match;
   DIME1, DIME2        the same volume in 3 windows, closes 12.31 and 12.32 (one at the dime): not a match;
   GAP1, GAP2          the same bar in 3 windows, 12 days after each rebalance date: outside the window, no match;
-  DEAD1, DEAD2        the same close in 4 windows with no volume: not a match.
-Leg two (no universe_rules block) holds PETR3.SA and PETR4.SA's 3 windows, listed there, and LEG2A, which copies
-leg one's AAA: lines of two legs are never paired. Leg three holds only the NVDR twins. main() exits 1 on legs one
-and two and 0 on leg three, and --fetch builds the same bars file from one stock_eod query on an in-memory
-warehouse (test_split_check's). Every mutant of same_bars_scan.py (each exemption and its scope, the one bar a
-day, the zero-volume rule, the volume match, the cent, the 3, the window's first and last day, the exit code) must
-trip a check.
+  DEAD1, DEAD2        the same close in 4 windows with no volume: not a match;
+  SAME1, SAME2        one profile ISIN, 3 windows: exempt on a leg whose results say isin_dedup;
+  DIF1, DIF2          two different ISINs, 3 windows: listed;
+  NUL1, NUL2          no ISIN (NULL), 3 windows: listed;
+  EMP1, EMP2          empty ISINs, 3 windows: listed.
+Leg two (no universe_rules block, no isin_dedup) holds PETR3.SA and PETR4.SA's 3 windows and SAME1 and SAME2's,
+both listed there, and LEG2A, which copies leg one's AAA: lines of two legs are never paired. Leg three holds only
+the NVDR twins. A bars file whose rows carry no ISIN exempts nothing by ISIN and lists SAME1 and SAME2 on leg one.
+main() exits 1 on legs one and two and 0 on leg three, and --fetch builds a bars file that gives the same records
+from one stock_eod query on an in-memory warehouse (test_split_check's, with a profile table whose ISINs come
+padded, in lower case, empty or twice for one line, as the vendor's can). Under a lowered limit the fetch goes in
+groups: every query at or under it, each line in one, the groups' rows the one query's, and main's record the
+same. Every mutant of same_bars_scan.py (each exemption and its scope, the one bar a day, the zero-volume rule,
+the volume match, the cent, the 3, the window's first and last day, the ISIN's reading, the fetch's groups, the
+exit code) must trip a check.
 
 Usage:
     python scripts/test_same_bars_scan.py [repo root]
@@ -50,8 +58,9 @@ from test_split_check import Warehouse, fake_cr_client   # noqa: E402
 DATES = [f"{y}-07-01" for y in range(2015, 2025)]
 LEG1 = ["AAA", "BBB", "NEAR1", "NEAR2", "XYZ.BK", "XYZ-R.BK", "PPP.BK", "QQQ-R.BK", "PETR3.SA", "PETR4.SA",
         "ABCE3.SA", "ABCF3.SA", "ABCD", "ABCDE", "ARZZ3.SA", "AZZA3.SA", "OLDL", "NEWL", "PRE1", "PRE2", "STA0",
-        "STA1", "COG", "CTRA", "END0", "END1", "VOL1", "VOL2", "DIME1", "DIME2", "GAP1", "GAP2", "DEAD1", "DEAD2"]
-LEG2 = ["PETR3.SA", "PETR4.SA", "LEG2A"]
+        "STA1", "COG", "CTRA", "END0", "END1", "VOL1", "VOL2", "DIME1", "DIME2", "GAP1", "GAP2", "DEAD1", "DEAD2",
+        "SAME1", "SAME2", "DIF1", "DIF2", "NUL1", "NUL2", "EMP1", "EMP2"]
+LEG2 = ["PETR3.SA", "PETR4.SA", "SAME1", "SAME2", "LEG2A"]
 LEG3 = ["XYZ.BK", "XYZ-R.BK"]
 # line: (the line it copies, the windows it copies, as indexes into DATES)
 COPIES = {"BBB": ("AAA", (0, 1, 2)), "NEAR2": ("NEAR1", (3, 4)), "XYZ-R.BK": ("XYZ.BK", (0, 1, 2, 3)),
@@ -60,7 +69,14 @@ COPIES = {"BBB": ("AAA", (0, 1, 2)), "NEAR2": ("NEAR1", (3, 4)), "XYZ-R.BK": ("X
           "AZZA3.SA": ("ARZZ3.SA", tuple(range(9))), "NEWL": ("OLDL", (1, 2, 5, 6, 7)),
           "PRE2": ("PRE1", (3, 4, 5, 6)), "STA1": ("STA0", (4, 5, 6)), "CTRA": ("COG", (7, 8, 9)),
           "END1": ("END0", (4, 5, 6)), "VOL2": ("VOL1", (0, 1, 2)), "DIME2": ("DIME1", (0, 1, 2)),
-          "GAP2": ("GAP1", (0, 1, 2)), "DEAD2": ("DEAD1", (0, 1, 2, 3)), "LEG2A": ("AAA", (0, 1, 2))}
+          "GAP2": ("GAP1", (0, 1, 2)), "DEAD2": ("DEAD1", (0, 1, 2, 3)), "LEG2A": ("AAA", (0, 1, 2)),
+          "SAME2": ("SAME1", (2, 3, 4)), "DIF2": ("DIF1", (2, 3, 4)), "NUL2": ("NUL1", (5, 6, 7)),
+          "EMP2": ("EMP1", (5, 6, 7))}
+# each bars row's ISIN (None elsewhere), and the profile rows the fetch reads them from (normalised as the dedup does)
+ISINS = {"SAME1": "ZZ0000000001", "SAME2": "ZZ0000000001", "DIF1": "ZZ0000000002", "DIF2": "ZZ0000000003",
+         "EMP1": "", "EMP2": ""}
+PROFILE = [("SAME1", "ZZ0000000001"), ("SAME1", None), ("SAME2", " zz0000000001 "), ("DIF1", "ZZ0000000002"),
+           ("DIF2", "ZZ0000000003"), ("NUL1", None), ("EMP1", ""), ("EMP2", "   "), ("AAA", None)]   # no NUL2 row
 CLOSE_ONLY = {"VOL2"}   # copies its source's close on its own volume
 CENT_APART = {"DIME1": 12.31, "DIME2": 12.32}   # their closes in DIME2's copied windows, on one volume
 LATE_BARS = {"GAP1", "GAP2"}   # every bar after a rebalance date is 12 days or more after it
@@ -74,15 +90,17 @@ UR1 = {"version": "ur-3",
                                  {"symbol": "STA1", "first_day": "2019-07-02"}]},   # window 4's first bar
        "line_ends": {"lines": [{"symbol": "COG", "last_day": "2021-10-01"},
                                {"symbol": "END1", "last_day": "2021-07-02"}]}}   # window 6's first bar
+LISTED1 = [("AAA", "BBB"), ("NEWL", "OLDL"), ("PPP.BK", "QQQ-R.BK"), ("ABCE3.SA", "ABCF3.SA"), ("ABCD", "ABCDE"),
+           ("STA0", "STA1"), ("END0", "END1"), ("DIF1", "DIF2"), ("NUL1", "NUL2"), ("EMP1", "EMP2")]
+EXEMPT1 = {("XYZ-R.BK", "XYZ.BK"): "check N twin", ("PETR3.SA", "PETR4.SA"): "class twin",
+           ("ARZZ3.SA", "AZZA3.SA"): "line start or end", ("PRE1", "PRE2"): "line start or end",
+           ("COG", "CTRA"): "line start or end"}
 WANT = {   # leg: (pairs listed, {exempt pair: reason prefix})
-    "LEG1": (sorted([("AAA", "BBB"), ("NEWL", "OLDL"), ("PPP.BK", "QQQ-R.BK"), ("ABCE3.SA", "ABCF3.SA"),
-                     ("ABCD", "ABCDE"), ("STA0", "STA1"), ("END0", "END1")]),
-             {("XYZ-R.BK", "XYZ.BK"): "check N twin", ("PETR3.SA", "PETR4.SA"): "class twin",
-              ("ARZZ3.SA", "AZZA3.SA"): "line start or end", ("PRE1", "PRE2"): "line start or end",
-              ("COG", "CTRA"): "line start or end"}),
-    "LEG2": ([("PETR3.SA", "PETR4.SA")], {}),
+    "LEG1": (sorted(LISTED1), {**EXEMPT1, ("SAME1", "SAME2"): "same ISIN"}),
+    "LEG2": ([("PETR3.SA", "PETR4.SA"), ("SAME1", "SAME2")], {}),
     "LEG3": ([], {("XYZ-R.BK", "XYZ.BK"): "check N twin"}),
 }
+WANT_NO_ISIN = {**WANT, "LEG1": (sorted(LISTED1 + [("SAME1", "SAME2")]), EXEMPT1)}   # bars rows without an ISIN
 
 
 def own_bar(line, w):
@@ -91,8 +109,9 @@ def own_bar(line, w):
 
 
 def bars():
-    """{symbol: [[date, close, volume, adjClose], ...]} by row: per window the shared bar on the rebalance date, the
-    first bar (a copy's equals its source's) and a later one, adjClose equal to the close, and the duplicates."""
+    """{symbol: [[date, close, volume, adjClose, isin], ...]} by row: per window the shared bar on the rebalance
+    date, the first bar (a copy's equals its source's) and a later one, adjClose equal to the close, and the
+    duplicates."""
     out = {}
     for line in LEG1 + ["LEG2A"]:
         src, wins = COPIES.get(line, (line, ()))
@@ -107,28 +126,39 @@ def bars():
             if (line, w) in QUIET or (src, w) in QUIET and w in wins:
                 v = 0
             rows += [[d, 99.0, 5, 99.0], [plus(d, first), c, v, c], [plus(d, first + 2), c + 0.5, v + 1, c + 0.5]]
-        out[line] = sorted(rows + [list(r) for s, r in DUPLICATES if s == line])
+        out[line] = sorted(r + [ISINS.get(line)] for r in rows + [list(r) for s, r in DUPLICATES if s == line])
     return out
 
 
-def leg(universe, lines, ur=None):
+def leg(universe, lines, ur=None, isin_dedup=False):
     rows = [{"rebalance_date": d, "exit_date": plus(d, 365), "portfolio_return": 0.0, "spy_return": 0.0,
              "stocks_held": len(lines), "holdings": ",".join(lines)} for d in DATES]
     res = {"universe": universe, "frequency": "annual", "period_data": rows}
     if ur is not None:
         res["universe_rules"] = ur
+    if isin_dedup:
+        res["isin_dedup"] = True
     return res
 
 
-LEGS = {"LEG1": leg("LEG1", LEG1, UR1), "LEG2": leg("LEG2", LEG2), "LEG3": leg("LEG3", LEG3)}
+LEGS = {"LEG1": leg("LEG1", LEG1, UR1, isin_dedup=True), "LEG2": leg("LEG2", LEG2), "LEG3": leg("LEG3", LEG3)}
 
 
-def pair_failures(mod, bar_file):
+class ProfileWarehouse(Warehouse):
+    """test_split_check's warehouse with the vendor's profile table (symbol, isin) beside stock_eod."""
+
+    def __init__(self, bar_file, profile=PROFILE):
+        super().__init__([{"symbol": s, "date": d, "close": c, "adjClose": a, "volume": v}
+                          for s, rows in bar_file.items() for d, c, v, a, *_ in rows])
+        self.load("profile", (("symbol", "VARCHAR"), ("isin", "VARCHAR")), list(profile))
+
+
+def pair_failures(mod, bar_file, want=WANT):
     out = []
     for name, res in LEGS.items():
         flagged, exempt = mod.pairs(res, bar_file)
         got = sorted(tuple(p["pair"]) for p in flagged)
-        want_flag, want_ex = WANT[name]
+        want_flag, want_ex = want[name]
         if got != want_flag:
             out.append(f"{name}: pairs listed {got}, want {want_flag}")
         got_ex = {tuple(p["pair"]): p["reason"] for p in exempt}
@@ -155,6 +185,11 @@ def run_main(mod, names, bar_path, fetch=None):
             return code, json.load(fh)
 
 
+def unfiled(rec):
+    """A main() record's legs without their file paths."""
+    return {k: {f: v for f, v in x.items() if f != "file"} for k, x in rec.get("legs", {}).items()}
+
+
 def main_failures(mod, bar_file):
     out = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -167,13 +202,11 @@ def main_failures(mod, bar_file):
         code, _ = run_main(mod, ["LEG3"], path)
         if code != 0:
             out.append(f"main on leg three: exit {code}, want 0")
-        wh = Warehouse([{"symbol": s, "date": d, "close": c, "adjClose": a, "volume": v}
-                        for s, rows in bar_file.items() for d, c, v, a in rows])
+        wh = ProfileWarehouse(bar_file)
         fetched_path = os.path.join(tmp, "fetched.json")
         code, rec2 = run_main(mod, ["LEG1", "LEG2"], fetched_path, fetch=wh)
         if len(wh.sqls) != 1:
             out.append(f"--fetch sent {len(wh.sqls)} queries, want 1")
-        unfiled = lambda r: {k: {f: v for f, v in x.items() if f != "file"} for k, x in r.get("legs", {}).items()}
         if code != 1 or not unfiled(rec) or unfiled(rec2) != unfiled(rec):
             out.append("--fetch's bars file gives another result than the bars it was built from")
         with open(fetched_path) as fh:
@@ -183,6 +216,12 @@ def main_failures(mod, bar_file):
         on = lambda rows: sorted(r for r in rows if r[0] == DUPLICATES[0][1][0])
         if on(fetched.get("BBB", [])) != on(bar_file["BBB"]):
             out.append("--fetch's bars file holds other BBB rows, or other adjClose, on its duplicated date")
+        got = {s: sorted({r[4] for r in rows if r[4:] and r[4]}) for s, rows in fetched.items()}
+        got = {s: i for s, i in got.items() if i}
+        if got != {s: [i] for s, i in ISINS.items() if i}:
+            out.append(f"--fetch's bars rows carry the ISINs {got}, want {ISINS} with empty ones as null")
+        if any(len({tuple(r[:4]) for r in rows}) != len(rows) for rows in fetched.values()):
+            out.append("--fetch's bars file holds a bar twice (a line's two profile rows fanned it out)")
     try:
         mod.fetch_sql([leg("BAD", ["BAD;X"])])
         out.append("a symbol holding a semicolon reached the SQL")
@@ -191,15 +230,66 @@ def main_failures(mod, bar_file):
     return out
 
 
+def no_isin_failures(mod, bar_file):
+    """A bars file written before rows carried an ISIN: it loads, and exempts nothing by ISIN."""
+    old = {s: [r[:4] for r in rows] for s, rows in bar_file.items()}
+    return [f"a bars file without ISINs: {x}" for x in pair_failures(mod, old, WANT_NO_ISIN)]
+
+
+def chunk_failures(mod, bar_file):
+    """--fetch's queries under a limit, from the longest one-line query to the one query's length: every query at
+    or under it, each line in one, the queries' rows the one query's; a limit under one line's query refused; and
+    main, its MAX_SQL lowered, sending one query a group and writing the same record."""
+    out, names = [], ["LEG1", "LEG2"]
+    legs, wh = [LEGS[n] for n in names], ProfileWarehouse(bar_file)
+    lines = sorted({s for res in legs for s in mod.held_lines(res)})
+    canon = lambda qs: sorted(json.dumps(r, sort_keys=True, default=str) for q in qs for r in wh.query(q))
+    one = mod.fetch_sql(legs)
+    lone, top = max(len(mod.fetch_sql([leg("ONE", [s])])[0]) for s in lines), len(one[0])
+    mid, n = (lone + top) // 2, len(lines)
+    for limit, least, most in ((lone, 3, n), (mid, 2, n), (top - 1, 2, n), (top, 1, 1)):
+        qs = mod.fetch_sql(legs, limit)
+        if not least <= len(qs) <= most:
+            out.append(f"{len(qs)} fetch queries under a {limit}-character limit (one query: {top})")
+        if any(len(q) > limit for q in qs) or any(sum(f"'{s}'" in q for q in qs) != 1 for s in lines):
+            out.append(f"a fetch query over the {limit}-character limit, or a line in two queries or none")
+        if canon(qs) != canon(one):
+            out.append(f"the fetch queries' rows under a {limit}-character limit aren't the one query's")
+    try:
+        mod.fetch_sql(legs, lone - 1)
+        out.append("a line whose query alone passes the limit reached a fetch query")
+    except ValueError:
+        pass
+    keep = mod.MAX_SQL
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "bars.json")
+        with open(path, "w") as fh:
+            json.dump(bar_file, fh)
+        try:
+            mod.MAX_SQL = mid
+            small = ProfileWarehouse(bar_file)
+            code, rec = run_main(mod, names, os.path.join(tmp, "fetched.json"), fetch=small)
+        finally:
+            mod.MAX_SQL = keep
+        if len(small.sqls) != len(mod.fetch_sql(legs, mid)) or unfiled(rec) != unfiled(run_main(mod, names, path)[1]):
+            out.append(f"main with MAX_SQL at {mid}: {len(small.sqls)} queries, or another record than the bars'")
+    return out
+
+
 def failures(src):
     try:
         mod = types.ModuleType("same_bars_scan_under_test")
         mod.__file__ = PATH
         exec(compile(src, PATH, "exec"), mod.__dict__)
-        bar_file = bars()
-        return pair_failures(mod, bar_file) + main_failures(mod, bar_file)
-    except Exception as e:   # reported as an error: main() does not count it as a caught mutant
+    except Exception as e:
         return [f"error: {type(e).__name__}: {e}"]
+    out, bar_file = [], bars()
+    for check in (pair_failures, main_failures, no_isin_failures, chunk_failures):
+        try:
+            out += check(mod, bar_file)
+        except Exception as e:   # reported as an error: main() does not count it as a caught mutant
+            out.append(f"error: {check.__name__}: {type(e).__name__}: {e}")
+    return out
 
 
 # name: [(old, new), ...]; every `old` occurs once and only once in the source
@@ -227,6 +317,15 @@ MUTANTS = {
     "the rebalance date's bar read as the window's first": [("d < b[0] <= hi", "d <= b[0] <= hi")],
     "the first window bar with no 11-day bound": [("if d < b[0] <= hi), None)", "if d < b[0]), None)")],
     "exit 0 with a pair left": [("return 1 if left else 0", "return 0")],
+    "no same-ISIN exemption": [("if isin.get(a) and isin.get(a) == isin.get(b):", "if False:")],
+    "same-ISIN pairs exempt on a leg without the dedup": [('res.get("isin_dedup") is True', "True")],
+    "lines with no ISIN pair": [("isin.get(a) and isin.get(a) == isin.get(b)", "isin.get(a) == isin.get(b)")],
+    "two ISINs exempt a pair": [("isin.get(a) and isin.get(a) == isin.get(b)", "isin.get(a) and isin.get(b)")],
+    "the ISIN read raw": [("MIN(NULLIF(UPPER(TRIM(isin)), ''))", "MIN(isin)")],
+    "the last fetch group dropped": [("build, max_len or MAX_SQL)]", "build, max_len or MAX_SQL)[:-1]]")],
+    "the fetch's limit not passed": [("max_len or MAX_SQL)", "MAX_SQL)")],
+    "main sends the first fetch query only": [("for sql in fetch_sql([res for _, res in legs]):",
+                                               "for sql in fetch_sql([res for _, res in legs])[:1]:")],
 }
 
 
@@ -259,7 +358,7 @@ def main():
         print("test_same_bars_scan: FAIL (mutants survived:", survived, "; mutants that only raised:", broken, ")")
         sys.exit(1)
     print(f"test_same_bars_scan: PASS ({len(LEGS)} legs, {len(COPIES)} copied lines, {len(DATES)} windows; "
-          f"main's exit codes and --fetch; {len(MUTANTS)} mutants caught)")
+          f"main's exit codes, --fetch and its groups, a bars file without ISINs; {len(MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":
