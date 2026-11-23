@@ -62,7 +62,8 @@ run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the
 --end-date, and --end-year 2025 books the 103 periods. Their mutants must trip these checks.
 
 The gate's legs: scripts/gate_legs/wave3.json holds one 52-week-high leg per --global preset and no other, ASX and SAO
-among them, each pinned to --end-year 2025 and installed as the file the global run writes.
+among them, each pinned to --end-year 2025, ending with --full-holdings (a leg without it, or with it before its
+exchange args, must fail) and installed as the file the global run writes.
 
 The live screen (screen.py) runs the backtest's fetch and screen on one date with data checks on, check M's server
 query (the one reading every FY row over the floor) standing in as cap_check rows: on a JPX leg a J-REIT (ur-4)
@@ -955,6 +956,9 @@ RULE_MUTANTS = {
 # The gate's legs (scripts/gate_legs/wave3.json) are --global's presets_to_run, both ways, ASX and SAO among them.
 LEGS_FILE = os.path.join(ROOT, "scripts", "gate_legs", "wave3.json")
 LEG_PIN = ["--end-year", "2025"]
+# last on every leg: the topic states its cost convention, and a committed leg's rows are recomputed from its
+# holdings_full (scripts/cost_conventions.py, gate 15)
+LEG_LAST = ["--full-holdings"]
 RANKED_ADDED = ({"ASX"}, {"SAO"})   # the markets the port ranks
 
 
@@ -972,19 +976,24 @@ def leg_exchanges(args):
     return value.split(",") if flag == "--exchange" else EXCHANGE_PRESETS[value]["exchanges"]
 
 
-def legs_failures(src):
+def legs_spec():
+    with open(LEGS_FILE) as fh:
+        return json.load(fh)[TOPIC]
+
+
+def legs_failures(src, spec=None):
     """wave3.json's 52-week-high legs, one per --global preset and no other: each runs the preset's exchanges pinned to
-    --end-year 2025 before its exchange args, and installs as the returns_<exchanges>.json the global run writes."""
+    --end-year 2025 before its exchange args, ends with --full-holdings, and installs as the returns_<exchanges>.json
+    the global run writes. spec: the topic's legs block to read (default the file's)."""
     try:
         want = global_presets(src)
-        with open(LEGS_FILE) as fh:
-            spec = json.load(fh)[TOPIC]
+        spec = spec if spec is not None else legs_spec()
         out = [f"legs {sorted(spec[k])} != presets {sorted(want)}" for k in ("legs", "_outputs")
                if set(spec[k]) != set(want)]
         for name, ex in want.items():
             args = spec["legs"].get(name) or []
-            if args[:len(LEG_PIN)] != LEG_PIN or len(args) != len(LEG_PIN) + 2 or leg_exchanges(args) != ex:
-                out.append(f"leg {name}: {args}, want {LEG_PIN} then {ex}")
+            if args[:len(LEG_PIN)] != LEG_PIN or args[len(LEG_PIN) + 2:] != LEG_LAST or leg_exchanges(args) != ex:
+                out.append(f"leg {name}: {args}, want {LEG_PIN}, then {ex}, then {LEG_LAST}")
             if spec["_outputs"].get(name) != f"returns_{'_'.join(ex)}.json":
                 out.append(f"leg {name} installs as {spec['_outputs'].get(name)}")
         out += [f"{sorted(m)} not ranked" for m in RANKED_ADDED if m not in map(set, want.values())]
@@ -994,6 +1003,16 @@ def legs_failures(src):
 
 
 LEG_MUTANTS = {"australia left out of --global": ('            ("australia",   ["ASX"]),\n', "")}
+
+
+def leg_file_survivors():
+    """The edits of the legs block that legs_failures lets through: --full-holdings missing from one leg, and put
+    before another's exchange args, must each fail it."""
+    spec = legs_spec()
+    us, uk = spec["legs"]["us"], spec["legs"]["uk"]
+    edits = {"--full-holdings missing from a leg": {"us": us[:-1]},
+             "--full-holdings before the exchange args": {"uk": [*LEG_PIN, *LEG_LAST, *uk[len(LEG_PIN):-1]]}}
+    return [name for name, legs in edits.items() if not legs_failures(SRC, {**spec, "legs": {**spec["legs"], **legs}})]
 
 # Every exchange --global runs has its own rate in costs.FX_PER_USD: get_fx_per_usd reads 1.0 for one it lacks,
 # which would leave that leg's cost tiers unconverted.
@@ -1342,6 +1361,7 @@ def main():
     s7, e7 = mutant_results(FX_MUTANTS, fx_failures, FX_MUTANTS, src=COSTS_SRC)
     s8, e8 = mutant_results(WALK_MUTANTS, walk_failures, WALK_MUTANTS)
     survived, errored = survived + s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8, errored + e1 + e2 + e4 + e5 + e6 + e7 + e8
+    survived += leg_file_survivors()
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
