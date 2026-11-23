@@ -95,7 +95,8 @@ with open(PATH) as fh:
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 import data_utils as du   # noqa: E402
 from cli_utils import EXCHANGE_PRESETS, get_mktcap_threshold   # noqa: E402
-from costs import get_fx_per_usd, trade_costs   # noqa: E402
+from costs import get_fx_per_usd   # noqa: E402
+import cost_conventions   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
 import test_latest_window_topics as tlw   # noqa: E402  (its 2026 bars, pinned window and partial period)
 
@@ -488,24 +489,31 @@ ROW_KEYS = ("entry_unpriced","entry_bars_moved", "exit_bars_moved", "entries_los
 
 
 def cost_failures(res, rate):
-    """Each holdings_full item's cost_rate is `rate` (the name's one-way tier; None on a no-costs run), and each
-    invested row's return is the mean of its items' returns less the cost of its trades (costs.trade_costs over
-    the file's books), nothing on a no-costs run. The first row pays its entries only: one tier, so `rate`."""
+    """Each holdings_full item's cost_rate is `rate` (the name's one-way tier; None on a no-costs run). A costs-on
+    file passes scripts/cost_conventions.py's check on the trades convention, every row reproducing from its
+    items, and its first row pays its entries only: one tier, so `rate`. A no-costs file is refused there, and
+    each of its rows is the mean of its items."""
     rows = res["period_data"]
-    books = [{h["symbol"]: (h["return"], h.get("cost_rate", "missing")) for h in r["holdings_full"]}
-             if "holdings_full" in r else None for r in rows]
-    for r, book in zip(rows, books):
-        if any(c != rate for _, c in (book or {}).values()):
-            return [f"{r['rebalance_date']}: cost_rate {sorted({str(c) for _, c in book.values()})}, want {rate}"]
-    costs = trade_costs(books) if rate is not None else [0.0] * len(rows)
-    mean = lambda book: sum(x for x, _ in book.values()) / len(book)
-    for r, book, cost in zip(rows, books, costs):
-        if book and abs(mean(book) - cost - r["portfolio_return"]) > 2e-6:
-            return [f"{r['rebalance_date']}: portfolio_return {r['portfolio_return']}, items less their trades' "
-                    f"cost {mean(book) - cost:.6f}"]
-    if not books[0] or abs(mean(books[0]) - (rate or 0.0) - rows[0]["portfolio_return"]) > 2e-6:
-        return [f"the first row {rows[0]['portfolio_return']} is not its items less their entries at {rate}"]
-    return []
+    for r in rows:
+        got = {str(h.get("cost_rate", "missing")) for h in r.get("holdings_full") or []}
+        if got - {str(rate)}:
+            return [f"{r['rebalance_date']}: cost_rate {sorted(got)}, want {rate}"]
+    mean = lambda r: sum(h["return"] for h in r["holdings_full"]) / len(r["holdings_full"])
+    try:
+        got = cost_conventions.check(res)
+    except cost_conventions.Refusal as e:
+        if rate is not None:
+            return [f"the cost check refuses the file: {e}"]
+        off = [r["rebalance_date"] for r in rows if r.get("holdings_full") and abs(mean(r) - r["portfolio_return"]) > 2e-6]
+        return [f"rows that are not the mean of their items: {off[:3]}"] if off else []
+    if rate is None:
+        return ["the cost check reads a no-costs file"]
+    out = []
+    if (got["convention"], got["rows_checked"], got["bad"]) != ("trades", len(rows), []):
+        out.append(f"the cost check: convention {got['convention']}, {got['rows_checked']} rows, faults {got['bad'][:3]}")
+    if not rows[0].get("holdings_full") or abs(mean(rows[0]) - rate - rows[0]["portfolio_return"]) > 2e-6:
+        out.append(f"the first row {rows[0]['portfolio_return']} is not its items less their entries at {rate}")
+    return out
 
 
 class WalkCalled(Exception):

@@ -21,7 +21,9 @@ its check M must still read (wh52_source), and asset-growth and
 fcf-conversion with their universe rules
 (ur-2, ur-3), each against a must-fail mutant on an older version, and fcf-conversion's class twins against one
 that never keys them. Gate 15's results check refuses a file holding BCE-PY.TO in a period that exits on or
-after 2026-01-01.
+after 2026-01-01, and a file that states its cost convention (cost_model.turnover) when a row doesn't reproduce
+from its holdings_full or the lists are missing: 52-week-high's plain synthetic file is refused and its
+full-holdings one passes.
 
 dc-2's check S (stale repeats): in T's windows a run of 4 identical traded rows loses rows 2-4 while
 runs of 3, a new volume or a new close each day, a run split across two windows and the benchmark
@@ -2497,6 +2499,8 @@ def holdings_full_failures(topic, src, tmp):
         f.append(f"{topic}: full holdings changed something else: {first_diff(strip(ltp), plain)}")
     if any("holdings_full" in r for r in plain["period_data"]):
         f.append(f"{topic}: holdings_full written without the flag")
+    if dc_results_problem(ltp):   # gate 15: a file that states its cost convention reproduces from these lists
+        f.append(f"{topic}: the results check refuses the full-holdings file: {dc_results_problem(ltp)}")
     g = {"topic": topic, "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}]}
     _, probs = check_stage_a(g, runs["both"], runs["drop"], ltp, with_ltp=True)
     f += [f"{topic} full-holdings stage-a: {p}" for p in probs]
@@ -2926,8 +2930,14 @@ def topic_failures(topic, src, tmp, mod=None, tag=""):
     if not (fl["traded_only"] and all("ltp_close" in x and "factor_check" in x for x in fl["fills"])
             and "factor_flagged" in fl and fl.get("large_move_fills") == len(fl.get("large_moves", [None]))):
         f.append(f"{topic}: ltp block lacks traded_only provenance")
-    if dc_results_problem(ltp) or not dc_results_problem(unc):
-        f.append(f"{topic}: the results check must pass mode on and refuse the uncapped arm")
+    refused = dc_results_problem(ltp)
+    if topic in COST_RATE_TOPICS:   # it states its cost convention: gate 15 recomputes its rows from holdings_full
+        if "holdings_full" not in (refused or ""):
+            f.append(f"{topic}: the results check must refuse a file without holdings_full, got {refused}")
+    elif refused:
+        f.append(f"{topic}: the results check must pass mode on, got {refused}")
+    if not dc_results_problem(unc):
+        f.append(f"{topic}: the results check must refuse the uncapped arm")
     if quarterly(topic) and not (fl["fills"] and fl["zero_volume_rows_moved"] >= 1):
         f.append(f"{topic}: DLST.BK's LTP fill skips its stale zero-volume print ({fl['fills']})")
     ub = unc["data_checks"]
@@ -3483,10 +3493,10 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
     moves by (booked minus raw) over the names held, costs unchanged; one hand event; the data_checks block is
     the same across exit methods and stage-a passes; holdings_full shows the booked return with return_adj
     beside it; factor_review finds nothing. A topic that charges trades (COST_RATE_TOPICS) drifts its book on the
-    booked return, so the row after the hand row is its items' mean less the cost costs.trade_costs gives the
-    full-holdings file's books. mod_src: the topic source to run (a mutant)."""
+    booked return, so the row after the hand row pays for it: every row of the full-holdings file reproduces from
+    its items (scripts/cost_conventions.py). mod_src: the topic source to run (a mutant)."""
+    import cost_conventions
     import factor_review as fr
-    from costs import trade_costs
 
     def load():
         if mod_src is None:
@@ -3533,14 +3543,9 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
     if (item.get("return"), item.get("return_adj")) != (round(raw + 0.5, 6), raw):
         f.append(f"{topic}: holdings_full item {item}")
     if topic in COST_RATE_TOPICS:
-        rows = runs[("ltp", True)]["period_data"]
-        books = [{x["symbol"]: (x["return"], x["cost_rate"]) for x in r["holdings_full"]} if "holdings_full" in r
-                 else None for r in rows]
-        i = [r["rebalance_date"] for r in rows].index(row["rebalance_date"]) + 1
-        got = sum(v for v, _ in books[i].values()) / len(books[i]) - trade_costs(books)[i]
-        if abs(got - rows[i]["portfolio_return"]) > 2e-6:
-            f.append(f"{topic}: the row after the hand row books {rows[i]['portfolio_return']}, its items less "
-                     f"their trades' cost {got:.6f}")
+        bad = cost_conventions.check(runs[("ltp", True)])["bad"]
+        if bad:
+            f.append(f"{topic}: rows that don't reproduce from their items (date, stored, recomputed): {bad[:3]}")
     return f
 
 
@@ -3668,13 +3673,31 @@ def bce_file(entry, exit_):
             "period_data": [{"rebalance_date": entry, "exit_date": exit_, "holdings": "BCE.TO,BCE-PY.TO"}]}
 
 
+def trades_file(stored=0.095, full=True, turnover="trades"):
+    """A mode-on file whose cost_model states `turnover` (None: no key): one name entered at 0.5% and up 10%,
+    which reads 0.095 when trades are charged and 0.09 on a round trip. full: the row lists its holdings."""
+    row = {"rebalance_date": "2025-01-01", "exit_date": "2025-04-01", "portfolio_return": stored, "stocks_held": 1,
+           "holdings": "A"}
+    if full:
+        row["holdings_full"] = [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]
+    cm = {"function": "costs.tiered_cost", "fx_per_usd": 1.0, **({"turnover": turnover} if turnover else {})}
+    return {"data_checks": {"mode": "on"}, "cost_model": cm, "period_data": [row]}
+
+
 def results_check_failures(problem=dc_results_problem):
     """Gate 15's results check: only a mode-on block may sit in a committed results file, on dc-3 one with no
     hand-list fault, and none holding BCE-PY.TO in a period that exits on or after 2026-01-01 (from then its
-    series is a preferred's price): the 2025 book and the 2026 partial period are refused, the 2024 book isn't."""
+    series is a preferred's price): the 2025 book and the 2026 partial period are refused, the 2024 book isn't.
+    A file whose cost_model states its turnover convention must reproduce each row from its holdings_full under
+    that convention (scripts/cost_conventions.py): a row on the other convention, a file without the lists and a
+    convention that isn't built are refused, and a file that states none is not read for it."""
     f = []
     sto = json.load(open(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json")))
     for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
+                     (trades_file(), False), (trades_file(stored=0.09), True), (trades_file(full=False), True),
+                     (trades_file(turnover="traded"), True), (trades_file(stored=0.09, turnover="round_trip"), False),
+                     (trades_file(turnover="round_trip"), True), (trades_file(stored=0.09, turnover=None), False),
+                     (trades_file(full=False, turnover=None), False),
                      ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True),
                      (dc3_file(sto), False), (dc3_file(sto, stale=True), True),
                      (bce_file("2025-07-01", "2026-07-01"), True), (bce_file("2026-07-01", "2026-11-06"), True),
@@ -3685,7 +3708,7 @@ def results_check_failures(problem=dc_results_problem):
                          {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01", "holdings": "BCE.TO",
                           "holdings_full": [{"symbol": "BCE-PY.TO"}]}]}, True)):
         if bool(problem(res)) != bad:
-            label = res if len(json.dumps(res)) < 200 else f"Sweden's file on dc-3, bad={bad}"
+            label = res if len(json.dumps(res)) < 500 else f"Sweden's file on dc-3, bad={bad}"
             f.append(f"dc_results_problem({label}) {problem(res)}")
     return f
 
@@ -3696,6 +3719,9 @@ GATE15_RESULTS_MUTANTS = {
     "an exit on the day itself let through": ('(r.get("exit_date") or "") >= BCE_PY_FROM',
                                               '(r.get("exit_date") or "") > BCE_PY_FROM'),
     "holdings_full not read": ('| {h.get("symbol") for h in row.get("holdings_full") or []}', ''),
+    "a stated cost convention not checked": ('if isinstance(cm, dict) and "turnover" in cm:', "if False:"),
+    "a file that states no convention checked too": ('if isinstance(cm, dict) and "turnover" in cm:',
+                                                     "if isinstance(cm, dict):"),
 }
 
 

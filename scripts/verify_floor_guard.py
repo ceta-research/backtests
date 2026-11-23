@@ -29,8 +29,10 @@ Gates:
                dropped MAX_SINGLE_RETURN only with check M at every market-cap floor, passes its
                DataChecks cfg (cfg=dc.cfg) to LtpExits, calls dc.hand after each filter_returns, and
                their committed results hold no data_checks block but mode "on" (on dc-3, also no
-               unreviewed factor flag or stale hand entry: scripts/factor_review.py), and none holds
-               BCE-PY.TO in a period exiting on or after BCE_PY_FROM
+               unreviewed factor flag or stale hand entry: scripts/factor_review.py), none holds
+               BCE-PY.TO in a period exiting on or after BCE_PY_FROM, and one whose cost_model
+               states its turnover convention reproduces each row from its holdings_full
+               (scripts/cost_conventions.py)
 
 Usage:  python scripts/verify_floor_guard.py
 """
@@ -43,6 +45,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import cost_conventions   # noqa: E402  (gate 15 on a results file that states its cost convention)
 import factor_review   # noqa: E402  (gate 15 on dc-3 results)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -720,7 +723,8 @@ def held_symbols(row):
 def dc_results_problem(res):
     """Why a results file of an opted-in topic can't be committed, or None. A file with no data_checks
     block predates the opt-in; the uncapped attribution arm is never published; BCE-PY.TO is held only in
-    periods that exit before BCE_PY_FROM (res and its rows may lack keys: the self-test probes do)."""
+    periods that exit before BCE_PY_FROM (res and its rows may lack keys: the self-test probes do); a file
+    whose cost_model states its turnover convention carries holdings_full, and each row reproduces from it."""
     if not isinstance(res, dict) or "data_checks" not in res:
         return None
     b = res["data_checks"]
@@ -731,6 +735,11 @@ def dc_results_problem(res):
            if "BCE-PY.TO" in held_symbols(r) and (r.get("exit_date") or "") >= BCE_PY_FROM]
     if bce:
         return f"BCE-PY.TO held in a period exiting on or after {BCE_PY_FROM} (rebalance {', '.join(map(str, bce))})"
+    cm = res.get("cost_model")
+    if isinstance(cm, dict) and "turnover" in cm:   # a stated cost convention: the rows reproduce from holdings_full
+        why = cost_conventions.problem(res)
+        if why:
+            return why
     probs = factor_review.problems(res)   # dc-3: every material factor flag reviewed, none stale
     return "; ".join(probs[:3]) + (f" (+{len(probs) - 3} more)" if len(probs) > 3 else "") if probs else None
 
@@ -1798,8 +1807,8 @@ def main():
     print(f"15 DATACHECKS {len(stray15)} uses outside {sorted(DATA_CHECKS_TOPICS)}; "
           f"{len(DATA_CHECKS_TOPICS) - len({t for t, _, _ in wiring15})}/{len(DATA_CHECKS_TOPICS)} opted-in "
           f"topics fully wired ({sum(used15.values())} uses); {n_res15} committed results carry a data_checks "
-          f"block, {len(results15)} with a problem (not mode on, a hand-list fault, or BCE-PY.TO in a period "
-          f"exiting from {BCE_PY_FROM})")
+          f"block, {len(results15)} with a problem (not mode on, a hand-list fault, a stated cost convention "
+          f"that doesn't reproduce, or BCE-PY.TO in a period exiting from {BCE_PY_FROM})")
     for b in stray15:
         print("    NOT OPTED IN:", b)
     for b in wiring15:
@@ -1853,7 +1862,12 @@ def main():
         fails.append(("gate 15 use false positive", "capped topic"))
     bce = lambda entry, exit_: {"data_checks": {"mode": "on"}, "period_data": [
         {"rebalance_date": entry, "exit_date": exit_, "holdings": "BCE.TO,BCE-PY.TO"}]}
+    # one name entered at 0.5% and up 10%: 0.095 on the trades convention, where a round trip reads 0.09
+    trades = lambda stored, full=True: {"data_checks": {"mode": "on"}, "cost_model": {"turnover": "trades"}, "period_data": [
+        {"rebalance_date": "2025-01-01", "exit_date": "2025-04-01", "portfolio_return": stored, "stocks_held": 1,
+         **({"holdings_full": [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]} if full else {})}]}
     for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
+                     (trades(0.095), False), (trades(0.09), True), (trades(0.095, full=False), True),
                      ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": {}}, True),
                      (bce("2025-07-01", "2026-07-01"), True), (bce("2026-07-01", "2026-11-06"), True),
                      (bce("2024-07-01", "2025-07-01"), False), (bce("2025-10-01", "2026-01-01"), True),
