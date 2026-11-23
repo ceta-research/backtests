@@ -23,7 +23,9 @@ Universe: ordinary shares only (data_utils universe rules ur-4, METHODOLOGY.md):
 Portfolio: Equal weight top 30. Cash if < 10 qualify.
 Rebalancing: Quarterly (Jan/Apr/Jul/Oct), from 2000 to the latest close (METHODOLOGY.md, "Run Window").
 Costs: costs.tiered_cost on each booked name's cap_used, its USD tiers converted at the leg's
-        costs.get_fx_per_usd (cost_model in the results).
+        costs.get_fx_per_usd, charged on the trades each rebalance makes (costs.trade_costs: an entry, an exit,
+        a held name's drift back to equal weight, a cash quarter's sale; no sale at the run's end).
+        cost_model in the results records it.
 
 Academic basis:
   George, T. & Hwang, C. (2004). "The 52-Week High and Momentum Investing."
@@ -60,7 +62,7 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         UniverseRules, load_universe, UNIVERSE_RULES_V4, without_lines_sql, RowGuard, guarded_sql)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
-from costs import tiered_cost, apply_costs, get_fx_per_usd
+from costs import tiered_cost, trade_costs, get_fx_per_usd
 from cli_utils import (add_common_args, add_end_date_arg, resolve_exchanges, print_header,
                        get_risk_free_rate, get_mktcap_threshold)
 
@@ -78,6 +80,8 @@ MIN_ENTRY_PRICE = 1.0        # Skip sub-$1 entry prices (price data artifacts)
 # hand list) clean the inputs, and every kept move over +100% or under -50% is listed in the results.
 DATA_CHECKS = DATA_CHECKS_V3
 UNIVERSE_RULES = UNIVERSE_RULES_V4
+# The booked series, each with its own book: the main one, and under --exit-method both the LTP one.
+SERIES = ("portfolio_return", "portfolio_return_ltp")
 
 # Development compute (max resources)
 FETCH_MEMORY_MB = 4096
@@ -388,10 +392,24 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
     no return cap. ur, guard: the leg's data_utils.UniverseRules and SignalGuard, passed to the screen. win: the leg's
     data_utils.RunWindow (its grid made rebalance_dates): the partial exit is priced at the close on the end date
     (the caller marks the rows: RunWindow.mark). fx: the leg's costs.get_fx_per_usd, which converts the USD cost
-    tiers; each booked name pays its cap_used's tier, recorded as cost_rate in holdings_full."""
+    tiers; each booked name's tier is its cap_used's, recorded as cost_rate in holdings_full.
+
+    Costs follow the "trades" convention (costs.trade_costs): each series pays for the trades its own books make.
+    The loop keeps each series' book and mean return per row, and the costs come off after it, when every cost
+    that lands on a row is known: its rebalance's trades, and its book's sale when the next period is cash."""
     results = []
     dc = dc if dc is not None else DataChecks("uncapped", DATA_CHECKS)
     win = win if win is not None else RunWindow.typed()
+    # With costs on, each series' periods for costs.trade_costs: (row, book or None in cash, mean before costs)
+    series = {k: [] for k in SERIES[:1 + (exit_method == "both")]} if use_costs else {}
+
+    def note_cash():   # a cash period, in each series' walk
+        for periods in series.values():
+            periods.append((results[-1], None, 0.0))
+
+    def note_book(key, clean, rates, mean):   # an invested period's book, in one series' walk
+        if key in series:
+            series[key].append((results[-1], {s: (rr, rates[s]) for s, rr, _ in clean}, mean))
 
     for i in range(len(rebalance_dates) - 1):
         entry_date = rebalance_dates[i]
@@ -418,6 +436,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 **dc.row(entry_date, screened=True, priced=False),
                 "holdings": f"CASH ({len(portfolio)} passed, need {MIN_STOCKS})",
             })
+            note_cash()
             if verbose:
                 print(f"    {entry_date}: {len(portfolio)} passed (< {MIN_STOCKS}), CASH")
             continue
@@ -439,14 +458,15 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         exit_ltp = {**exit_prices, **ltp_fill}
 
         def book(xmap, verbose=verbose, record=True):
-            # symbol_data with the exit slot taken from xmap; each name's one-way rate, None on a no-costs run
+            # symbol_data with the exit slot taken from xmap: the booked names, their returns before costs, and
+            # each name's one-way rate (None on a no-costs run)
             clean, skipped = filter_returns([(sym, ep, xmap.get(sym), mcap) for sym, ep, _, mcap in symbol_data],
                                             min_entry_price=MIN_ENTRY_PRICE,
                                             max_single_return=None,   # no return cap (data checks dc-3)
                                             verbose=verbose)
             clean = dc.hand(clean, entry_date, exit_date, filled=ltp_fill, record=record)   # dc-3's hand list
             rates = {s: tiered_cost(mc, fx_per_usd=fx) if use_costs else None for s, _, mc in clean}
-            return clean, [rr if rates[s] is None else apply_costs(rr, rates[s]) for s, rr, _ in clean], rates
+            return clean, [rr for _, rr, _ in clean], rates
 
         booked = exit_ltp if exit_method == "ltp" else exit_prices
         clean, returns, rates = book(booked)
@@ -484,12 +504,13 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
                 **dc.row(entry_date, screened=True, priced=True),
                 "holdings": f"CASH ({buyable} buyable at entry of {len(portfolio)} screened)",
             })
+            note_cash()
             if verbose:
                 print(f"    {entry_date}: only {buyable} of {len(portfolio)} screened "
                       f"names were buyable at entry (< {MIN_STOCKS}), CASH")
             continue
 
-        port_return = sum(returns) / len(returns) if returns else 0.0
+        port_return = sum(returns) / len(returns) if returns else 0.0   # before costs
         avg_prox = sum(p for _, _, p in portfolio) / len(portfolio)
         # window bars only (never the LTP fills): T's bar events, L and F's flags
         dc.prices(con, entry_date, exit_date, symbol_data, offset_days, MIN_ENTRY_PRICE, held=True,
@@ -511,19 +532,28 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             **dc.holdings_full(con, clean, entry_prices, booked, ltp_fill if exit_method == "ltp" else {},
                                entry_date, exit_date, offset_days, ltp, exit_offset_days=x_off, cost_rates=rates),
         })
+        note_book("portfolio_return", clean, rates, port_return)
         if exit_method == "both":
-            c_ltp, r_ltp, _ = book(exit_ltp, verbose=False, record=False)
-            results[-1].update({"portfolio_return_ltp": round(sum(r_ltp) / len(r_ltp), 6) if r_ltp else 0.0,
+            c_ltp, r_ltp, rates_ltp = book(exit_ltp, verbose=False, record=False)
+            mean_ltp = sum(r_ltp) / len(r_ltp) if r_ltp else 0.0
+            results[-1].update({"portfolio_return_ltp": round(mean_ltp, 6),
                                 "stocks_held_ltp": len(r_ltp), "ltp_filled": sum(1 for s, _, _ in c_ltp if s in ltp_fill)})
+            note_book("portfolio_return_ltp", c_ltp, rates_ltp, mean_ltp)
 
         if verbose:
             excess = ""
             if bench_return is not None:
                 excess = f"  ex={((port_return - bench_return) * 100):+.1f}%"
             print(f"    {entry_date}: {len(returns)} stocks (avg prox={avg_prox:.3f}), "
-                  f"port={port_return * 100:.1f}%, "
+                  f"port={port_return * 100:.1f}%{' before costs' if use_costs else ''}, "
                   f"bench={bench_return * 100 if bench_return else 0:.1f}%{excess}")
 
+    # Costs: each series' rows less the cost of its trades. A row is rounded once, from its mean before costs.
+    for key, periods in series.items():
+        costs = trade_costs([b for _, b, _ in periods])
+        for (row, b, mean), cost in zip(periods, costs):
+            if b:
+                row[key] = round(mean - cost, 6)
     return results
 
 
@@ -597,8 +627,9 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     """Run backtest for a single exchange set. Returns output dict or None.
 
     data_checks: "on" (data checks dc-3), or "uncapped" (no check and no cap: attribution only).
-    full_holdings: every invested period row also lists each booked name (holdings_full) with the one-way
-    rate it paid (cost_rate). win: the run's data_utils.RunWindow (main builds it from --end-date or --end-year)."""
+    full_holdings: every invested period row also lists each booked name (holdings_full) with its one-way cost
+    tier at that rebalance (cost_rate), charged on what the name trades there and on its sale at the next
+    rebalance if it leaves. win: the run's data_utils.RunWindow (main builds it from --end-date or --end-year)."""
     win = win.for_leg(universe_name)
     periods_per_year = {"monthly": 12, "quarterly": 4, "semi-annual": 2, "annual": 1}[frequency]
     dc = DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)
@@ -696,7 +727,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     output.update({
         "universe_rules": ub,            # the fetch's removals and the screen's stand-ins: equal in drop, ltp and both
         "signal_guard": gb,              # the screen only: equal in drop, ltp and both
-        "cost_model": {"function": "costs.tiered_cost", "fx_per_usd": fx} if use_costs else None,
+        "cost_model": {"function": "costs.tiered_cost", "fx_per_usd": fx, "turnover": "trades"} if use_costs else None,
     })
     if ltp_block:
         output.update({"exit_method": exit_method, "ltp": ltp_block})
@@ -721,7 +752,8 @@ def main():
                              "return cap: the same-day attribution arm only, never published")
     parser.add_argument("--full-holdings", action="store_true",
                         help="Also list every booked name per invested period (holdings_full: entry and exit "
-                             "bars and prices, return before costs, the one-way rate it paid), for review")
+                             "bars and prices, return before costs, its one-way cost tier at that rebalance), "
+                             "for review and for scripts/cost_conventions.py")
     parser.add_argument("--cloud", action="store_true",
                         help="Run on Ceta Research cloud compute (Projects API)")
     args = parser.parse_args()

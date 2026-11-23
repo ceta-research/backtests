@@ -2476,7 +2476,8 @@ def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=N
 
 
 ITEM_KEYS = {"symbol", "entry_bar", "entry_price", "exit_bar", "exit_price", "exit", "return"}
-COST_RATE_TOPICS = {"52-week-high"}   # each item also records the one-way rate it paid (cost_rate)
+# each item also records its name's one-way cost tier (cost_rate); these topics charge trades (costs.trade_costs)
+COST_RATE_TOPICS = {"52-week-high"}
 
 
 def holdings_full_failures(topic, src, tmp):
@@ -3481,8 +3482,11 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
     ltp, both and ltp with full holdings: that period's portfolio_return (and portfolio_return_ltp under both)
     moves by (booked minus raw) over the names held, costs unchanged; one hand event; the data_checks block is
     the same across exit methods and stage-a passes; holdings_full shows the booked return with return_adj
-    beside it; factor_review finds nothing. mod_src: the topic source to run (a mutant)."""
+    beside it; factor_review finds nothing. A topic that charges trades (COST_RATE_TOPICS) drifts its book on the
+    booked return, so the row after the hand row is its items' mean less the cost costs.trade_costs gives the
+    full-holdings file's books. mod_src: the topic source to run (a mutant)."""
     import factor_review as fr
+    from costs import trade_costs
 
     def load():
         if mod_src is None:
@@ -3528,6 +3532,15 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
                 if x["symbol"] == h["symbol"])
     if (item.get("return"), item.get("return_adj")) != (round(raw + 0.5, 6), raw):
         f.append(f"{topic}: holdings_full item {item}")
+    if topic in COST_RATE_TOPICS:
+        rows = runs[("ltp", True)]["period_data"]
+        books = [{x["symbol"]: (x["return"], x["cost_rate"]) for x in r["holdings_full"]} if "holdings_full" in r
+                 else None for r in rows]
+        i = [r["rebalance_date"] for r in rows].index(row["rebalance_date"]) + 1
+        got = sum(v for v, _ in books[i].values()) / len(books[i]) - trade_costs(books)[i]
+        if abs(got - rows[i]["portfolio_return"]) > 2e-6:
+            f.append(f"{topic}: the row after the hand row books {rows[i]['portfolio_return']}, its items less "
+                     f"their trades' cost {got:.6f}")
     return f
 
 
@@ -3570,15 +3583,11 @@ HAND_TOPIC_MUTANTS = {
     "the both-branch's hand list skipped": (
         "cyclical-timing",
         "            c_ltp = dc.hand(c_ltp, entry_date, exit_date, filled=ltp_fill, record=False)\n", ""),
-    "52-week-high's hand list applied after costs": (
+    "52-week-high's cost walk reads the returns from before the hand list": (
         "52-week-high",
-        "            clean = dc.hand(clean, entry_date, exit_date, filled=ltp_fill, record=record)   # dc-3's hand list\n"
-        "            rates = {s: tiered_cost(mc, fx_per_usd=fx) if use_costs else None for s, _, mc in clean}\n"
-        "            return clean, [rr if rates[s] is None else apply_costs(rr, rates[s]) for s, rr, _ in clean], rates",
-        "            rates = {s: tiered_cost(mc, fx_per_usd=fx) if use_costs else None for s, _, mc in clean}\n"
-        "            clean = dc.hand([(s, rr if rates[s] is None else apply_costs(rr, rates[s]), mc) for s, rr, mc in clean],"
-        " entry_date, exit_date, filled=ltp_fill, record=record)\n"
-        "            return clean, [rr for _, rr, _ in clean], rates"),
+        'note_book("portfolio_return", clean, rates, port_return)',
+        'note_book("portfolio_return", [(s, booked[s] / entry_prices[s] - 1, mc) for s, _, mc in clean], rates,'
+        ' port_return)'),
 }
 
 

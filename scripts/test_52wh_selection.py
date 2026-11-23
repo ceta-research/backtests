@@ -42,12 +42,20 @@ line, which holds the slot, and the NVDR stands in for an ordinary line with no 
 FY rows, which carry no ROE, so its inflated cap fails the floor at every rebalance and it is never held; the SAO
 company's preferred line stands in for its ordinary line in every invested book. The results file carries data_checks,
 universe_rules, signal_guard (its count on every rebalance, equal in drop and ltp) and cost_model after
-isin_dedup (the tiers at 35 baht a dollar, null on --no-costs), the fetch asks for no MTUM, entry_unpriced
-and the data checks' counts on each row, and in each holdings_full item the one-way rate the name paid
-(cost_rate), which with the item's return gives the row's return. Costs, with run_backtest's screen and prices
+isin_dedup (the tiers at 35 baht a dollar on the "trades" convention, null on --no-costs), the fetch asks for no
+MTUM, entry_unpriced and the data checks' counts on each row, and in each holdings_full item the name's one-way
+tier (cost_rate); the rows reproduce from the items under the trades convention, the first paying its entries
+only, and a no-costs run never calls the cost walk. Costs, with run_backtest's screen and prices
 stubbed: a JPX, an LSE and a KLS cap pay the tier at their leg's FX rate, and a name with no cap the top one; with
 --full-holdings, each name of a book across two tiers records its own rate; and costs.FX_PER_USD has a rate for
-every exchange --global runs. The quarterly
+every exchange --global runs.
+
+The trades convention on run_backtest itself (costs.trade_costs charges each series the trades its books make):
+seven quarters with every row typed here, in drop, ltp and both. Two tiers with unequal returns; a rebalance with
+an entry, an exit and a carried name on a new tier; cash for too few buyable at entry, the short book on another
+tier; re-entry; a quarter where the drop series books no name and the LTP series books a fill; cash for too few
+screened; a last invested quarter, which pays no sale. A cash quarter's sale lands on each series' own last
+invested row, both's halves equal the single runs, and a no-costs run never calls the walk. The quarterly
 run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial
 2026-10-01 period, its window exits and the benchmark's priced on the end date's close, a name with no bar after
 2026-10-30 filled at its last bar, CAGR over span_years and the run window's keys written; main() takes
@@ -87,7 +95,7 @@ with open(PATH) as fh:
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 import data_utils as du   # noqa: E402
 from cli_utils import EXCHANGE_PRESETS, get_mktcap_threshold   # noqa: E402
-from costs import get_fx_per_usd   # noqa: E402
+from costs import get_fx_per_usd, trade_costs   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
 import test_latest_window_topics as tlw   # noqa: E402  (its 2026 bars, pinned window and partial period)
 
@@ -468,7 +476,7 @@ def strip_full(res):
     return {**res, "period_data": [{k: v for k, v in r.items() if k != "holdings_full"} for r in res["period_data"]]}
 
 
-COST_MODEL = {"function": "costs.tiered_cost", "fx_per_usd": 35.0}   # the SET leg: 35 baht a dollar
+COST_MODEL = {"function": "costs.tiered_cost", "fx_per_usd": 35.0, "turnover": "trades"}   # the SET leg: 35 baht a dollar
 SET_RATE = 0.005   # the synthetic caps, about 5e10 baht, are about 1.4B dollars: the 0.5% tier (0.1% unconverted)
 # the signal guard on the SET leg: WH52_UNRANKED's two lines, whose sparse bars never make 100, at each rebalance
 # but the first, short_history when a bar falls in the 10 days to R (71 each) and no_traded_bar otherwise (31 each);
@@ -480,18 +488,32 @@ ROW_KEYS = ("entry_unpriced","entry_bars_moved", "exit_bars_moved", "entries_los
 
 
 def cost_failures(res, rate):
-    """Each holdings_full item's cost_rate is `rate` (the one-way rate it paid; None on a no-costs run), and each
-    invested row's return is the mean of its items' returns less the round trip."""
-    for r in res["period_data"]:
-        hf = r.get("holdings_full") or []
-        if any(h.get("cost_rate", "missing") != rate for h in hf):
-            return [f"{r['rebalance_date']}: cost_rate {sorted({str(h.get('cost_rate', 'missing')) for h in hf})}, "
-                    f"want {rate}"]
-        net = [h["return"] - 2 * (rate or 0.0) for h in hf]
-        if hf and abs(sum(net) / len(net) - r["portfolio_return"]) > 2e-6:
-            return [f"{r['rebalance_date']}: portfolio_return {r['portfolio_return']}, items less costs "
-                    f"{sum(net) / len(net):.6f}"]
+    """Each holdings_full item's cost_rate is `rate` (the name's one-way tier; None on a no-costs run), and each
+    invested row's return is the mean of its items' returns less the cost of its trades (costs.trade_costs over
+    the file's books), nothing on a no-costs run. The first row pays its entries only: one tier, so `rate`."""
+    rows = res["period_data"]
+    books = [{h["symbol"]: (h["return"], h.get("cost_rate", "missing")) for h in r["holdings_full"]}
+             if "holdings_full" in r else None for r in rows]
+    for r, book in zip(rows, books):
+        if any(c != rate for _, c in (book or {}).values()):
+            return [f"{r['rebalance_date']}: cost_rate {sorted({str(c) for _, c in book.values()})}, want {rate}"]
+    costs = trade_costs(books) if rate is not None else [0.0] * len(rows)
+    mean = lambda book: sum(x for x, _ in book.values()) / len(book)
+    for r, book, cost in zip(rows, books, costs):
+        if book and abs(mean(book) - cost - r["portfolio_return"]) > 2e-6:
+            return [f"{r['rebalance_date']}: portfolio_return {r['portfolio_return']}, items less their trades' "
+                    f"cost {mean(book) - cost:.6f}"]
+    if not books[0] or abs(mean(books[0]) - (rate or 0.0) - rows[0]["portfolio_return"]) > 2e-6:
+        return [f"the first row {rows[0]['portfolio_return']} is not its items less their entries at {rate}"]
     return []
+
+
+class WalkCalled(Exception):
+    """Raised by the stand-in for costs.trade_costs on a no-costs run."""
+
+
+def no_walk(*_a, **_k):
+    raise WalkCalled()
 
 
 def results_failures(src):
@@ -500,11 +522,11 @@ def results_failures(src):
     holdings_full, every booked name in the holdings' order, and changes nothing else. The results file: after
     isin_dedup come data_checks, universe_rules, signal_guard (SET_GUARD) and cost_model (then the LTP keys), the
     fetch asks for no MTUM, cost_model the tiers at 35
-    baht a dollar, the rate run_single passes to run_backtest, and null on a no-costs run; each row carries
-    entry_unpriced (UNP.BK, which ranks with no entry bar, on every priced row; null when the screen held cash) and
-    the data checks' counts; each holdings_full item records the one-way rate it paid (cost_rate: 0.5% here,
-    0.1% at one baht a dollar; null on a no-costs run), and each row's return is its items' less the round
-    trip."""
+    baht a dollar on the trades convention, the rate run_single passes to run_backtest, and null on a no-costs run;
+    each row carries entry_unpriced (UNP.BK, which ranks with no entry bar, on every priced row; null when the
+    screen held cash) and the data checks' counts; each holdings_full item records its name's one-way tier
+    (cost_rate: 0.5% here, 0.1% at one baht a dollar; null on a no-costs run), and each row's return is its items'
+    less the cost of its trades (cost_failures); the no-costs run never calls the cost walk."""
     try:
         mod = load(src)
         fx = []
@@ -513,8 +535,14 @@ def results_failures(src):
         with tempfile.TemporaryDirectory() as tmp:
             plain, sqls = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod)
             full = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod, full_holdings=True)[0]
-            free = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod, full_holdings=True, use_costs=False,
-                                 tag=".free")[0]
+            walk, mod.trade_costs = getattr(mod, "trade_costs", None), no_walk
+            try:
+                free = tdc.run_topic(TOPIC, set_leg(), "ltp", "on", tmp, mod=mod, full_holdings=True,
+                                     use_costs=False, tag=".free")[0]
+            except WalkCalled:
+                return ["a no-costs run calls the cost walk"]
+            finally:
+                mod.trade_costs = walk
             drop = tdc.run_topic(TOPIC, set_leg(), "drop", "on", tmp, mod=mod)[0]
     except Exception as e:  # reported as an error: main() does not count it as a caught mutant
         return [f"error: {type(e).__name__}: {e}"]
@@ -593,11 +621,13 @@ RESULT_MUTANTS = {
     "costs ignore the leg's FX rate": ("tiered_cost(mc, fx_per_usd=fx)", "tiered_cost(mc)"),
     "costs at one unit a dollar": ("fx = get_fx_per_usd(exchanges)", "fx = 1.0"),
     "run_single doesn't pass the FX rate": ("win=win, fx=fx,", "win=win,"),
-    "a name with no cap charged nothing": ("if use_costs else None for s, _, mc in clean",
-                                           "if use_costs and mc else None for s, _, mc in clean"),
-    "cost_model not written": ('"cost_model": {"function": "costs.tiered_cost", "fx_per_usd": fx} if use_costs else None',
-                               '"cost_model": None'),
-    "cost_model written on a no-costs run": ('"fx_per_usd": fx} if use_costs else None', '"fx_per_usd": fx}'),
+    "a name with no cap charged nothing": ("tiered_cost(mc, fx_per_usd=fx) if use_costs else None",
+                                           "(tiered_cost(mc, fx_per_usd=fx) if mc else 0.0) if use_costs else None"),
+    "cost_model not written": (
+        '"cost_model": {"function": "costs.tiered_cost", "fx_per_usd": fx, "turnover": "trades"} if use_costs else None',
+        '"cost_model": None'),
+    "cost_model written on a no-costs run": ('"turnover": "trades"} if use_costs else None', '"turnover": "trades"}'),
+    "cost_model without its convention": (', "turnover": "trades"}', "}"),
     "cost_rate not written": ("cost_rates=rates)", "cost_rates=None)"),
     "every item records the first name's rate": ("cost_rates=rates)",
                                                  "cost_rates={s: next(iter(rates.values())) for s in rates})"),
@@ -615,7 +645,8 @@ RESULT_MUTANTS = {
 
 # run_backtest on one leg, the screen and prices stubbed: ten holdings at one market cap (cap_used) in the leg's
 # currency, each up 10% before costs. The cost tiers are in USD (over 10B 0.1%, over 2B 0.3%, else 0.5%), converted
-# at the leg's rate (costs.get_fx_per_usd); a name with no cap pays the top rate.
+# at the leg's rate (costs.get_fx_per_usd); a name with no cap pays the top rate. One period: the book pays its
+# entries, ten tenths at the one-way rate, and no sale at the run's end.
 COST_ENTRY, COST_EXIT, COST_RAW = date(2020, 4, 1), date(2020, 7, 1), 0.10
 COST_CASES = [   # (leg, market cap in its currency, one-way rate): JPX at 150 yen, LSE at 0.79 pounds a dollar
     ("JPX", 1e12, 0.003),    # 1 trillion yen is about 6.7B dollars: the 0.3% tier, where 1e12 > 10B would read 0.1%
@@ -646,7 +677,7 @@ def cost_unit_failures(src):
                                    fx=get_fx_per_usd([exchange]))
         except Exception as e:
             return out + [f"error: {type(e).__name__}: {e}"]
-        want = round(COST_RAW - 2 * rate, 6)
+        want = round(COST_RAW - rate, 6)
         if got[0]["portfolio_return"] != want:
             out.append(f"costs: {exchange} at {cap} books {got[0]['portfolio_return']}, want {want} (the {rate:.1%} tier)")
     return out
@@ -660,7 +691,8 @@ TIER_RATE = {2e10: 0.001, 5e9: 0.003}
 
 def cost_rate_failures(src):
     """run_backtest with --full-holdings on TIER_BOOK, the screen and the benchmark stubbed, each name up 10%: each
-    holdings_full item's cost_rate is its own name's tier, and the row's return is the items' less their round trips."""
+    holdings_full item's cost_rate is its own name's tier, and the row's return is the items' less their entries,
+    a tenth of the book at each name's rate (the mean rate, 0.2%)."""
     con = duckdb.connect()
     con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE,"
                 " high DOUBLE, volume DOUBLE)")
@@ -680,7 +712,7 @@ def cost_rate_failures(src):
     want = {s: TIER_RATE[cap] for s, cap in TIER_BOOK.items()}
     got = {h["symbol"]: h.get("cost_rate", "missing") for h in row.get("holdings_full") or []}
     out = [] if got == want else [f"--full-holdings cost_rate {got}, want {want}"]
-    net = round(COST_RAW - 2 * sum(want.values()) / len(want), 6)
+    net = round(COST_RAW - sum(want.values()) / len(want), 6)
     if row["portfolio_return"] != net:
         out.append(f"a book across two tiers returns {row['portfolio_return']}, want {net}")
     return out
@@ -688,6 +720,145 @@ def cost_rate_failures(src):
 
 def run_failures(src):
     return cost_unit_failures(src) + cost_rate_failures(src) + results_failures(src)
+
+
+# The trades convention on run_backtest itself: seven quarters, the screen, the benchmark and the LTP fills stubbed
+# and the prices in a cache, with MIN_STOCKS at 2. Each series' cost comes from costs.trade_costs over its books: a
+# rebalance pays each name's gap between its drifted weight and the new equal weight at the new quarter's rate and
+# sells a leaver at the rate it last carried; a cash quarter's sale lands on the series' last invested row.
+WALK_DATES = [date(2020, 1, 1), date(2020, 4, 1), date(2020, 7, 1), date(2020, 10, 1), date(2021, 1, 1),
+              date(2021, 4, 1), date(2021, 7, 1), date(2021, 10, 1)]
+WALK_CAP = {0.005: 1e9, 0.003: 5e9, 0.001: 2e10}   # a cap on each tier, at one unit a dollar
+WALK_SCREEN = [   # each quarter's screen, {symbol: its one-way rate}
+    {"A": 0.005, "B": 0.001},
+    {"A": 0.003, "C": 0.005},
+    {"D": 0.001, "E": 0.001},              # E has no bar: one buyable of two screened
+    {"A": 0.003, "D": 0.001, "F": 0.005},
+    {"D": 0.001, "G": 0.003},              # neither has an exit bar; G's last traded price fills under ltp
+    {"H": 0.005},                          # one screened, fewer than MIN_STOCKS
+    {"A": 0.001, "H": 0.005},
+]
+# each line's bar the day after a rebalance date, by the date's index: the entry there and the exit of the quarter before
+WALK_BARS = {"A": {0: 10.0, 1: 12.0, 2: 13.2, 3: 20.0, 4: 22.0, 6: 10.0, 7: 10.5}, "B": {0: 10.0, 1: 10.0},
+             "C": {1: 10.0, 2: 12.999992}, "D": {2: 10.0, 3: 10.0, 4: 8.0}, "F": {3: 10.0, 4: 14.0}, "G": {4: 10.0},
+             "H": {6: 10.0, 7: 11.5}}
+WALK_FILLS = {4: {"G": (8.0, "2021-02-15")}}   # quarter -> {symbol: (last traded price, its bar)}
+# Each row, derived from the rule:
+#  0 A +20% at 0.5%, B 0% at 0.1%: mean 0.10, entries 1/2 x 0.005 + 1/2 x 0.001 = 0.003: 0.097.
+#    End weights A 1.2/2.2 = 6/11, B 5/11.
+#  1 A +10% now at 0.3%, C +29.99992% at 0.5%: mean 0.1999996. A trades |1/2 - 6/11| = 1/22 at 0.003 (0.000136),
+#    C enters at 1/2 x 0.005 (0.0025), B sells 5/11 at its 0.001 (0.000455): 0.003091. Quarter 2 is cash, so the
+#    book's sale lands here: A 1.1/2.3999992 x 0.003 + C 1.2999992/2.3999992 x 0.005 = 0.001375 + 0.002708 =
+#    0.004083. 0.1999996 - 0.0071742 = 0.1928254: 0.192825. Taken off the rounded mean, 0.2, it reads 0.192826.
+#  2 cash: D alone is buyable.
+#  3 A +10% at 0.3%, D -20% at 0.1%, F +40% at 0.5%: mean 0.10, entries (0.003 + 0.001 + 0.005)/3 = 0.003: 0.097.
+#    End weights A 1.1/3.3, D 0.8/3.3, F 1.4/3.3. Under drop quarter 4 books no name, so the sale lands here:
+#    (1.1 x 0.003 + 0.8 x 0.001 + 1.4 x 0.005)/3.3 = 0.111/33 = 0.003364, and the row reads 0.093636.
+#  4 drop books nothing: 0.0. ltp books G's fill, -20% at 0.3%: the rebalance sells A, D and F (0.003364) and
+#    G enters whole (0.003); quarter 5 is cash, so G's sale lands here too, 1 x 0.003: -0.2 - 0.009364 = -0.209364.
+#  5 cash: one name screened.
+#  6 A +5% at 0.1%, H +15% at 0.5%: mean 0.10, entries 0.003: 0.097, with no sale at the run's end (a sale would
+#    cost (1.05 x 0.001 + 1.15 x 0.005)/2.2 = 0.003091 more).
+WALK_ROWS = {"drop": [0.097, 0.192825, 0.0, 0.093636, 0.0, 0.0, 0.097],
+             "ltp": [0.097, 0.192825, 0.0, 0.097, -0.209364, 0.0, 0.097]}
+WALK_GROSS = {"drop": [0.1, 0.2, 0.0, 0.1, 0.0, 0.0, 0.1], "ltp": [0.1, 0.2, 0.0, 0.1, -0.2, 0.0, 0.1]}
+# (names held, names buyable at entry) per row: None buyable when the screen held cash
+WALK_SHAPE = {"drop": [(2, 2), (2, 2), (0, 1), (3, 3), (0, 2), (0, None), (2, 2)],
+              "ltp": [(2, 2), (2, 2), (0, 1), (3, 3), (1, 2), (0, None), (2, 2)]}
+WALK_CASH = (2, 5)
+
+
+class WalkFills:
+    """LtpExits as run_backtest uses it: fill() gives WALK_FILLS' price to a name with an entry and no exit, and
+    fills lists each one as holdings_full reads it."""
+
+    def __init__(self):
+        self.fills = []
+
+    def fill(self, symbols, entry_prices, exit_prices, entry_date, exit_date, **_kw):
+        got = {s: v for s, v in WALK_FILLS.get(WALK_DATES.index(entry_date), {}).items()
+               if s in symbols and exit_prices.get(s) is None and entry_prices.get(s) is not None}
+        self.fills += [{"symbol": s, "entry_date": entry_date.isoformat(), "last_bar": bar} for s, (_, bar) in got.items()]
+        return {s: px for s, (px, _) in got.items()}
+
+
+def walk_run(mod, mode, use_costs=True):
+    """run_backtest over WALK_DATES in one exit mode, with full holdings: its rows."""
+    con = duckdb.connect()
+    con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE,"
+                " high DOUBLE, volume DOUBLE)")
+    con.executemany("INSERT INTO prices_cache VALUES (?, ?, ?, ?, ?, 1e6)",
+                    [(s, ep(WALK_DATES[q] + timedelta(days=1)), px, px, px) for s, bars in WALK_BARS.items()
+                     for q, px in bars.items()])
+    mod.MIN_STOCKS = 2
+    mod.screen_stocks = lambda con, d, *a, **k: [(s, WALK_CAP[rate], 1.0)
+                                                 for s, rate in WALK_SCREEN[WALK_DATES.index(d)].items()]
+    mod.get_benchmark_return = lambda con, sym, d, *a, **k: None if d == WALK_DATES[0] else 0.02
+    dc = du.DataChecks("uncapped", mod.DATA_CHECKS, full_holdings=True)
+    try:
+        return mod.run_backtest(con, WALK_DATES, 0.0, use_costs=use_costs, fx=1.0, dc=dc, exit_method=mode,
+                                ltp=None if mode == "drop" else WalkFills())
+    finally:
+        con.close()
+
+
+def walk_failures(src):
+    """run_backtest over WALK_DATES: each row of the drop and ltp runs is WALK_ROWS', on WALK_SHAPE's books, each
+    item with its own name's rate; both's portfolio_return is drop's and its portfolio_return_ltp ltp's, with no
+    _ltp key on a cash row; a no-costs run in both never calls the cost walk and books WALK_GROSS."""
+    try:
+        runs = {mode: walk_run(load(src), mode) for mode in ("drop", "ltp", "both")}
+        free = load(src)
+        free.trade_costs = no_walk
+        try:
+            gross = walk_run(free, "both", use_costs=False)
+        except WalkCalled:
+            return ["a no-costs run calls the cost walk"]
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    out = []
+    for mode in ("drop", "ltp"):
+        got = [r["portfolio_return"] for r in runs[mode]]
+        if got != WALK_ROWS[mode]:
+            out.append(f"{mode} rows {got}, want {WALK_ROWS[mode]}")
+        shape = [(r["stocks_held"], r["entry_buyable"]) for r in runs[mode]]
+        if shape != WALK_SHAPE[mode]:
+            out.append(f"{mode} books (held, buyable) {shape}, want {WALK_SHAPE[mode]}")
+        for i, r in enumerate(runs[mode]):
+            rates = {h["symbol"]: h.get("cost_rate") for h in r.get("holdings_full") or []}
+            if rates != {s: WALK_SCREEN[i][s] for s in rates} or ("holdings_full" in r) != (i not in WALK_CASH):
+                out.append(f"{mode} quarter {i}: holdings_full {r.get('holdings_full', 'missing')}")
+    for name, rows, want in (("both", runs["both"], WALK_ROWS), ("no costs", gross, WALK_GROSS)):
+        halves = ([r["portfolio_return"] for r in rows], [r.get("portfolio_return_ltp") for r in rows])
+        want = (want["drop"], [None if i in WALK_CASH else x for i, x in enumerate(want["ltp"])])
+        if halves != want:
+            out.append(f"{name}: portfolio_return and portfolio_return_ltp {halves}, want {want}")
+    return out
+
+
+CASH_SCREEN = ('            note_cash()\n            if verbose:\n'
+               '                print(f"    {entry_date}: {len(portfolio)} passed')
+CASH_BUYABLE = ('            note_cash()\n            if verbose:\n'
+                '                print(f"    {entry_date}: only {buyable} of')
+LTP_BOOK = 'note_book("portfolio_return_ltp", c_ltp, rates_ltp, mean_ltp)'
+WALK_MUTANTS = {   # each must fail walk_failures on a wrong row, not an error
+    "a book taken before the entry-side cash check": (
+        CASH_BUYABLE, CASH_BUYABLE.replace("note_cash()", "[note_book(k, clean, rates, 0.0) for k in list(series)]")),
+    "no sale on the too-few-screened path": (CASH_SCREEN, CASH_SCREEN.replace("note_cash()", "pass")),
+    "no sale on the too-few-buyable path": (CASH_BUYABLE, CASH_BUYABLE.replace("note_cash()", "pass")),
+    "a cash quarter left out of the LTP series' walk": ("        for periods in series.values():\n            periods.append(",
+                                                        "        for periods in list(series.values())[:1]:\n"
+                                                        "            periods.append("),
+    "the costs taken off the rounded row": ("row[key] = round(mean - cost, 6)", "row[key] = round(row[key] - cost, 6)"),
+    "a sale charged at the run's end": ("trade_costs([b for _, b, _ in periods])",
+                                        "trade_costs([b for _, b, _ in periods] + [None])"),
+    "the LTP book loses a fill's rate": (
+        LTP_BOOK, 'note_book("portfolio_return_ltp", c_ltp, {s: rates.get(s, 0.0) for s, _, _ in c_ltp}, mean_ltp)'),
+    "the LTP series walks the drop book": (LTP_BOOK, 'note_book("portfolio_return_ltp", clean, rates, mean_ltp)'),
+    "each name charged its round trip as well": ("return clean, [rr for _, rr, _ in clean], rates",
+                                                 "return clean, [rr - 2 * (rates[s] or 0.0) for s, rr, _ in clean], rates"),
+    "the walk called on a no-costs run": ("} if use_costs else {}", "}"),
+}
 
 
 # ur-4 on the screen (UNIVERSE_RULES), each leg through the topic's fetch: an SAO company holds one slot with data
@@ -1148,8 +1319,8 @@ def mutant_results(mutants, check, must_book=(), src=SRC):
 
 
 def main():
-    base = (legs_failures(SRC) + fx_failures(COSTS_SRC) + screen_failures(SCREEN_SRC) + failures(SRC)
-            + rules_failures(SRC) + run_failures(SRC) + partial_failures(SRC) + t_failures(SRC))
+    base = (legs_failures(SRC) + fx_failures(COSTS_SRC) + walk_failures(SRC) + screen_failures(SCREEN_SRC)
+            + failures(SRC) + rules_failures(SRC) + run_failures(SRC) + partial_failures(SRC) + t_failures(SRC))
     if base:
         print("test_52wh_selection: FAIL", base)
         sys.exit(1)
@@ -1161,7 +1332,8 @@ def main():
     s5, e5 = mutant_results(LEG_MUTANTS, legs_failures, LEG_MUTANTS)
     s6, e6 = mutant_results(SCREEN_MUTANTS, screen_failures, SCREEN_MUTANTS, src=SCREEN_SRC)
     s7, e7 = mutant_results(FX_MUTANTS, fx_failures, FX_MUTANTS, src=COSTS_SRC)
-    survived, errored = survived + s1 + s2 + s3 + s4 + s5 + s6 + s7, errored + e1 + e2 + e4 + e5 + e6 + e7
+    s8, e8 = mutant_results(WALK_MUTANTS, walk_failures, WALK_MUTANTS)
+    survived, errored = survived + s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8, errored + e1 + e2 + e4 + e5 + e6 + e7 + e8
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
@@ -1170,7 +1342,8 @@ def main():
           f" universe rules ur-4 on {n_rules} listings, {len(RULE_MUTANTS)} mutants caught; the run on the synthetic"
           f" SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window, {len(WINDOW_MUTANTS)} mutants caught;"
           f" check T, {len(T_MUTANTS)} mutants caught; the gate's legs, {len(LEG_MUTANTS)} mutants caught;"
-          f" the cost rates, {len(FX_MUTANTS)} mutants caught; the live screen, {len(SCREEN_MUTANTS)} mutants caught)")
+          f" the cost rates, {len(FX_MUTANTS)} mutants caught; the trades convention over {len(WALK_SCREEN)} typed"
+          f" quarters, {len(WALK_MUTANTS)} mutants caught; the live screen, {len(SCREEN_MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":
