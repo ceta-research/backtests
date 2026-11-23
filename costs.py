@@ -9,6 +9,10 @@ Usage:
     cost = tiered_cost(5_000_000_000)  # $5B market cap -> 0.003 (0.3%)
     net_return = apply_costs(0.15, cost)  # 15% raw -> 14.4% net (round-trip)
 
+Two conventions for what a period pays (METHODOLOGY.md, "Transaction Costs"): apply_costs charges
+every booked name a full round trip each period, kept or not; trade_costs charges only the trades a
+series of books makes, each sized to the trade.
+
 CURRENCY CAVEAT (see DATA_QUALITY_ISSUES.md, "Cost tiers vs local currency"):
 DEFAULT_TIERS is calibrated in USD, but FMP reports `profile.marketCap` in each
 company's LOCAL currency. Callers that pass a local-currency market cap without
@@ -17,6 +21,7 @@ an `fx_per_usd` compare, say, yen against a dollar threshold. Pass
 The default of 1.0 preserves historical behaviour so published results stay
 reproducible; do not change it without re-running the affected backtests.
 """
+import math
 
 # Default cost tiers: (min_market_cap, one_way_rate). Thresholds are USD.
 DEFAULT_TIERS = [
@@ -141,3 +146,48 @@ def apply_costs(raw_return, entry_cost, exit_cost=None):
     if exit_cost is None:
         exit_cost = entry_cost
     return raw_return - entry_cost - exit_cost
+
+
+def trade_costs(books):
+    """Each period's cost under the "trades" convention: only real trades are charged, each sized to the trade.
+
+    Args:
+        books: one series' period books, in order. A book is {symbol: (gross_return, rate)}: every name
+               the series books in the period, with its return before costs and its one-way rate at
+               that rebalance. None is a cash period, and an empty book counts as one.
+
+    Returns:
+        list[float] - one cost per period, as a fraction of the portfolio, to subtract from the
+                      period's mean return.
+
+    The position is the last invested period's book at its end weights, (1 + r) over the book's sum of
+    (1 + r), each name with the rate it carried there. It is empty at the start, after a cash period,
+    and when every name ended at -100%.
+
+    A rebalance into a book of n names is charged to the period that starts at it:
+      * a name in the book trades the gap between 1/n and its weight in the position (0 for an entry),
+        at the new period's rate;
+      * a name in the position that the book leaves out sells its weight at the rate it last carried.
+        That rate is one period old: a name that leaves isn't screened, so it has no new cap.
+
+    A cash period sells the position at those rates. The sale is charged to the last invested period,
+    and the cash period itself costs 0.0: a cash row stores one return for every series, and two series'
+    sales differ, so the row can't carry them. The last book is not sold: it is still held at the run's end.
+
+    Each sum is math.fsum's, so a cost doesn't depend on the order of a book's names.
+    """
+    terms = [[] for _ in books]   # each period's trades, weight times rate
+    held, last = {}, None         # the position {symbol: (end weight, rate)}, and the last invested period
+    for i, book in enumerate(books):
+        if not book:
+            if held:
+                terms[last] += [w * rate for w, rate in held.values()]
+            held = {}
+            continue
+        target = 1.0 / len(book)
+        terms[i] += [abs(target - held.get(s, (0.0, 0.0))[0]) * rate for s, (_, rate) in book.items()]
+        terms[i] += [w * rate for s, (w, rate) in held.items() if s not in book]
+        total = math.fsum(1.0 + r for r, _ in book.values())
+        held = {s: ((1.0 + r) / total, rate) for s, (r, rate) in book.items()} if total > 0 else {}
+        last = i
+    return [math.fsum(t) for t in terms]
