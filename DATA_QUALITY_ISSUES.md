@@ -2034,7 +2034,7 @@ among them).
 
 ## Cost tiers are USD but market caps are local currency (found 2026-08-17)
 
-**Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion, its committed results included) and 52-week-high's code (its committed results predate it), the rest not yet
+**Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion, its committed results included) and 52-week-high's code (its committed results predate it), which also charges trades where the others charge a round trip a period (`cost_model.turnover`); the rest not yet
 **Affects:** every backtest that calls `tiered_cost()` (80 of them)
 **Severity:** Minor. Understates costs outside the US, concentrated in Asia.
 
@@ -2095,9 +2095,15 @@ in the company's reporting currency, so Hong Kong's CNY reporters are tiered at 
 a currency near 7.25, and the UK's USD reporters at 0.79.
 
 `52-week-high`'s code converts the same way, tiering each booked name on its checked cap
-(check M), records `cost_model` as fcf-conversion does, and lists each name's one-way rate as
-`cost_rate` in its `--full-holdings` list. Its committed results are the October 2026 run's, on
-the unconverted tiers, and the same residual applies.
+(check M), records `cost_model` as fcf-conversion does, and lists each name's one-way tier as
+`cost_rate` in its `--full-holdings` list. Its code is also the first on the `trades` cost
+convention (`"turnover": "trades"` in `cost_model`; METHODOLOGY.md, "Transaction Costs"): it
+charges only real trades, each sized to the trade, where every other topic charges each booked
+name a round trip every period. So `cost_rate` is the rate on what the name trades at that
+rebalance, and on its sale at the next one if it leaves. `scripts/cost_conventions.py` prints a
+leg's CAGR and excess under both conventions from its `--full-holdings` file. Its committed
+results are the October 2026 run's, on the unconverted tiers and the round trip, and the same
+residual applies.
 
 ---
 

@@ -2786,8 +2786,10 @@ class DataChecks:
         bar and price ("window": the exit window's bar; "last_traded": an LTP fill, with its last bar)
         and the booked return before costs. `exit_prices` is the map the book read, `filled` the
         names whose exit came from an LTP fill (ltp holds the fills). exit_offset_days as in prices().
-        cost_rates: {symbol: the one-way cost rate the book charged it, None on a no-costs run}, written as each
-        item's cost_rate; None (the default) writes no cost_rate."""
+        cost_rates: {symbol: its one-way cost tier at this rebalance, None on a no-costs run}, written as each
+        item's cost_rate; None (the default) writes no cost_rate. What the name pays at that rate is the
+        topic's cost convention (METHODOLOGY.md, "Transaction Costs"): under "trades", what it trades at
+        this rebalance, and its sale at the next one if it leaves."""
         if not self.full_holdings:
             return {}
         syms = [s for s, _, _ in clean]

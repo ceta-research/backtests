@@ -103,7 +103,10 @@ committed files run to 2026-11-09: its wave 1 legs stop at July 2025, and its RE
 commands carry `--end-date 2026-11-09`. fcf-conversion's committed files run to 2026-11-12 in the
 same way, and its README's commands carry `--end-date 2026-11-12`. 52-week-high's committed files
 are its October 2026 wave 3 run, made before its data checks, universe rules and run window, so its
-wave 3 legs run the current code on that window and don't reproduce them. A rerun for new figures uses its own legs file with `--end-date <date>`: `scripts/data_end.py --legs-file <file> --topic
+wave 3 legs run the current code on that window and don't reproduce them. Each of its legs also ends
+with `--full-holdings`: its code charges trades, not a round trip a period (METHODOLOGY.md,
+"Transaction Costs"), and gate 15 recomputes every committed row from the file's `holdings_full` lists
+(`scripts/cost_conventions.py`), so a leg run without the flag can't be committed. A rerun for new figures uses its own legs file with `--end-date <date>`, and for 52-week-high with `--full-holdings` last: `scripts/data_end.py --legs-file <file> --topic
 <topic>` prints the date every leg traded. Save its output in the gate's out-dir, since a pinned file's
 `data_end` keys are null. Stage-a, det and flip all compare pinned runs, and they're made the same day:
 a pin fixes the prices, not the vendor's later restatements.
@@ -213,7 +216,7 @@ python3 scripts/gate_ltp.py run scripts/gate_legs/wave3_osl.json --check det --d
     --out-dir results/ltp_gate_w3_osl
 ```
 
-- `wave3.json` holds 52-week-high (20 legs), dcf-discount (16), defensive-quality (17),
+- `wave3.json` holds 52-week-high (20 legs, each ending with `--full-holdings`), dcf-discount (16), defensive-quality (17),
   pairs-fundamentals (15), pairs-zscore (12) and pairs-multi-pair (12), 92 legs. The first four take
   all three checks; pairs-fundamentals' pair-level block has the `LtpExits` shape, so stage-a reads it
   unchanged.
@@ -269,7 +272,8 @@ python3 scripts/rebuild_comparison.py pairs-multi-pair --check
 - 52-week-high and pairs-multi-pair: a plain rebuild. pairs-multi-pair's 12 installed files are the
   live comparison's keys one to one (its `NSE` node has had no file until now). 52-week-high's 20 are
   its 18 keys plus `ASX` and `SAO`, the markets it ranks since its data checks and ur-4, which the
-  rebuild adds after them.
+  rebuild adds after them. Its leg files carry `holdings_full`, about 0.9 MB a leg; the rebuild leaves
+  those lists out of the comparison file, so they are committed once, in the leg files.
 - defensive-quality: `--keep`, the live 16 with `NSE` in `BSE_NSE`'s place (its charts label `NSE`, and
   the India charts read `returns_NSE.json`). `SHH` is installed but not kept: `returns_SHH.json` is the
   comparison post's China row, and the charts' China is `SHZ_SHH`. A plain rebuild would add it, and
