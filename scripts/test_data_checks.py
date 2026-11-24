@@ -3494,7 +3494,8 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
     the same across exit methods and stage-a passes; holdings_full shows the booked return with return_adj
     beside it; factor_review finds nothing. A topic that charges trades (COST_RATE_TOPICS) drifts its book on the
     booked return, so the row after the hand row pays for it: every row of the full-holdings file reproduces from
-    its items (scripts/cost_conventions.py). mod_src: the topic source to run (a mutant)."""
+    its items (scripts/cost_conventions.py), and every row of both's portfolio_return_ltp is the ltp run's
+    portfolio_return. mod_src: the topic source to run (a mutant)."""
     import cost_conventions
     import factor_review as fr
 
@@ -3546,6 +3547,13 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
         bad = cost_conventions.check(runs[("ltp", True)])["bad"]
         if bad:
             f.append(f"{topic}: rows that don't reproduce from their items (date, stored, recomputed): {bad[:3]}")
+        # the script reads the main book only, so both's LTP series is held to the ltp run row by row (a cash
+        # row has no portfolio_return_ltp)
+        off = [(b["rebalance_date"], b["portfolio_return_ltp"], l["portfolio_return"])
+               for b, l in zip(both["period_data"], runs[("ltp", False)]["period_data"])
+               if "portfolio_return_ltp" in b and abs(b["portfolio_return_ltp"] - l["portfolio_return"]) > 2e-6]
+        if off:
+            f.append(f"{topic} both: portfolio_return_ltp off the ltp run's rows (date, both, ltp): {off[:3]}")
     return f
 
 
@@ -3593,6 +3601,11 @@ HAND_TOPIC_MUTANTS = {
         'note_book("portfolio_return", clean, rates, port_return)',
         'note_book("portfolio_return", [(s, booked[s] / entry_prices[s] - 1, mc) for s, _, mc in clean], rates,'
         ' port_return)'),
+    "52-week-high's LTP series walks the returns from before the hand list": (
+        "52-week-high",
+        '            note_book("portfolio_return_ltp", c_ltp, rates_ltp, mean_ltp)',
+        '            c_ltp = [(s, exit_ltp[s] / entry_prices[s] - 1, mc) for s, _, mc in c_ltp]\n'
+        '            note_book("portfolio_return_ltp", c_ltp, rates_ltp, mean_ltp)'),
 }
 
 
