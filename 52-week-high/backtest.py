@@ -33,12 +33,14 @@ Academic basis:
 
 Usage:
     python3 52-week-high/backtest.py                           # US default, to the latest close
-    python3 52-week-high/backtest.py --preset india --end-date YYYY-MM-DD --output 52-week-high/results/returns_NSE.json
-    python3 52-week-high/backtest.py --global --end-year 2025 --output 52-week-high/results/exchange_comparison.json
+    python3 52-week-high/backtest.py --preset india --end-date YYYY-MM-DD --full-holdings --output 52-week-high/results/returns_NSE.json
+    python3 52-week-high/backtest.py --global --end-year 2025 --full-holdings --output 52-week-high/results/exchange_comparison.json
     python3 52-week-high/backtest.py --preset us --no-costs --verbose
 
-    # --end-year YYYY ends the grid in that year with no partial period. Flags: --data-checks on|uncapped
-    # (default on), --full-holdings, --exit-method drop|ltp|both
+    # --end-year YYYY ends the grid in that year with no partial period. A results file needs --full-holdings:
+    # gate 15 of scripts/verify_floor_guard.py recomputes its rows from the lists. --global then writes the lists
+    # into its comparison file too, and scripts/rebuild_comparison.py 52-week-high takes them out.
+    # Other flags: --data-checks on|uncapped (default on), --exit-method drop|ltp|both
 """
 
 import argparse
@@ -541,11 +543,12 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
             note_book("portfolio_return_ltp", c_ltp, rates_ltp, mean_ltp)
 
         if verbose:
+            note = " before costs" if use_costs else ""   # a row's costs are known only after the loop
             excess = ""
             if bench_return is not None:
-                excess = f"  ex={((port_return - bench_return) * 100):+.1f}%"
+                excess = f"  ex={((port_return - bench_return) * 100):+.1f}%{note}"
             print(f"    {entry_date}: {len(returns)} stocks (avg prox={avg_prox:.3f}), "
-                  f"port={port_return * 100:.1f}%{' before costs' if use_costs else ''}, "
+                  f"port={port_return * 100:.1f}%{note}, "
                   f"bench={bench_return * 100 if bench_return else 0:.1f}%{excess}")
 
     # Costs: each series' rows less the cost of its trades. A row is rounded once, from its mean before costs.
@@ -553,7 +556,7 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
         costs = trade_costs([b for _, b, _ in periods])
         for (row, b, mean), cost in zip(periods, costs):
             if b:
-                row[key] = round(mean - cost, 6)
+                row[key] = round(mean - cost, 6) + 0.0   # + 0.0: a flat row less float noise is 0.0, not -0.0
     return results
 
 

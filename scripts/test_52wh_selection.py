@@ -56,7 +56,9 @@ an entry, an exit and a carried name on a new tier; cash for too few buyable at 
 tier; re-entry; a quarter where the drop series books no name and the LTP series books a fill; cash for too few
 screened; an invested quarter, a quarter where neither series books a name, and a last invested quarter straight
 after it, which enters from an empty position and pays no sale. A cash quarter's sale lands on each series' own
-last invested row, both's halves equal the single runs, and a no-costs run never calls the walk. The quarterly
+last invested row, both's halves equal the single runs, and a no-costs run never calls the walk. A flat quarter
+whose only cost is float noise stores 0.0, not -0.0, and the --verbose line says its return and its excess are
+before costs when costs are on. The quarterly
 run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial
 2026-10-01 period, its window exits and the benchmark's priced on the end date's close, a name with no bar after
 2026-10-30 filled at its last bar, CAGR over span_years and the run window's keys written; main() takes
@@ -801,7 +803,7 @@ class WalkFills:
         return {s: px for s, (px, _) in got.items()}
 
 
-def walk_run(mod, mode, use_costs=True):
+def walk_run(mod, mode, use_costs=True, verbose=False):
     """run_backtest over WALK_DATES in one exit mode, with full holdings: its rows."""
     con = duckdb.connect()
     con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE,"
@@ -816,26 +818,58 @@ def walk_run(mod, mode, use_costs=True):
     dc = du.DataChecks("uncapped", mod.DATA_CHECKS, full_holdings=True)
     try:
         return mod.run_backtest(con, WALK_DATES, 0.0, use_costs=use_costs, fx=1.0, dc=dc, exit_method=mode,
-                                ltp=None if mode == "drop" else WalkFills())
+                                ltp=None if mode == "drop" else WalkFills(), verbose=verbose)
     finally:
         con.close()
+
+
+# The --verbose line of quarter 1, printed inside the loop, where a row's costs aren't known yet: its return
+# (0.1999996) and its excess over the benchmark's 2% are both before costs, and say so when costs are on.
+WALK_LINE = "    2020-04-01: 2 stocks (avg prox=1.000), port=20.0%{0}, bench=2.0%  ex=+18.0%{0}"
+FLAT = date(2020, 10, 1)
+
+
+def flat_row_failures(src):
+    """Ten names up 20% and then flat. Each drifted weight, 1.2 over the sum of ten of them, is not 1/10 to the
+    last bit, so the flat quarter's drift trade is float noise (about 4e-19) and the row is 0.0 less that. It is
+    stored 0.0, not -0.0. The first row pays its entries, 0.2 - 0.003."""
+    try:
+        mod = load(src)
+        mod.screen_stocks = lambda *a, **k: [(f"C{i:02d}", 5e9, 1.0) for i in range(10)]
+        mod.get_prices = lambda con, symbols, d, **k: {s: 10.0 if d == COST_ENTRY else 12.0 for s in symbols}
+        mod.get_benchmark_return = lambda *a, **k: 0.05
+        rows = mod.run_backtest(FakeCon(), [COST_ENTRY, COST_EXIT, FLAT], 0.0, use_costs=True, fx=1.0)
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    got = [repr(r["portfolio_return"]) for r in rows]
+    return [] if got == ["0.197", "0.0"] else [f"a flat quarter after equal returns stores {got}, want ['0.197', '0.0']"]
 
 
 def walk_failures(src):
     """run_backtest over WALK_DATES: each row of the drop and ltp runs is WALK_ROWS', on WALK_SHAPE's books, each
     item with its own name's rate; both's portfolio_return is drop's and its portfolio_return_ltp ltp's, with no
-    _ltp key on a cash row; a no-costs run in both never calls the cost walk and books WALK_GROSS."""
+    _ltp key on a cash row; a no-costs run in both never calls the cost walk and books WALK_GROSS. The ltp run and
+    the no-costs run are verbose: quarter 1's line is WALK_LINE, labelled before costs only when costs are on.
+    A flat quarter stores 0.0 (flat_row_failures)."""
+    said = {True: io.StringIO(), False: io.StringIO()}
     try:
-        runs = {mode: walk_run(load(src), mode) for mode in ("drop", "ltp", "both")}
+        runs = {mode: walk_run(load(src), mode) for mode in ("drop", "both")}
+        with contextlib.redirect_stdout(said[True]):
+            runs["ltp"] = walk_run(load(src), "ltp", verbose=True)
         free = load(src)
         free.trade_costs = no_walk
         try:
-            gross = walk_run(free, "both", use_costs=False)
+            with contextlib.redirect_stdout(said[False]):
+                gross = walk_run(free, "both", use_costs=False, verbose=True)
         except WalkCalled:
             return ["a no-costs run calls the cost walk"]
     except Exception as e:
         return [f"error: {type(e).__name__}: {e}"]
-    out = []
+    out = flat_row_failures(src)
+    for costs_on, note in ((True, " before costs"), (False, "")):
+        if WALK_LINE.format(note) not in said[costs_on].getvalue().splitlines():
+            out.append(f"the verbose line with costs {'on' if costs_on else 'off'} is not {WALK_LINE.format(note)!r}: "
+                       f"{[x for x in said[costs_on].getvalue().splitlines() if '2020-04-01' in x]}")
     for mode in ("drop", "ltp"):
         got = [r["portfolio_return"] for r in runs[mode]]
         if got != WALK_ROWS[mode]:
@@ -879,6 +913,10 @@ WALK_MUTANTS = {   # each must fail walk_failures on a wrong row, not an error
     "the walk called on a no-costs run": ("} if use_costs else {}", "}"),
     "a quarter that books no name left out of its series' walk": ("        if key in series:\n",
                                                                   "        if key in series and clean:\n"),
+    "a flat row less float noise stored -0.0": ("round(mean - cost, 6) + 0.0", "round(mean - cost, 6)"),
+    "the verbose line's excess not labelled before costs": (':+.1f}%{note}"', ':+.1f}%"'),
+    "the verbose line labelled before costs on a no-costs run": ('note = " before costs" if use_costs else ""',
+                                                                 'note = " before costs"'),
 }
 
 
