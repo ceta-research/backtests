@@ -1866,8 +1866,25 @@ def main():
     trades = lambda stored, full=True: {"data_checks": {"mode": "on"}, "cost_model": {"turnover": "trades"}, "period_data": [
         {"rebalance_date": "2025-01-01", "exit_date": "2025-04-01", "portfolio_return": stored, "stocks_held": 1,
          **({"holdings_full": [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]} if full else {})}]}
+
+    def held(events):
+        # that name held three quarters, on a file with a hand list (dc-3): 0.095, then 0.1 twice, since a name
+        # held alone has no drift to trade. The rows reproduce, so only the factor review can fault its events.
+        rows = [{"rebalance_date": d, "exit_date": x, "portfolio_return": p, "spy_return": 0.02, "stocks_held": 1,
+                 "holdings_full": [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]}
+                for d, x, p in (("2024-07-01", "2024-10-01", 0.095), ("2024-10-01", "2025-01-01", 0.1),
+                                ("2025-01-01", "2025-04-01", 0.1))]
+        res = {"frequency": "quarterly", "period_data": rows, "cost_model": {"turnover": "trades"},
+               "data_checks": {"mode": "on", "events": events,
+                               "rules": {"factor_hand": {"entries": [], "review_min_pp": 0.1}}}}
+        c, x = factor_review._cagr_excess(res, rows, [r["portfolio_return"] for r in rows])
+        return {**res, "portfolio": {"cagr": round(c, 2)}, "comparison": {"excess_cagr": round(x, 2)}}
+
+    # a file without its lists is refused whatever its row stores: 0.0 would pass a check that read the row as cash
     for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
                      (trades(0.095), False), (trades(0.09), True), (trades(0.095, full=False), True),
+                     (trades(0.0, full=False), True), (held([]), False),
+                     (held([{"rebalance_date": "2024-10-01", "symbol": "A", "check": "hand_stale"}]), True),
                      ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": {}}, True),
                      (bce("2025-07-01", "2026-07-01"), True), (bce("2026-07-01", "2026-11-06"), True),
                      (bce("2024-07-01", "2025-07-01"), False), (bce("2025-10-01", "2026-01-01"), True),

@@ -23,7 +23,8 @@ fcf-conversion with their universe rules
 that never keys them. Gate 15's results check refuses a file holding BCE-PY.TO in a period that exits on or
 after 2026-01-01, and a file that states its cost convention (cost_model.turnover) when a row doesn't reproduce
 from its holdings_full or the lists are missing: 52-week-high's plain synthetic file is refused and its
-full-holdings one passes.
+full-holdings one passes. Such a file is still read for its hand list: one that reproduces and carries a
+hand_stale event is refused.
 
 dc-2's check S (stale repeats): in T's windows a run of 4 identical traded rows loses rows 2-4 while
 runs of 3, a new volume or a new close each day, a run split across two windows and the benchmark
@@ -3697,20 +3698,47 @@ def trades_file(stored=0.095, full=True, turnover="trades"):
     return {"data_checks": {"mode": "on"}, "cost_model": cm, "period_data": [row]}
 
 
+def trades_dc3_file(stale=False):
+    """A mode-on file with a hand list (dc-3) that states the trades convention and reproduces from its lists:
+    one name entered at 0.5% and held three quarters, up 10% in each. It reads 0.095, then 0.1 twice, since a name
+    held alone has no drift to trade, and its CAGR and excess are its rows'. stale: a hand_stale event, a
+    hand-list fault the cost check can't see."""
+    import factor_review as fr
+    rows = [{"rebalance_date": d, "exit_date": x, "portfolio_return": p, "spy_return": 0.02, "stocks_held": 1,
+             "holdings": "A", "holdings_full": [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]}
+            for d, x, p in (("2024-07-01", "2024-10-01", 0.095), ("2024-10-01", "2025-01-01", 0.1),
+                            ("2025-01-01", "2025-04-01", 0.1))]
+    events = [{"rebalance_date": "2024-10-01", "symbol": "A", "check": "hand_stale", "side": None}] if stale else []
+    res = {"frequency": "quarterly", "period_data": rows,
+           "cost_model": {"function": "costs.tiered_cost", "fx_per_usd": 1.0, "turnover": "trades"},
+           "data_checks": {"mode": "on", "version": "dc-3", "events": events,
+                           "rules": {"factor_hand": {"entries": [], "review_min_pp": 0.1}}}}
+    c, x = fr._cagr_excess(res, rows, [r["portfolio_return"] for r in rows])
+    res["portfolio"], res["comparison"] = {"cagr": round(c, 2)}, {"excess_cagr": round(x, 2)}
+    return res
+
+
 def results_check_failures(problem=dc_results_problem):
     """Gate 15's results check: only a mode-on block may sit in a committed results file, on dc-3 one with no
     hand-list fault, and none holding BCE-PY.TO in a period that exits on or after 2026-01-01 (from then its
     series is a preferred's price): the 2025 book and the 2026 partial period are refused, the 2024 book isn't.
     A file whose cost_model states its turnover convention must reproduce each row from its holdings_full under
-    that convention (scripts/cost_conventions.py): a row on the other convention, a file without the lists and a
-    convention that isn't built are refused, and a file that states none is not read for it."""
+    that convention (scripts/cost_conventions.py): a row on the other convention, a file without the lists
+    (whatever its row stores: 0.0 reads as a cash row to a check that doesn't ask for the list), an item without
+    its return and a convention that isn't built are refused, and a file that states none is not read for it.
+    Such a file is still read for its hand list: one that reproduces passes, and the same file with a hand_stale
+    event is refused."""
     f = []
     sto = json.load(open(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json")))
+    no_return = trades_file()
+    del no_return["period_data"][0]["holdings_full"][0]["return"]
     for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
                      (trades_file(), False), (trades_file(stored=0.09), True), (trades_file(full=False), True),
+                     (trades_file(stored=0.0, full=False), True), (no_return, True),
                      (trades_file(turnover="traded"), True), (trades_file(stored=0.09, turnover="round_trip"), False),
                      (trades_file(turnover="round_trip"), True), (trades_file(stored=0.09, turnover=None), False),
                      (trades_file(full=False, turnover=None), False),
+                     (trades_dc3_file(), False), (trades_dc3_file(stale=True), True),
                      ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True),
                      (dc3_file(sto), False), (dc3_file(sto, stale=True), True),
                      (bce_file("2025-07-01", "2026-07-01"), True), (bce_file("2026-07-01", "2026-11-06"), True),
@@ -3720,9 +3748,13 @@ def results_check_failures(problem=dc_results_problem):
                      ({"data_checks": {"mode": "on"}, "period_data": [
                          {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01", "holdings": "BCE.TO",
                           "holdings_full": [{"symbol": "BCE-PY.TO"}]}]}, True)):
-        if bool(problem(res)) != bad:
-            label = res if len(json.dumps(res)) < 500 else f"Sweden's file on dc-3, bad={bad}"
-            f.append(f"dc_results_problem({label}) {problem(res)}")
+        try:
+            why, answered = problem(res), True
+        except Exception as e:   # the gate has to answer: a raise stops the guard with no RESULTS line
+            why, answered = f"raises {type(e).__name__}", False
+        if not answered or bool(why) != bad:
+            label = res if len(json.dumps(res)) < 500 else f"a dc-3 file of {len(res['period_data'])} rows, bad={bad}"
+            f.append(f"dc_results_problem({label}) {why}")
     return f
 
 
@@ -3735,6 +3767,9 @@ GATE15_RESULTS_MUTANTS = {
     "a stated cost convention not checked": ('if isinstance(cm, dict) and "turnover" in cm:', "if False:"),
     "a file that states no convention checked too": ('if isinstance(cm, dict) and "turnover" in cm:',
                                                      "if isinstance(cm, dict):"),
+    "the factor review skipped on a file that states a convention": (
+        "        why = cost_conventions.problem(res)\n        if why:\n            return why\n",
+        "        return cost_conventions.problem(res)\n"),
 }
 
 
