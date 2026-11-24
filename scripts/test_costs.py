@@ -15,9 +15,13 @@ doubles in size, a cash sale at drifted weights, two cash periods in a row, re-e
 at no weight beside a survivor that keeps the whole position, a period that books nothing, a book all at -100%,
 which leaves no position, and a book that shrinks with a position held, its leaver on a higher rate than a name
 that stays. SHORT holds a run that starts in cash, a one-period run, a run that ends in cash (its sale lands on
-the last invested period though no book follows) and an empty one. ORDER is one book typed in two insertion
-orders, on values whose left-to-right sums differ: the costs must be bit-equal. OFF_RANGE holds the returns no
-book can hold (under -100%, not finite): each must raise ValueError.
+the last invested period though no book follows), a name booked again straight after it ended at -100% (it has
+no weight in the position, so it trades its whole target), a name on a rate of 0.0 and an empty run. ORDER is one
+book typed in two insertion orders, on values whose left-to-right sums differ: the costs must be bit-equal.
+OFF_RANGE holds the values no book can hold (a return under -100% or not finite, a rate that is negative or not
+finite): each must raise ValueError, as the book's first name and as its second. A return of -100% itself and a
+rate of 0.0 are values a book can hold, so a ValueError on RUN or SHORT is a failure with its own message. The
+run's books given as an iterator cost what the list costs.
 
 Every mutant of costs.py must fail a check, and by a wrong answer, not an error.
 
@@ -99,6 +103,13 @@ SHORT = {
     # A enters whole at 0.005 and is sold whole at 0.005 when the cash period comes: 0.010 on the invested period.
     # No book follows the cash period, and the sale is still charged.
     "a run that ends in cash": ([{"A": (0.10, HI)}, None], [0.010, 0.0]),
+    # A ends at -100%, so the position is B alone, and the next book holds both again. A has no weight in the
+    # position: it trades its whole target, 1/2 x 0.005, as an entry does, and B trades |1/2 - 1| x 0.003: 0.004.
+    # (With A charged nothing it would read 0.0015.) The first period is two entries, 0.0025 + 0.0015.
+    "a name booked again straight after it ended at -100%": (
+        [{"A": (-1.0, HI), "B": (0.0, MID)}, {"A": (0.0, HI), "B": (0.0, MID)}], [0.004, 0.004]),
+    # a rate of 0.0 is a rate: A trades for nothing, and B enters at 1/2 x 0.001
+    "a name on a rate of 0.0": ([{"A": (0.10, 0.0), "B": (0.20, LO)}], [0.0005]),
     "no period": ([], []),
 }
 # One book in two insertion orders, then the same names carried. 1.1 + 1.2 + 1.3 + 1.7 and the second period's
@@ -106,31 +117,43 @@ SHORT = {
 # gives two answers (the last two mutants).
 ORDER_FIRST = [("A", (0.1, HI)), ("B", (0.2, MID)), ("C", (0.3, LO)), ("D", (0.7, HI))]
 ORDER_SECOND = {"A": (0.0, HI), "B": (0.0, MID), "C": (0.0, LO), "D": (0.0, HI)}
-# Returns no book can hold. Under -100% the name's end weight is negative and its sale a negative cost; the book
-# beside each keeps the sum of (1 + r) positive, so nothing else stops the walk.
-OFF_RANGE = {"a return under -100%": -1.5, "a return that is not a number": float("nan"),
-             "an infinite return": float("inf")}
+# Values no book can hold, as A's (return, rate). Under -100% the name's end weight is negative and its sale a
+# negative cost; the name beside each keeps the sum of (1 + r) positive, so nothing else stops the walk. A negative
+# rate is a negative cost too.
+OFF_RANGE = {"a return under -100%": (-1.5, HI), "a return that is not a number": (float("nan"), HI),
+             "an infinite return": (float("inf"), HI), "a negative rate": (0.10, -HI),
+             "a rate that is not a number": (0.10, float("nan")), "an infinite rate": (0.10, float("inf"))}
 
 
 def in_order(items):
     return [dict(items), {s: ORDER_SECOND[s] for s, _ in items}]
 
 
-def off_range(walk, r):
-    """'' when the walk raises ValueError on a book with return r, else what it did."""
-    try:
-        return f"no ValueError, costs {walk([{'A': (r, HI), 'B': (1.0, LO)}, {'B': (0.0, LO)}])}"
-    except ValueError:
-        return ""
+def off_range(walk, bad):
+    """'' when the walk raises ValueError on a book where A holds `bad`, as its first name and as its second;
+    else what it did."""
+    out = []
+    for names in ("AB", "BA"):
+        book = {s: (bad if s == "A" else (1.0, LO)) for s in names}
+        try:
+            out.append(f"no ValueError with it {'first' if names == 'AB' else 'second'}, "
+                       f"costs {walk([book, {'B': (0.0, LO)}])}")
+        except ValueError:
+            pass
+    return "; ".join(out)
 
 
 def failures(src):
     try:
         walk = load(src).trade_costs
-        got = walk([b for b, _ in RUN])
-        short = {name: walk(books) for name, (books, _) in SHORT.items()}
+        try:
+            got = walk([b for b, _ in RUN])
+            short = {name: walk(books) for name, (books, _) in SHORT.items()}
+        except ValueError as e:   # RUN and SHORT type only values a book can hold: -100% itself, a rate of 0.0
+            return [f"a book of RUN or SHORT was refused: {e}"]
+        lazy = walk(iter([b for b, _ in RUN]))
         fwd, back = walk(in_order(ORDER_FIRST)), walk(in_order(ORDER_FIRST[::-1]))
-        refused = {name: off_range(walk, r) for name, r in OFF_RANGE.items()}
+        refused = {name: off_range(walk, bad) for name, bad in OFF_RANGE.items()}
     except Exception as e:
         return [f"error: {type(e).__name__}: {e}"]
     out = [f"period {i}: cost {g!r}, want {want!r}" for i, (g, (_, want)) in enumerate(zip(got, RUN))
@@ -138,6 +161,8 @@ def failures(src):
     out += [f"{name}: {why}" for name, why in refused.items() if why]
     if len(got) != len(RUN):
         out.append(f"{len(got)} costs for {len(RUN)} periods")
+    if lazy != got:
+        out.append(f"the run's books as an iterator: costs {lazy}, want the list's")
     for name, (_, want) in SHORT.items():
         if len(short[name]) != len(want) or any(abs(g - w) > TOL for g, w in zip(short[name], want)):
             out.append(f"{name}: costs {short[name]}, want {want}")
@@ -151,7 +176,8 @@ EXIT = "terms[i] += [w * rate for s, (w, rate) in held.items() if s not in book]
 CARRIED = "* rate for s, (_, rate) in book.items()]"
 TARGET = "target = 1.0 / len(book)"
 RANGE = "math.isfinite(r) and r >= -1.0"
-END = "    return [math.fsum(t) for t in terms]"
+RATE = "math.isfinite(rate) and rate >= 0.0"
+END ="    return [math.fsum(t) for t in terms]"
 MUTANTS = {
     "an entry charged nothing": ("held.get(s, (0.0, 0.0))[0]", "held.get(s, (target, 0.0))[0]"),
     "end weights not drifted": ("{s: ((1.0 + r) / total, rate) for", "{s: (target, rate) for"),
@@ -175,8 +201,20 @@ MUTANTS = {
     # two edits: the empty book flows on as a rebalance into no name, without dividing by zero
     "an empty book read as a rebalance": [("if not book:", "if book is None:"),
                                           (TARGET, f"{TARGET} if book else 0.0")],
+    "a name booked again after it ended at -100% charged nothing": (
+        "abs(target - held.get(s, (0.0, 0.0))[0])",
+        "(0.0 if s in held and held[s][0] == 0.0 else abs(target - held.get(s, (0.0, 0.0))[0]))"),
     "a return under -100% taken": (RANGE, "math.isfinite(r)"),
     "a return that is not finite taken": (RANGE, "r >= -1.0 or r != r"),
+    "a return of -100% itself refused": (RANGE, "math.isfinite(r) and r > -1.0"),
+    "the returns' guard on a book's first name only": (f"{RANGE} for r, _ in book.values()",
+                                                       f"{RANGE} for r, _ in list(book.values())[:1]"),
+    "a negative rate taken": (RATE, "math.isfinite(rate)"),
+    "a rate that is not finite taken": (RATE, "rate >= 0.0 or rate != rate"),
+    "a rate of 0.0 refused": (RATE, "math.isfinite(rate) and rate > 0.0"),
+    "the rates' guard on a book's first name only": (f"{RATE} for _, rate in book.values()",
+                                                     f"{RATE} for _, rate in list(book.values())[:1]"),
+    "the books read without a list made of them": ("    books = list(books)", "    pass"),
     "a book all at -100% keeps a position": ("if total > 0 else {}",
                                              "if total > 0 else {s: (target, rate) for s, (_, rate) in book.items()}"),
     "a name at -100% empties the whole position": (
@@ -213,7 +251,7 @@ def main():
         print("test_costs: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
     print(f"test_costs: PASS ({len(RUN)} periods, {len(SHORT)} short runs, one book in two orders and "
-          f"{len(OFF_RANGE)} returns refused; {len(MUTANTS)} mutants caught)")
+          f"{len(OFF_RANGE)} values refused; {len(MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":

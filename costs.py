@@ -152,16 +152,18 @@ def trade_costs(books):
     """Each period's cost under the "trades" convention: only real trades are charged, each sized to the trade.
 
     Args:
-        books: one series' period books, in order. A book is {symbol: (gross_return, rate)}: every name
-               the series books in the period, with its return before costs and its one-way rate at
-               that rebalance. None is a cash period, and an empty book counts as one.
+        books: one series' period books, in order (a list, or any iterable). A book is
+               {symbol: (gross_return, rate)}: every name the series books in the period, with its return
+               before costs and its one-way rate at that rebalance. None is a cash period, and an empty
+               book counts as one.
 
     Returns:
         list[float] - one cost per period, as a fraction of the portfolio, to subtract from the
                       period's mean return.
 
     Raises:
-        ValueError when a book holds a return under -100% or one that isn't finite: a bad price, not a return.
+        ValueError when a book holds a return under -100% or one that isn't finite (a bad price, not a
+        return), or a rate that is negative or isn't finite.
 
     The position is the last invested period's book at its end weights, (1 + r) over the book's sum of
     (1 + r), each name with the rate it carried there. It is empty at the start, after a cash period,
@@ -179,6 +181,7 @@ def trade_costs(books):
 
     Each sum is math.fsum's, so a cost doesn't depend on the order of a book's names.
     """
+    books = list(books)           # read twice below: an iterator would be spent after the first
     terms = [[] for _ in books]   # each period's trades, weight times rate
     held, last = {}, None         # the position {symbol: (end weight, rate)}, and the last invested period
     for i, book in enumerate(books):
@@ -189,6 +192,8 @@ def trade_costs(books):
             continue
         if not all(math.isfinite(r) and r >= -1.0 for r, _ in book.values()):
             raise ValueError(f"period {i}: a booked return under -100% or not finite")
+        if not all(math.isfinite(rate) and rate >= 0.0 for _, rate in book.values()):
+            raise ValueError(f"period {i}: a rate that is negative or not finite")
         target = 1.0 / len(book)
         terms[i] += [abs(target - held.get(s, (0.0, 0.0))[0]) * rate for s, (_, rate) in book.items()]
         terms[i] += [w * rate for s, (w, rate) in held.items() if s not in book]
