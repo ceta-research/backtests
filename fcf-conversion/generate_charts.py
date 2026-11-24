@@ -18,8 +18,8 @@ import argparse
 import os as _cu_os, sys as _cu_sys
 _cu_sys.path.insert(0, _cu_os.path.dirname(_cu_os.path.dirname(_cu_os.path.abspath(__file__))))
 from chart_utils import (annual_bars, benchmark_label, benchmark_legend, growth_series, hatch_partial,
-                         is_usd_benchmark_proxy, localize_money_title, money, money_axis_label, money_formatter,
-                         partial_note, window_end, window_text, windows_text)
+                         is_usd_benchmark_proxy, leg_window, localize_money_title, money, money_axis_label,
+                         money_formatter, partial_note, run_window, windows_text)
 import json
 import os
 import sys
@@ -69,16 +69,6 @@ def load_results(results_dir):
                 if k not in results and isinstance(v, dict) and "portfolio" in v:
                     results[k] = v
     return results
-
-
-def leg_window(entry, bars=False):
-    """', <window>' for a run-window leg's titles; '' for a typed-year file, whose titles stay as they were."""
-    return f", {window_text(entry, bars=bars)}" if window_end(entry) else ""
-
-
-def run_window(results, keys):
-    """' (<window>)' for a comparison title when one of these legs is on the run window, else ''."""
-    return f" ({windows_text(results, keys)})" if any(window_end(results[k]) for k in keys) else ""
 
 
 def cumulative_growth_chart(entry, exchange, out_path, bench="S&P 500"):

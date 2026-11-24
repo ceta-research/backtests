@@ -268,9 +268,22 @@ def _test_report():
         check(bad == 1 and "det: drop run != its repeat" in out.getvalue(), "report catches a det failure")
 
 
+def pinned(a):
+    """A leg's args carry --end-date or --end-year before its exchange args."""
+    pin = [i for i, x in enumerate(a) if x in ("--end-date", "--end-year")]
+    ex = [i for i, x in enumerate(a) if x in ("--exchange", "--preset")]
+    return bool(pin and ex and pin[0] + 1 < ex[0])
+
+
 def test_run_window_legs():
     """A topic on the run window (its script takes --end-date) gates pinned runs: every one of its legs in a
-    legs file carries --end-date or --end-year, before the exchange args (the leg's name is its last arg)."""
+    legs file carries --end-date or --end-year, before the exchange args (--exchange or --preset), whatever
+    follows them: 52-week-high's legs end with --full-holdings."""
+    for a, want in ((["--end-year", "2025", "--exchange", "NSE"], True), (["--exchange", "NSE", "--end-year", "2025"], False),
+                    (["--end-date", "2026-11-06", "--preset", "us", "--full-holdings"], True),
+                    (["--exchange", "NSE", "--end-year", "2025", "--full-holdings"], False),
+                    (["--end-year", "2025"], False), (["--exchange", "NSE"], False)):
+        check(pinned(a) == want, f"pinned({a}) is {pinned(a)}, want {want}")
     d = os.path.join(gate.REPO, "scripts", "gate_legs")
     moved = set()
     for name in sorted(os.listdir(d)):
@@ -280,11 +293,9 @@ def test_run_window_legs():
                 continue
             moved.add(g["topic"])
             a = g["leg_args"]
-            pin = [i for i, x in enumerate(a) if x in ("--end-date", "--end-year")]
-            check(pin and pin[0] + 2 < len(a), f"{name} {g['topic']} {g['leg']}: no --end-date/--end-year "
-                                               f"before the exchange args: {a}")
-    check(moved == {"cyclical-timing", "deleveraging", "defensive-quality", "asset-growth", "fcf-conversion"},
-          f"run-window topics in the legs: {moved}")
+            check(pinned(a), f"{name} {g['topic']} {g['leg']}: no --end-date/--end-year before the exchange args: {a}")
+    check(moved == {"cyclical-timing", "deleveraging", "defensive-quality", "asset-growth", "fcf-conversion",
+                    "52-week-high"}, f"run-window topics in the legs: {moved}")
 
 
 if __name__ == "__main__":

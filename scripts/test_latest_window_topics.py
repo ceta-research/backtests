@@ -2,14 +2,18 @@
 """The topics on the run window, end to end on test_data_checks.py's synthetic SET leg.
 
   1 BYTES    each topic already on the run window at the base (defensive-quality, cyclical-timing,
-             deleveraging, asset-growth), at the base ref and at HEAD with --end-year 2025, writes the same results
-             files, byte for byte: drop, ltp, both and ltp with full holdings through run_single, and ltp
-             through main() (--exchange SET, CetaResearch patched to the fake client). The base runs
-             in a subprocess on its own tree (its .py files archived to a temp dir) and its own
+             deleveraging, asset-growth, fcf-conversion), at the base ref and at HEAD with --end-year 2025, writes
+             the same results files, byte for byte: drop, ltp, both and ltp with full holdings through
+             run_single, and ltp through main() (--exchange SET, CetaResearch patched to the fake client), 25
+             files. fcf-conversion's are compared with data_checks.rules.factor_hand taken out (HAND_LIST_OUT),
+             since a topic's results PR grows the hand list; a grown hand list must compare equal, another
+             data-checks key changed must not, and each wrong removal in STRIP_MUTANTS must fail that. The base
+             runs in a subprocess on its own tree (its .py files archived to a temp dir) and its own
              test_data_checks.py, with the shared modules checked to load from there
   2 WINDOW   with FY2025 rows and 2026 bars to 2026-11-10 added, each topic runs pinned to 2026-11-06
-             and through RunWindow.latest (run day 2026-11-09), fcf-conversion too (it moved to the run
-             window after the base, so it joins section 1 once the base has it):
+             and through RunWindow.latest (run day 2026-11-09), 52-week-high too (it moved to the run window
+             after the base, so it joins section 1 once the base has it; quarterly, on its own copy of the
+             leg with daily bars, test_data_checks.wh52_source):
                the leg's keys and values, every row marked and only the last partial
                the partial row's window exits on the end date, and the benchmark's too
                a held name that stops trading before the end date (and trades again after it) fills
@@ -47,9 +51,12 @@ import scan_results_invariant as sri   # noqa: E402
 import test_data_checks as tdc   # noqa: E402
 from gate_ltp import check_stage_a, first_diff   # noqa: E402
 
-TOPICS = ("defensive-quality", "cyclical-timing", "deleveraging", "asset-growth", "fcf-conversion")
-FREQ = {"deleveraging": "quarterly"}
-UNPRICED_TOPICS = ("defensive-quality", "asset-growth", "fcf-conversion")   # cash rows: entry_unpriced None, or the list
+TOPICS = ("defensive-quality", "cyclical-timing", "deleveraging", "asset-growth", "fcf-conversion", "52-week-high")
+FREQ = tdc.FREQ   # the quarterly topics: deleveraging and 52-week-high
+UNPRICED_TOPICS = ("defensive-quality", "asset-growth", "fcf-conversion", "52-week-high")   # cash rows: None, or the list
+# the partial period's unpriced names: DLST.BK (delisted in 2018, no entry price), and on 52-week-high, which ranks on
+# prices and never screens DLST.BK then, its leg's line with no entry bar
+UNPRICED = {"52-week-high": [tdc.WH52_UNPRICED]}
 END, TODAY = date(2026, 11, 6), date(2026, 11, 9)
 HALT, ZEROV = "A03.BK", "A04.BK"   # stops trading after 2026-10-30 (back on 11-09); no volume on END
 LEGS = {"SET": (["SET"], "^SET.BK")}
@@ -83,7 +90,8 @@ for m in (data_utils, metrics, tdc):
 head = hasattr(data_utils, "RunWindow")
 synthetic = tdc.synthetic_source()
 for topic, src in (("defensive-quality", tdc.defensive_source()), ("cyclical-timing", synthetic),
-                   ("deleveraging", synthetic), ("asset-growth", tdc.asset_growth_source())):
+                   ("deleveraging", synthetic), ("asset-growth", tdc.asset_growth_source()),
+                   ("fcf-conversion", tdc.fcf_source())):
     for run_mode, full in (("drop", False), ("ltp", False), ("both", False), ("ltp", True)):
         tdc.run_topic(topic, src, run_mode, "on", out, full_holdings=full)
     mod = tdc.load_topic(topic)
@@ -95,8 +103,51 @@ for topic, src in (("defensive-quality", tdc.defensive_source()), ("cyclical-tim
 '''
 
 
+# A topic's results PR grows the hand list (data_utils.FACTOR_HAND), which every dc-3 file records under
+# data_checks.rules.factor_hand, so these topics' files are compared with it taken out.
+HAND_LIST_OUT = ("fcf-conversion",)
+HAND_LIST = (("data_checks", "rules", "factor_hand"),)
+# Wrong removals (the paths taken out), each of which strip_failures must fault.
+STRIP_MUTANTS = {"nothing taken out": (), "the whole rules block taken out": (("data_checks", "rules"),),
+                 "all of data_checks taken out": (("data_checks",),)}
+
+
+def comparable(name, data, out=HAND_LIST):
+    """A results file's bytes as section 1 compares them: a HAND_LIST_OUT topic's re-dumped with each `out` path
+    taken out (json.dump's indent=2, as the runs write it), any other file as written."""
+    if name.split(".")[0] not in HAND_LIST_OUT:
+        return data
+    obj = json.loads(data)
+    for path in out:
+        node = obj
+        for k in path[:-1]:
+            node = node.get(k, {})
+        node.pop(path[-1], None)
+    return json.dumps(obj, indent=2).encode()
+
+
+def strip_failures(name, data, out=HAND_LIST):
+    """The removal on one fcf-conversion file: a copy with a hand-list entry added compares equal to it, and a copy
+    with another data_checks key changed (rules.fetch_window_days, version) doesn't."""
+    obj, f = json.loads(data), []
+    grown = json.loads(data)
+    grown["data_checks"]["rules"]["factor_hand"]["entries"].append({"symbol": "NEW.SA", "kind": "real"})
+    if comparable(name, data, out) != comparable(name, json.dumps(grown, indent=2).encode(), out):
+        f.append(f"{name}: a grown hand list compares apart")
+    for keys, value in ((("rules", "fetch_window_days"), obj["data_checks"]["rules"]["fetch_window_days"] + 1),
+                        (("version",), "dc-x")):
+        other = json.loads(data)
+        node = other["data_checks"]
+        for k in keys[:-1]:
+            node = node[k]
+        node[keys[-1]] = value
+        if comparable(name, data, out) == comparable(name, json.dumps(other, indent=2).encode(), out):
+            f.append(f"{name}: data_checks.{'.'.join(keys)} changed compares equal")
+    return f
+
+
 def bytes_failures(ref, tmp):
-    """Base and HEAD write the same files, byte for byte."""
+    """Base and HEAD write the same files, byte for byte (comparable's)."""
     f = []
     base = os.path.join(tmp, "base")
     os.makedirs(base)
@@ -119,12 +170,17 @@ def bytes_failures(ref, tmp):
         if p.returncode:
             return [f"the {side} runs failed: {log[-2000:]}"]
     names = sorted(os.listdir(outs["base"]))
-    if names != sorted(os.listdir(outs["head"])) or len(names) != 20:
+    if names != sorted(os.listdir(outs["head"])) or len(names) != 25:
         return [f"files differ: base {names}, head {sorted(os.listdir(outs['head']))}"]
     for n in names:
-        a, b = (open(os.path.join(outs[s], n), "rb").read() for s in ("base", "head"))
+        a, b = (comparable(n, open(os.path.join(outs[s], n), "rb").read()) for s in ("base", "head"))
         if a != b:
             f.append(f"{n} differs: {first_diff(json.loads(a), json.loads(b))}")
+    probe = "fcf-conversion.ltp.on.json"
+    with open(os.path.join(outs["head"], probe), "rb") as fh:
+        data = fh.read()
+    f += strip_failures(probe, data)
+    f += [f"strip mutant {k} passes" for k, out in STRIP_MUTANTS.items() if not strip_failures(probe, data, out)]
     return f
 
 
@@ -167,7 +223,8 @@ def sources():
     synthetic = extend(tdc.synthetic_source())
     return {"defensive-quality": extend(tdc.defensive_source()), "cyclical-timing": synthetic, "deleveraging": synthetic,
             "asset-growth": extend(tdc.asset_growth_source()),
-            "fcf-conversion": tdc.vary(extend(tdc.fcf_source()))}   # dc-3's rule S: the 2026 bars vary too
+            "fcf-conversion": tdc.vary(extend(tdc.fcf_source())),   # dc-3's rule S: the 2026 bars vary too
+            "52-week-high": tdc.wh52_source(extend(tdc.synthetic_source()))}   # its daily bars added after 2026's
 
 
 _WINDOWS = {}   # one window per fixture and kind: run_single copies it (for_leg) before grid() changes it
@@ -311,7 +368,7 @@ def cash_failures(topic, mod_of, src, tmp, tag=""):
             f.append(f"{topic} {name}: partial row {last.get('partial')} {last.get('fraction')} {last['stocks_held']}")
         if name == "cash.buyable" and (last.get("exits_lost") or 0) < 1:
             f.append(f"{topic} {name}: exits_lost {last.get('exits_lost')}: T's end-date window not read")
-        want = None if name == "cash.screen" else ["DLST.BK"]   # delisted in 2018: no entry price
+        want = None if name == "cash.screen" else UNPRICED.get(topic, ["DLST.BK"])
         if topic in UNPRICED_TOPICS and last.get("entry_unpriced", "missing") != want:
             f.append(f"{topic} {name}: entry_unpriced {last.get('entry_unpriced', 'missing')!r}, want {want!r}")
     return f

@@ -2201,8 +2201,9 @@ def empty_cap_check(con):
     con.execute(CAP_CHECK_DDL)
 
 
-def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
-    """Check M's server query: the inputs for every FY key_metrics row over the leg's floor.
+def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1, require_roe=True):
+    """Check M's server query: the inputs for every FY key_metrics row over the leg's floor, by default only the
+    rows with a returnOnEquity, as the topics ranking on ROE fetch their metrics; require_roe=False reads every row.
 
     Per (symbol, FY period end): marketCap, the same FY's net income, EPS and weighted shares, the
     last `bars` stock_eod dates up to the period end, one row per date with the traded row kept
@@ -2232,10 +2233,11 @@ def cap_check_sql(sym_filter_sql, mktcap_min, date_ranges, cfg=DATA_CHECKS_V1):
     dup, lt = int(c["split_dup_days"]) * 86400, math.log(float(c["share_tol"]))
     st_lo, st_hi = (float(v) for v in c["share_step"])
     days = lambda col: " OR ".join(f"({col} >= '{a}' AND {col} <= '{b}')" for a, b in date_ranges) or "FALSE"
+    roe = " AND returnOnEquity IS NOT NULL" if require_roe else ""
     return f"""
         WITH RECURSIVE km AS (
             SELECT symbol, CAST(dateEpoch AS BIGINT) AS fe, marketCap FROM key_metrics
-            WHERE period = 'FY' AND returnOnEquity IS NOT NULL AND marketCap > {float(mktcap_min)}
+            WHERE period = 'FY'{roe} AND marketCap > {float(mktcap_min)}
               AND {sym_filter_sql}
             QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol, dateEpoch ORDER BY marketCap DESC) = 1),
         inc AS (
@@ -2460,11 +2462,12 @@ def apply_cap_rule(con, cfg=DATA_CHECKS_V1, inputs="cap_inputs"):
 
 
 def load_cap_check(client, con, sym_filter_sql, mktcap_min, cfg=DATA_CHECKS_V1, verbose=False,
-                   metrics_table="metrics_cache"):
+                   metrics_table="metrics_cache", require_roe=True):
     """Check M for a leg: one server query (cap_check_sql), then apply_cap_rule() into cap_check.
 
     metrics_table (symbol, marketCap, filing_epoch: the topic's FY key_metrics) bounds the bar scans
-    to the lookback before each FY period end over the floor. Returns apply_cap_rule()'s counts.
+    to the lookback before each FY period end over the floor. require_roe: cap_check_sql's, False for a topic
+    whose metrics keep the rows with no returnOnEquity. Returns apply_cap_rule()'s counts.
     """
     look = timedelta(days=int(cfg["cap"]["lookback_days"]))
     ranges = []
@@ -2478,7 +2481,8 @@ def load_cap_check(client, con, sym_filter_sql, mktcap_min, cfg=DATA_CHECKS_V1, 
     con.execute(CAP_INPUTS_DDL)
     if ranges:
         con.execute("DROP TABLE cap_inputs")
-        sql = cap_check_sql(sym_filter_sql, mktcap_min, [(a.isoformat(), b.isoformat()) for a, b in ranges], cfg)
+        sql = cap_check_sql(sym_filter_sql, mktcap_min, [(a.isoformat(), b.isoformat()) for a, b in ranges], cfg,
+                            require_roe=require_roe)
         if not query_parquet(client, sql, con, "cap_inputs", verbose=verbose, limit=5000000, timeout=600,
                              memory_mb=16384, threads=6):
             con.execute("DROP TABLE cap_inputs")   # query_parquet's empty placeholder has no columns
@@ -2776,12 +2780,16 @@ class DataChecks:
         block["large_moves"] = sorted(moves, key=lambda m: (m["rebalance_date"], m["symbol"]))
 
     def holdings_full(self, con, clean, entry_prices, exit_prices, filled, entry_date, exit_date, offset_days,
-                      ltp=None, exit_offset_days=None):
+                      ltp=None, exit_offset_days=None, cost_rates=None):
         """{} unless full_holdings, else {"holdings_full": [...]}: one item per booked name of `clean`
         (filter_returns' (symbol, return, mcap), in its order) with the entry bar and price, the exit
         bar and price ("window": the exit window's bar; "last_traded": an LTP fill, with its last bar)
         and the booked return before costs. `exit_prices` is the map the book read, `filled` the
-        names whose exit came from an LTP fill (ltp holds the fills). exit_offset_days as in prices()."""
+        names whose exit came from an LTP fill (ltp holds the fills). exit_offset_days as in prices().
+        cost_rates: {symbol: its one-way cost tier at this rebalance, None on a no-costs run}, written as each
+        item's cost_rate; None (the default) writes no cost_rate. What the name pays at that rate is the
+        topic's cost convention (METHODOLOGY.md, "Transaction Costs"): under "trades", what it trades at
+        this rebalance, and its sale at the next one if it leaves."""
         if not self.full_holdings:
             return {}
         syms = [s for s, _, _ in clean]
@@ -2803,6 +2811,8 @@ class DataChecks:
                 raise AssertionError(f"holdings_full: entry bar of {s} on {entry_date} reads {e}, book {ep}")
             out.append({"symbol": s, "entry_bar": e["date"], "entry_price": ep, "exit_bar": bar, "exit_price": xp,
                         "exit": src, "return": round(ret, 6)})
+            if cost_rates is not None:
+                out[-1]["cost_rate"] = cost_rates.get(s)
             adj = self._hand_booked.get((entry_date.isoformat(), s))
             if adj is not None:   # a dc-3 rebuilt holding: the booked return, its adjClose return beside it
                 out[-1]["return_adj"] = adj
@@ -3513,10 +3523,10 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
     ("AZN", "2026-02-02", "AstraZeneca: the US line traded American depositary shares (two to an ordinary share from "
                           "2015-07-27) and the ordinary shares on the NYSE from 2026-02-02 (its release of 2026-02-02, "
                           "\"AstraZeneca begins trading on the New York Stock Exchange\", filed on a 6-K that day); "
-                          "the bars sit near the receipts' price in 2025 (84.53 on 2025-10-10) and near the share's "
-                          "before the switch (187.10 on 1,738 shares on 2026-01-30), and the volume marks the day "
-                          "(3.23m shares at 188.41); the profile carries the UK ordinary share's ISIN (GB0009895292) "
-                          "and doesn't flag isAdr"),
+                          "the bars sit near the receipts' price through 2025-10-10 (84.53 that day) and near the "
+                          "share's before the switch (187.10 on 1,738 shares on 2026-01-30), and the volume marks "
+                          "the day (3.23m shares at 188.41); the profile carries the UK ordinary share's ISIN "
+                          "(GB0009895292) and doesn't flag isAdr"),
     # de-SPAC lines: the first day the combined company traded under its new ticker, from its filings
     ("CTOS", "2019-08-01", "Custom Truck One Source, then Nesco Holdings (the filer's CIK, 0001709682, is CTOS's in "
                            "the profile): Capitol Investment Corp. IV (NYSE: CIC), a blank-check shell, closed its "

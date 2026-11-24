@@ -8,7 +8,7 @@ Last updated: 2026-11-13
 
 ## ASX (Australian Securities Exchange)
 
-**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun. `scripts/split_check.py` reads the leg's results file and confirms every split or consolidation that adjClose carries unadjusted; the check passes when no confirmed artifact moves the leg's excess by 0.15pp or more, alone or all rebuilt together. It can't see a split under 1.8x with no `splits_calendar` row (Root cause, below). asset-growth's check of 2026-11-11, on its November 2026 books, found none that large: every confirmed artifact rebuilt moves Australia -0.04pp.
+**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun. `scripts/split_check.py` reads the leg's results file and confirms every split or consolidation that adjClose carries unadjusted; the check passes when no confirmed artifact moves the leg's excess by 0.15pp or more, alone or all rebuilt together. It can't see a split under 1.8x with no `splits_calendar` row (Root cause, below). asset-growth's check of 2026-11-11, on its November 2026 books, found none that large: every confirmed artifact rebuilt moves Australia -0.04pp. 52-week-high's code ranks Australia too, and no check of its leg has been run yet.
 **Issue:** FMP `adjClose` has incorrect stock split/consolidation adjustments
 **Severity:** Fatal (produces 58%+ CAGR artifacts)
 
@@ -46,7 +46,7 @@ ORDER BY price_ratio DESC
 
 ## SAO (Sao Paulo Stock Exchange, Brazil)
 
-**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun, as for ASX above. asset-growth's check of 2026-11-11 found no artifact moving its Brazil leg by 0.15pp: three bonus issues adjClose hadn't absorbed (CMIG3.SA's in 2010 and 2021, DEXP4.SA's in 2025), rebuilt with the bonus shares restored, move it +0.08pp.
+**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun, as for ASX above. asset-growth's check of 2026-11-11 found no artifact moving its Brazil leg by 0.15pp. It rests on one person's call: CEAB3.SA's -47.5% on 2026-10-26, which the check's round-ratio test flags as a candidate, is a real drop, the sell-off after Brazil's election. SBT News gives CEAB3 -41.7% from 23 October to 9 November, matching the vendor's 13.84 to 8.07, and no split is on record. A rerun of the check on that file passes `--not-artifact CEAB3.SA:2026-07-01:2026-10-26`. With it the leg nets +0.084pp: three bonus issues adjClose hadn't absorbed (CMIG3.SA's in 2010 and 2021, DEXP4.SA's in 2025), rebuilt with the bonus shares restored. 52-week-high's code ranks Brazil too, and no check of its leg has been run yet.
 **Issue:** Same FMP `adjClose` issue as ASX
 **Severity:** Fatal (produces 3,250% single-year returns)
 
@@ -221,7 +221,7 @@ Added 2026-03-03. `filter_returns()` in `data_utils.py` provides reusable price 
 
 Used by: asset-growth. Should be adopted by all future strategies. Existing strategies (qarp, low-pe, interest-coverage) can be retrofitted.
 
-Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality and, since November 2026, asset-growth and fcf-conversion pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
+Since 2026-10-30, `max_single_return=None` means no upper test. deleveraging, cyclical-timing, defensive-quality, since November 2026 asset-growth and fcf-conversion, and 52-week-high's code (its committed results still ran with the cap) pass it and use the data checks instead (see "Data checks in place of the return cap" below); the default stays 2.0 for every other caller.
 
 ### How to check a new exchange
 Before adding an exchange to a backtest, run these checks:
@@ -1159,6 +1159,9 @@ Not fixed yet, found in the third wave:
   German formed pairs hold
   Porsche SE's preference line (PAH3.DE, its only listed line) in 23 of 460 slots (5.0%;
   5.2% with VVV3.DE). REIT and trust units are listed in each topic's notes and not counted.
+  52-week-high's code removes the preferred, preference, fund, note and warrant lines universe
+  rules ur-4 name, and holds a Thai NVDR line with its ordinary line once (check N); its committed
+  results predate both.
 - The 13 Norway legs ran without same-ISIN dedup. etf-rebalancing holds SRBNK.OL with
   SB1NO.OL in 6 of its 13 invested years, very likely one bank under its old and new ticker
   (ISIN not checked), and Schibsted's A and B shares, which have separate ISINs, sit together
@@ -1175,10 +1178,10 @@ Not fixed yet, found in the third wave:
   `scripts/verify_floor_guard.py` doesn't cover them. peg-ratio's charts leave out its Norway
   leg, which is testable (+2.62 points), because their filter drops every truncated window.
   Leaving it unranked is the rule, but no footnote names it.
-- The live screens don't match the reruns: `52-week-high/screen.py` still ranks
-  `adjClose / MAX(high)` with no traded-bar rule, listing rule or dedup; `dcf-discount/screen.py`
-  has no currency, fund, cap, listing or dedup rule; the pairs screens rank today's actively
-  trading names.
+- The live screens don't match the reruns: `dcf-discount/screen.py` has no currency, fund, cap,
+  listing or dedup rule, and the pairs screens rank today's actively trading names.
+  `52-week-high/screen.py` now runs the backtest's own fetch and screen on the day it runs (ur-4,
+  data checks dc-3, the traded-bar rule, the listing rules and the dedup).
 - dcf-discount's Brazil and Australia legs are retraction pages and still read the price
   table whose split adjustments those pages blame, so whether their new figures are clean
   isn't determined.
@@ -1224,8 +1227,9 @@ still hold every listed line; read them with the measurements earlier in this se
 **Status:** in place for deleveraging and cyclical-timing (METHODOLOGY.md, Data Checks), and both
 topics' committed results were rerun with it in October 2026; defensive-quality joined in November
 2026 (see "Lines that aren't ordinary shares" below), asset-growth with its November 2026 rerun,
-and fcf-conversion, on data checks dc-3, with its own November 2026 rerun. The other topics keep
-their existing cap (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their
+and fcf-conversion, on data checks dc-3, with its own November 2026 rerun. 52-week-high's code
+runs dc-3; its committed results are still the October run's, with the cap.
+The other topics keep their existing cap (200%, 300% in three; qarp, low-pe and sector-correlation have none) until their
 own rerun.
 
 The 200% single-return cap drops a holding only when its return is high. Reading every holding
@@ -1506,7 +1510,8 @@ hold NVDR lines beside their ordinary lines until their own reruns.
 **Status:** fixed for defensive-quality by its universe rules (METHODOLOGY.md, Universe Rules) in
 its November 2026 rerun, and for asset-growth by universe rules ur-2 in its November 2026 rerun (see
 "Asset growth's data fixes" below), and for fcf-conversion by universe rules ur-3 in its November
-2026 rerun. Every other topic still holds these lines.
+2026 rerun. 52-week-high's code removes them under universe rules ur-4, and its committed results
+predate that. Every other topic still holds these lines.
 
 defensive-quality ranks by the vendor's dividend yield, so anything carrying a company's yield
 without being its ordinary share, and any yield on the wrong scale, takes a slot near the top.
@@ -1552,7 +1557,12 @@ line-years over 16 legs, and each entry says what is fixed and what stays open. 
 code carries universe rules ur-3 (ur-2 with more hand-list lines, line starts and line ends), its
 own statement window and pair test, and data checks dc-3, and its committed results are the
 November 2026 rerun's on all three. Where fcf-conversion's October books held the same kind of line,
-the entry gives its state too, and the last two entries are its own.
+the entry gives its state too, and the last two entries are its own. 52-week-high's code carries
+universe rules ur-4 (ur-3 with more hand-list lines, `jpx_reit` for JPX's REITs, more line starts,
+BCE-PY.TO's line end and the lookback clip) and data checks dc-3; its committed results are the
+October 2026 run's and predate both. An entry's ur-3 fix holds in 52-week-high's code too, except
+that ur-4 takes AZN and JHX off the hand list and starts each at its direct listing (AZN on
+2026-02-02, JHX on 2025-07-01), so neither is out in every year there.
 
 ### KSC lines that duplicate KOSDAQ series
 
@@ -1592,7 +1602,8 @@ days), so no hand-list entry takes them, and they stay in the code's Korea leg.
 
 **Status:** refused at publication, not fixed. ur-2 and ur-3 keep BCE-PY.TO and remove BCE-PA.TO.
 ur-4 also ends BCE-PY.TO after 2025-09-30, so a quarterly screen from 2025-10-01 leaves it out; an
-annual book entered on 2025-07-01 still exits in 2026. Gate 15 of `scripts/verify_floor_guard.py` refuses a committed results file of a data-checks topic
+annual book entered on 2025-07-01 still exits in 2026. 52-week-high's code runs ur-4 on the
+quarterly grid, so its 2025-10 book can't hold BCE-PY.TO. Gate 15 of `scripts/verify_floor_guard.py` refuses a committed results file of a data-checks topic
 that holds BCE-PY.TO in a period exiting on or after 2026-01-01 (it reads `holdings` and
 `holdings_full`), so a run whose 2025 or 2026 book holds it can't be published as it stands.
 Nothing maps BCE's common to BCE.TO in 2026 yet.
@@ -1618,7 +1629,8 @@ BCE-PY.TO with BCE-PA.TO in 9 years, the last at the 2024 rebalance, which exits
 **Status:** GUD.AX and AZZA3.SA fixed in asset-growth (ur-2's hand list and line starts). Universe
 rules ur-3, in fcf-conversion, fix the renamed pairs below by line starts or hand entries,
 and end two dead lines; asset-growth's committed files predate ur-3. BC88.L, ABG.AX, SHA.DE, 9511.SR
-and CORE-PREF.ST are open; ur-4's hand list removes BC88.L and CORE-PREF.ST, and no topic runs it yet.
+and CORE-PREF.ST are open; ur-4's hand list removes BC88.L and CORE-PREF.ST, and its line starts
+begin SHA0.DE after SHA.DE's last bar. 52-week-high's code runs ur-4; its committed results predate it.
 
 GUD Holdings was renamed Amotiv on 2024-06-18. AOV.AX, the new line, carries GUD's price history
 under a different ISIN, with the same close on every July bar from 1990 to 2024, so the same-ISIN
@@ -2022,8 +2034,8 @@ among them).
 
 ## Cost tiers are USD but market caps are local currency (found 2026-08-17)
 
-**Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion, its committed results included), the rest not yet
-**Affects:** every backtest that calls `tiered_cost()` (80 of them)
+**Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion, its committed results included) and 52-week-high's code (its committed results predate it), which also charges trades where the others charge a round trip a period (`cost_model.turnover`); the rest not yet
+**Affects:** every backtest that calls `tiered_cost()` (77 of them)
 **Severity:** Minor. Understates costs outside the US, concentrated in Asia.
 
 `DEFAULT_TIERS` in `costs.py` is calibrated in USD ($10B / $2B breakpoints), but
@@ -2081,6 +2093,17 @@ Sweden -0.09, Canada and Australia -0.05, UK +0.03, Switzerland +0.02, and the U
 Germany 0. The residual: the rate is keyed to the listing exchange, while fcf-conversion's cap is
 in the company's reporting currency, so Hong Kong's CNY reporters are tiered at 7.8 for
 a currency near 7.25, and the UK's USD reporters at 0.79.
+
+`52-week-high`'s code converts the same way, tiering each booked name on its checked cap
+(check M), records `cost_model` as fcf-conversion does, with one more key, and lists each name's
+one-way tier as `cost_rate` in its `--full-holdings` list. Its code is also the first on the `trades` cost
+convention (`"turnover": "trades"` in `cost_model`; METHODOLOGY.md, "Transaction Costs"): it
+charges only real trades, each sized to the trade, where the topics that charge through
+`costs.apply_costs` charge each booked name a round trip every period. So `cost_rate` is the
+rate on what the name trades at that rebalance, and on its sale at the next one if it leaves.
+`scripts/cost_conventions.py` prints a leg's CAGR and excess under both conventions from its
+`--full-holdings` file. 52-week-high's committed results are the October 2026 run's, on the
+unconverted tiers and the round trip, and the same residual applies.
 
 ---
 

@@ -30,6 +30,10 @@ legs that end on different dates (a run-window file's end_date, or a typed end y
 --check exits non-zero if the combined file disagrees with the per-exchange files,
 which makes it usable as a pre-publish gate. It takes the same --drop, --keep or --only
 and reports everything that rebuild would change, plus any ERROR entry.
+
+A per-exchange file from a --full-holdings run lists every booked name in each period row
+(holdings_full), about 0.9 MB for a 30-name quarterly leg. A comparison node leaves those lists
+out, on a rebuild, on --only and in --check, so they live once, in the leg's own file.
 """
 import argparse
 import glob
@@ -80,6 +84,16 @@ def load_per_exchange(results_dir, strategy=None):
     return out, files
 
 
+def lean(node):
+    """A leg's node as the comparison file holds it: its period rows without their holdings_full lists.
+    A node with no such list is returned as it is."""
+    rows = node.get("period_data") if isinstance(node, dict) else None
+    if not isinstance(rows, list) or not any(isinstance(r, dict) and "holdings_full" in r for r in rows):
+        return node
+    return {**node, "period_data": [{k: v for k, v in r.items() if k != "holdings_full"} if isinstance(r, dict)
+                                    else r for r in rows]}
+
+
 def first_diff(a, b, path=""):
     """Where a comparison node (a) first differs from its per-exchange file (b), else None."""
     if isinstance(a, dict) and isinstance(b, dict):
@@ -124,6 +138,7 @@ def main(argv=None):
     per, files = load_per_exchange(results_dir, args.strategy)
     if not per:
         sys.exit("no per-exchange files found")
+    per = {k: lean(v) for k, v in per.items()}
 
     old, old_text = {}, None
     if os.path.exists(combined_path):

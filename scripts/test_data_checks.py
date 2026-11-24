@@ -10,14 +10,24 @@ LTP fill's) or a confirmed or hand-booked candidate of the leg's split_check rec
 them, and each near miss fails, each basis on another symbol among them); factor_review finds the 24 flags at
 0.1pp or more with their recorded effects and nothing left against the list; gate 15 refuses a dc-3 file with an
 unreviewed flag, a stale entry, an unbooked entry or a CAGR that doesn't reproduce; a found_in and the review read
-a diagnostics file (results/diagnostics/<name>.json); each of the five topics books a listed holding end to end in
-drop, ltp and both; and source mutants of data_utils, factor_review and two topics each fail.
+a diagnostics file (results/diagnostics/<name>.json); each of the six topics books a listed holding end to end in
+drop, ltp and both; and source mutants of data_utils, factor_review and three topics each fail. 52-week-high's
+committed files predate its data checks and carry no block (NO_BLOCK_FILES).
 
 Each opted-in topic runs end to end on its synthetic leg with its own data checks version (DC_VERSIONS:
-fcf-conversion on dc-3, the other four on dc-1), and asset-growth and fcf-conversion with their universe rules
+fcf-conversion and 52-week-high on dc-3, the other four on dc-1; the quarterly topics, FREQ, on the quarterly
+grid's dates), 52-week-high on its own copy of the SET leg with daily bars and no ROE on INFL.BK's FY rows, which
+its check M must still read (wh52_source), and asset-growth and
+fcf-conversion with their universe rules
 (ur-2, ur-3), each against a must-fail mutant on an older version, and fcf-conversion's class twins against one
 that never keys them. Gate 15's results check refuses a file holding BCE-PY.TO in a period that exits on or
-after 2026-01-01.
+after 2026-01-01, and a file that states its cost convention (cost_model.turnover) when a row doesn't reproduce
+from its holdings_full or the lists are missing: 52-week-high's plain synthetic file is refused and its
+full-holdings one passes. Such a file is still read for its hand list: one that reproduces and carries a
+hand_stale event is refused. The gate reads from each topic's backtest.py whether it writes that convention
+(52-week-high does, the other five don't), and a costed file that states none is refused in a topic that does.
+The guard's walk over the committed files runs on a temp root: of four files there it refuses the one whose
+topic writes a convention the file doesn't state.
 
 dc-2's check S (stale repeats): in T's windows a run of 4 identical traded rows loses rows 2-4 while
 runs of 3, a new volume or a new close each day, a run split across two windows and the benchmark
@@ -65,7 +75,9 @@ the topic run on ur-1's rules must fail) and its prior-year guard are checked th
 Shared code: against the base commit (BASE, the last one before data checks), isin_dedup_sql
 (twin_key=False) returns the same SQL, LtpExits(traded_only=False) sends the same SQL and builds
 the same temp table, filter_returns' default gives the same output, and every other function,
-class and constant of data_utils is unchanged (ast). Each "must fail" check is also run on a
+class and constant of data_utils is unchanged (ast). cap_check_sql's default text is CAP_SQL_BASE's, the
+query before its require_roe opt-in, and only require_roe=False reads an FY row with no ROE. Each "must fail"
+check is also run on a
 mutant and has to fail: clean_price_cache stubbed (KIO books +299.5%), cap_check empty (SOS and
 ZEST pass the floor), F's detection stubbed, and gate 15 on mutated topic sources (opted-in
 topics with their wiring cut, capped topics with a None cap in any form, an uncapped results file).
@@ -82,6 +94,7 @@ import io
 import json
 import math
 import os
+import pathlib
 import random
 import shutil
 import statistics
@@ -103,10 +116,12 @@ from data_utils import (DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr
                         utc_epoch as ep, utc_date, CAP_INPUTS_DDL)
 from gate_ltp import check_stage_a, has_ltp_keys, strip_ltp, first_diff   # noqa: E402
 import scan_results_invariant as sri   # noqa: E402
-from verify_floor_guard import dc_wiring, dc_uses, dc_results_problem, DATA_CHECKS_TOPICS   # noqa: E402
+from verify_floor_guard import (dc_wiring, dc_uses, dc_results_problem, dc_committed_problems,  # noqa: E402
+                                writes_turnover, DATA_CHECKS_TOPICS)
 from test_floor_guard import NO_RETURN_CAP   # noqa: E402
 
 BASE = "e1ecb7c"   # backtests main before data checks
+CAP_SQL_BASE = "203203b"   # check M's server query before require_roe: its default text stays this one
 
 
 def check(cond, what):
@@ -567,6 +582,32 @@ def m_uint_epoch_failures():
         "DESCRIBE " + cap_check_sql("symbol IN ('EPOCH0')", 1e9, [("2004-11-01", "2004-12-31")])).fetchall()}
     if (types.get("filing_epoch"), types.get("next_split")) != ("BIGINT", "BIGINT"):
         f.append(f"filing_epoch {types.get('filing_epoch')}, next_split {types.get('next_split')}: want BIGINT")
+    return f
+
+
+def cap_sql_roe_failures():
+    """cap_check_sql reads only the FY rows with a returnOnEquity by default, as the topics ranking on ROE fetch
+    their metrics, and every FY row over the floor with require_roe=False, as 52-week-high's metrics keep them."""
+    src = cap_source()
+    fy = date(2019, 12, 31)
+    for s, roe in (("ROE", 0.29), ("NOROE", None)):
+        src.execute("INSERT INTO key_metrics VALUES (?, 'FY', '2019-12-31', ?, ?, 0.1, 5e9)", [s, ep(fy), roe])
+    got = {flag: [r[0] for r in src.execute(cap_check_sql("symbol IN ('ROE', 'NOROE')", 1e9, [("2019-11-16", "2019-12-31")],
+                                                          require_roe=flag)).fetchall()] for flag in (True, False)}
+    want = {True: ["ROE"], False: ["NOROE", "ROE"]}
+    return [] if got == want else [f"rows read {got}, want {want}"]
+
+
+def cap_sql_identity_failures(base_sql, new_sql=cap_check_sql):
+    """cap_check_sql's default text is base_sql's (CAP_SQL_BASE's), so a topic that passes no require_roe sends the
+    query it sent before: on dc-1's and dc-3's rules, a leg filter and none, a floor of 0 and two ranges or none."""
+    f = []
+    for cfg in (DATA_CHECKS_V1, du.DATA_CHECKS_V3):
+        for args in (("symbol IN ('SOS')", 1e9, [("2019-11-16", "2019-12-31")]),
+                     ("1=1", 1e11, [("2004-11-01", "2004-12-31"), ("2010-01-01", "2010-03-31")]),
+                     ("symbol IN (SELECT symbol FROM profile WHERE exchange IN ('SET'))", 0, [])):
+            if new_sql(*args, cfg) != base_sql(*args, cfg):
+                f.append(f"cap_check_sql{args[:2]} on {cfg['version']} differs from {CAP_SQL_BASE}'s")
     return f
 
 
@@ -2415,6 +2456,14 @@ def defensive_source():
     return src
 
 
+# Each data-checks topic's rebalance frequency: the quarterly ones' expectations differ from the annual ones'
+FREQ = {"deleveraging": "quarterly", "52-week-high": "quarterly"}
+
+
+def quarterly(topic):
+    return FREQ.get(topic, "annual") == "quarterly"
+
+
 def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=None, tag="", mod=None,
               use_costs=True, **kw):
     """One synthetic run. run_mode is the exit method this test fixes on purpose (drop, ltp, both). win: the
@@ -2424,7 +2473,7 @@ def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=N
     mod = mod or load_topic(topic)
     out = os.path.join(tmp, f"{topic}.{run_mode}.{data_checks}{'.full' if full_holdings else ''}{tag}.json")
     client = FakeClient(src)
-    freq = "quarterly" if topic == "deleveraging" else "annual"
+    freq = FREQ.get(topic, "annual")
     kw = {**kw, "full_holdings": True} if full_holdings else kw
     with contextlib.redirect_stdout(io.StringIO()):
         mod.run_single(client, ["SET"], "SET", freq, use_costs, 0.02, False, out, offset_days=1,
@@ -2432,6 +2481,11 @@ def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=N
                        win=win if win is not None else du.RunWindow.typed(2025), **kw)
     with open(out) as fh:
         return json.load(fh), client.sqls
+
+
+ITEM_KEYS = {"symbol", "entry_bar", "entry_price", "exit_bar", "exit_price", "exit", "return"}
+# each item also records its name's one-way cost tier (cost_rate); these topics charge trades (costs.trade_costs)
+COST_RATE_TOPICS = {"52-week-high"}
 
 
 def holdings_full_failures(topic, src, tmp):
@@ -2451,6 +2505,8 @@ def holdings_full_failures(topic, src, tmp):
         f.append(f"{topic}: full holdings changed something else: {first_diff(strip(ltp), plain)}")
     if any("holdings_full" in r for r in plain["period_data"]):
         f.append(f"{topic}: holdings_full written without the flag")
+    if dc_results_problem(ltp):   # gate 15: a file that states its cost convention reproduces from these lists
+        f.append(f"{topic}: the results check refuses the full-holdings file: {dc_results_problem(ltp)}")
     g = {"topic": topic, "pairs": [{"published_cagr_path": "portfolio.cagr", "ltp_block_path": "ltp"}]}
     _, probs = check_stage_a(g, runs["both"], runs["drop"], ltp, with_ltp=True)
     f += [f"{topic} full-holdings stage-a: {p}" for p in probs]
@@ -2475,7 +2531,7 @@ def holdings_full_failures(topic, src, tmp):
         n_named += len(names) - len(shown)
         for h in hf:
             # dc-3: a rebuilt holding books its hand return, its adjClose return beside it as return_adj
-            if set(h) - {"return_adj"} != {"symbol", "entry_bar", "entry_price", "exit_bar", "exit_price", "exit", "return"} or \
+            if set(h) - {"return_adj"} != ITEM_KEYS | ({"cost_rate"} if topic in COST_RATE_TOPICS else set()) or \
                     abs(h.get("return_adj", h["return"]) - round(h["exit_price"] / h["entry_price"] - 1, 6)) > 1e-9 or \
                     not h["entry_bar"] < h["exit_bar"] or h["exit"] not in ("window", "last_traded"):
                 f.append(f"{topic} {r['rebalance_date']}: bad item {h}")
@@ -2484,7 +2540,7 @@ def holdings_full_failures(topic, src, tmp):
                 fill = fills.get((r["rebalance_date"], h["symbol"]))
                 if not fill or (fill["last_bar"], fill["ltp"]) != (h["exit_bar"], h["exit_price"]):
                     f.append(f"{topic} {r['rebalance_date']}: {h} does not match its fill {fill}")
-    if topic == "deleveraging" and not n_ltp:
+    if quarterly(topic) and not n_ltp:
         f.append(f"{topic}: no LTP-filled name listed (DLST.BK)")
     if topic == "cyclical-timing" and not n_named:
         f.append(f"{topic}: the synthetic books never pass the 10-name holdings string: the case tests nothing")
@@ -2710,9 +2766,75 @@ def fcf_rules_failures(src, tmp, mod=None, tag=""):
     return f + stand_in_failures(drop)
 
 
+# 52-week-high ranks on prices, so DLST.BK, with no bar after its delisting, is never screened then: WH52_UNPRICED
+# ranks every quarter and has no bar in any entry window, so each invested period lists it as unpriced
+WH52_UNPRICED = "UNP.BK"
+# the lines wh52_source adds: symbol -> (name, ISIN, FY market cap); AG_BR_ORD gets no bar, as in fcf_source
+WH52_ADDED = {AG_BR_ORD: (AG_RULES[AG_BR_ORD][0], AG_RULES[AG_BR_ORD][2], 5.04e10),
+              AG_BR_PREF: (AG_RULES[AG_BR_PREF][0], AG_RULES[AG_BR_PREF][2], 5.05e10),
+              WH52_UNPRICED: ("Unpriced Holdings PCL", "TH3000060001", 5.06e10)}
+WH52_THIN = "A07.BK"   # its added bars trade 10 shares, as its FY2010 December bars do: check M finds no evidence
+# no added bars: two fillers that never reach 100 bars in a lookback, so the uncapped arm, which ranks the NVDR lines
+# and INFL.BK too, still fits the top 30 (else A07.BK's thin 2010 closes cut it there on 2011-01-01)
+WH52_UNRANKED = ("A18.BK", "A19.BK")
+
+
+def wh52_source(src=None):
+    """synthetic_source() as a 52-week-high leg, or src, a copy of it with more rows (the run window's): the universe
+    rules' profile columns with isAdr and industry, WH52_ADDED's lines, a bar for every line on each weekday from
+    1999-01-04 on which the filler A00.BK has none (so a 252-bar lookback holds daily rows), at the quarter's
+    price, except on a day the line already has one, after DLST.BK's delisting, for AG_BR_ORD (whose preferred line
+    then stands in) and WH52_UNRANKED, and for BAD.BK in the 20 days before each CLOSED day but the 11th, its
+    signal bar there (so, as in synthetic_source, the oscillation filter's neighbours of its bad print span more
+    than its 10 and 20 days, and only check T moves the print).
+    STD.BK so ranks on these bars and has no entry bar, so STD-R.BK stands in for it. Every bar's high is its
+    close, and the bars vary through vary(), so dc-2's rule S moves none. INFL.BK's FY rows carry no
+    returnOnEquity: the topic's metrics keep such rows, and check M must read them too."""
+    src = synthetic_source() if src is None else src
+    src.execute("UPDATE key_metrics SET returnOnEquity = NULL WHERE symbol = 'INFL.BK'")
+    rule_columns(src)
+    src.execute("ALTER TABLE profile ADD COLUMN isAdr BOOLEAN")
+    src.execute("UPDATE profile SET isAdr = FALSE")
+    for s, (name, isin, cap) in WH52_ADDED.items():
+        src.execute("INSERT INTO profile VALUES (?, 'SET', 'TH', ?, 'Industrials', 5e10, TRUE, 'THB', ?, NULL, FALSE,"
+                    " FALSE, FALSE)", [s, isin, name])
+        for y in range(1998, 2025):
+            fy = date(y, 12, 31)
+            src.execute("INSERT INTO key_metrics VALUES (?, 'FY', ?, ?, 0.2, 0.1, ?)", [s, fy.isoformat(), ep(fy), cap])
+            src.execute("INSERT INTO income_statement VALUES (?, 'FY', ?, ?, ?, 2e9, 2.0, 1e9, ?)",
+                        [s, fy.isoformat(), ep(fy), 1000.0 * 1.05 ** (y - 1998), (fy + timedelta(days=60)).isoformat()])
+    src.execute("ALTER TABLE profile ADD COLUMN industry VARCHAR")
+    traded = {r[0] for r in src.execute("SELECT date FROM stock_eod WHERE symbol = 'A00.BK'").fetchall()}
+    src.executemany("INSERT INTO stock_eod VALUES (?, ?, ?, ?, ?, ?)",   # window_bars' rows on every A00.BK day
+                    [(AG_BR_PREF, d.isoformat(), ep(d), price(AG_BR_PREF, d), price(AG_BR_PREF, d),
+                      0.0 if d in CLOSED else 1e5) for d in sorted(map(date.fromisoformat, traded))])
+    days = [d for d in weekdays(date(1999, 1, 4), date.fromisoformat(max(traded))) if d.isoformat() not in traded]
+    lines = [r[0] for r in src.execute("SELECT DISTINCT symbol FROM profile ORDER BY 1").fetchall()
+             if r[0] not in (AG_BR_ORD, *WH52_UNRANKED)]
+    quiet = [(c - timedelta(days=k)).isoformat() for c in CLOSED for k in range(1, 21) if k != 11]   # BAD.BK's
+    src.execute("CREATE TEMP TABLE _wh52_px(symbol VARCHAR, q INTEGER, px DOUBLE)")
+    quarters = sorted({(d.year - 2000) * 4 + (d.month - 1) // 3: d for d in days}.items())
+    src.executemany("INSERT INTO _wh52_px VALUES (?, ?, ?)", [(s, q, price(s, d)) for s in lines for q, d in quarters])
+    src.execute("CREATE TEMP TABLE _wh52_days(day VARCHAR, e BIGINT, q INTEGER)")
+    src.executemany("INSERT INTO _wh52_days VALUES (?, ?, ?)",
+                    [(d.isoformat(), ep(d), (d.year - 2000) * 4 + (d.month - 1) // 3) for d in days])
+    src.execute("""
+        INSERT INTO stock_eod SELECT p.symbol, d.day, d.e, p.px, p.px, CASE WHEN p.symbol = ? THEN 10.0 ELSE 1e5 END
+        FROM _wh52_px p JOIN _wh52_days d ON d.q = p.q
+        WHERE NOT EXISTS (SELECT 1 FROM stock_eod x WHERE x.symbol = p.symbol AND x.date = d.day)
+          AND NOT (p.symbol = 'DLST.BK' AND d.day > ?)
+          AND NOT (p.symbol = 'BAD.BK' AND list_contains(?, d.day))
+        ORDER BY p.symbol, d.e""", [WH52_THIN, DELISTED.isoformat(), quiet])
+    src.execute("DROP TABLE _wh52_px")
+    src.execute("DROP TABLE _wh52_days")
+    src.execute("ALTER TABLE stock_eod ADD COLUMN high DOUBLE")
+    src.execute("UPDATE stock_eod SET high = close")
+    return vary(src)
+
+
 # The data checks each opted-in topic runs: its block's version, and its rules the version's config
 DC_VERSIONS = {"deleveraging": "dc-1", "cyclical-timing": "dc-1", "defensive-quality": "dc-1", "asset-growth": "dc-1",
-               "fcf-conversion": "dc-3"}
+               "fcf-conversion": "dc-3", "52-week-high": "dc-3"}
 DC_CONFIGS = {"dc-1": du.DATA_CHECKS_V1, "dc-2": du.DATA_CHECKS_V2, "dc-3": du.DATA_CHECKS_V3}
 
 
@@ -2767,12 +2889,12 @@ def topic_failures(topic, src, tmp, mod=None, tag=""):
             not all(isinstance(v, int) for v in c["rows_moved"].values()):
         f.append(f"{topic}: counts are ints")
     kinds = {(e["check"], e["symbol"]) for e in ev}
-    want_dates = ["2012-01-02", "2012-07-02"] if topic == "deleveraging" else ["2012-07-02"]
+    want_dates = ["2012-01-02", "2012-07-02"] if quarterly(topic) else ["2012-07-02"]
     if [x["date"] for x in dcb["closed_dates"]] != want_dates:
         f.append(f"{topic}: closed dates {dcb['closed_dates']}")
     want = {("exit_bar", "BAD.BK"), ("twin", "TWN.BK"), ("twin", "STD-R.BK"), ("cap", "INFL.BK"),
             ("factor_flag", "BIG.BK"), ("exit_bar", "ZV.BK"), ("entry_bar", "ZV.BK")}
-    if topic == "deleveraging":
+    if quarterly(topic):
         want |= {("entry_bar", "BAD.BK"), ("factor_flag", "A05.BK")}
     elif DATA_CHECKS_TOPICS[topic] == 2:   # a signal with its own floor (cyclical-timing)
         want |= {("signal_cap", "INFL.BK")}
@@ -2792,7 +2914,7 @@ def topic_failures(topic, src, tmp, mod=None, tag=""):
     if any(e["symbol"] == "A07.BK" and e["check"] in ("cap", "signal_cap") for e in ev):
         f.append(f"{topic}: A07.BK has a cap event, but an unchecked row keeps FMP's cap")
     held = lambda res: {r["rebalance_date"] for r in res["period_data"] if "A07.BK" in r["holdings"].split(",")}
-    fy10 = {"2011-04-01", "2011-07-01", "2011-10-01", "2012-01-01"} if topic == "deleveraging" else {"2011-07-01"}
+    fy10 = {"2011-04-01", "2011-07-01", "2011-10-01", "2012-01-01"} if quarterly(topic) else {"2011-07-01"}
     if not fy10 <= held(unc) or held(ltp) != held(unc):
         f.append(f"{topic}: A07.BK not held at {sorted(fy10 - held(ltp))} (books on its FY2010 row), or held "
                  f"apart from the uncapped arm: {sorted(held(ltp) ^ held(unc))}")
@@ -2814,9 +2936,15 @@ def topic_failures(topic, src, tmp, mod=None, tag=""):
     if not (fl["traded_only"] and all("ltp_close" in x and "factor_check" in x for x in fl["fills"])
             and "factor_flagged" in fl and fl.get("large_move_fills") == len(fl.get("large_moves", [None]))):
         f.append(f"{topic}: ltp block lacks traded_only provenance")
-    if dc_results_problem(ltp) or not dc_results_problem(unc):
-        f.append(f"{topic}: the results check must pass mode on and refuse the uncapped arm")
-    if topic == "deleveraging" and not (fl["fills"] and fl["zero_volume_rows_moved"] >= 1):
+    refused = dc_results_problem(ltp)
+    if topic in COST_RATE_TOPICS:   # it states its cost convention: gate 15 recomputes its rows from holdings_full
+        if "holdings_full" not in (refused or ""):
+            f.append(f"{topic}: the results check must refuse a file without holdings_full, got {refused}")
+    elif refused:
+        f.append(f"{topic}: the results check must pass mode on, got {refused}")
+    if not dc_results_problem(unc):
+        f.append(f"{topic}: the results check must refuse the uncapped arm")
+    if quarterly(topic) and not (fl["fills"] and fl["zero_volume_rows_moved"] >= 1):
         f.append(f"{topic}: DLST.BK's LTP fill skips its stale zero-volume print ({fl['fills']})")
     ub = unc["data_checks"]
     if ub["mode"] != "uncapped" or ub["events"] or ub["large_moves"] or ub["closed_dates"] or ub["cap_unchecked"] or \
@@ -2825,7 +2953,7 @@ def topic_failures(topic, src, tmp, mod=None, tag=""):
     if "traded_only" in unc["ltp"]:
         f.append(f"{topic}: the uncapped arm's LTP is the plain one")
     # what the checks did, visible against the uncapped arm: BAD.BK's closed-day exit
-    bad = "2011-10-01" if topic == "deleveraging" else "2011-07-01"
+    bad = "2011-10-01" if quarterly(topic) else "2011-07-01"
     pr = lambda res: next(r["portfolio_return"] for r in res["period_data"] if r["rebalance_date"] == bad)
     if not pr(unc) > pr(ltp) + 0.05:
         f.append(f"{topic}: {bad} uncapped {pr(unc)} vs on {pr(ltp)}: BAD.BK's +246% should only be in the uncapped arm")
@@ -3120,8 +3248,8 @@ def hand_list_failures(root=ROOT, entries=None):
     return f
 
 
-# Every data-checks topic's committed files carry a data_checks block.
-NO_BLOCK_FILES = {}
+# The data-checks topics' committed files with no data_checks block, by topic: 52-week-high's predate its data checks.
+NO_BLOCK_FILES = {"52-week-high": 18}
 
 
 def review_failures(root=ROOT, effects=None, entries=None, no_block=None):
@@ -3370,7 +3498,11 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
     ltp, both and ltp with full holdings: that period's portfolio_return (and portfolio_return_ltp under both)
     moves by (booked minus raw) over the names held, costs unchanged; one hand event; the data_checks block is
     the same across exit methods and stage-a passes; holdings_full shows the booked return with return_adj
-    beside it; factor_review finds nothing. mod_src: the topic source to run (a mutant)."""
+    beside it; factor_review finds nothing. A topic that charges trades (COST_RATE_TOPICS) drifts its book on the
+    booked return, so the row after the hand row pays for it: every row of the full-holdings file reproduces from
+    its items (scripts/cost_conventions.py), and every row of both's portfolio_return_ltp is the ltp run's
+    portfolio_return. mod_src: the topic source to run (a mutant)."""
+    import cost_conventions
     import factor_review as fr
 
     def load():
@@ -3417,6 +3549,17 @@ def hand_topic_failures(topic, src, tmp, mod_src=None):
                 if x["symbol"] == h["symbol"])
     if (item.get("return"), item.get("return_adj")) != (round(raw + 0.5, 6), raw):
         f.append(f"{topic}: holdings_full item {item}")
+    if topic in COST_RATE_TOPICS:
+        bad = cost_conventions.check(runs[("ltp", True)])["bad"]
+        if bad:
+            f.append(f"{topic}: rows that don't reproduce from their items (date, stored, recomputed): {bad[:3]}")
+        # the script reads the main book only, so both's LTP series is held to the ltp run row by row (a cash
+        # row has no portfolio_return_ltp)
+        off = [(b["rebalance_date"], b["portfolio_return_ltp"], l["portfolio_return"])
+               for b, l in zip(both["period_data"], runs[("ltp", False)]["period_data"])
+               if "portfolio_return_ltp" in b and abs(b["portfolio_return_ltp"] - l["portfolio_return"]) > 2e-6]
+        if off:
+            f.append(f"{topic} both: portfolio_return_ltp off the ltp run's rows (date, both, ltp): {off[:3]}")
     return f
 
 
@@ -3459,6 +3602,16 @@ HAND_TOPIC_MUTANTS = {
     "the both-branch's hand list skipped": (
         "cyclical-timing",
         "            c_ltp = dc.hand(c_ltp, entry_date, exit_date, filled=ltp_fill, record=False)\n", ""),
+    "52-week-high's cost walk reads the returns from before the hand list": (
+        "52-week-high",
+        'note_book("portfolio_return", clean, rates, port_return)',
+        'note_book("portfolio_return", [(s, booked[s] / entry_prices[s] - 1, mc) for s, _, mc in clean], rates,'
+        ' port_return)'),
+    "52-week-high's LTP series walks the returns from before the hand list": (
+        "52-week-high",
+        '            note_book("portfolio_return_ltp", c_ltp, rates_ltp, mean_ltp)',
+        '            c_ltp = [(s, exit_ltp[s] / entry_prices[s] - 1, mc) for s, _, mc in c_ltp]\n'
+        '            note_book("portfolio_return_ltp", c_ltp, rates_ltp, mean_ltp)'),
 }
 
 
@@ -3511,6 +3664,15 @@ def gate15_failures():
             check(m != src, f"gate 15 mutant {label} found nothing to change in {t}")
             if not dc_wiring(ast.parse(m), n):
                 f.append(f"gate 15 misses {label} in {t}")
+        # the gate reads from the source whether the topic's results state their cost convention
+        if writes_turnover(ast.parse(src)) != (t in COST_RATE_TOPICS):
+            f.append(f"gate 15 reads {t} as {'writing' if t not in COST_RATE_TOPICS else 'not writing'} a turnover "
+                     "convention")
+        if t in COST_RATE_TOPICS:
+            m = src.replace(', "turnover": "trades"}', "}", 1)
+            check(m != src, f"gate 15's turnover mutant found nothing to change in {t}")
+            if writes_turnover(ast.parse(m)):
+                f.append(f"gate 15 reads {t} without its turnover key as still writing the convention")
     # a capped topic that drops its cap without opting in: every form of a None cap is a use
     ld = open(os.path.join(ROOT, "low-debt", "backtest.py")).read()
     gn = open(os.path.join(ROOT, "graham-net-net", "backtest.py")).read()
@@ -3539,34 +3701,146 @@ def bce_file(entry, exit_):
             "period_data": [{"rebalance_date": entry, "exit_date": exit_, "holdings": "BCE.TO,BCE-PY.TO"}]}
 
 
-def results_check_failures(problem=dc_results_problem):
+def trades_file(stored=0.095, full=True, turnover="trades"):
+    """A mode-on file whose cost_model states `turnover` (None: no key): one name entered at 0.5% and up 10%,
+    which reads 0.095 when trades are charged and 0.09 on a round trip. full: the row lists its holdings."""
+    row = {"rebalance_date": "2025-01-01", "exit_date": "2025-04-01", "portfolio_return": stored, "stocks_held": 1,
+           "holdings": "A"}
+    if full:
+        row["holdings_full"] = [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]
+    cm = {"function": "costs.tiered_cost", "fx_per_usd": 1.0, **({"turnover": turnover} if turnover else {})}
+    return {"data_checks": {"mode": "on"}, "cost_model": cm, "period_data": [row]}
+
+
+def trades_dc3_file(stale=False):
+    """A mode-on file with a hand list (dc-3) that states the trades convention and reproduces from its lists:
+    one name entered at 0.5% and held three quarters, up 10% in each. It reads 0.095, then 0.1 twice, since a name
+    held alone has no drift to trade, and its CAGR and excess are its rows'. stale: a hand_stale event, a
+    hand-list fault the cost check can't see."""
+    import factor_review as fr
+    rows = [{"rebalance_date": d, "exit_date": x, "portfolio_return": p, "spy_return": 0.02, "stocks_held": 1,
+             "holdings": "A", "holdings_full": [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]}
+            for d, x, p in (("2024-07-01", "2024-10-01", 0.095), ("2024-10-01", "2025-01-01", 0.1),
+                            ("2025-01-01", "2025-04-01", 0.1))]
+    events = [{"rebalance_date": "2024-10-01", "symbol": "A", "check": "hand_stale", "side": None}] if stale else []
+    res = {"frequency": "quarterly", "period_data": rows,
+           "cost_model": {"function": "costs.tiered_cost", "fx_per_usd": 1.0, "turnover": "trades"},
+           "data_checks": {"mode": "on", "version": "dc-3", "events": events,
+                           "rules": {"factor_hand": {"entries": [], "review_min_pp": 0.1}}}}
+    c, x = fr._cagr_excess(res, rows, [r["portfolio_return"] for r in rows])
+    res["portfolio"], res["comparison"] = {"cagr": round(c, 2)}, {"excess_cagr": round(x, 2)}
+    return res
+
+
+def committed_scan_failures(scan=dc_committed_problems):
+    """Gate 15's walk over the committed files (dc_committed_problems), on a temp root. 52-week-high's own
+    backtest.py, which writes its turnover convention, sits beside two results files with a data_checks block:
+    one that states the trades convention and reproduces, and one with a two-key cost_model and round-trip rows,
+    as the code before the convention wrote. fcf-conversion's backtest.py, which writes no convention, sits beside
+    that same two-key file, and so does a source typed here, under asset-growth's name, that holds a turnover key
+    outside its cost_model. All four are counted, and only 52-week-high's two-key file is refused, for the
+    convention it doesn't state."""
+    old = "52-week-high/results/returns_OLD.json"
+    files = {"52-week-high/results/returns_GOOD.json": trades_file(), old: trades_file(stored=0.09, turnover=None),
+             "fcf-conversion/results/returns_OLD.json": trades_file(stored=0.09, turnover=None),
+             "asset-growth/results/returns_OLD.json": trades_file(stored=0.09, turnover=None)}
+    with tempfile.TemporaryDirectory() as tmp:
+        for t in ("52-week-high", "fcf-conversion", "asset-growth"):
+            os.makedirs(os.path.join(tmp, t, "results"))
+        for t in ("52-week-high", "fcf-conversion"):
+            shutil.copy(os.path.join(ROOT, t, "backtest.py"), os.path.join(tmp, t))
+        with open(os.path.join(tmp, "asset-growth", "backtest.py"), "w") as fh:
+            fh.write('OUT = {"cost_model": {"function": "costs.tiered_cost"}, "liquidity": {"turnover": 0.4}}\n')
+        for rel, res in files.items():
+            with open(os.path.join(tmp, rel), "w") as fh:
+                json.dump(res, fh)
+        try:
+            n, found = scan(pathlib.Path(tmp))
+        except Exception as e:   # the guard calls it: a raise stops every gate after it
+            return [f"the walk over committed files raises {type(e).__name__}: {e}"]
+    if n != len(files) or [p for p, _ in found] != [old] or "turnover" not in found[0][1]:
+        return [f"the walk over committed files counts {n} with a block and refuses {found}, want {len(files)} and "
+                f"{old} for its turnover"]
+    return []
+
+
+def results_check_failures(problem=dc_results_problem, scan=dc_committed_problems):
     """Gate 15's results check: only a mode-on block may sit in a committed results file, on dc-3 one with no
     hand-list fault, and none holding BCE-PY.TO in a period that exits on or after 2026-01-01 (from then its
-    series is a preferred's price): the 2025 book and the 2026 partial period are refused, the 2024 book isn't."""
+    series is a preferred's price): the 2025 book and the 2026 partial period are refused, the 2024 book isn't.
+    A file whose cost_model states its turnover convention must reproduce each row from its holdings_full under
+    that convention (scripts/cost_conventions.py): a row on the other convention, a file without the lists
+    (whatever its row stores: 0.0 reads as a cash row to a check that doesn't ask for the list), an item without
+    its return and a convention that isn't built (a reserved, null or empty turnover) are refused, and a file that
+    states none is not read for it. Such a file is still read for its hand list: one that reproduces passes, and
+    the same file with a hand_stale event is refused.
+    In a topic whose backtest.py writes its convention (stated), a costed file must state it: a two-key
+    cost_model there is refused, with or without lists, while a no-costs file, a file with no cost_model and one
+    with no data_checks block have none to state. The walk over a root's committed files hands each to this check
+    with its topic's reading (committed_scan_failures)."""
     f = []
     sto = json.load(open(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json")))
-    for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
-                     ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True),
-                     (dc3_file(sto), False), (dc3_file(sto, stale=True), True),
-                     (bce_file("2025-07-01", "2026-07-01"), True), (bce_file("2026-07-01", "2026-11-06"), True),
-                     (bce_file("2024-07-01", "2025-07-01"), False), (bce_file("2025-10-01", "2026-01-01"), True),
-                     ({"data_checks": {"mode": "on"}, "period_data": [
-                         {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01"}]}, False),
-                     ({"data_checks": {"mode": "on"}, "period_data": [
-                         {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01", "holdings": "BCE.TO",
-                          "holdings_full": [{"symbol": "BCE-PY.TO"}]}]}, True)):
-        if bool(problem(res)) != bad:
-            label = res if len(json.dumps(res)) < 200 else f"Sweden's file on dc-3, bad={bad}"
-            f.append(f"dc_results_problem({label}) {problem(res)}")
-    return f
+    no_return, null_turnover, empty_turnover = trades_file(), trades_file(), trades_file()
+    del no_return["period_data"][0]["holdings_full"][0]["return"]
+    null_turnover["cost_model"]["turnover"], empty_turnover["cost_model"]["turnover"] = None, ""
+    probes = [(res, False, bad) for res, bad in (
+        ({}, False), ({"data_checks": {"mode": "on"}}, False),
+        (trades_file(), False), (trades_file(stored=0.09), True), (trades_file(full=False), True),
+        (trades_file(stored=0.0, full=False), True), (no_return, True),
+        (trades_file(turnover="traded"), True), (null_turnover, True), (empty_turnover, True),
+        (trades_file(stored=0.09, turnover="round_trip"), False),
+        (trades_file(turnover="round_trip"), True), (trades_file(stored=0.09, turnover=None), False),
+        (trades_file(full=False, turnover=None), False),
+        (trades_dc3_file(), False), (trades_dc3_file(stale=True), True),
+        ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True),
+        (dc3_file(sto), False), (dc3_file(sto, stale=True), True),
+        (bce_file("2025-07-01", "2026-07-01"), True), (bce_file("2026-07-01", "2026-11-06"), True),
+        (bce_file("2024-07-01", "2025-07-01"), False), (bce_file("2025-10-01", "2026-01-01"), True),
+        ({"data_checks": {"mode": "on"}, "period_data": [
+            {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01"}]}, False),
+        ({"data_checks": {"mode": "on"}, "period_data": [
+            {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01", "holdings": "BCE.TO",
+             "holdings_full": [{"symbol": "BCE-PY.TO"}]}]}, True))]
+    probes += [(res, True, bad) for res, bad in (
+        (trades_file(), False), (trades_file(stored=0.09), True),
+        (trades_file(stored=0.09, turnover=None), True), (trades_file(full=False, turnover=None), True),
+        ({**trades_file(), "cost_model": None}, False), (null_turnover, True),
+        ({"data_checks": {"mode": "on"}}, False), ({}, False))]
+    for res, stated, bad in probes:
+        try:
+            why, answered = (problem(res, True) if stated else problem(res)), True
+        except Exception as e:   # the gate has to answer: a raise stops the guard with no RESULTS line
+            why, answered = f"raises {type(e).__name__}", False
+        if not answered or bool(why) != bad:
+            label = res if len(json.dumps(res)) < 500 else f"a dc-3 file of {len(res['period_data'])} rows, bad={bad}"
+            f.append(f"dc_results_problem({label}{', in a topic that writes its convention' if stated else ''}) {why}")
+    return f + committed_scan_failures(scan)
 
 
+STATED = "stated = src.exists() and writes_turnover(ast.parse(src.read_text()))"
 GATE15_RESULTS_MUTANTS = {
     "BCE-PY.TO tested on the entry date": ('(r.get("exit_date") or "") >= BCE_PY_FROM',
                                            '(r.get("rebalance_date") or "") >= BCE_PY_FROM'),
     "an exit on the day itself let through": ('(r.get("exit_date") or "") >= BCE_PY_FROM',
                                               '(r.get("exit_date") or "") > BCE_PY_FROM'),
     "holdings_full not read": ('| {h.get("symbol") for h in row.get("holdings_full") or []}', ''),
+    "a stated cost convention not checked": ('if isinstance(cm, dict) and "turnover" in cm:', "if False:"),
+    "a file that states no convention checked too": ('if isinstance(cm, dict) and "turnover" in cm:',
+                                                     "if isinstance(cm, dict):"),
+    "a null or empty turnover read as no stated convention": ('if isinstance(cm, dict) and "turnover" in cm:',
+                                                              'if isinstance(cm, dict) and cm.get("turnover"):'),
+    "the factor review skipped on a file that states a convention": (
+        "        why = cost_conventions.problem(res)\n        if why:\n            return why\n",
+        "        return cost_conventions.problem(res)\n"),
+    "a costed file that states no convention passed in a topic that writes one": (
+        '    if stated and cm is not None and not (isinstance(cm, dict) and "turnover" in cm):\n', "    if False:\n"),
+    "a no-costs file asked to state a convention": ("if stated and cm is not None and not (", "if stated and not ("),
+    "the committed files never handed to the results check": ("            why = dc_results_problem(res, stated)\n",
+                                                              "            why = None\n"),
+    "no topic read as writing its convention": (STATED, "stated = False"),
+    "every topic read as writing its convention": (STATED, "stated = True"),
+    "a turnover key anywhere in the source read as the convention": (
+        'isinstance(k, ast.Constant) and k.value == "cost_model" and any(', "any("),
 }
 
 
@@ -3584,7 +3858,7 @@ def gate15_results_mutant_failures(tmp):
         spec = importlib.util.spec_from_file_location(f"vfg_mutant_{i}", path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        if not results_check_failures(mod.dc_results_problem):
+        if not results_check_failures(mod.dc_results_problem, mod.dc_committed_problems):
             f.append(f"gate 15 results mutant {label} passes every check")
     return f
 
@@ -3643,6 +3917,12 @@ def main():
     expect("M rule", cap_rule_failures())
     expect("M server SQL", cap_sql_failures())
     expect("M server SQL on UINTEGER epochs, a split record at epoch 0", m_uint_epoch_failures())
+    expect("M server SQL: a row with no ROE read only with require_roe=False", cap_sql_roe_failures())
+    with tempfile.TemporaryDirectory() as tmp:
+        cap_base = load_base(tmp, CAP_SQL_BASE)[0].cap_check_sql
+        expect(f"M server SQL: the default text is {CAP_SQL_BASE}'s", cap_sql_identity_failures(cap_base))
+        expect_fail("M server SQL with require_roe=False the default",
+                    cap_sql_identity_failures(cap_base, lambda *a: cap_check_sql(*a, require_roe=False)))
     expect("M at every floor", cap_screen_failures())
     expect_fail("M with cap_check empty (SOS, ZEST pass)", cap_screen_failures(with_check=False))
     # cases from the same-day runs
@@ -3686,7 +3966,7 @@ def main():
             expect(name, failures + ([stale] if failures else []))
     # every opted-in topic end to end, and gate 15
     srcs = {"defensive-quality": defensive_source(), "asset-growth": asset_growth_source(),
-            "fcf-conversion": fcf_source()}
+            "fcf-conversion": fcf_source(), "52-week-high": wh52_source()}
     src = synthetic_source()
     with tempfile.TemporaryDirectory() as tmp:
         for t in DATA_CHECKS_TOPICS:

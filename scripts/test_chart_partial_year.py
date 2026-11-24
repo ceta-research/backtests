@@ -11,17 +11,23 @@ A run on the run window keeps full years in annual_returns and a short final yea
   2 FULL      a run-window file whose final year is full (a stub under 7 days): the full-year series,
               and the close its last exit used in the window text
   3 LEGACY    a file with no end_date (asset-growth's results at LEGACY_REF, before the run window)
-              gives the same series and the same window text as before
-  4 CHARTS    for each topic in CHART_TOPICS (asset-growth, fcf-conversion), its generate_charts.py draws
-              every chart of its typed-year comparison file (pinned at the topic's legacy ref) as the base
-              ref did (same files, titles, footers, lines and bars), draws a partial leg with the helpers'
-              series and window text, and types no window in its source
+              gives the same series and the same window text as before, and no title suffix
+  4 CHARTS    for each topic in CHART_TOPICS (asset-growth, fcf-conversion, 52-week-high), its
+              generate_charts.py draws every chart of its typed-year comparison file (pinned at the topic's
+              legacy ref) as the base ref did (same files, titles, footers, lines and bars; 52-week-high's
+              with the port's one named change, wh52_legacy), draws a partial leg with the helpers' series
+              and its own window text, and types no window in its source
   5 MUTANTS   each rule above, broken in a copy of chart_utils.py or a topic's generate_charts.py, fails a check
+
+52-week-high's committed results predate its run window, so its legacy file is its typed-year comparison at
+the ref the port branched from, as fcf-conversion's was until its rerun. Its base script is pinned there too
+(base_ref), since wh52_legacy turns that script's charts into the port's.
 
 Nothing is written under a topic's folder: savefig (pyplot's and Figure's) is replaced by a recorder, and
 each chart script runs from a copy in a temp dir.
 
-Usage:  python scripts/test_chart_partial_year.py [--base REF]   (REF defaults to the merge base with origin/main)
+Usage:  python scripts/test_chart_partial_year.py [--base REF]   (REF defaults to the merge base with origin/main;
+        a topic with a base_ref reads its base script there whatever REF is)
 """
 import argparse
 import contextlib
@@ -159,6 +165,11 @@ def partial_failures(cu, data):
         f.append(f"partial_note {note!r} lacks the partial year's dates")
     if cu.windows_text({US: e, "NSE": run_window_leg(data["NSE"])}, [US, "NSE"]) != f"2000 to {END}":
         f.append("windows_text over two run-window legs")
+    for bars in (False, True):
+        if cu.leg_window(e, bars=bars) != f", 2000 to {END}":
+            f.append(f"leg_window(bars={bars}) {cu.leg_window(e, bars=bars)!r}, not ', 2000 to {END}'")
+    if cu.run_window({US: e, "NSE": data["NSE"]}, [US, "NSE"]) != f" (2000 to {END} / 2000-2025)":
+        f.append(f"run_window with a run-window leg {cu.run_window({US: e, 'NSE': data['NSE']}, [US, 'NSE'])!r}")
     short = run_window_leg(data[US])
     short["annual_returns"] = []
     if cu.growth_series(short, "portfolio") != ([2026, 2026 + py["year_fraction"]], [10000, 10000 * 1.042]):
@@ -182,6 +193,8 @@ def full_failures(cu, data):
     no_close = dict(e, priced_to=None)
     if cu.window_text(no_close) != f"2000 to {FULL_END}":
         f.append(f"window_text without priced_to {cu.window_text(no_close)!r}, not end_date")
+    if cu.leg_window(e) != f", 2000 to {FULL_PRICED}":
+        f.append(f"leg_window on a full final year {cu.leg_window(e)!r}")
     if cu.partial_note(e) != "":
         f.append("partial_note on a full final year")
     return f
@@ -206,8 +219,12 @@ def legacy_failures(cu, data):
         if cu.window_text(e) != "2000-2025" or cu.window_text(e, bars=True) != "2000-2024":
             f.append(f"{k}: window text {cu.window_text(e)!r} / {cu.window_text(e, bars=True)!r}, "
                      "not the file's 2000-2025 / bar years 2000-2024")
+        if cu.leg_window(e) != "" or cu.leg_window(e, bars=True) != "":
+            f.append(f"{k}: a legacy leg's title takes a window suffix")
     if cu.windows_text(data, keys) != "2000-2025":
         f.append(f"windows_text {cu.windows_text(data, keys)!r}")
+    if cu.run_window(data, keys) != "":
+        f.append(f"run_window over legacy legs {cu.run_window(data, keys)!r}")
     bare = {k: v for k, v in copy.deepcopy(data[US]).items() if k != "window_label"}
     if cu.window_text(bare) != "2000-2025":
         f.append(f"a leg without window_label: {cu.window_text(bare)!r}, not its annual span")
@@ -294,7 +311,7 @@ def charts_failures(cu, path, base, data, topic="asset-growth"):
     if sorted(figs) != sorted(base):
         f.append(f"chart set {sorted(figs)} differs from the base's {sorted(base)}")
     for name in sorted(set(figs) & set(base)):
-        if figs[name] != base[name]:
+        if figs[name] != t.get("legacy", lambda _n, fig, _got: fig)(name, base[name], figs[name]):
             f.append(f"legacy {name} differs from the base")
     legs = {k: run_window_leg(v) for k, v in data.items()}
     if t["partial"] == "data":   # the script read its results at import
@@ -304,19 +321,20 @@ def charts_failures(cu, path, base, data, topic="asset-growth"):
             json.dump(legs, fh)
     with recorded() as figs:
         run_main(mod)
-    window = f"2000 to {END}"
     for name, fig in sorted(figs.items()):
         ax = fig["axes"][0]
-        if not ax["title"].endswith(t["title_end"].format(window)) or "2000-2025" in ax["title"]:
-            f.append(f"partial {name}: title {ax['title']!r} lacks the file's window")
         leg = legs.get(t["slugs"].get(name.split("_")[t["slug_at"]]))
+        window = cu.window_text(leg) if leg is not None else f"2000 to {END}"   # a leg's own measured start
+        ends = t["title_end"] if isinstance(t["title_end"], tuple) else (t["title_end"],)
+        if not any(ax["title"].endswith(e.format(window)) for e in ends) or "2000-2025" in ax["title"]:
+            f.append(f"partial {name}: title {ax['title']!r} lacks the file's window")
         if leg is None:
             continue
         if t["leg_footer"] and not any(window in x for x in fig["footers"]):
             f.append(f"partial {name}: footer {fig['footers']} lacks the file's window")
         if name.endswith("_cumulative_growth.png"):
             for field in ("portfolio", "spy"):
-                xs, vals = cu.growth_series(leg, field)
+                xs, vals = cu.growth_series(leg, field, t.get("initial", 10000))
                 if [(float(x), float(v)) for x, v in zip(xs, vals)] not in ax["lines"]:
                     f.append(f"partial {name}: no line draws growth_series({field})")
             if t["end_label"] and not any(END in x for x, _ in ax["texts"]):
@@ -355,6 +373,13 @@ CU_MUTANTS = [
     ("window end ignores priced_to", 'return entry.get("priced_to") or entry["end_date"]',
      'return entry["end_date"]'),
     ("legacy bars read window_label", "    if bars and annual:\n", "    if False:\n"),
+    ("per-leg titles without the window", "def leg_window(entry, bars=False):\n",
+     'def leg_window(entry, bars=False):\n    return ""\n'),
+    ("per-leg window on typed-year files too", 'if window_end(entry) else ""', 'if True else ""'),
+    ("comparison titles without the window", "def run_window(results, keys):\n",
+     'def run_window(results, keys):\n    return ""\n'),
+    ("comparison window on typed-year files too", 'if any(window_end(results[k]) for k in keys) else ""',
+     'if True else ""'),
 ]
 
 GC_MUTANTS = [
@@ -377,19 +402,58 @@ FCF_GC_MUTANTS = [
      '    spy = annual_bars({**entry, "partial_year": None}, "spy")[1]'),
     ("partial bars not hatched", "    hatch_partial(groups, entry)\n", ""),
     ("annual footer without the partial note", "    note = partial_note(entry)\n", '    note = ""\n'),
-    ("per-leg titles without the window", "def leg_window(entry, bars=False):\n",
-     'def leg_window(entry, bars=False):\n    return ""\n'),
-    ("per-leg window on typed-year files too", 'if window_end(entry) else ""', 'if True else ""'),
+    ("per-leg titles without the window", "({exchange}{leg_window(entry)})", "({exchange})"),
     ("drawdown title without the window", "Max Drawdown by Exchange{run_window(results, exchanges)}",
      "Max Drawdown by Exchange"),
-    ("drawdown window on typed-year files too", 'if any(window_end(results[k]) for k in keys) else ""',
-     'if True else ""'),
 ]
 
-# What differs by topic: the legacy comparison file (ref) and the chart count it draws, how a file name names its
+# 52-week-high's typed-year charts are the base's with the port's one change: each cumulative series is on
+# growth_series' axis, its points a year later than before (each value at its period's end, as
+# benchmark_cumulative(period_end=True) has it), so the axis's automatic year ticks move with it. The CAGR chart
+# prints no count of the legs that beat their own benchmark, so its footer is the base's.
+WH52_SLUGS = {"us": US, "india": "NSE", "uk": "LSE", "germany": "XETRA", "japan": "JPX", "china": "SHZ_SHH",
+              "hongkong": "HKSE", "korea": "KSC", "taiwan": "TAI", "canada": "TSX", "switzerland": "SIX",
+              "sweden": "STO", "thailand": "SET", "southafrica": "JNB", "norway": "OSL", "italy": "MIL",
+              "malaysia": "KLS", "singapore": "SES", "australia": "ASX", "brazil": "SAO"}
+
+
+def wh52_legacy(name, fig, got):
+    """The base's snapshot of a 52-week-high typed-year chart, with the port's change (got: the new snapshot,
+    whose automatic ticks a cumulative chart takes)."""
+    fig = copy.deepcopy(fig)
+    if name.endswith("_cumulative_growth.png"):
+        for ax, ax_got in zip(fig["axes"], got["axes"]):
+            ax["lines"] = [[(x + 1, y) for x, y in ln] for ln in ax["lines"]]
+            ax["xticks"] = ax_got["xticks"]
+    return fig
+
+
+WH52_SERIES = ('x, port_curve = growth_series(data, "portfolio", initial=1.0)\n'
+               '    bench_curve = growth_series(data, "spy", initial=1.0)[1]\n')
+WH52_GC_MUTANTS = [
+    ("cumulative series without the partial point", WH52_SERIES,
+     WH52_SERIES.replace("growth_series(data,", 'growth_series({**data, "partial_year": None},')),
+    ("cumulative series on the old axis", WH52_SERIES, WH52_SERIES + "    x = [v - 1 for v in x]\n"),
+    ("annual bars without the partial year",
+     'years, port_rets = annual_bars(data, "portfolio")\n    bench_rets = annual_bars(data, "spy")[1]',
+     'years, port_rets = annual_bars({**data, "partial_year": None}, "portfolio")\n'
+     '    bench_rets = annual_bars({**data, "partial_year": None}, "spy")[1]'),
+    ("partial bars not hatched", "    hatch_partial(groups, data)\n", ""),
+    ("annual footer without the partial note", "    note = partial_note(data)\n", '    note = ""\n'),
+    ("cumulative title without the window", "+ (leg_window(data) or (", "+ (("),
+    ("annual title without the window", "{label}{leg_window(data, bars=True)}", "{label}"),
+    ("CAGR title without the window", "Local Benchmark{run_window(all_data, list(legs))}", "Local Benchmark"),
+    ("drawdown title without the window", "by Exchange{run_window(all_data, list(legs))}", "by Exchange"),
+    ("a truncated leg ranked", '        if data.get("window_truncated"):\n            cut.append',
+     '        if False:\n            cut.append'),
+]
+
+# What differs by topic: the legacy comparison file (ref) and the chart count it draws, the base script's ref when the
+# legacy transform assumes one (base_ref; else the run's base), how a file name names its
 # leg (slugs, the name's part at slug_at), how the partial legs reach the script (module data set after import, or
-# its results/ file, which main() reads), how a title ends, the per-leg footer and end label (asset-growth's), the
-# annual bars' order, the script's mutants and its charts folder.
+# its results/ file, which main() reads), how a title ends (one ending, or a tuple of them), the per-leg footer and
+# end label (asset-growth's), the annual bars' order, the cumulative series' start (initial, 10000 unless given), the
+# typed-year charts' named changes from the base (legacy), the script's mutants and its charts folder.
 CHART_TOPICS = {
     "asset-growth": {"legacy_ref": LEGACY_REF, "charts": 20, "slugs": SLUGS, "slug_at": 0, "partial": "data",
                      "title_end": "({})", "leg_footer": True, "end_label": True, "bar_order": ("spy", "portfolio"),
@@ -397,6 +461,11 @@ CHART_TOPICS = {
     "fcf-conversion": {"legacy_ref": "2a741b7", "charts": 34, "slugs": FCF_SLUGS, "slug_at": 1, "partial": "results",
                        "title_end": "{})", "leg_footer": False, "end_label": False,
                        "bar_order": ("portfolio", "spy"), "mutants": FCF_GC_MUTANTS},
+    "52-week-high": {"legacy_ref": "203203b", "base_ref": "203203b", "charts": 38, "slugs": WH52_SLUGS, "slug_at": 1,
+                     "partial": "results",
+                     "title_end": ("{}", "{})"), "leg_footer": False, "end_label": False,
+                     "bar_order": ("portfolio", "spy"), "initial": 1.0, "legacy": wh52_legacy,
+                     "mutants": WH52_GC_MUTANTS},
 }
 
 
@@ -440,7 +509,7 @@ def main():
             check(False, x)
         bases, srcs, tdata = {}, {}, {}
         for t, spec in CHART_TOPICS.items():
-            bases[t] = base_figures(tmp, ref, t)
+            bases[t] = base_figures(tmp, spec.get("base_ref", ref), t)
             check(len(bases[t]) == spec["charts"], f"{t}: the base drew {len(bases[t])} charts, not {spec['charts']}")
             srcs[t] = open(os.path.join(ROOT, t, "generate_charts.py")).read()
             tdata[t] = json.loads(legacy_json(t))

@@ -5,8 +5,9 @@ For each topic of scripts/gate_legs/wave3.json, a copy of its returns_*.json and
 stand-in ltp run under every _outputs name, then the wave 3 section's `git rm` and
 `rebuild_comparison.py` lines are applied as written. A topic passes when each rebuild and its `--check`
 twin exit 0, every comparison node is an installed run, the keys are the live comparison's (BSE_NSE
-read as NSE, the india legs' key), and no returns_*.json from before the rerun is left. A topic with
-no comparison file must have no rebuild line. Every doc mutant below must fail.
+read as NSE, the india legs' key) plus the markets its legs add (ADDED), and no returns_*.json from
+before the rerun is left. A topic with no comparison file must have no rebuild line. Every doc mutant
+below must fail.
 
 Usage:
     python scripts/test_wave3_install.py
@@ -28,6 +29,7 @@ DOC = os.path.join(ROOT, "scripts", "LTP_GATE.md")
 LEGS = os.path.join(ROOT, "scripts", "gate_legs", "wave3.json")
 REBUILD = os.path.join(ROOT, "scripts", "rebuild_comparison.py")
 RENAMED = {"BSE_NSE": "NSE"}   # the india legs run NSE alone where the live key was BSE_NSE
+ADDED = {"52-week-high": {"ASX", "SAO"}}   # legs with no node in the live comparison, which the rebuild adds
 
 
 def section(text):
@@ -80,7 +82,7 @@ def topic_failures(topic, outputs, rm, rebuild, tmp, pre_ltp):
     live = None
     if os.path.exists(comp_path):
         with open(comp_path) as fh:
-            live = {RENAMED.get(k, k) for k in json.load(fh)}
+            live = {RENAMED.get(k, k) for k in json.load(fh)} | ADDED.get(topic, set())
     for leg, name in outputs.items():
         with open(os.path.join(dst, name), "w") as fh:
             json.dump({"universe": name, "exit_method": "ltp", "installed_leg": leg,
@@ -136,6 +138,8 @@ DQ = "defensive-quality --keep NYSE_NASDAQ_AMEX NSE SHZ_SHH HKSE SET JPX LSE XET
 # name: (text, its replacement, how many times the text appears in the section)
 MUTANTS = {
     "a topic's rebuild line missing": ("python3 scripts/rebuild_comparison.py 52-week-high\n", "", 1),
+    "52-week-high rebuilt without the markets its legs add": ("rebuild_comparison.py 52-week-high",
+                                                              "rebuild_comparison.py 52-week-high --drop ASX SAO", 2),
     "defensive-quality plain rebuild (adds SHH)": (DQ, "defensive-quality", 2),
     "defensive-quality keeps BSE_NSE": (DQ, DQ.replace(" NSE ", " BSE_NSE "), 2),
     "defensive-quality pre-LTP files kept": ("git rm defensive-quality/", "true defensive-quality/", 1),

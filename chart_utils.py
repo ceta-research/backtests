@@ -169,6 +169,16 @@ def windows_text(data, keys):
     return " / ".join(sorted({window_text(data[k]) for k in keys}))
 
 
+def leg_window(entry, bars=False):
+    """', <window>' for a run-window leg's titles; '' for a typed-year file, whose titles stay as they were."""
+    return f", {window_text(entry, bars=bars)}" if window_end(entry) else ""
+
+
+def run_window(results, keys):
+    """' (<window>)' for a comparison title when one of these legs is on the run window, else ''."""
+    return f" ({windows_text(results, keys)})" if any(window_end(results[k]) for k in keys) else ""
+
+
 def growth_series(entry, field="portfolio", initial=10000):
     """(xs, values): `initial` compounded through annual_returns[field] (percent), then partial_year's.
 

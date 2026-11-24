@@ -94,14 +94,23 @@ the last leg arg). `pairs` lists each published book as `{published_cagr_path, l
 dotted paths into the results JSON.
 
 A topic on the run window (METHODOLOGY.md, "Run Window": cyclical-timing, deleveraging,
-defensive-quality, asset-growth and fcf-conversion so far) runs to the latest close unless told
-otherwise, and an unpinned run writes the time of its check, so its gate runs are pinned. Every one of
-its legs carries `--end-date <date>` or `--end-year <year>`, before the exchange args.
-`scripts/test_gate_ltp.py` checks that. In the wave files those five topics' legs carry
+defensive-quality, asset-growth, fcf-conversion and 52-week-high so far) runs to the latest close
+unless told otherwise, and an unpinned run writes the time of its check, so its gate runs are pinned.
+Every one of its legs carries `--end-date <date>` or `--end-year <year>`, before the exchange args.
+`scripts/test_gate_ltp.py` checks that. In the wave files those six topics' legs carry
 `--end-year 2025`. For the first three that reproduces their committed results. asset-growth's
 committed files run to 2026-11-09: its wave 1 legs stop at July 2025, and its README's per-market
 commands carry `--end-date 2026-11-09`. fcf-conversion's committed files run to 2026-11-12 in the
-same way, and its README's commands carry `--end-date 2026-11-12`. A rerun for new figures uses its own legs file with `--end-date <date>`: `scripts/data_end.py --legs-file <file> --topic
+same way, and its README's commands carry `--end-date 2026-11-12`. 52-week-high's committed files
+are its October 2026 wave 3 run, made before its data checks, universe rules and run window, so its
+wave 3 legs run the current code on that window and don't reproduce them. Each of its legs also ends
+with `--full-holdings`: its code charges trades, not a round trip a period (METHODOLOGY.md,
+"Transaction Costs"), and gate 15 recomputes every committed row from the file's `holdings_full` lists
+(`scripts/cost_conventions.py`), so it refuses a costed leg file written without the flag. A rerun for
+new figures uses its own legs file with `--end-date <date>`, and for 52-week-high with
+`--full-holdings` last. That file names its legs, as `wave3.json` does, or in a flat list with a `leg`
+key on each: a leg's default name is its last arg, which here is the flag, and two legs with one name
+stop the gate. `scripts/data_end.py --legs-file <file> --topic
 <topic>` prints the date every leg traded. Save its output in the gate's out-dir, since a pinned file's
 `data_end` keys are null. Stage-a, det and flip all compare pinned runs, and they're made the same day:
 a pin fixes the prices, not the vendor's later restatements.
@@ -200,7 +209,7 @@ says what applies. Results are installed from the gate's outputs, with a per-top
 (Installing `wave3.json`, below).
 
 ```bash
-# both, drop, ltp, default, ltp.rep = 5 runs/leg, 330 backtests for 66 legs
+# both, drop, ltp, default, ltp.rep = 5 runs/leg, 340 backtests for 68 legs
 python3 scripts/gate_ltp.py run scripts/gate_legs/wave3.json --check stage-a,det,flip \
     --topic 52-week-high,dcf-discount,defensive-quality,pairs-fundamentals --out-dir results/ltp_gate_w3
 # ltp, default, ltp.rep = 3 runs/leg, 72 backtests for 24 legs
@@ -211,8 +220,8 @@ python3 scripts/gate_ltp.py run scripts/gate_legs/wave3_osl.json --check det --d
     --out-dir results/ltp_gate_w3_osl
 ```
 
-- `wave3.json` holds 52-week-high (18 legs), dcf-discount (16), defensive-quality (17),
-  pairs-fundamentals (15), pairs-zscore (12) and pairs-multi-pair (12), 90 legs. The first four take
+- `wave3.json` holds 52-week-high (20 legs, each ending with `--full-holdings`), dcf-discount (16), defensive-quality (17),
+  pairs-fundamentals (15), pairs-zscore (12) and pairs-multi-pair (12), 92 legs. The first four take
   all three checks; pairs-fundamentals' pair-level block has the `LtpExits` shape, so stage-a reads it
   unchanged.
 - pairs-zscore and pairs-multi-pair take `det,flip` only. A pair is one position and closes at the
@@ -240,8 +249,10 @@ python3 scripts/gate_ltp.py run scripts/gate_legs/wave3_osl.json --check det --d
   repair updates it in the same change.
 
 Installing `wave3.json`: per leg, copy `<out-dir>/<topic>/<leg>.ltp.json` to `<topic>/results/` under
-its `_outputs` name, as in wave 2 (never `both`). `git add -f` the two files with no earlier version,
-`pairs-fundamentals/results/returns_NSE.json` and `pairs-multi-pair/results/returns_NSE.json`. Then
+its `_outputs` name, as in wave 2 (never `both`). `git add -f` each file with no earlier version: at
+the first install `pairs-fundamentals/results/returns_NSE.json` and
+`pairs-multi-pair/results/returns_NSE.json`, now `52-week-high/results/returns_ASX.json` and
+`52-week-high/results/returns_SAO.json`. Then
 remove the pre-LTP per-market files no leg replaces and rebuild each comparison, each rebuild followed
 by the same command with `--check`:
 
@@ -262,8 +273,12 @@ python3 scripts/rebuild_comparison.py pairs-multi-pair
 python3 scripts/rebuild_comparison.py pairs-multi-pair --check
 ```
 
-- 52-week-high and pairs-multi-pair: a plain rebuild. Their 18 and 12 installed files are the live
-  comparison's keys one to one (pairs-multi-pair's `NSE` node has had no file until now).
+- 52-week-high and pairs-multi-pair: a plain rebuild. pairs-multi-pair's 12 installed files are the
+  live comparison's keys one to one (its `NSE` node has had no file until now). 52-week-high's 20 are
+  its 18 keys plus `ASX` and `SAO`, the markets it ranks since its data checks and ur-4, which the
+  rebuild adds after them. Its leg files carry `holdings_full`, up to about 0.9 MB a leg (30 names in
+  every quarter); the rebuild leaves those lists out of the comparison file, so they are committed
+  once, in the leg files.
 - defensive-quality: `--keep`, the live 16 with `NSE` in `BSE_NSE`'s place (its charts label `NSE`, and
   the India charts read `returns_NSE.json`). `SHH` is installed but not kept: `returns_SHH.json` is the
   comparison post's China row, and the charts' China is `SHZ_SHH`. A plain rebuild would add it, and
@@ -314,7 +329,7 @@ re-gating. Every other topic has only had the both-mode drop==published check, n
 
 What a topic's `--exit-method` wiring must satisfy. Reference implementations: `low-pe/backtest.py`
 (inline loop), `graham-net-net/backtest.py` (filter_returns), `piotroski/backtest.py` (several tracks
-per period, per-track audit), `52-week-high/backtest.py` (local full price cache:
+per period, per-track audit), `52-week-low/backtest.py` (local full price cache:
 `LtpExits(cr, con, local=True)`). `git show 419594e -- <file>` shows what the wiring added.
 
 - `drop`: no LtpExits object, no extra query, no new key in the results JSON, the same code path as

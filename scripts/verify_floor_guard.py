@@ -29,8 +29,11 @@ Gates:
                dropped MAX_SINGLE_RETURN only with check M at every market-cap floor, passes its
                DataChecks cfg (cfg=dc.cfg) to LtpExits, calls dc.hand after each filter_returns, and
                their committed results hold no data_checks block but mode "on" (on dc-3, also no
-               unreviewed factor flag or stale hand entry: scripts/factor_review.py), and none holds
-               BCE-PY.TO in a period exiting on or after BCE_PY_FROM
+               unreviewed factor flag or stale hand entry: scripts/factor_review.py), none holds
+               BCE-PY.TO in a period exiting on or after BCE_PY_FROM, and one whose cost_model
+               states its turnover convention reproduces each row from its holdings_full
+               (scripts/cost_conventions.py); where a topic's backtest.py writes that
+               convention, each of its committed files with a cost_model states one
 
 Usage:  python scripts/verify_floor_guard.py
 """
@@ -43,6 +46,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import cost_conventions   # noqa: E402  (gate 15 on a results file that states its cost convention)
 import factor_review   # noqa: E402  (gate 15 on dc-3 results)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -98,6 +102,8 @@ SCOPE_ALLOW = {
     "asset-growth/screen.py",
     # The live screen takes fcf-conversion's universe rules ur-3.
     "fcf-conversion/screen.py",
+    # The live screen runs 52-week-high's own fetch and screen: ur-4, check M's floor and the tie order.
+    "52-week-high/screen.py",
     # Determinism pass (2026-10-10): the cluster LAG's new tie-break changes what
     # same-day duplicate rows compare against; the note records that and the prod
     # check to run before publishing.
@@ -666,7 +672,7 @@ def forward_hits(tree):
 # market-cap floors. The cap may go only where check M reads every floor (cap_used): without M an
 # inflated market cap lets a name into the book whose return only the cap used to drop (SOS, ZEST).
 DATA_CHECKS_TOPICS = {"deleveraging": 1, "cyclical-timing": 2, "defensive-quality": 1, "asset-growth": 1,
-                      "fcf-conversion": 1}
+                      "fcf-conversion": 1, "52-week-high": 1}
 # BCE-PY.TO stands in for BCE's common line (ur-2's keep list), but from 2026 its series is a preferred's price: a
 # committed data-checks file may not hold it in a period that exits on or after this day.
 BCE_PY_FROM = "2026-01-01"
@@ -715,10 +721,27 @@ def held_symbols(row):
     return set((row.get("holdings") or "").split(",")) | {h.get("symbol") for h in row.get("holdings_full") or []}
 
 
-def dc_results_problem(res):
+def writes_turnover(tree):
+    """True for a backtest.py that writes a turnover key into its cost_model: its results state their cost
+    convention (scripts/cost_conventions.py)."""
+    for n in ast.walk(tree):
+        if not isinstance(n, ast.Dict):
+            continue
+        for k, v in zip(n.keys, n.values):
+            if isinstance(k, ast.Constant) and k.value == "cost_model" and any(
+                    isinstance(d, ast.Dict) and any(isinstance(x, ast.Constant) and x.value == "turnover" for x in d.keys)
+                    for d in ast.walk(v)):
+                return True
+    return False
+
+
+def dc_results_problem(res, stated=False):
     """Why a results file of an opted-in topic can't be committed, or None. A file with no data_checks
     block predates the opt-in; the uncapped attribution arm is never published; BCE-PY.TO is held only in
-    periods that exit before BCE_PY_FROM (res and its rows may lack keys: the self-test probes do)."""
+    periods that exit before BCE_PY_FROM (res and its rows may lack keys: the self-test probes do); a file
+    whose cost_model states its turnover convention carries holdings_full, and each row reproduces from it.
+    stated: the topic's backtest.py writes that convention (writes_turnover), so a file of its with a cost_model
+    must state one: a file that doesn't comes from older code."""
     if not isinstance(res, dict) or "data_checks" not in res:
         return None
     b = res["data_checks"]
@@ -729,8 +752,36 @@ def dc_results_problem(res):
            if "BCE-PY.TO" in held_symbols(r) and (r.get("exit_date") or "") >= BCE_PY_FROM]
     if bce:
         return f"BCE-PY.TO held in a period exiting on or after {BCE_PY_FROM} (rebalance {', '.join(map(str, bce))})"
+    cm = res.get("cost_model")
+    if stated and cm is not None and not (isinstance(cm, dict) and "turnover" in cm):
+        return ("cost_model states no turnover convention, and the topic's backtest.py writes one: the file comes "
+                "from older code (rerun the leg with --full-holdings)")
+    if isinstance(cm, dict) and "turnover" in cm:   # a stated cost convention: the rows reproduce from holdings_full
+        why = cost_conventions.problem(res)
+        if why:
+            return why
     probs = factor_review.problems(res)   # dc-3: every material factor flag reviewed, none stale
     return "; ".join(probs[:3]) + (f" (+{len(probs) - 3} more)" if len(probs) > 3 else "") if probs else None
+
+
+def dc_committed_problems(root):
+    """(n, problems) over the committed results/*.json of every opted-in topic under root: n files that carry a
+    data_checks block, and (path, why) for each file dc_results_problem refuses. Each topic's files are read with
+    what its own backtest.py says of the turnover convention."""
+    n, found = 0, []
+    for t in DATA_CHECKS_TOPICS:
+        src = root / t / "backtest.py"
+        stated = src.exists() and writes_turnover(ast.parse(src.read_text()))
+        for p in sorted((root / t / "results").rglob("*.json")):
+            try:
+                res = json.loads(p.read_text())
+            except ValueError:
+                continue
+            n += isinstance(res, dict) and "data_checks" in res
+            why = dc_results_problem(res, stated)
+            if why:
+                found.append((str(p.relative_to(root)), why))
+    return n, found
 
 
 def _sql_strings(tree):
@@ -1755,7 +1806,8 @@ def main():
     # Every *.py at the root and under a topic directory (scripts/ holds the tests, data_utils the
     # definitions): outside DATA_CHECKS_TOPICS no use of the surface at all; inside it, each topic's
     # backtest.py must be fully wired (dc_wiring), and its committed results/*.json may carry only a
-    # mode-on data_checks block (dc_results_problem). A new topic joins the dict in its own rerun.
+    # mode-on data_checks block (dc_committed_problems hands each file to dc_results_problem). A new
+    # topic joins the dict in its own rerun.
     stray15, wiring15, used15 = [], [], {}
     for f in sorted(ROOT.glob("*.py")) + sorted(ROOT.glob("*/*.py")):
         rel = str(f.relative_to(ROOT))
@@ -1782,22 +1834,12 @@ def main():
         wiring15 += [(t, ln, why) for ln, why in dc_wiring(ast.parse(p.read_text()), n_floors)]
         if not used15.get(t):
             wiring15.append((t, 0, "uses none of the data-checks surface"))
-    results15, n_res15 = [], 0
-    for t in DATA_CHECKS_TOPICS:
-        for p in sorted((ROOT / t / "results").rglob("*.json")):
-            try:
-                res = json.loads(p.read_text())
-            except ValueError:
-                continue
-            n_res15 += isinstance(res, dict) and "data_checks" in res
-            why = dc_results_problem(res)
-            if why:
-                results15.append((str(p.relative_to(ROOT)), why))
+    n_res15, results15 = dc_committed_problems(ROOT)
     print(f"15 DATACHECKS {len(stray15)} uses outside {sorted(DATA_CHECKS_TOPICS)}; "
           f"{len(DATA_CHECKS_TOPICS) - len({t for t, _, _ in wiring15})}/{len(DATA_CHECKS_TOPICS)} opted-in "
           f"topics fully wired ({sum(used15.values())} uses); {n_res15} committed results carry a data_checks "
-          f"block, {len(results15)} with a problem (not mode on, a hand-list fault, or BCE-PY.TO in a period "
-          f"exiting from {BCE_PY_FROM})")
+          f"block, {len(results15)} with a problem (not mode on, a hand-list fault, a cost convention that isn't "
+          f"stated or doesn't reproduce, or BCE-PY.TO in a period exiting from {BCE_PY_FROM})")
     for b in stray15:
         print("    NOT OPTED IN:", b)
     for b in wiring15:
@@ -1851,7 +1893,29 @@ def main():
         fails.append(("gate 15 use false positive", "capped topic"))
     bce = lambda entry, exit_: {"data_checks": {"mode": "on"}, "period_data": [
         {"rebalance_date": entry, "exit_date": exit_, "holdings": "BCE.TO,BCE-PY.TO"}]}
+    # one name entered at 0.5% and up 10%: 0.095 on the trades convention, where a round trip reads 0.09
+    trades = lambda stored, full=True: {"data_checks": {"mode": "on"}, "cost_model": {"turnover": "trades"}, "period_data": [
+        {"rebalance_date": "2025-01-01", "exit_date": "2025-04-01", "portfolio_return": stored, "stocks_held": 1,
+         **({"holdings_full": [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]} if full else {})}]}
+
+    def held(events):
+        # that name held three quarters, on a file with a hand list (dc-3): 0.095, then 0.1 twice, since a name
+        # held alone has no drift to trade. The rows reproduce, so only the factor review can fault its events.
+        rows = [{"rebalance_date": d, "exit_date": x, "portfolio_return": p, "spy_return": 0.02, "stocks_held": 1,
+                 "holdings_full": [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]}
+                for d, x, p in (("2024-07-01", "2024-10-01", 0.095), ("2024-10-01", "2025-01-01", 0.1),
+                                ("2025-01-01", "2025-04-01", 0.1))]
+        res = {"frequency": "quarterly", "period_data": rows, "cost_model": {"turnover": "trades"},
+               "data_checks": {"mode": "on", "events": events,
+                               "rules": {"factor_hand": {"entries": [], "review_min_pp": 0.1}}}}
+        c, x = factor_review._cagr_excess(res, rows, [r["portfolio_return"] for r in rows])
+        return {**res, "portfolio": {"cagr": round(c, 2)}, "comparison": {"excess_cagr": round(x, 2)}}
+
+    # a file without its lists is refused whatever its row stores: 0.0 would pass a check that read the row as cash
     for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
+                     (trades(0.095), False), (trades(0.09), True), (trades(0.095, full=False), True),
+                     (trades(0.0, full=False), True), (held([]), False),
+                     (held([{"rebalance_date": "2024-10-01", "symbol": "A", "check": "hand_stale"}]), True),
                      ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": {}}, True),
                      (bce("2025-07-01", "2026-07-01"), True), (bce("2026-07-01", "2026-11-06"), True),
                      (bce("2024-07-01", "2025-07-01"), False), (bce("2025-10-01", "2026-01-01"), True),
@@ -1863,6 +1927,24 @@ def main():
         if bool(dc_results_problem(res)) != bad:
             print(f"    SELF-TEST FAIL: gate 15's results check reads {res} wrong")
             fails.append(("gate 15 results probe", str(res)))
+    # A topic whose backtest.py writes its turnover convention: a costed file of its states one, and a no-costs
+    # file has none to state. The key is read under cost_model only.
+    plain = {"data_checks": {"mode": "on"}, "cost_model": {"function": "costs.tiered_cost"}}
+    writes = 'out = {"cost_model": {"function": "f", "turnover": "trades"} if use_costs else None}\n'
+    for label, got, want in (
+            ("a costed file without its convention, in a topic that writes one", dc_results_problem(plain, True), True),
+            ("that file in a topic that writes none", dc_results_problem(plain), False),
+            ("a no-costs file in a topic that writes its convention", dc_results_problem({**plain, "cost_model": None}, True), False),
+            ("a file that states its convention and reproduces", dc_results_problem(trades(0.095), True), False),
+            ("a null turnover", dc_results_problem({**plain, "cost_model": {"turnover": None}}), True),
+            ("a backtest that writes turnover into cost_model", writes_turnover(ast.parse(writes)), True),
+            ("a backtest that writes a two-key cost_model",
+             writes_turnover(ast.parse(writes.replace(', "turnover": "trades"', ""))), False),
+            ("a turnover key outside cost_model",
+             writes_turnover(ast.parse('out = {"cost_model": {"function": "f"}, "liquidity": {"turnover": 0.4}}\n')), False)):
+        if bool(got) != want:
+            print(f"    SELF-TEST FAIL: gate 15 reads {label} wrong")
+            fails.append(("gate 15 convention probe", label))
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")
