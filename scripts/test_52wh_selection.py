@@ -51,11 +51,12 @@ stubbed: a JPX, an LSE and a KLS cap pay the tier at their leg's FX rate, and a 
 every exchange --global runs.
 
 The trades convention on run_backtest itself (costs.trade_costs charges each series the trades its books make):
-seven quarters with every row typed here, in drop, ltp and both. Two tiers with unequal returns; a rebalance with
+nine quarters with every row typed here, in drop, ltp and both. Two tiers with unequal returns; a rebalance with
 an entry, an exit and a carried name on a new tier; cash for too few buyable at entry, the short book on another
 tier; re-entry; a quarter where the drop series books no name and the LTP series books a fill; cash for too few
-screened; a last invested quarter, which pays no sale. A cash quarter's sale lands on each series' own last
-invested row, both's halves equal the single runs, and a no-costs run never calls the walk. The quarterly
+screened; an invested quarter, a quarter where neither series books a name, and a last invested quarter straight
+after it, which enters from an empty position and pays no sale. A cash quarter's sale lands on each series' own
+last invested row, both's halves equal the single runs, and a no-costs run never calls the walk. The quarterly
 run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial
 2026-10-01 period, its window exits and the benchmark's priced on the end date's close, a name with no bar after
 2026-10-30 filled at its last bar, CAGR over span_years and the run window's keys written; main() takes
@@ -731,12 +732,13 @@ def run_failures(src):
     return cost_unit_failures(src) + cost_rate_failures(src) + results_failures(src)
 
 
-# The trades convention on run_backtest itself: seven quarters, the screen, the benchmark and the LTP fills stubbed
+# The trades convention on run_backtest itself: nine quarters, the screen, the benchmark and the LTP fills stubbed
 # and the prices in a cache, with MIN_STOCKS at 2. Each series' cost comes from costs.trade_costs over its books: a
 # rebalance pays each name's gap between its drifted weight and the new equal weight at the new quarter's rate and
-# sells a leaver at the rate it last carried; a cash quarter's sale lands on the series' last invested row.
+# sells a leaver at the rate it last carried; a cash quarter's sale lands on the series' last invested row, and so
+# does the sale of a quarter whose series books no name.
 WALK_DATES = [date(2020, 1, 1), date(2020, 4, 1), date(2020, 7, 1), date(2020, 10, 1), date(2021, 1, 1),
-              date(2021, 4, 1), date(2021, 7, 1), date(2021, 10, 1)]
+              date(2021, 4, 1), date(2021, 7, 1), date(2021, 10, 1), date(2022, 1, 1), date(2022, 4, 1)]
 WALK_CAP = {0.005: 1e9, 0.003: 5e9, 0.001: 2e10}   # a cap on each tier, at one unit a dollar
 WALK_SCREEN = [   # each quarter's screen, {symbol: its one-way rate}
     {"A": 0.005, "B": 0.001},
@@ -746,11 +748,13 @@ WALK_SCREEN = [   # each quarter's screen, {symbol: its one-way rate}
     {"D": 0.001, "G": 0.003},              # neither has an exit bar; G's last traded price fills under ltp
     {"H": 0.005},                          # one screened, fewer than MIN_STOCKS
     {"A": 0.001, "H": 0.005},
+    {"J": 0.003, "K": 0.001},              # neither has an exit bar or a fill: both series book no name
+    {"A": 0.003, "B": 0.001},
 ]
 # each line's bar the day after a rebalance date, by the date's index: the entry there and the exit of the quarter before
-WALK_BARS = {"A": {0: 10.0, 1: 12.0, 2: 13.2, 3: 20.0, 4: 22.0, 6: 10.0, 7: 10.5}, "B": {0: 10.0, 1: 10.0},
-             "C": {1: 10.0, 2: 12.999992}, "D": {2: 10.0, 3: 10.0, 4: 8.0}, "F": {3: 10.0, 4: 14.0}, "G": {4: 10.0},
-             "H": {6: 10.0, 7: 11.5}}
+WALK_BARS = {"A": {0: 10.0, 1: 12.0, 2: 13.2, 3: 20.0, 4: 22.0, 6: 10.0, 7: 10.5, 8: 10.0, 9: 12.0},
+             "B": {0: 10.0, 1: 10.0, 8: 10.0, 9: 10.0}, "C": {1: 10.0, 2: 12.999992}, "D": {2: 10.0, 3: 10.0, 4: 8.0},
+             "F": {3: 10.0, 4: 14.0}, "G": {4: 10.0}, "H": {6: 10.0, 7: 11.5}, "J": {7: 10.0}, "K": {7: 10.0}}
 WALK_FILLS = {4: {"G": (8.0, "2021-02-15")}}   # quarter -> {symbol: (last traded price, its bar)}
 # Each row, derived from the rule:
 #  0 A +20% at 0.5%, B 0% at 0.1%: mean 0.10, entries 1/2 x 0.005 + 1/2 x 0.001 = 0.003: 0.097.
@@ -766,14 +770,20 @@ WALK_FILLS = {4: {"G": (8.0, "2021-02-15")}}   # quarter -> {symbol: (last trade
 #  4 drop books nothing: 0.0. ltp books G's fill, -20% at 0.3%: the rebalance sells A, D and F (0.003364) and
 #    G enters whole (0.003); quarter 5 is cash, so G's sale lands here too, 1 x 0.003: -0.2 - 0.009364 = -0.209364.
 #  5 cash: one name screened.
-#  6 A +5% at 0.1%, H +15% at 0.5%: mean 0.10, entries 0.003: 0.097, with no sale at the run's end (a sale would
-#    cost (1.05 x 0.001 + 1.15 x 0.005)/2.2 = 0.003091 more).
-WALK_ROWS = {"drop": [0.097, 0.192825, 0.0, 0.093636, 0.0, 0.0, 0.097],
-             "ltp": [0.097, 0.192825, 0.0, 0.097, -0.209364, 0.0, 0.097]}
-WALK_GROSS = {"drop": [0.1, 0.2, 0.0, 0.1, 0.0, 0.0, 0.1], "ltp": [0.1, 0.2, 0.0, 0.1, -0.2, 0.0, 0.1]}
+#  6 A +5% at 0.1%, H +15% at 0.5%: mean 0.10, entries 0.003: 0.097. End weights A 1.05/2.2, H 1.15/2.2. Quarter 7
+#    books no name in either series, so the book's sale lands here: (1.05 x 0.001 + 1.15 x 0.005)/2.2 = 0.0068/2.2
+#    = 0.003091, and the row reads 0.093909.
+#  7 J and K are bought and neither has an exit bar or a fill: both series book nothing, 0.0, and hold no position.
+#  8 A +20% at 0.3%, B 0% at 0.1%: mean 0.10. Both enter from an empty position, 1/2 x 0.003 + 1/2 x 0.001 = 0.002:
+#    0.098, with no sale at the run's end (a sale would cost (1.2 x 0.003 + 1.0 x 0.001)/2.2 = 0.002091 more).
+#    Were quarter 7 left out of the walk, A would be a carried name here, trading |1/2 - 1.05/2.2| at 0.003
+#    (0.000068), and H would sell here (1.15/2.2 x 0.005 = 0.002614): 0.096818, with row 6 left at 0.097.
+WALK_ROWS = {"drop": [0.097, 0.192825, 0.0, 0.093636, 0.0, 0.0, 0.093909, 0.0, 0.098],
+             "ltp": [0.097, 0.192825, 0.0, 0.097, -0.209364, 0.0, 0.093909, 0.0, 0.098]}
+WALK_GROSS = {"drop": [0.1, 0.2, 0.0, 0.1, 0.0, 0.0, 0.1, 0.0, 0.1], "ltp": [0.1, 0.2, 0.0, 0.1, -0.2, 0.0, 0.1, 0.0, 0.1]}
 # (names held, names buyable at entry) per row: None buyable when the screen held cash
-WALK_SHAPE = {"drop": [(2, 2), (2, 2), (0, 1), (3, 3), (0, 2), (0, None), (2, 2)],
-              "ltp": [(2, 2), (2, 2), (0, 1), (3, 3), (1, 2), (0, None), (2, 2)]}
+WALK_SHAPE = {"drop": [(2, 2), (2, 2), (0, 1), (3, 3), (0, 2), (0, None), (2, 2), (0, 2), (2, 2)],
+              "ltp": [(2, 2), (2, 2), (0, 1), (3, 3), (1, 2), (0, None), (2, 2), (0, 2), (2, 2)]}
 WALK_CASH = (2, 5)
 
 
@@ -867,6 +877,8 @@ WALK_MUTANTS = {   # each must fail walk_failures on a wrong row, not an error
     "each name charged its round trip as well": ("return clean, [rr for _, rr, _ in clean], rates",
                                                  "return clean, [rr - 2 * (rates[s] or 0.0) for s, rr, _ in clean], rates"),
     "the walk called on a no-costs run": ("} if use_costs else {}", "}"),
+    "a quarter that books no name left out of its series' walk": ("        if key in series:\n",
+                                                                  "        if key in series and clean:\n"),
 }
 
 

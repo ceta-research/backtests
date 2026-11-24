@@ -2,10 +2,10 @@
 """Offline check of scripts/cost_conventions.py (no network): a leg's rows recomputed from its full-holdings file
 under the file's own cost convention, and its CAGR and excess under both.
 
-The trades arm runs on the files of test_52wh_selection's typed seven-quarter fixture (run_backtest's own rows, in
-drop, ltp and both): every row reproduces, the cash rows, the row that books nothing and the row with no benchmark
-return among them; a row stored without its drift trade doesn't; and the same books under the house rule give the
-rows typed here.
+The trades arm runs on the files of test_52wh_selection's typed nine-quarter fixture (run_backtest's own rows, in
+drop, ltp and both): every row reproduces, the cash rows, the rows that book nothing (one with an invested row
+straight after it) and the row with no benchmark return among them; a row stored without its drift trade doesn't;
+and the same books under the house rule give the rows typed here.
 
 The round-trip arm runs on ROUND_TRIP, a results dict typed here: items on two tiers, a cash row, an invested row
 with no benchmark return ahead of the measured ones, a two-key cost_model, and each row stored as the rounded
@@ -37,7 +37,7 @@ PATH = os.path.join(ROOT, "scripts", "cost_conventions.py")
 with open(PATH) as fh:
     SRC = fh.read()
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
-import test_52wh_selection as wh   # noqa: E402  (the typed seven-quarter fixture: walk_run, WALK_ROWS)
+import test_52wh_selection as wh   # noqa: E402  (the typed nine-quarter fixture: walk_run)
 
 HI, MID, LO = 0.005, 0.003, 0.001
 TRADES_MODEL = {"function": "costs.tiered_cost", "fx_per_usd": 1.0, "turnover": "trades"}
@@ -67,8 +67,9 @@ def fixture(mode):
 
 # The fixture's books under the house rule, each row its mean return less twice its mean rate: quarter 0
 # 0.10 - 2 x 0.003, quarter 1 0.1999996 - 2 x 0.004 = 0.1919996, quarter 3 0.10 - 2 x 0.003, quarter 4 (ltp) G's
-# -0.2 - 2 x 0.003, quarter 6 0.10 - 2 x 0.003.
-HOUSE_ROWS = [0.094, 0.192, 0.0, 0.094, -0.206, 0.0, 0.094]
+# -0.2 - 2 x 0.003, quarter 6 0.10 - 2 x 0.003, quarter 8 0.10 - 2 x 0.002.
+HOUSE_ROWS = [0.094, 0.192, 0.0, 0.094, -0.206, 0.0, 0.094, 0.0, 0.096]
+QUARTERS = len(HOUSE_ROWS)
 DRIFT_ROW, DRIFT_TRADE = 1, 0.003 / 22   # quarter 1's carried name trades 1/22 of the book at 0.3%
 
 
@@ -160,11 +161,11 @@ def failures(src):
         # the trades arm on the typed fixture's files
         for mode in ("drop", "ltp", "both"):
             got = mod.check(fixture(mode))
-            if (got["convention"], got["rows_checked"], got["bad"]) != ("trades", 7, []) or got["worst_gap"] > 2e-6:
+            if (got["convention"], got["rows_checked"], got["bad"]) != ("trades", QUARTERS, []) or got["worst_gap"] > 2e-6:
                 out.append(f"the fixture's {mode} file: {got}")
         ltp = fixture("ltp")
         house = mod.recompute(ltp, "round_trip")
-        if len(house) != 7 or any(abs(a - b) > 2e-6 for a, b in zip(house, HOUSE_ROWS)):
+        if len(house) != QUARTERS or any(abs(a - b) > 2e-6 for a, b in zip(house, HOUSE_ROWS)):
             out.append(f"the fixture's ltp books under the house rule {house}, want {HOUSE_ROWS}")
         nodrift = fixture("ltp")
         nodrift["period_data"][DRIFT_ROW]["portfolio_return"] = round(
@@ -255,6 +256,10 @@ MUTANTS = {
         "        costs = trade_costs(period_books)\n",
         "        walked = iter(trade_costs([b for b in period_books if b]))\n"
         "        costs = [next(walked) if b else 0.0 for b in period_books]\n"),
+    "a row that books nothing left out of the walk": (
+        "        costs = trade_costs(period_books)\n",
+        "        walked = iter(trade_costs([b for b in period_books if b != {}]))\n"
+        "        costs = [next(walked) if b != {} else 0.0 for b in period_books]\n"),
     "a walk over measured rows only": ('    for r in res["period_data"]:\n        if "holdings_full" not in r:',
                                        '    for r in _rows(res):\n        if "holdings_full" not in r:'),
     "a tolerance wide enough to hide the drift term": ("TOLERANCE = 2e-6", "TOLERANCE = 1e-3"),
