@@ -42,7 +42,8 @@ line, which holds the slot, and the NVDR stands in for an ordinary line with no 
 FY rows, which carry no ROE, so its inflated cap fails the floor at every rebalance and it is never held; the SAO
 company's preferred line stands in for its ordinary line in every invested book. The results file carries data_checks,
 universe_rules, signal_guard (its count on every rebalance, equal in drop and ltp) and cost_model after
-isin_dedup (the tiers at 35 baht a dollar on the "trades" convention, null on --no-costs), the fetch asks for no
+isin_dedup (the tiers at 35 baht a dollar on the "trades" convention, its keys in the order function, fx_per_usd,
+turnover, and null on --no-costs), the fetch asks for no
 MTUM, entry_unpriced and the data checks' counts on each row, and in each holdings_full item the name's one-way
 tier (cost_rate); the rows reproduce from the items under the trades convention, the first paying its entries
 only, and a no-costs run never calls the cost walk. Costs, with run_backtest's screen and prices
@@ -60,9 +61,9 @@ last invested row, both's halves equal the single runs, a no-costs run never cal
 the keys of the same row run without costs. The same run with two more quarters ends in cash: a quarter where the
 drop series books one name and the LTP series two, one of them a name carried into its fill, so each series' row
 shows whose book it was charged on; then a cash quarter, whose sale lands on the last invested row though no
-quarter follows. A flat quarter whose only cost is float noise stores 0.0, not -0.0, one whose only cost is its
-drift back to equal weight (under 0.0001, on a mean of 0.0) pays it, and the --verbose line says its return and
-its excess are before costs when costs are on. The quarterly
+quarter follows. A flat quarter whose only cost is float noise stores 0.0, not -0.0, and one whose only cost is its
+drift back to equal weight (under 0.0001, on a mean of 0.0) pays it, in drop and in each of both's two series. The
+--verbose line says its return and its excess are before costs when costs are on. The quarterly
 run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial
 2026-10-01 period, its window exits and the benchmark's priced on the end date's close, a name with no bar after
 2026-10-30 filled at its last bar, CAGR over span_years and the run window's keys written; main() takes
@@ -539,7 +540,8 @@ def results_failures(src):
     holdings_full, every booked name in the holdings' order, and changes nothing else. The results file: after
     isin_dedup come data_checks, universe_rules, signal_guard (SET_GUARD) and cost_model (then the LTP keys), the
     fetch asks for no MTUM, cost_model the tiers at 35
-    baht a dollar on the trades convention, the rate run_single passes to run_backtest, and null on a no-costs run;
+    baht a dollar on the trades convention (COST_MODEL, its keys in that order), the rate run_single passes to
+    run_backtest, and null on a no-costs run;
     each row carries entry_unpriced (UNP.BK, which ranks with no entry bar, on every priced row; null when the
     screen held cash) and the data checks' counts; each holdings_full item records its name's one-way tier
     (cost_rate: 0.5% here, 0.1% at one baht a dollar; null on a no-costs run), and each row's return is its items'
@@ -579,8 +581,9 @@ def results_failures(src):
                 + (["exit_method", "ltp"] if name != "drop" else []))
         if tail != want:
             out.append(f"{name}: keys after isin_dedup {tail}, want {want}")
-        if res.get("cost_model", "missing") != (None if name == "no costs" else COST_MODEL):
-            out.append(f"{name}: cost_model {res.get('cost_model', 'missing')}")
+        cm = res.get("cost_model", "missing")   # its keys' order too: the order is the file's bytes
+        if cm != (None if name == "no costs" else COST_MODEL) or (cm and list(cm) != list(COST_MODEL)):
+            out.append(f"{name}: cost_model {cm}, want {COST_MODEL} in that order (null on a no-costs run)")
     out += cost_failures(full, SET_RATE) + [f"no costs: {f}" for f in cost_failures(free, None)]
     for r in plain["period_data"]:
         priced = r["entry_buyable"] is not None
@@ -645,6 +648,9 @@ RESULT_MUTANTS = {
         '"cost_model": None'),
     "cost_model written on a no-costs run": ('"turnover": "trades"} if use_costs else None', '"turnover": "trades"}'),
     "cost_model without its convention": (', "turnover": "trades"}', "}"),
+    "cost_model's keys in another order": (
+        '{"function": "costs.tiered_cost", "fx_per_usd": fx, "turnover": "trades"} if use_costs',
+        '{"turnover": "trades", "function": "costs.tiered_cost", "fx_per_usd": fx} if use_costs'),
     "cost_rate not written": ("cost_rates=rates)", "cost_rates=None)"),
     "every item records the first name's rate": ("cost_rates=rates)",
                                                  "cost_rates={s: next(iter(rates.values())) for s in rates})"),
@@ -855,15 +861,24 @@ WALK_LINE = "    2020-04-01: 2 stocks (avg prox=1.000), port=20.0%{0}, bench=2.0
 FLAT = date(2020, 10, 1)
 
 
-def ten_names(src, cap, px):
+class NoFills:
+    """LtpExits as run_backtest uses it, filling nothing: under both, the LTP series books the main series' names."""
+
+    fills = ()
+
+    def fill(self, *_a, **_k):
+        return {}
+
+
+def ten_names(src, cap, px, mode="drop"):
     """run_backtest over two quarters on ten names at one cap, the screen and the benchmark stubbed and each
-    price px(symbol, date): the two rows' returns."""
+    price px(symbol, date): the two rows. mode both: with NoFills."""
     mod = load(src)
     mod.screen_stocks = lambda *a, **k: [(f"C{i:02d}", cap, 1.0) for i in range(10)]
     mod.get_prices = lambda con, symbols, d, **k: {s: px(s, d) for s in symbols}
     mod.get_benchmark_return = lambda *a, **k: 0.05
-    rows = mod.run_backtest(FakeCon(), [COST_ENTRY, COST_EXIT, FLAT], 0.0, use_costs=True, fx=1.0)
-    return [r["portfolio_return"] for r in rows]
+    return mod.run_backtest(FakeCon(), [COST_ENTRY, COST_EXIT, FLAT], 0.0, use_costs=True, fx=1.0, exit_method=mode,
+                            ltp=NoFills() if mode == "both" else None)
 
 
 def flat_row_failures(src):
@@ -873,14 +888,24 @@ def flat_row_failures(src):
     is stored 0.0, not -0.0. The first row pays its entries, 0.2 - 0.003.
     Five up 20% and five flat (0.1% tier), then all flat. The second quarter's mean is 0.0 and its only cost the
     drift back to equal weight: each name trades 0.1/11 of the book, 1/11 in all, at 0.001. It stores -0.000091:
-    a cost under 0.0001, on a mean of nothing, is still charged. The first row pays its entries, 0.1 - 0.001."""
+    a cost under 0.0001, on a mean of nothing, is still charged. The first row pays its entries, 0.1 - 0.001.
+    Each book runs in drop and in both. Under both no name is filled, so the LTP series books the same names and
+    its rows read the same: portfolio_return_ltp is held to the same two values."""
+    books = (("a flat quarter after equal returns", 5e9, lambda s, d: 10.0 if d == COST_ENTRY else 12.0, [0.197, 0.0]),
+             ("a flat quarter that trades its drift", 2e10, lambda s, d: 12.0 if d != COST_ENTRY and s < "C05" else 10.0,
+              [0.099, -0.000091]))
+    out = []
     try:
-        noise = [repr(x) for x in ten_names(src, 5e9, lambda s, d: 10.0 if d == COST_ENTRY else 12.0)]
-        drift = ten_names(src, 2e10, lambda s, d: 12.0 if d != COST_ENTRY and s < "C05" else 10.0)
+        for label, cap, px, want in books:
+            for mode, keys in (("drop", ("portfolio_return",)), ("both", ("portfolio_return", "portfolio_return_ltp"))):
+                rows = ten_names(src, cap, px, mode)
+                for key in keys:   # by repr: -0.0 == 0.0
+                    got = [repr(r.get(key)) for r in rows]
+                    if got != [repr(x) for x in want]:
+                        out.append(f"{label} stores {got} as its {key} in {mode}, want {[repr(x) for x in want]}")
     except Exception as e:
         return [f"error: {type(e).__name__}: {e}"]
-    return ([] if noise == ["0.197", "0.0"] else [f"a flat quarter after equal returns stores {noise}, want ['0.197', '0.0']"]) \
-        + ([] if drift == [0.099, -0.000091] else [f"a flat quarter that trades its drift stores {drift}, want [0.099, -0.000091]"])
+    return out
 
 
 def halves_failures(name, rows, want, cash):
@@ -988,6 +1013,10 @@ WALK_MUTANTS = {   # each must fail walk_failures on a wrong row, not an error
     "a quarter that books no name left out of its series' walk": ("        if key in series:\n",
                                                                   "        if key in series and clean:\n"),
     "a flat row less float noise stored -0.0": ("round(mean - cost, 6) + 0.0", "round(mean - cost, 6)"),
+    "a flat row of the LTP series less float noise stored -0.0": (
+        "round(mean - cost, 6) + 0.0", "round(mean - cost, 6) + (0.0 if key == SERIES[0] else -0.0)"),
+    "a row of the LTP series whose mean before costs is 0.0 pays nothing": (
+        COSTED, "            if b and (mean or key == SERIES[0]):\n"),
     "the verbose line's excess not labelled before costs": (':+.1f}%{note}"', ':+.1f}%"'),
     "the verbose line labelled before costs on a no-costs run": ('note = " before costs" if use_costs else ""',
                                                                  'note = " before costs"'),
