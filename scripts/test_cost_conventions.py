@@ -570,7 +570,7 @@ def main():
     if survived or errored:
         print("test_cost_conventions: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
-    print(f"test_cost_conventions: PASS (the typed fixture's three files and a typed round-trip leg of "
+    print(f"test_cost_conventions: PASS (the typed fixture's three files, two of its run that ends in cash and a typed round-trip leg of "
           f"{len(ROUND_TRIP['period_data'])} rows; {len(MUTANTS)} mutants caught)")
 
 
