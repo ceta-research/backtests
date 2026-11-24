@@ -24,7 +24,10 @@ that never keys them. Gate 15's results check refuses a file holding BCE-PY.TO i
 after 2026-01-01, and a file that states its cost convention (cost_model.turnover) when a row doesn't reproduce
 from its holdings_full or the lists are missing: 52-week-high's plain synthetic file is refused and its
 full-holdings one passes. Such a file is still read for its hand list: one that reproduces and carries a
-hand_stale event is refused.
+hand_stale event is refused. The gate reads from each topic's backtest.py whether it writes that convention
+(52-week-high does, the other five don't), and a costed file that states none is refused in a topic that does.
+The guard's walk over the committed files runs on a temp root: of four files there it refuses the one whose
+topic writes a convention the file doesn't state.
 
 dc-2's check S (stale repeats): in T's windows a run of 4 identical traded rows loses rows 2-4 while
 runs of 3, a new volume or a new close each day, a run split across two windows and the benchmark
@@ -91,6 +94,7 @@ import io
 import json
 import math
 import os
+import pathlib
 import random
 import shutil
 import statistics
@@ -112,7 +116,8 @@ from data_utils import (DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr
                         utc_epoch as ep, utc_date, CAP_INPUTS_DDL)
 from gate_ltp import check_stage_a, has_ltp_keys, strip_ltp, first_diff   # noqa: E402
 import scan_results_invariant as sri   # noqa: E402
-from verify_floor_guard import dc_wiring, dc_uses, dc_results_problem, DATA_CHECKS_TOPICS   # noqa: E402
+from verify_floor_guard import (dc_wiring, dc_uses, dc_results_problem, dc_committed_problems,  # noqa: E402
+                                writes_turnover, DATA_CHECKS_TOPICS)
 from test_floor_guard import NO_RETURN_CAP   # noqa: E402
 
 BASE = "e1ecb7c"   # backtests main before data checks
@@ -3659,6 +3664,15 @@ def gate15_failures():
             check(m != src, f"gate 15 mutant {label} found nothing to change in {t}")
             if not dc_wiring(ast.parse(m), n):
                 f.append(f"gate 15 misses {label} in {t}")
+        # the gate reads from the source whether the topic's results state their cost convention
+        if writes_turnover(ast.parse(src)) != (t in COST_RATE_TOPICS):
+            f.append(f"gate 15 reads {t} as {'writing' if t not in COST_RATE_TOPICS else 'not writing'} a turnover "
+                     "convention")
+        if t in COST_RATE_TOPICS:
+            m = src.replace(', "turnover": "trades"}', "}", 1)
+            check(m != src, f"gate 15's turnover mutant found nothing to change in {t}")
+            if writes_turnover(ast.parse(m)):
+                f.append(f"gate 15 reads {t} without its turnover key as still writing the convention")
     # a capped topic that drops its cap without opting in: every form of a None cap is a use
     ld = open(os.path.join(ROOT, "low-debt", "backtest.py")).read()
     gn = open(os.path.join(ROOT, "graham-net-net", "backtest.py")).read()
@@ -3718,46 +3732,92 @@ def trades_dc3_file(stale=False):
     return res
 
 
-def results_check_failures(problem=dc_results_problem):
+def committed_scan_failures(scan=dc_committed_problems):
+    """Gate 15's walk over the committed files (dc_committed_problems), on a temp root. 52-week-high's own
+    backtest.py, which writes its turnover convention, sits beside two results files with a data_checks block:
+    one that states the trades convention and reproduces, and one with a two-key cost_model and round-trip rows,
+    as the code before the convention wrote. fcf-conversion's backtest.py, which writes no convention, sits beside
+    that same two-key file, and so does a source typed here, under asset-growth's name, that holds a turnover key
+    outside its cost_model. All four are counted, and only 52-week-high's two-key file is refused, for the
+    convention it doesn't state."""
+    old = "52-week-high/results/returns_OLD.json"
+    files = {"52-week-high/results/returns_GOOD.json": trades_file(), old: trades_file(stored=0.09, turnover=None),
+             "fcf-conversion/results/returns_OLD.json": trades_file(stored=0.09, turnover=None),
+             "asset-growth/results/returns_OLD.json": trades_file(stored=0.09, turnover=None)}
+    with tempfile.TemporaryDirectory() as tmp:
+        for t in ("52-week-high", "fcf-conversion", "asset-growth"):
+            os.makedirs(os.path.join(tmp, t, "results"))
+        for t in ("52-week-high", "fcf-conversion"):
+            shutil.copy(os.path.join(ROOT, t, "backtest.py"), os.path.join(tmp, t))
+        with open(os.path.join(tmp, "asset-growth", "backtest.py"), "w") as fh:
+            fh.write('OUT = {"cost_model": {"function": "costs.tiered_cost"}, "liquidity": {"turnover": 0.4}}\n')
+        for rel, res in files.items():
+            with open(os.path.join(tmp, rel), "w") as fh:
+                json.dump(res, fh)
+        try:
+            n, found = scan(pathlib.Path(tmp))
+        except Exception as e:   # the guard calls it: a raise stops every gate after it
+            return [f"the walk over committed files raises {type(e).__name__}: {e}"]
+    if n != len(files) or [p for p, _ in found] != [old] or "turnover" not in found[0][1]:
+        return [f"the walk over committed files counts {n} with a block and refuses {found}, want {len(files)} and "
+                f"{old} for its turnover"]
+    return []
+
+
+def results_check_failures(problem=dc_results_problem, scan=dc_committed_problems):
     """Gate 15's results check: only a mode-on block may sit in a committed results file, on dc-3 one with no
     hand-list fault, and none holding BCE-PY.TO in a period that exits on or after 2026-01-01 (from then its
     series is a preferred's price): the 2025 book and the 2026 partial period are refused, the 2024 book isn't.
     A file whose cost_model states its turnover convention must reproduce each row from its holdings_full under
     that convention (scripts/cost_conventions.py): a row on the other convention, a file without the lists
     (whatever its row stores: 0.0 reads as a cash row to a check that doesn't ask for the list), an item without
-    its return and a convention that isn't built are refused, and a file that states none is not read for it.
-    Such a file is still read for its hand list: one that reproduces passes, and the same file with a hand_stale
-    event is refused."""
+    its return and a convention that isn't built (a reserved, null or empty turnover) are refused, and a file that
+    states none is not read for it. Such a file is still read for its hand list: one that reproduces passes, and
+    the same file with a hand_stale event is refused.
+    In a topic whose backtest.py writes its convention (stated), a costed file must state it: a two-key
+    cost_model there is refused, with or without lists, while a no-costs file, a file with no cost_model and one
+    with no data_checks block have none to state. The walk over a root's committed files hands each to this check
+    with its topic's reading (committed_scan_failures)."""
     f = []
     sto = json.load(open(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json")))
-    no_return = trades_file()
+    no_return, null_turnover, empty_turnover = trades_file(), trades_file(), trades_file()
     del no_return["period_data"][0]["holdings_full"][0]["return"]
-    for res, bad in (({}, False), ({"data_checks": {"mode": "on"}}, False),
-                     (trades_file(), False), (trades_file(stored=0.09), True), (trades_file(full=False), True),
-                     (trades_file(stored=0.0, full=False), True), (no_return, True),
-                     (trades_file(turnover="traded"), True), (trades_file(stored=0.09, turnover="round_trip"), False),
-                     (trades_file(turnover="round_trip"), True), (trades_file(stored=0.09, turnover=None), False),
-                     (trades_file(full=False, turnover=None), False),
-                     (trades_dc3_file(), False), (trades_dc3_file(stale=True), True),
-                     ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True),
-                     (dc3_file(sto), False), (dc3_file(sto, stale=True), True),
-                     (bce_file("2025-07-01", "2026-07-01"), True), (bce_file("2026-07-01", "2026-11-06"), True),
-                     (bce_file("2024-07-01", "2025-07-01"), False), (bce_file("2025-10-01", "2026-01-01"), True),
-                     ({"data_checks": {"mode": "on"}, "period_data": [
-                         {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01"}]}, False),
-                     ({"data_checks": {"mode": "on"}, "period_data": [
-                         {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01", "holdings": "BCE.TO",
-                          "holdings_full": [{"symbol": "BCE-PY.TO"}]}]}, True)):
+    null_turnover["cost_model"]["turnover"], empty_turnover["cost_model"]["turnover"] = None, ""
+    probes = [(res, False, bad) for res, bad in (
+        ({}, False), ({"data_checks": {"mode": "on"}}, False),
+        (trades_file(), False), (trades_file(stored=0.09), True), (trades_file(full=False), True),
+        (trades_file(stored=0.0, full=False), True), (no_return, True),
+        (trades_file(turnover="traded"), True), (null_turnover, True), (empty_turnover, True),
+        (trades_file(stored=0.09, turnover="round_trip"), False),
+        (trades_file(turnover="round_trip"), True), (trades_file(stored=0.09, turnover=None), False),
+        (trades_file(full=False, turnover=None), False),
+        (trades_dc3_file(), False), (trades_dc3_file(stale=True), True),
+        ({"data_checks": {"mode": "uncapped"}}, True), ({"data_checks": None}, True),
+        (dc3_file(sto), False), (dc3_file(sto, stale=True), True),
+        (bce_file("2025-07-01", "2026-07-01"), True), (bce_file("2026-07-01", "2026-11-06"), True),
+        (bce_file("2024-07-01", "2025-07-01"), False), (bce_file("2025-10-01", "2026-01-01"), True),
+        ({"data_checks": {"mode": "on"}, "period_data": [
+            {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01"}]}, False),
+        ({"data_checks": {"mode": "on"}, "period_data": [
+            {"rebalance_date": "2025-07-01", "exit_date": "2026-07-01", "holdings": "BCE.TO",
+             "holdings_full": [{"symbol": "BCE-PY.TO"}]}]}, True))]
+    probes += [(res, True, bad) for res, bad in (
+        (trades_file(), False), (trades_file(stored=0.09), True),
+        (trades_file(stored=0.09, turnover=None), True), (trades_file(full=False, turnover=None), True),
+        ({**trades_file(), "cost_model": None}, False), (null_turnover, True),
+        ({"data_checks": {"mode": "on"}}, False), ({}, False))]
+    for res, stated, bad in probes:
         try:
-            why, answered = problem(res), True
+            why, answered = (problem(res, True) if stated else problem(res)), True
         except Exception as e:   # the gate has to answer: a raise stops the guard with no RESULTS line
             why, answered = f"raises {type(e).__name__}", False
         if not answered or bool(why) != bad:
             label = res if len(json.dumps(res)) < 500 else f"a dc-3 file of {len(res['period_data'])} rows, bad={bad}"
-            f.append(f"dc_results_problem({label}) {why}")
-    return f
+            f.append(f"dc_results_problem({label}{', in a topic that writes its convention' if stated else ''}) {why}")
+    return f + committed_scan_failures(scan)
 
 
+STATED = "stated = src.exists() and writes_turnover(ast.parse(src.read_text()))"
 GATE15_RESULTS_MUTANTS = {
     "BCE-PY.TO tested on the entry date": ('(r.get("exit_date") or "") >= BCE_PY_FROM',
                                            '(r.get("rebalance_date") or "") >= BCE_PY_FROM'),
@@ -3767,9 +3827,20 @@ GATE15_RESULTS_MUTANTS = {
     "a stated cost convention not checked": ('if isinstance(cm, dict) and "turnover" in cm:', "if False:"),
     "a file that states no convention checked too": ('if isinstance(cm, dict) and "turnover" in cm:',
                                                      "if isinstance(cm, dict):"),
+    "a null or empty turnover read as no stated convention": ('if isinstance(cm, dict) and "turnover" in cm:',
+                                                              'if isinstance(cm, dict) and cm.get("turnover"):'),
     "the factor review skipped on a file that states a convention": (
         "        why = cost_conventions.problem(res)\n        if why:\n            return why\n",
         "        return cost_conventions.problem(res)\n"),
+    "a costed file that states no convention passed in a topic that writes one": (
+        '    if stated and cm is not None and not (isinstance(cm, dict) and "turnover" in cm):\n', "    if False:\n"),
+    "a no-costs file asked to state a convention": ("if stated and cm is not None and not (", "if stated and not ("),
+    "the committed files never handed to the results check": ("            why = dc_results_problem(res, stated)\n",
+                                                              "            why = None\n"),
+    "no topic read as writing its convention": (STATED, "stated = False"),
+    "every topic read as writing its convention": (STATED, "stated = True"),
+    "a turnover key anywhere in the source read as the convention": (
+        'isinstance(k, ast.Constant) and k.value == "cost_model" and any(', "any("),
 }
 
 
@@ -3787,7 +3858,7 @@ def gate15_results_mutant_failures(tmp):
         spec = importlib.util.spec_from_file_location(f"vfg_mutant_{i}", path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        if not results_check_failures(mod.dc_results_problem):
+        if not results_check_failures(mod.dc_results_problem, mod.dc_committed_problems):
             f.append(f"gate 15 results mutant {label} passes every check")
     return f
 

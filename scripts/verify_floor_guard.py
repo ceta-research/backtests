@@ -32,7 +32,8 @@ Gates:
                unreviewed factor flag or stale hand entry: scripts/factor_review.py), none holds
                BCE-PY.TO in a period exiting on or after BCE_PY_FROM, and one whose cost_model
                states its turnover convention reproduces each row from its holdings_full
-               (scripts/cost_conventions.py)
+               (scripts/cost_conventions.py); where a topic's backtest.py writes that
+               convention, each of its committed files with a cost_model states one
 
 Usage:  python scripts/verify_floor_guard.py
 """
@@ -720,11 +721,27 @@ def held_symbols(row):
     return set((row.get("holdings") or "").split(",")) | {h.get("symbol") for h in row.get("holdings_full") or []}
 
 
-def dc_results_problem(res):
+def writes_turnover(tree):
+    """True for a backtest.py that writes a turnover key into its cost_model: its results state their cost
+    convention (scripts/cost_conventions.py)."""
+    for n in ast.walk(tree):
+        if not isinstance(n, ast.Dict):
+            continue
+        for k, v in zip(n.keys, n.values):
+            if isinstance(k, ast.Constant) and k.value == "cost_model" and any(
+                    isinstance(d, ast.Dict) and any(isinstance(x, ast.Constant) and x.value == "turnover" for x in d.keys)
+                    for d in ast.walk(v)):
+                return True
+    return False
+
+
+def dc_results_problem(res, stated=False):
     """Why a results file of an opted-in topic can't be committed, or None. A file with no data_checks
     block predates the opt-in; the uncapped attribution arm is never published; BCE-PY.TO is held only in
     periods that exit before BCE_PY_FROM (res and its rows may lack keys: the self-test probes do); a file
-    whose cost_model states its turnover convention carries holdings_full, and each row reproduces from it."""
+    whose cost_model states its turnover convention carries holdings_full, and each row reproduces from it.
+    stated: the topic's backtest.py writes that convention (writes_turnover), so a file of its with a cost_model
+    must state one: a file that doesn't comes from older code."""
     if not isinstance(res, dict) or "data_checks" not in res:
         return None
     b = res["data_checks"]
@@ -736,12 +753,35 @@ def dc_results_problem(res):
     if bce:
         return f"BCE-PY.TO held in a period exiting on or after {BCE_PY_FROM} (rebalance {', '.join(map(str, bce))})"
     cm = res.get("cost_model")
+    if stated and cm is not None and not (isinstance(cm, dict) and "turnover" in cm):
+        return ("cost_model states no turnover convention, and the topic's backtest.py writes one: the file comes "
+                "from older code (rerun the leg with --full-holdings)")
     if isinstance(cm, dict) and "turnover" in cm:   # a stated cost convention: the rows reproduce from holdings_full
         why = cost_conventions.problem(res)
         if why:
             return why
     probs = factor_review.problems(res)   # dc-3: every material factor flag reviewed, none stale
     return "; ".join(probs[:3]) + (f" (+{len(probs) - 3} more)" if len(probs) > 3 else "") if probs else None
+
+
+def dc_committed_problems(root):
+    """(n, problems) over the committed results/*.json of every opted-in topic under root: n files that carry a
+    data_checks block, and (path, why) for each file dc_results_problem refuses. Each topic's files are read with
+    what its own backtest.py says of the turnover convention."""
+    n, found = 0, []
+    for t in DATA_CHECKS_TOPICS:
+        src = root / t / "backtest.py"
+        stated = src.exists() and writes_turnover(ast.parse(src.read_text()))
+        for p in sorted((root / t / "results").rglob("*.json")):
+            try:
+                res = json.loads(p.read_text())
+            except ValueError:
+                continue
+            n += isinstance(res, dict) and "data_checks" in res
+            why = dc_results_problem(res, stated)
+            if why:
+                found.append((str(p.relative_to(root)), why))
+    return n, found
 
 
 def _sql_strings(tree):
@@ -1766,7 +1806,8 @@ def main():
     # Every *.py at the root and under a topic directory (scripts/ holds the tests, data_utils the
     # definitions): outside DATA_CHECKS_TOPICS no use of the surface at all; inside it, each topic's
     # backtest.py must be fully wired (dc_wiring), and its committed results/*.json may carry only a
-    # mode-on data_checks block (dc_results_problem). A new topic joins the dict in its own rerun.
+    # mode-on data_checks block (dc_committed_problems hands each file to dc_results_problem). A new
+    # topic joins the dict in its own rerun.
     stray15, wiring15, used15 = [], [], {}
     for f in sorted(ROOT.glob("*.py")) + sorted(ROOT.glob("*/*.py")):
         rel = str(f.relative_to(ROOT))
@@ -1793,22 +1834,12 @@ def main():
         wiring15 += [(t, ln, why) for ln, why in dc_wiring(ast.parse(p.read_text()), n_floors)]
         if not used15.get(t):
             wiring15.append((t, 0, "uses none of the data-checks surface"))
-    results15, n_res15 = [], 0
-    for t in DATA_CHECKS_TOPICS:
-        for p in sorted((ROOT / t / "results").rglob("*.json")):
-            try:
-                res = json.loads(p.read_text())
-            except ValueError:
-                continue
-            n_res15 += isinstance(res, dict) and "data_checks" in res
-            why = dc_results_problem(res)
-            if why:
-                results15.append((str(p.relative_to(ROOT)), why))
+    n_res15, results15 = dc_committed_problems(ROOT)
     print(f"15 DATACHECKS {len(stray15)} uses outside {sorted(DATA_CHECKS_TOPICS)}; "
           f"{len(DATA_CHECKS_TOPICS) - len({t for t, _, _ in wiring15})}/{len(DATA_CHECKS_TOPICS)} opted-in "
           f"topics fully wired ({sum(used15.values())} uses); {n_res15} committed results carry a data_checks "
-          f"block, {len(results15)} with a problem (not mode on, a hand-list fault, a stated cost convention "
-          f"that doesn't reproduce, or BCE-PY.TO in a period exiting from {BCE_PY_FROM})")
+          f"block, {len(results15)} with a problem (not mode on, a hand-list fault, a cost convention that isn't "
+          f"stated or doesn't reproduce, or BCE-PY.TO in a period exiting from {BCE_PY_FROM})")
     for b in stray15:
         print("    NOT OPTED IN:", b)
     for b in wiring15:
@@ -1896,6 +1927,24 @@ def main():
         if bool(dc_results_problem(res)) != bad:
             print(f"    SELF-TEST FAIL: gate 15's results check reads {res} wrong")
             fails.append(("gate 15 results probe", str(res)))
+    # A topic whose backtest.py writes its turnover convention: a costed file of its states one, and a no-costs
+    # file has none to state. The key is read under cost_model only.
+    plain = {"data_checks": {"mode": "on"}, "cost_model": {"function": "costs.tiered_cost"}}
+    writes = 'out = {"cost_model": {"function": "f", "turnover": "trades"} if use_costs else None}\n'
+    for label, got, want in (
+            ("a costed file without its convention, in a topic that writes one", dc_results_problem(plain, True), True),
+            ("that file in a topic that writes none", dc_results_problem(plain), False),
+            ("a no-costs file in a topic that writes its convention", dc_results_problem({**plain, "cost_model": None}, True), False),
+            ("a file that states its convention and reproduces", dc_results_problem(trades(0.095), True), False),
+            ("a null turnover", dc_results_problem({**plain, "cost_model": {"turnover": None}}), True),
+            ("a backtest that writes turnover into cost_model", writes_turnover(ast.parse(writes)), True),
+            ("a backtest that writes a two-key cost_model",
+             writes_turnover(ast.parse(writes.replace(', "turnover": "trades"', ""))), False),
+            ("a turnover key outside cost_model",
+             writes_turnover(ast.parse('out = {"cost_model": {"function": "f"}, "liquidity": {"turnover": 0.4}}\n')), False)):
+        if bool(got) != want:
+            print(f"    SELF-TEST FAIL: gate 15 reads {label} wrong")
+            fails.append(("gate 15 convention probe", label))
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")
