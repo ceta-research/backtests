@@ -14,7 +14,9 @@ with no benchmark return ahead of the measured ones, a two-key cost_model, and e
 mean of (return less twice the rate). Its fifth row stores 0.098 where its rounded items give 0.09800075, so a
 check that rounds and then compares fails a file the tolerance passes. The same dict under the trades convention
 gives TRADES_ROWS, derived beside it, and both conventions' CAGR and excess come from the measured rows: the
-file's own from its stored rows, the other from the recompute rounded to 6 places.
+file's own from its stored rows, the other from the recompute rounded to 6 places. PARTIAL is the same leg stored
+under the trades convention with a seventh row that is partial, half a quarter, on a book that trades: the row is
+walked and compared like any other, and both conventions' figures count it as half a period (PARTIAL_LINES, typed).
 
 A row with no benchmark return is compared like any other, and so is a file's last row. The tolerance is held
 from both sides: a row stored 0.0000019 from its recompute passes and one stored 0.0000021 from it is faulted. A
@@ -23,19 +25,25 @@ before the key; a turnover that is reserved, null or empty; a row or an item tha
 row without holdings_full, a zero-survivor row and a row from before the funnel keys among them; a holdings_full
 that isn't a list; an item without its symbol; a symbol listed twice in one row; an item whose return or
 cost_rate is missing, null, a string, true, NaN or infinite; a portfolio_return that is null, NaN or infinite; a
-return under -100% or a negative cost_rate, on a name that isn't its row's first and on either convention; a top
-level that isn't one leg), and problem() answers with it. A return of -100% itself and a cost_rate of 0.0 are
-read. Whatever the walk itself refuses, the script refuses with the walk's reason (a stand-in walk that refuses
-every series). For rows that don't reproduce, problem() gives their count and the first one's date and values. A
-row whose recompute is not a number (two returns and a rate that overflow) is faulted, not passed.
+return under -100% or a negative cost_rate, on a name that isn't its row's first and on either convention; a
+cash row whose entry_buyable or min_stocks is a string; a symbol that is a list or a number; returns too large
+for the trades walk to add; a top level that isn't one leg), and problem() answers with it. A return of -100%
+itself and a cost_rate of 0.0 are read. Whatever the walk itself refuses, the script refuses with the walk's
+reason (a stand-in walk that refuses every series). For rows that don't reproduce, problem() gives their count and
+the first one's date and values. A row whose recompute is not a number (two returns and a rate that overflow) is
+faulted, not passed.
 
 main()'s printed lines are checked on a good trades file, on the round-trip dict (typed in ROUND_TRIP_LINES) and
 on a faulted file: the header with its worst gap, each convention's CAGR and excess under its own name, the
 difference with its sign, and the row that doesn't reproduce. It exits 0, 1 or 2 whatever the files' order, goes
 on to the next file after a refused one, refuses a file that can't be opened or isn't JSON, says a both file's
 _ltp series isn't checked, says a leg with one measured period has no figure, and writes --json's fields, on a
-failing run too. Every mutant of the script must fail a check on a wrong answer, not an error; a crash where a
-refusal or another answer is due is a wrong answer.
+failing run too. It refuses with exit 2 each damaged file the check refuses, and what only the figures read: a
+frequency that is missing or that no figure is built for, a row's spy_return missing or a string, and a partial
+row's fraction missing, a string, over 1 or on a row that is not the last. The check doesn't read those keys, so
+problem() has no fault to give for them. A row the file's own convention can add and the other one's walk can't
+is faulted by the check and refused by main(). Every mutant of the script must fail a check on a wrong answer,
+not an error; a crash where a refusal or another answer is due is a wrong answer.
 
 Usage:
     python scripts/test_cost_conventions.py [repo root]
@@ -149,19 +157,36 @@ ROUND_GAP = 7.5e-7   # row 4: 0.09800075 against the stored 0.098
 #  5 A and B enter (0.003) and the four leave, their weights adding to 1, at 0.001: 0.004. 0.04 - 0.004 = 0.036.
 TRADES_ROWS = [0.067, 0.033963, 0.0, -0.013, 0.096082, 0.036]
 MEASURED = slice(1, None)   # row 0 has no benchmark return
+# PARTIAL: the same six books stored under the trades convention, each row with the run window's partial key, and a
+# seventh row that is partial, half a quarter, on a book that trades.
+#  6 A +2% at 0.5%, C +4% at 0.3%: mean 0.03. Row 5 left A at 1.08/2.08 of the book and B at 1.00/2.08. A trades
+#    |1/2 - 1.08/2.08| = 1/52 at 0.005 (0.000096), C enters at 1/2 x 0.003 (0.0015) and B sells 1.00/2.08 at 0.001
+#    (0.000481): 27/13000 = 0.002077, and the row reads 0.027923. No sale follows it: the book is held at the end.
+#    Under the house rule the row reads (0.02 - 0.010 + 0.04 - 0.006)/2 = 0.022.
+PARTIAL_ROW, FRACTION = 0.027923, 0.5
+PARTIAL = {
+    **ROUND_TRIP, "cost_model": dict(TRADES_MODEL),
+    "period_data": [{**r, "portfolio_return": stored, "partial": False}
+                    for r, stored in zip(ROUND_TRIP["period_data"], TRADES_ROWS)]
+                   + [{**row("2021-07-01", "2021-08-16", PARTIAL_ROW, [item("A", 0.02, HI), item("C", 0.04, MID)]),
+                       "partial": True, "fraction": FRACTION}],
+}
+# PARTIAL's measured rows under the house rule, each the recompute rounded to 6 places (row 4's is 0.09800075)
+PARTIAL_HOUSE = [0.032, 0.0, -0.016, 0.098001, 0.034, 0.022]
 
 
-def cagr(rets, ppy=4):
+def cagr(rets, ppy=4, last=1.0):
+    """Percent a year over rets, whose last period is `last` of a full one."""
     total = 1.0
     for r in rets:
         total *= 1 + r
-    return (total ** (ppy / len(rets)) - 1) * 100
+    return (total ** (ppy / (len(rets) - 1 + last)) - 1) * 100
 
 
-def figure_lines(own, rets, bench):
+def figure_lines(own, rets, bench, last=1.0):
     """The figure lines main() prints for one file, from this test's own arithmetic: rets is {convention: its
-    measured rows}, bench the benchmark's, own the file's convention."""
-    c, b = {how: cagr(rets[how]) for how in ("round_trip", "trades")}, cagr(bench)
+    measured rows}, bench the benchmark's, own the file's convention, last the last row's fraction of a period."""
+    c, b = {how: cagr(rets[how], last=last) for how in ("round_trip", "trades")}, cagr(bench, last=last)
     return [f"  {how:<10} CAGR {c[how]:.2f}%, excess {c[how] - b:+.2f}pp" + ("  (the file's)" if how == own else "")
             for how in c] + [f"  trades less round_trip: CAGR {c['trades'] - c['round_trip']:+.3f}pp"]
 
@@ -171,6 +196,13 @@ def figure_lines(own, rets, bench):
 ROUND_TRIP_LINES = ["  round_trip CAGR 12.06%, excess +8.00pp  (the file's)",
                     "  trades     CAGR 12.52%, excess +8.46pp",
                     "  trades less round_trip: CAGR +0.461pp"]
+# PARTIAL's figure lines, typed. Its six measured rows span five and a half quarters, 1.375 years. The stored rows
+# compound to 1.033963 x 0.987 x 1.096082 x 1.036 x 1.027923 = 1.191202, and 1.191202^(1/1.375) is 13.57% a year.
+# PARTIAL_HOUSE compounds to 1.178281, 12.67% a year, and the benchmark's 1.01^6 = 1.061520 to 4.44%. Read as six
+# full quarters, 1.5 years, the trades line would say 12.37%.
+PARTIAL_LINES = ["  round_trip CAGR 12.67%, excess +8.23pp",
+                 "  trades     CAGR 13.57%, excess +9.13pp  (the file's)",
+                 "  trades less round_trip: CAGR +0.897pp"]
 
 
 def header(path, own, rows, gap):
@@ -218,15 +250,47 @@ def item_set(res, i, key, value="missing", at=0):
     return out
 
 
+def row_set(res, i, key, value):
+    """res with row i holding `value` under `key`."""
+    out = copy.deepcopy(res)
+    out["period_data"][i][key] = value
+    return out
+
+
 def storing(res, i, value):
     """res with row i storing `value` as its portfolio_return."""
-    out = copy.deepcopy(res)
-    out["period_data"][i]["portfolio_return"] = value
-    return out
+    return row_set(res, i, "portfolio_return", value)
 
 
 NAN, INF = float("nan"), float("inf")
 NOT_NUMBER = "is missing or not a finite number"
+FUNNEL = "entry_buyable or min_stocks is not a number"
+NO_BENCH = "spy_return is missing, or is neither null nor a finite number"
+NO_FRACTION = "a partial row's fraction is missing or not a finite number"
+TOO_LARGE = "too large to add"
+
+
+def main_refuses(mod, tmp, name, res, word, good):
+    """[] when main() on res's file and then the good one exits 2, prints res's REFUSED line with `word` in it,
+    goes on to the good file and writes --json's record for that one alone; else the failure. A raise, or an exit
+    with a traceback's code, is a failure too: a refusal is the answer."""
+    path, js = os.path.join(tmp, "damaged.json"), os.path.join(tmp, "damaged.out.json")
+    with open(path, "w") as fh:
+        json.dump(res, fh)
+    if os.path.exists(js):
+        os.remove(js)
+    try:
+        rc, text = run_main(mod, [path, good], "--json", js)
+    except Exception as e:
+        return [f"main() on {name} raises {type(e).__name__} ({e}), want a refusal naming {word!r}"]
+    lines = text.splitlines()
+    recs = json.load(open(js)) if os.path.exists(js) else None
+    if rc != 2 or not any(x.startswith(f"{path}: REFUSED: ") and word in x for x in lines) or \
+            not any(x.startswith(f"{good}: ") and "REFUSED" not in x for x in lines) or \
+            recs is None or [r["file"] for r in recs] != [good]:
+        return [f"main() on {name}, then a good file, exits {rc} and writes {recs}, want 2, a refusal naming "
+                f"{word!r} and the good file's record: {text}"]
+    return []
 
 
 def run_main(mod, paths, *args):
@@ -316,6 +380,31 @@ def failures(src):
             f = figures.get(how) or {}
             if abs((f.get("cagr") or 0) - c) > 1e-9 or abs((f.get("excess_cagr") or 0) - (c - bench)) > 1e-9:
                 out.append(f"{how} figures {f}, want CAGR {c:.6f} and excess {c - bench:.6f}")
+        # a file whose last row is partial, as every run to a pinned end date writes: the row is walked and compared
+        # like any other, and the figures count it as its fraction of a period
+        try:
+            got = mod.check(PARTIAL)
+        except mod.Refusal as e:   # a good file refused is a wrong answer, not an error
+            out.append(f"the leg with a partial last row is refused: {e}")
+        else:
+            if (got["convention"], got["rows_checked"], got["bad"]) != ("trades", 7, []):
+                out.append(f"the leg with a partial last row: {got}")
+        ends = [round(mod.recompute(PARTIAL, how)[-1], 6) for how in ("trades", "round_trip")]
+        if ends != [PARTIAL_ROW, PARTIAL_HOUSE[-1]]:
+            out.append(f"the partial row recomputes to {ends} (trades, house rule), want {[PARTIAL_ROW, PARTIAL_HOUSE[-1]]}")
+        bad = [b[0] for b in mod.check(storing(PARTIAL, -1, 0.03))["bad"]]   # stored as its mean, without its trades
+        if bad != ["2021-07-01"]:
+            out.append(f"a partial last row stored without its trades: rows faulted {bad}, want ['2021-07-01']")
+        p_rows = PARTIAL["period_data"][MEASURED]
+        p_bench = cagr([r["spy_return"] for r in p_rows], last=FRACTION)
+        p_want = {"trades": cagr([r["portfolio_return"] for r in p_rows], last=FRACTION),
+                  "round_trip": cagr(PARTIAL_HOUSE, last=FRACTION)}
+        p_figures = mod.figures(PARTIAL)
+        for how, c in p_want.items():
+            f = p_figures.get(how) or {}
+            if abs((f.get("cagr") or 0) - c) > 1e-9 or abs((f.get("excess_cagr") or 0) - (c - p_bench)) > 1e-9:
+                out.append(f"{how} figures of the leg with a partial last row {f}, want CAGR {c:.6f} and excess "
+                           f"{c - p_bench:.6f}")
         # the tolerance from both sides, on row 3, whose recompute is -0.016: a row stored 0.0000019 from it passes
         # and one stored 0.0000021 from it is faulted
         for value, faulted in ((-0.0160019, []), (-0.0160021, ["2020-10-01"])):
@@ -375,7 +464,18 @@ def failures(src):
                    ("a portfolio_return that is not a number", storing(ROUND_TRIP, 1, NAN),
                     "portfolio_return is null or not a finite number"),
                    ("a portfolio_return that is infinite", storing(ROUND_TRIP, 1, INF),
-                    "portfolio_return is null or not a finite number")]
+                    "portfolio_return is null or not a finite number"),
+                   # the two keys a row's state is read from, on the cash row (1 buyable, a floor of 2)
+                   ("an entry_buyable that is a string", row_set(ltp, CASH_ROW, "entry_buyable", "1"), FUNNEL),
+                   ("a min_stocks that is a string", row_set(ltp, CASH_ROW, "min_stocks", "2"), FUNNEL),
+                   ("a symbol that is a list", item_set(ltp, 1, "symbol", ["A"]), "an item whose symbol is not a string"),
+                   ("a symbol that is a number", item_set(ltp, 1, "symbol", 7), "an item whose symbol is not a string"),
+                   # two returns of 1.7e308, each a value a book can hold, add to more than a float holds: the
+                   # walk's sum of the book's end values overflows
+                   ("returns too large to add, on a trades file",
+                    item_set(item_set(ltp, 3, "return", 1.7e308), 3, "return", 1.7e308, at=1), TOO_LARGE)]
+        if (ltp["period_data"][CASH_ROW].get("entry_buyable"), ltp["period_data"][CASH_ROW].get("min_stocks")) != (1, 2):
+            out.append(f"the fixture's cash row is not 1 buyable on a floor of 2: {ltp['period_data'][CASH_ROW]}")
         # Values that overflow, each one a book can hold: two returns of 1.7e308 add to infinity, and a rate of
         # 1e308 charged twice takes a third name to minus infinity. The row's recompute is then not a number,
         # which is a fault, not a pass.
@@ -441,7 +541,8 @@ def failures(src):
             paths = {}
             short = {**ROUND_TRIP, "period_data": ROUND_TRIP["period_data"][:2]}   # one measured period
             for name, res in (("ltp", ltp), ("both", fixture("both")), ("rt", ROUND_TRIP), ("nodrift", nodrift),
-                              ("null", {**ROUND_TRIP, "cost_model": None}), ("null_row", null_row), ("short", short)):
+                              ("null", {**ROUND_TRIP, "cost_model": None}), ("null_row", null_row), ("short", short),
+                              ("partial", PARTIAL)):
                 paths[name] = os.path.join(tmp, f"{name}.json")
                 with open(paths[name], "w") as fh:
                     json.dump(res, fh)
@@ -529,6 +630,42 @@ def failures(src):
                         [(r["rows_checked"], r["round_trip"], r["trades"]) for r in recs] != [(2, {"cagr": None, "excess_cagr": None})
                                                                                                + ({"cagr": None, "excess_cagr": None},)]:
                     out.append(f"main() on a leg with one measured period exits {rc} and writes {recs}: {text}")
+            # the leg with a partial last row: its figure lines are PARTIAL_LINES
+            if figure_lines("trades", {"round_trip": PARTIAL_HOUSE, "trades": [r["portfolio_return"] for r in p_rows]},
+                            [r["spy_return"] for r in p_rows], last=FRACTION) != PARTIAL_LINES:
+                out.append("PARTIAL_LINES is not what this test's own arithmetic gives for PARTIAL")
+            rc, text = run_main(mod, [paths["partial"]])
+            if rc != 0 or [x for x in PARTIAL_LINES if x not in text.splitlines()]:
+                out.append(f"main() on the leg with a partial last row exits {rc} and doesn't print "
+                           f"{[x for x in PARTIAL_LINES if x not in text.splitlines()]}: {text}")
+            # Hand damage through main(): the file is refused with exit 2 and its reason, the next file is still
+            # read, and --json holds that file's record alone. First what the check refuses (damaged, above).
+            for name, res, word in damaged:
+                out += main_refuses(mod, tmp, name, res, word, paths["ltp"])
+            # Then what only the figures read: the leg's frequency, each row's benchmark return and a partial row's
+            # fraction. A string there once read as a leg too short for a figure. The check doesn't read these keys,
+            # so problem() has no fault to give.
+            late = row_set(row_set(PARTIAL, 3, "partial", True), 3, "fraction", 0.5)
+            unread = [("a row without spy_return", without(ltp, 3, "spy_return"), f"2020-10-01: {NO_BENCH}"),
+                      ("a spy_return that is a string", row_set(ltp, 3, "spy_return", "0.02"), f"2020-10-01: {NO_BENCH}"),
+                      ("a leg without frequency", {k: v for k, v in ltp.items() if k != "frequency"},
+                       "frequency None is not one of"),
+                      ("a frequency no figure is built for", {**ltp, "frequency": "weekly"}, "frequency 'weekly' is not one of"),
+                      ("a partial row without its fraction", without(PARTIAL, -1, "fraction"), f"2021-07-01: {NO_FRACTION}"),
+                      ("a fraction that is a string", row_set(PARTIAL, -1, "fraction", "0.38"), f"2021-07-01: {NO_FRACTION}"),
+                      ("a fraction over 1", row_set(PARTIAL, -1, "fraction", 1.5), "fraction 1.5 outside [0, 1]"),
+                      ("a partial row that is not the last", late, "only the last period may be partial")]
+            for name, res, word in unread:
+                out += main_refuses(mod, tmp, name, res, word, paths["ltp"])
+                try:
+                    why = mod.problem(res)
+                except Exception as e:
+                    why = f"a raise, {type(e).__name__}"
+                if why:
+                    out.append(f"problem() on {name}, which the check doesn't read, answers {why!r}")
+            # A row the file's own convention can add and the other one's walk can't (lost, above): the check
+            # faults the row, and main(), which prints both conventions' figures, refuses the file.
+            out += main_refuses(mod, tmp, "returns the other convention's walk can't add", lost, TOO_LARGE, paths["ltp"])
     except Exception as e:   # the checks before it keep their findings
         return out + [f"error: {type(e).__name__}: {e}"]
     return out
@@ -536,6 +673,10 @@ def failures(src):
 
 WALK = "            costs = trade_costs(period_books)\n"
 COMPARED = 'if not abs(got - r["portfolio_return"]) <= TOLERANCE]}'
+FUNNEL_KEYS = 'not (_number(r["entry_buyable"]) and _number(r["min_stocks"]))'
+BENCH_READ = 'if "spy_return" not in r or not (r["spy_return"] is None or _number(r["spy_return"])):'
+FREQ_READ = "if not isinstance(freq, str) or freq not in PPY:"
+FRACTION_READ = 'if r.get("partial") and not _number(r.get("fraction")):'
 MUTANTS = {
     "an absent turnover read as trades": ('cm.get("turnover", "round_trip")', 'cm.get("turnover", "trades")'),
     "a cash row that doesn't sell": (
@@ -558,9 +699,9 @@ MUTANTS = {
         "            while cut and not period_books[cut - 1]:\n"
         "                cut -= 1\n"
         "            costs = trade_costs(period_books[:cut]) + [0.0] * (len(period_books) - cut)\n"),
-    # The next eight fail only on a raise where a refusal or another answer is due. This test counts that as a
-    # wrong answer (refused(), answer() and the tries around check() and main()), not as a mutant caught only by an
-    # error. "a short leg's missing figure raised", further down, fails the same way.
+    # The next sixteen fail only on a raise where a refusal or another answer is due. This test counts that as a
+    # wrong answer (refused(), answer(), main_refuses() and the tries around check() and main()), not as a mutant
+    # caught only by an error. "a short leg's missing figure raised", further down, fails the same way.
     "a return the walk refuses raised, not refused": ("            raise Refusal(str(e)) from None\n",
                                                       "            raise\n"),
     "an item without its symbol not refused": ('            if not h.get("symbol"):\n', "            if False:\n"),
@@ -571,7 +712,29 @@ MUTANTS = {
     "a file that can't be opened not refused": ("    except OSError as e:\n", "    except ZeroDivisionError as e:\n"),
     "a file that is not JSON not refused": ("    except ValueError as e:\n", "    except ZeroDivisionError as e:\n"),
     "a faulted row without its date raises": ('"bad": [(r.get("rebalance_date"), ', '"bad": [(r["rebalance_date"], '),
+    "an entry_buyable that is not a number compared": (FUNNEL_KEYS, 'not _number(r["min_stocks"])'),
+    "a min_stocks that is not a number compared": (FUNNEL_KEYS, 'not _number(r["entry_buyable"])'),
+    "returns too large to add raised, not refused": ("        except OverflowError:", "        except ZeroDivisionError:"),
+    "a row without spy_return not refused": (BENCH_READ, BENCH_READ.replace('"spy_return" not in r or', '"spy_return" in r and')),
+    "a frequency no figure is built for not refused": (FREQ_READ, "if not isinstance(freq, str):"),
+    "a leg without frequency not refused": (FREQ_READ, "if freq is not None and freq not in PPY:"),
+    "a partial row without its fraction not refused": (
+        FRACTION_READ, 'if r.get("partial") and "fraction" in r and not _number(r["fraction"]):'),
+    "a fraction or a partial row compute_metrics refuses raised, not refused": (
+        "        except ValueError as e:   # compute_metrics' own refusal",
+        "        except ZeroDivisionError as e:   # compute_metrics' own refusal"),
     # every mutant from here on fails on a wrong value (the short-leg one aside)
+    "a symbol that is not a string read as one": ('            if not isinstance(h["symbol"], str):\n', "            if False:\n"),
+    "a spy_return refused only when missing": (BENCH_READ, 'if "spy_return" not in r:'),
+    "a partial row's fraction refused only when missing": (FRACTION_READ, 'if r.get("partial") and "fraction" not in r:'),
+    "a partial last row read as a full one in the figures": (
+        "c, x = _cagr_excess(res, measured, rets)",
+        'c, x = _cagr_excess(res, [{**r, "partial": False} for r in measured], rets)'),
+    "a partial last row left out of the walk": (
+        WALK,
+        '            cut = len(period_books) - bool(res["period_data"][-1].get("partial"))\n'
+        "            costs = trade_costs(period_books[:cut]) + [0.0] * (len(period_books) - cut)\n"),
+    "a partial last row not compared": (COMPARED, COMPARED.replace("]}", ' and not r.get("partial")]}')),
     "a null portfolio_return not refused": ('        if not _number(r.get("portfolio_return")):\n', "        if False:\n"),
     "a portfolio_return refused only when null": ('        if not _number(r.get("portfolio_return")):\n',
                                                   '        if r.get("portfolio_return") is None:\n'),
@@ -683,8 +846,8 @@ def main():
     if survived or errored:
         print("test_cost_conventions: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
-    print(f"test_cost_conventions: PASS (the typed fixture's three files, two of its run that ends in cash and a typed round-trip leg of "
-          f"{len(ROUND_TRIP['period_data'])} rows; {len(MUTANTS)} mutants caught)")
+    print(f"test_cost_conventions: PASS (the typed fixture's three files, two of its run that ends in cash, a typed round-trip leg of "
+          f"{len(ROUND_TRIP['period_data'])} rows and the same leg on trades with a partial row after them; {len(MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":

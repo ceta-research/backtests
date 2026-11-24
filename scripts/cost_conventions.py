@@ -23,13 +23,18 @@ recomputed from it, and the script says so.
 Exit 0, 1 when a row doesn't reproduce, and 2 when a file is refused, with the reason: a file that can't be
 opened or isn't JSON, a top level that isn't one leg (an exchange_comparison.json), no cost_model (a --no-costs
 run, or a file older than the key), an unknown turnover, a row or an item that isn't an object, an invested row
-without holdings_full (rerun the leg with --full-holdings), a holdings_full that isn't a list, an item without
-its symbol, a symbol listed twice in one row, an item whose return or cost_rate is missing or not a finite
-number, a return under -100% or a negative cost_rate (on either convention), or a row whose portfolio_return
-is null or not a finite number.
+without holdings_full (rerun the leg with --full-holdings), a row without holdings_full whose entry_buyable or
+min_stocks is not a number, a holdings_full that isn't a list, an item without its symbol or with one that
+isn't a string, a symbol listed twice in one row, an item whose return or cost_rate is missing or not a finite
+number, a return under -100% or a negative cost_rate (on either convention), returns or costs too large for
+the trades walk to add, or a row whose portfolio_return is null or not a finite number.
+The figures refuse what only they read: a frequency they aren't built for, a row whose spy_return is missing or
+is neither null nor a finite number, a partial row whose fraction is missing or not a finite number, a fraction
+or a partial row that metrics.compute_metrics refuses (outside 0 to 1, or not the last measured row), and
+values the other convention's walk can't add.
 --json writes one record per checked file: file, convention, rows_checked, worst_gap, and each convention's
 cagr and excess_cagr. Gate 15 of verify_floor_guard.py runs the check (problem) on every committed data-checks
-file whose cost_model carries turnover. Offline.
+file whose cost_model carries turnover; it doesn't read what only the figures read. Offline.
 
 Usage: python scripts/cost_conventions.py RESULTS.json [RESULTS.json ...] [--json OUT]
 """
@@ -43,7 +48,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 from costs import apply_costs, trade_costs   # noqa: E402
 from data_utils import INVESTED, period_state   # noqa: E402
-from factor_review import _cagr_excess, _rows   # noqa: E402
+from factor_review import PPY, _cagr_excess, _rows   # noqa: E402
 
 CONVENTIONS = ("round_trip", "trades")
 TOLERANCE = 2e-6   # a row and each of its items are rounded to 6 places
@@ -74,14 +79,19 @@ def _number(x):
 
 def books(res):
     """Every period row's book, in order: {symbol: (return before costs, cost_rate)} from its holdings_full, {}
-    for a row that books nothing, None for a cash row. Raises Refusal for a row or an item it can't read, and for
-    a value no book can hold (a return under -100%, a negative cost_rate), on either convention."""
+    for a row that books nothing, None for a cash row. Raises Refusal for a row or an item it can't read (a row's
+    two funnel keys and an item's symbol among them), and for a value no book can hold (a return under -100%, a
+    negative cost_rate), on either convention."""
     out = []
     for i, r in enumerate(res["period_data"]):
         if not isinstance(r, dict):
             raise Refusal(f"row {i} is not an object")
         day = r.get("rebalance_date")
         if "holdings_full" not in r:
+            # period_state compares the two keys when the row has both and entry_buyable is not null
+            if r.get("entry_buyable") is not None and "min_stocks" in r \
+                    and not (_number(r["entry_buyable"]) and _number(r["min_stocks"])):
+                raise Refusal(f"{day}: entry_buyable or min_stocks is not a number")
             if period_state(r) == INVESTED or r.get("stocks_held"):
                 raise Refusal(f"{day}: an invested row without holdings_full (rerun the leg with --full-holdings)")
             out.append(None)
@@ -94,6 +104,8 @@ def books(res):
                 raise Refusal(f"{day}: an item that is not an object")
             if not h.get("symbol"):
                 raise Refusal(f"{day}: an item without symbol")
+            if not isinstance(h["symbol"], str):
+                raise Refusal(f"{day}: an item whose symbol is not a string")
             for key in ("return", "cost_rate"):
                 if not _number(h.get(key)):
                     raise Refusal(f"{day}: {h['symbol']}'s {key} is missing or not a finite number")
@@ -110,13 +122,16 @@ def books(res):
 
 def recompute(res, how):
     """Each row's portfolio_return under one convention, unrounded: the mean of its items' returns less their
-    costs, and 0.0 for a cash row or a row that books nothing."""
+    costs, and 0.0 for a cash row or a row that books nothing. Raises Refusal for what books() or the trades walk
+    refuses, sums that overflow among them."""
     period_books = books(res)
     if how == "trades":
         try:
             costs = trade_costs(period_books)
         except ValueError as e:   # the walk's own refusal: books() has refused the values it names today
             raise Refusal(str(e)) from None
+        except OverflowError:   # math.fsum's: each value is one a book can hold, and their sum is not
+            raise Refusal("a row's returns or costs are too large to add") from None
         return [sum(x for x, _ in b.values()) / len(b) - c if b else 0.0 for b, c in zip(period_books, costs)]
     return [sum(apply_costs(x, rate) for x, rate in b.values()) / len(b) if b else 0.0 for b in period_books]
 
@@ -137,14 +152,29 @@ def check(res):
                     if not abs(got - r["portfolio_return"]) <= TOLERANCE]}
 
 
+def _measured(res):
+    """The rows with a benchmark return, after checking what only the figures read of the file: its frequency,
+    each row's spy_return and a partial row's fraction. Raises Refusal for one they can't read."""
+    freq = res.get("frequency")
+    if not isinstance(freq, str) or freq not in PPY:
+        raise Refusal(f"frequency {freq!r} is not one of {', '.join(PPY)}")
+    for r in res["period_data"]:
+        day = r.get("rebalance_date")
+        if "spy_return" not in r or not (r["spy_return"] is None or _number(r["spy_return"])):
+            raise Refusal(f"{day}: spy_return is missing, or is neither null nor a finite number")
+        if r.get("partial") and not _number(r.get("fraction")):
+            raise Refusal(f"{day}: a partial row's fraction is missing or not a finite number")
+    return _rows(res)
+
+
 def figures(res):
     """{convention: {"cagr", "excess_cagr"}} in percent, over the rows with a benchmark return: the file's own
     convention from its stored rows, the other from the recompute rounded to 6 places. None where the leg has
-    fewer than two full measured periods."""
+    fewer than two full measured periods. Raises Refusal for a file whose figures can't be read."""
     own = convention(res)
     by = {how: recompute(res, how) for how in CONVENTIONS}
     at = {id(r): i for i, r in enumerate(res["period_data"])}
-    measured = _rows(res)
+    measured = _measured(res)
     out = {}
     for how in CONVENTIONS:
         rets = [r["portfolio_return"] if how == own else round(by[how][at[id(r)]], 6) for r in measured]
@@ -152,6 +182,8 @@ def figures(res):
             c, x = _cagr_excess(res, measured, rets)
         except TypeError:   # compute_metrics gives no figure for fewer than two full periods
             c = x = None
+        except ValueError as e:   # compute_metrics' own refusal: a fraction outside 0 to 1, or a partial row not last
+            raise Refusal(f"no figure can be computed ({e})") from None
         out[how] = {"cagr": c, "excess_cagr": x}
     return out
 
