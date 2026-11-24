@@ -20,9 +20,10 @@ For each file:
 Only portfolio_return is checked. A --exit-method both file lists its main book, so its _ltp series can't be
 recomputed from it, and the script says so.
 
-Exit 0, 1 when a row doesn't reproduce, and 2 when a file is refused, with the reason: a null cost_model (a
---no-costs run), an unknown turnover, an invested row without holdings_full (rerun the leg with
---full-holdings), an item without cost_rate, or a top level that isn't one leg (an exchange_comparison.json).
+Exit 0, 1 when a row doesn't reproduce, and 2 when a file is refused, with the reason: no cost_model (a
+--no-costs run, or a file older than the key), an unknown turnover, an invested row without holdings_full
+(rerun the leg with --full-holdings), an item without cost_rate, a row with a null portfolio_return, a return
+under -100% or not finite, or a top level that isn't one leg (an exchange_comparison.json).
 --json writes one record per checked file: file, convention, rows_checked, worst_gap, and each convention's
 cagr and excess_cagr. Gate 15 of verify_floor_guard.py runs the check (problem) on every committed data-checks
 file whose cost_model carries turnover. Offline.
@@ -54,7 +55,8 @@ def convention(res):
         raise Refusal("the top level is not one leg (no period_data): pass each leg's own file")
     cm = res.get("cost_model")
     if not isinstance(cm, dict):
-        raise Refusal("cost_model is null or missing: a run without costs has no convention to check")
+        raise Refusal("cost_model is null or missing: a run without costs, or a file older than cost_model, has "
+                      "no convention to check")
     how = cm.get("turnover", "round_trip")
     if how not in CONVENTIONS:
         raise Refusal(f"turnover {how!r} is not one of {', '.join(CONVENTIONS)}")
@@ -83,7 +85,10 @@ def recompute(res, how):
     costs, and 0.0 for a cash row or a row that books nothing."""
     period_books = books(res)
     if how == "trades":
-        costs = trade_costs(period_books)
+        try:
+            costs = trade_costs(period_books)
+        except ValueError as e:   # a return no book can hold
+            raise Refusal(str(e)) from None
         return [sum(x for x, _ in b.values()) / len(b) - c if b else 0.0 for b, c in zip(period_books, costs)]
     return [sum(apply_costs(x, rate) for x, rate in b.values()) / len(b) if b else 0.0 for b in period_books]
 
@@ -93,6 +98,9 @@ def check(res):
     lists (rebalance date, stored, recomputed) for each row more than TOLERANCE from its recompute.
     Raises Refusal for a file it can't read."""
     own = convention(res)
+    for r in res["period_data"]:
+        if r.get("portfolio_return") is None:
+            raise Refusal(f"{r.get('rebalance_date')}: portfolio_return is null")
     pairs = list(zip(res["period_data"], recompute(res, own)))
     return {"convention": own, "rows_checked": len(res["period_data"]),
             "worst_gap": max((abs(got - r["portfolio_return"]) for r, got in pairs), default=0.0),
