@@ -2098,12 +2098,12 @@ a currency near 7.25, and the UK's USD reporters at 0.79.
 (check M), records `cost_model` as fcf-conversion does, and lists each name's one-way tier as
 `cost_rate` in its `--full-holdings` list. Its code is also the first on the `trades` cost
 convention (`"turnover": "trades"` in `cost_model`; METHODOLOGY.md, "Transaction Costs"): it
-charges only real trades, each sized to the trade, where every other topic charges each booked
-name a round trip every period. So `cost_rate` is the rate on what the name trades at that
-rebalance, and on its sale at the next one if it leaves. `scripts/cost_conventions.py` prints a
-leg's CAGR and excess under both conventions from its `--full-holdings` file. Its committed
-results are the October 2026 run's, on the unconverted tiers and the round trip, and the same
-residual applies.
+charges only real trades, each sized to the trade, where the topics that charge through
+`costs.apply_costs` charge each booked name a round trip every period. So `cost_rate` is the
+rate on what the name trades at that rebalance, and on its sale at the next one if it leaves.
+`scripts/cost_conventions.py` prints a leg's CAGR and excess under both conventions from its
+`--full-holdings` file. Its committed results are the October 2026 run's, on the unconverted
+tiers and the round trip, and the same residual applies.
 
 ---
 

@@ -161,7 +161,7 @@ def trade_costs(books):
                       period's mean return.
 
     Raises:
-        ValueError - a book holds a return under -100% or one that isn't finite (a bad price, not a return).
+        ValueError when a book holds a return under -100% or one that isn't finite: a bad price, not a return.
 
     The position is the last invested period's book at its end weights, (1 + r) over the book's sum of
     (1 + r), each name with the rate it carried there. It is empty at the start, after a cash period,
