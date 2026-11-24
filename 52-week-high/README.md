@@ -109,10 +109,7 @@ python3 52-week-high/backtest.py --preset us --verbose
 python3 52-week-high/backtest.py --end-date YYYY-MM-DD --exchange XETRA --full-holdings --output 52-week-high/results/returns_XETRA.json
 python3 52-week-high/backtest.py --end-date YYYY-MM-DD --preset us --full-holdings --output 52-week-high/results/returns_NYSE_NASDAQ_AMEX.json
 
-# One market on the committed files' grid, with every booked name and its cost rate listed
-python3 52-week-high/backtest.py --end-year 2025 --exchange SAO --full-holdings
-
-# What a market returns under each cost convention: a --full-holdings run's file (here in the untracked root results/), then the script
+# What a market returns under each cost convention: a --full-holdings run's file, which lists every booked name and its cost rate (here on the committed files' grid, in the untracked root results/), then the script
 python3 52-week-high/backtest.py --end-year 2025 --exchange SAO --full-holdings --output results/52wh_SAO_full.json
 python3 scripts/cost_conventions.py results/52wh_SAO_full.json
 

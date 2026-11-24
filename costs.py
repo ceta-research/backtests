@@ -173,7 +173,8 @@ def trade_costs(books):
       * a name in the book trades the gap between 1/n and its weight in the position (0 for an entry),
         at the new period's rate;
       * a name in the position that the book leaves out sells its weight at the rate it last carried.
-        That rate is one period old: a name that leaves isn't screened, so it has no new cap.
+        That rate is one period old: the new book carries no rate for a name it leaves out, whether
+        the screen didn't pick the name or the series couldn't book it.
 
     A cash period sells the position at those rates. The sale is charged to the last invested period,
     and the cash period itself costs 0.0: a cash row stores one return for every series, and two series'
