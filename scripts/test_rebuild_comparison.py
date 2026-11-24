@@ -383,13 +383,16 @@ def legs_end_on_one_date(mod):
 def holdings_lists_stay_in_the_leg_files(mod):
     """A --full-holdings leg file lists every booked name per period (holdings_full). Its comparison node leaves
     the lists out, on a rebuild, on --only and in --check, keeps every other key of each row, and the leg file
-    itself is not written. The leg starts in cash, so its first row has no list, and has two invested rows."""
+    itself is not written. The leg starts in cash, so its first row has no list, has two invested rows, and ends
+    on a row that books nothing, whose list is empty and goes too."""
     def rows(full):
         held = [{"rebalance_date": d, "portfolio_return": 0.01, "stocks_held": 2, "holdings": "X,Y"}
                 for d in ("2025-04-01", "2025-07-01")]
+        empty = {"rebalance_date": "2025-10-01", "portfolio_return": 0.0, "stocks_held": 0, "holdings": ""}
         for r in held if full else []:
             r["holdings_full"] = [{"symbol": s, "return": 0.01, "cost_rate": 0.005} for s in "XY"]
-        return [{"rebalance_date": "2025-01-01", "portfolio_return": 0.0, "stocks_held": 0}, *held]
+        return [{"rebalance_date": "2025-01-01", "portfolio_return": 0.0, "stocks_held": 0}, *held,
+                {**empty, "holdings_full": []} if full else empty]
 
     files = {f"returns_{k}.json": node(k, c, period_data=rows(True)) for k, c in (("A", 1.0), ("B", 2.0))}
     lean = {k: node(k, c, period_data=rows(False)) for k, c in (("A", 1.0), ("B", 2.0))}
@@ -485,6 +488,7 @@ MUTANTS = {
     "the holdings lists copied into the comparison file": (
         "    per = {k: lean(v) for k, v in per.items()}", "    per = dict(per)"),
     "a period row cut to its date": ('if k != "holdings_full"}', 'if k == "rebalance_date"}'),
+    "an empty list kept": ('if k != "holdings_full"}', 'if k != "holdings_full" or v == []}'),
     "the lists looked for in the first period row only": (
         'not any(isinstance(r, dict) and "holdings_full" in r for r in rows):',
         'not (rows and isinstance(rows[0], dict) and "holdings_full" in rows[0]):'),
