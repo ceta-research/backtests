@@ -22,8 +22,9 @@ recomputed from it, and the script says so.
 
 Exit 0, 1 when a row doesn't reproduce, and 2 when a file is refused, with the reason: no cost_model (a
 --no-costs run, or a file older than the key), an unknown turnover, an invested row without holdings_full
-(rerun the leg with --full-holdings), an item without cost_rate, a row with a null portfolio_return, a return
-under -100% or not finite, or a top level that isn't one leg (an exchange_comparison.json).
+(rerun the leg with --full-holdings), a holdings_full that isn't a list, an item without its symbol, an item
+whose return or cost_rate is missing or not a finite number, a row whose portfolio_return is null or not a
+finite number, a return under -100%, or a top level that isn't one leg (an exchange_comparison.json).
 --json writes one record per checked file: file, convention, rows_checked, worst_gap, and each convention's
 cagr and excess_cagr. Gate 15 of verify_floor_guard.py runs the check (problem) on every committed data-checks
 file whose cost_model carries turnover. Offline.
@@ -32,6 +33,7 @@ Usage: python scripts/cost_conventions.py RESULTS.json [RESULTS.json ...] [--jso
 """
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -63,19 +65,30 @@ def convention(res):
     return how
 
 
+def _number(x):
+    """x is a finite number: not null, a string or NaN."""
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+
+
 def books(res):
     """Every period row's book, in order: {symbol: (return before costs, cost_rate)} from its holdings_full, {}
-    for a row that books nothing, None for a cash row."""
+    for a row that books nothing, None for a cash row. Raises Refusal for a row or an item it can't read."""
     out = []
     for r in res["period_data"]:
+        day = r.get("rebalance_date")
         if "holdings_full" not in r:
             if period_state(r) == INVESTED or r.get("stocks_held"):
-                raise Refusal(f"{r.get('rebalance_date')}: an invested row without holdings_full (rerun the leg "
-                              "with --full-holdings)")
+                raise Refusal(f"{day}: an invested row without holdings_full (rerun the leg with --full-holdings)")
             out.append(None)
             continue
-        if any(h.get("cost_rate") is None for h in r["holdings_full"]):
-            raise Refusal(f"{r.get('rebalance_date')}: an item without cost_rate")
+        if not isinstance(r["holdings_full"], list):
+            raise Refusal(f"{day}: holdings_full is not a list")
+        for h in r["holdings_full"]:
+            if not h.get("symbol"):
+                raise Refusal(f"{day}: an item without symbol")
+            for key in ("return", "cost_rate"):
+                if not _number(h.get(key)):
+                    raise Refusal(f"{day}: {h['symbol']}'s {key} is missing or not a finite number")
         out.append({h["symbol"]: (h["return"], h["cost_rate"]) for h in r["holdings_full"]})
     return out
 
@@ -95,17 +108,17 @@ def recompute(res, how):
 
 def check(res):
     """The file's own convention on every row: {"convention", "rows_checked", "worst_gap", "bad"}, where bad
-    lists (rebalance date, stored, recomputed) for each row more than TOLERANCE from its recompute.
-    Raises Refusal for a file it can't read."""
+    lists (rebalance date, stored, recomputed) for each row not within TOLERANCE of its recompute, one whose
+    recompute is not a number among them. Raises Refusal for a file it can't read."""
     own = convention(res)
     for r in res["period_data"]:
-        if r.get("portfolio_return") is None:
-            raise Refusal(f"{r.get('rebalance_date')}: portfolio_return is null")
+        if not _number(r.get("portfolio_return")):
+            raise Refusal(f"{r.get('rebalance_date')}: portfolio_return is null or not a finite number")
     pairs = list(zip(res["period_data"], recompute(res, own)))
     return {"convention": own, "rows_checked": len(res["period_data"]),
             "worst_gap": max((abs(got - r["portfolio_return"]) for r, got in pairs), default=0.0),
             "bad": [(r["rebalance_date"], r["portfolio_return"], got) for r, got in pairs
-                    if abs(got - r["portfolio_return"]) > TOLERANCE]}
+                    if not abs(got - r["portfolio_return"]) <= TOLERANCE]}
 
 
 def figures(res):
