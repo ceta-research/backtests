@@ -16,20 +16,26 @@ check that rounds and then compares fails a file the tolerance passes. The same 
 gives TRADES_ROWS, derived beside it, and both conventions' CAGR and excess come from the measured rows: the
 file's own from its stored rows, the other from the recompute rounded to 6 places.
 
-A row with no benchmark return is compared like any other, and a row 0.000003 off is faulted where the one
-0.00000075 off passes. Each refusal has its reason (no cost_model, null or from before the key; an unknown
-turnover; an invested row without holdings_full, a zero-survivor row and a row from before the funnel keys among
-them; a holdings_full that isn't a list; an item without its symbol; an item whose return or cost_rate is missing,
-null, a string or NaN; a portfolio_return that is null or NaN; a return under -100%; a top level that isn't one
-leg), and problem() answers with it. For rows that don't reproduce, problem() gives their count and the first
-one's date and values. A row whose recompute is not a number (two rates that overflow) is faulted, not passed.
+A row with no benchmark return is compared like any other, and so is a file's last row. The tolerance is held
+from both sides: a row stored 0.0000019 from its recompute passes and one stored 0.0000021 from it is faulted. A
+faulted row that has no date is listed without one. Each refusal has its reason (no cost_model, null or from
+before the key; a turnover that is reserved, null or empty; a row or an item that isn't an object; an invested
+row without holdings_full, a zero-survivor row and a row from before the funnel keys among them; a holdings_full
+that isn't a list; an item without its symbol; a symbol listed twice in one row; an item whose return or
+cost_rate is missing, null, a string, true, NaN or infinite; a portfolio_return that is null, NaN or infinite; a
+return under -100% or a negative cost_rate, on a name that isn't its row's first and on either convention; a top
+level that isn't one leg), and problem() answers with it. A return of -100% itself and a cost_rate of 0.0 are
+read. Whatever the walk itself refuses, the script refuses with the walk's reason (a stand-in walk that refuses
+every series). For rows that don't reproduce, problem() gives their count and the first one's date and values. A
+row whose recompute is not a number (two returns and a rate that overflow) is faulted, not passed.
 
 main()'s printed lines are checked on a good trades file, on the round-trip dict (typed in ROUND_TRIP_LINES) and
 on a faulted file: the header with its worst gap, each convention's CAGR and excess under its own name, the
 difference with its sign, and the row that doesn't reproduce. It exits 0, 1 or 2 whatever the files' order, goes
-on to the next file after a refused one, says a both file's _ltp series isn't checked, says a leg with one
-measured period has no figure, and writes --json's fields, on a failing run too. Every mutant of the script must
-fail a check on a wrong answer, not an error; a crash where a refusal or another answer is due is a wrong answer.
+on to the next file after a refused one, refuses a file that can't be opened or isn't JSON, says a both file's
+_ltp series isn't checked, says a leg with one measured period has no figure, and writes --json's fields, on a
+failing run too. Every mutant of the script must fail a check on a wrong answer, not an error; a crash where a
+refusal or another answer is due is a wrong answer.
 
 Usage:
     python scripts/test_cost_conventions.py [repo root]
@@ -183,21 +189,43 @@ def refused(mod, res, word):
     return f"not refused (want a reason naming {word})"
 
 
+def answer(mod, name, res, word):
+    """[] when problem() answers res with a reason holding `word`, else the failure. Gate 15 calls problem(), so
+    it has to answer: a raise is a failure too."""
+    try:
+        why = mod.problem(res)
+    except Exception as e:
+        return [f"problem() raises {type(e).__name__} on {name}"]
+    return [] if why and word in why else [f"problem() on {name} answers {why!r}, want {word!r} in it"]
+
+
+def refusing_walk(_books):
+    """A stand-in for costs.trade_costs that refuses every series."""
+    raise ValueError("the walk's own reason")
+
+
 def without(res, i, key="holdings_full"):
     out = copy.deepcopy(res)
     del out["period_data"][i][key]
     return out
 
 
-def item_set(res, i, key, value="missing"):
-    """res with row i's first item given `value` under `key`, or losing the key."""
+def item_set(res, i, key, value="missing", at=0):
+    """res with one item of row i (its first, or the one at `at`) given `value` under `key`, or losing the key."""
     out = copy.deepcopy(res)
-    first = out["period_data"][i]["holdings_full"][0]
-    first.pop(key) if value == "missing" else first.update({key: value})
+    one = out["period_data"][i]["holdings_full"][at]
+    one.pop(key) if value == "missing" else one.update({key: value})
     return out
 
 
-NAN = float("nan")
+def storing(res, i, value):
+    """res with row i storing `value` as its portfolio_return."""
+    out = copy.deepcopy(res)
+    out["period_data"][i]["portfolio_return"] = value
+    return out
+
+
+NAN, INF = float("nan"), float("inf")
 NOT_NUMBER = "is missing or not a finite number"
 
 
@@ -244,6 +272,17 @@ def failures(src):
         bad = [b[0] for b in mod.check(nodrift)["bad"]]
         if bad != [ltp["period_data"][DRIFT_ROW]["rebalance_date"]]:
             out.append(f"a row stored without its drift trade: rows faulted {bad}")
+        bad = [b[0] for b in mod.check(storing(ltp, -1, 0.5))["bad"]]   # the last row is compared like any other
+        if bad != [ltp["period_data"][-1]["rebalance_date"]]:
+            out.append(f"a file whose last row stores 0.5: rows faulted {bad}")
+        undated = storing(ltp, DRIFT_ROW, NODRIFT)   # a faulted row with no date is listed without one
+        del undated["period_data"][DRIFT_ROW]["rebalance_date"]
+        try:
+            bad = [b[0] for b in mod.check(undated)["bad"]]
+        except KeyError:
+            bad = "a KeyError"
+        if bad != [None]:
+            out.append(f"a faulted row without rebalance_date: rows faulted {bad}, want [None]")
         unmeasured = fixture("ltp")   # its first row has no benchmark return, and is compared like any other
         if unmeasured["period_data"][0]["spy_return"] is not None or unmeasured["period_data"][0]["portfolio_return"] != 0.097:
             out.append(f"the fixture's first row is not the unmeasured 0.097: {unmeasured['period_data'][0]}")
@@ -277,19 +316,49 @@ def failures(src):
             f = figures.get(how) or {}
             if abs((f.get("cagr") or 0) - c) > 1e-9 or abs((f.get("excess_cagr") or 0) - (c - bench)) > 1e-9:
                 out.append(f"{how} figures {f}, want CAGR {c:.6f} and excess {c - bench:.6f}")
-        off = copy.deepcopy(ROUND_TRIP)   # over the tolerance, where row 4's 0.00000075 is under it
-        off["period_data"][3]["portfolio_return"] = -0.016003
-        if [b[0] for b in mod.check(off)["bad"]] != ["2020-10-01"]:
-            out.append(f"a round-trip row off by 0.000003: {mod.check(off)['bad']}")
+        # the tolerance from both sides, on row 3, whose recompute is -0.016: a row stored 0.0000019 from it passes
+        # and one stored 0.0000021 from it is faulted
+        for value, faulted in ((-0.0160019, []), (-0.0160021, ["2020-10-01"])):
+            bad = [b[0] for b in mod.check(storing(ROUND_TRIP, 3, value))["bad"]]
+            if bad != faulted:
+                out.append(f"a round-trip row stored {value} where it recomputes to -0.016: rows faulted {bad}, want {faulted}")
+        # values a book can hold: a return of -100% itself and a rate of 0.0, here both on C in a row that stores
+        # its own mean, (0.02 - 0.010 - 1.0 - 0.0)/2 = -0.495
+        edge = storing(item_set(item_set(ROUND_TRIP, 1, "return", -1.0, at=1), 1, "cost_rate", 0.0, at=1), 1, -0.495)
+        try:
+            bad = mod.check(edge)["bad"]
+        except mod.Refusal as e:
+            bad = f"refused: {e}"
+        if bad != []:
+            out.append(f"a name at -100% on a rate of 0.0, in a row stored as its mean: {bad}, want no fault")
         # refusals
-        zero, null_row, low = fixture("drop"), fixture("ltp"), fixture("ltp")
-        null_row["period_data"][3]["portfolio_return"] = None
-        low["period_data"][3]["holdings_full"][0]["return"] = -1.5
+        zero, null_row = fixture("drop"), storing(ltp, 3, None)
+        low = item_set(ltp, 3, "return", -1.5, at=-1)   # on the last of the row's three names
         bare = copy.deepcopy(ROUND_TRIP)   # a row from before the funnel keys: only its count says it held names
         bare["period_data"][1] = {k: v for k, v in bare["period_data"][1].items()
                                   if k in ("rebalance_date", "exit_date", "portfolio_return", "spy_return", "stocks_held")}
-        # values a damaged or hand-edited file can hold: each is refused, on either convention
-        damaged = [("an item without its return", item_set(ROUND_TRIP, 1, "return"), f"A's return {NOT_NUMBER}"),
+        # Values a damaged or hand-edited file can hold: each is refused, on either convention. On the house rule
+        # the walk never runs, so the two rows there that hold a value the walk would refuse store their own mean:
+        # with C at -150%, (0.02 - 0.010 - 1.5 - 0.006)/2 = -0.748; with C's rate at -0.3%, (0.02 - 0.010 + 0.06 +
+        # 0.006)/2 = 0.038.
+        twice = fixture("ltp")
+        twice["period_data"][0]["holdings_full"].append(dict(twice["period_data"][0]["holdings_full"][0]))
+        loose = fixture("ltp")
+        loose["period_data"][1]["holdings_full"].append("C")
+        if [h["symbol"] for h in ltp["period_data"][1]["holdings_full"]] != ["A", "C"]:
+            out.append("the fixture's ltp file doesn't list A, then C, in quarter 1")
+        damaged = [("a return under -100%, on the house rule", storing(item_set(ROUND_TRIP, 1, "return", -1.5, at=1), 1, -0.748),
+                    "C's return is under -100%"),
+                   ("a negative cost_rate", item_set(ltp, 1, "cost_rate", -0.003, at=1), "C's cost_rate is negative"),
+                   ("a negative cost_rate, on the house rule",
+                    storing(item_set(ROUND_TRIP, 1, "cost_rate", -0.003, at=1), 1, 0.038), "C's cost_rate is negative"),
+                   ("a symbol listed twice in one row", twice, "A is listed twice"),
+                   ("an item that is not an object", loose, "an item that is not an object"),
+                   ("a row that is not an object", {**ROUND_TRIP, "period_data": ROUND_TRIP["period_data"] + ["2021-07-01"]},
+                    "row 6 is not an object"),
+                   ("a row that is null", {**ltp, "period_data": ltp["period_data"][:3] + [None] + ltp["period_data"][3:]},
+                    "row 3 is not an object"),
+                   ("an item without its return", item_set(ROUND_TRIP, 1, "return"), f"A's return {NOT_NUMBER}"),
                    ("an item with a null return", item_set(ltp, 1, "return", None), f"A's return {NOT_NUMBER}"),
                    ("an item whose return is not a number, on the house rule", item_set(ROUND_TRIP, 1, "return", NAN),
                     f"A's return {NOT_NUMBER}"),
@@ -298,27 +367,34 @@ def failures(src):
                     f"A's cost_rate {NOT_NUMBER}"),
                    ("an item whose cost_rate is a string", item_set(ROUND_TRIP, 1, "cost_rate", "0.005"),
                     f"A's cost_rate {NOT_NUMBER}"),
+                   ("an item whose cost_rate is infinite", item_set(ltp, 1, "cost_rate", INF), f"A's cost_rate {NOT_NUMBER}"),
+                   ("an item whose return is true", item_set(ROUND_TRIP, 1, "return", True), f"A's return {NOT_NUMBER}"),
                    ("a holdings_full that is null", {**ROUND_TRIP, "period_data": [
                        {**r, "holdings_full": None} if i == 1 else r for i, r in enumerate(ROUND_TRIP["period_data"])]},
                     "holdings_full is not a list"),
-                   ("a portfolio_return that is not a number", {**ROUND_TRIP, "period_data": [
-                       {**r, "portfolio_return": NAN} if i == 1 else r for i, r in enumerate(ROUND_TRIP["period_data"])]},
+                   ("a portfolio_return that is not a number", storing(ROUND_TRIP, 1, NAN),
+                    "portfolio_return is null or not a finite number"),
+                   ("a portfolio_return that is infinite", storing(ROUND_TRIP, 1, INF),
                     "portfolio_return is null or not a finite number")]
-        # rates that overflow: the row's recompute is not a number, which is a fault, not a pass
-        lost = item_set(ROUND_TRIP, 1, "cost_rate", 1e308)
-        lost["period_data"][1]["holdings_full"][1]["cost_rate"] = -1e308
+        # Values that overflow, each one a book can hold: two returns of 1.7e308 add to infinity, and a rate of
+        # 1e308 charged twice takes a third name to minus infinity. The row's recompute is then not a number,
+        # which is a fault, not a pass.
+        lost = item_set(item_set(item_set(ROUND_TRIP, 4, "return", 1.7e308), 4, "return", 1.7e308, at=1),
+                        4, "cost_rate", 1e308, at=2)
         try:
             bad = [b[0] for b in mod.check(lost)["bad"]]
         except mod.Refusal as e:
             bad = f"refused: {e}"
-        if bad != ["2020-04-01"]:
-            out.append(f"a row whose recompute is not a number: rows faulted {bad}, want ['2020-04-01']")
+        if bad != ["2021-01-01"]:
+            out.append(f"a row whose recompute is not a number: rows faulted {bad}, want ['2021-01-01']")
         cases = damaged + [("a null cost_model", {**ROUND_TRIP, "cost_model": None}, "cost_model"),
                  ("a costed file from before cost_model", {k: v for k, v in ROUND_TRIP.items() if k != "cost_model"},
                   "older than cost_model"),
                  ("a row with a null portfolio_return", null_row, "portfolio_return is null"),
-                 ("an item with a return under -100%", low, "under -100%"),
+                 ("an item with a return under -100%", low, "F's return is under -100%"),
                  ("a reserved turnover", {**ROUND_TRIP, "cost_model": {**TRADES_MODEL, "turnover": "traded"}}, "turnover"),
+                 ("a null turnover", {**ROUND_TRIP, "cost_model": {**TRADES_MODEL, "turnover": None}}, "turnover None"),
+                 ("an empty turnover", {**ROUND_TRIP, "cost_model": {**TRADES_MODEL, "turnover": ""}}, "turnover ''"),
                  ("an invested row without holdings_full", without(ROUND_TRIP, 1), "holdings_full"),
                  ("a row that holds names, with no funnel keys and no holdings_full", bare, "holdings_full"),
                  ("a row that books nothing, without holdings_full", without(zero, 4), "holdings_full"),
@@ -333,6 +409,13 @@ def failures(src):
         if zero["period_data"][4].get("holdings_full") != [] or zero["period_data"][4]["stocks_held"] != 0:
             out.append("the fixture's drop file has no row that books nothing")
         out += [f"{name}: {why}" for name, res, word in cases for why in [refused(mod, res, word)] if why]
+        # whatever the walk itself refuses, the script refuses with the walk's reason
+        walk, mod.trade_costs = mod.trade_costs, refusing_walk
+        try:
+            out += [f"a file the walk refuses: {why}" for why in [refused(mod, ltp, "the walk's own reason")] if why]
+            out += answer(mod, "a file the walk refuses", ltp, "the walk's own reason")
+        finally:
+            mod.trade_costs = walk
         # gate 15's reading of a file: None for a good one, else the reason
         if mod.problem(fixture("ltp")) or mod.problem(ROUND_TRIP) or mod.problem(fixture("ltp", tail=True)):
             out.append(f"problem() faults a good file: {mod.problem(fixture('ltp'))} {mod.problem(ROUND_TRIP)} "
@@ -345,16 +428,11 @@ def failures(src):
                                 ("a cash row that stores a return", bookless["a cash row"], "2020-07-01"),
                                 ("a row that books nothing and stores a return", bookless["a row that books nothing"], "2021-10-01"),
                                 ("a last invested row stored without its cash row's sale", ended, day),
+                                ("a faulted row without its date", undated, f"first None: stored {NODRIFT}"),
                                 ("no holdings_full", without(ROUND_TRIP, 1), "an invested row without holdings_full"),
                                 ("a null portfolio_return", null_row, "portfolio_return"),
                                 ("a return under -100%", low, "under -100%"), *damaged):
-            try:
-                why = mod.problem(res)
-            except Exception as e:   # gate 15 calls problem(): it has to answer, not raise
-                out.append(f"problem() raises {type(e).__name__} on {name}")
-                continue
-            if not why or word not in why:
-                out.append(f"problem() on {name} answers {why!r}, want {word!r} in it")
+            out += answer(mod, name, res, word)
         # main(): what it prints, its exit codes, the both note, --json
         if figure_lines("round_trip", {"round_trip": [r["portfolio_return"] for r in rows], "trades": TRADES_ROWS[MEASURED]},
                         [r["spy_return"] for r in rows]) != ROUND_TRIP_LINES:
@@ -423,6 +501,20 @@ def failures(src):
             if rc != 2 or header(paths["ltp"], "trades", QUARTERS, "3.6e-07") not in text.splitlines() or \
                     recs is None or [r["file"] for r in recs] != [paths["ltp"]]:
                 out.append(f"main() on a good file after a refused one exits {rc} and writes {recs}: {text}")
+            # a file that can't be opened or isn't JSON is refused like any other, and the next file still runs
+            paths["gone"], paths["broken"] = os.path.join(tmp, "gone.json"), os.path.join(tmp, "broken.json")
+            with open(paths["broken"], "w") as fh:
+                fh.write("{")
+            for name, word in (("gone", "can't be opened"), ("broken", "is not JSON")):
+                try:
+                    rc, text = run_main(mod, [paths[name], paths["ltp"]])
+                except Exception as e:   # a refusal is the answer; a crash is a wrong one
+                    out.append(f"main() on a file that {word} raises {type(e).__name__}")
+                    continue
+                lines = text.splitlines()
+                if rc != 2 or not any(x.startswith(f"{paths[name]}: REFUSED: ") and word in x for x in lines) or \
+                        header(paths["ltp"], "trades", QUARTERS, "3.6e-07") not in lines:
+                    out.append(f"main() on a file that {word}, then a good one, exits {rc}: {text}")
             # a leg with one measured period has no figure: main() says so, and --json holds nulls
             js = os.path.join(tmp, "short.json.out")
             try:
@@ -466,14 +558,21 @@ MUTANTS = {
         "            while cut and not period_books[cut - 1]:\n"
         "                cut -= 1\n"
         "            costs = trade_costs(period_books[:cut]) + [0.0] * (len(period_books) - cut)\n"),
-    # The next four fail on a raise where a refusal is due, which this test counts as a wrong answer (refused(),
-    # and the problem() loop), not as a mutant caught only by an error.
+    # The next eight fail only on a raise where a refusal or another answer is due. This test counts that as a
+    # wrong answer (refused(), answer() and the tries around check() and main()), not as a mutant caught only by an
+    # error. "a short leg's missing figure raised", further down, fails the same way.
     "a return the walk refuses raised, not refused": ("            raise Refusal(str(e)) from None\n",
                                                       "            raise\n"),
-    "a null portfolio_return not refused": ('        if not _number(r.get("portfolio_return")):\n', "        if False:\n"),
     "an item without its symbol not refused": ('            if not h.get("symbol"):\n', "            if False:\n"),
     "a holdings_full that isn't a list not refused": ('        if not isinstance(r["holdings_full"], list):\n',
                                                       "        if False:\n"),
+    "an item that is not an object not refused": ("            if not isinstance(h, dict):\n", "            if False:\n"),
+    "a row that is not an object not refused": ("        if not isinstance(r, dict):\n", "        if False:\n"),
+    "a file that can't be opened not refused": ("    except OSError as e:\n", "    except ZeroDivisionError as e:\n"),
+    "a file that is not JSON not refused": ("    except ValueError as e:\n", "    except ZeroDivisionError as e:\n"),
+    "a faulted row without its date raises": ('"bad": [(r.get("rebalance_date"), ', '"bad": [(r["rebalance_date"], '),
+    # every mutant from here on fails on a wrong value (the short-leg one aside)
+    "a null portfolio_return not refused": ('        if not _number(r.get("portfolio_return")):\n', "        if False:\n"),
     "a portfolio_return refused only when null": ('        if not _number(r.get("portfolio_return")):\n',
                                                   '        if r.get("portfolio_return") is None:\n'),
     "an item's return not looked at": ('            for key in ("return", "cost_rate"):\n',
@@ -484,8 +583,22 @@ MUTANTS = {
         COMPARED, COMPARED.replace("]}", ' and r.get("spy_return", 0) is not None]}')),
     "a row without a book not compared": (COMPARED, COMPARED.replace("]}", ' and r.get("holdings_full")]}')),
     "a row whose recompute is not a number passes": (COMPARED, 'if abs(got - r["portfolio_return"]) > TOLERANCE]}'),
+    "the file's last row not compared": ('pairs = list(zip(res["period_data"], new))',
+                                         'pairs = list(zip(res["period_data"], new))[:-1]'),
+    "a return under -100% refused by the walk only": ('            if h["return"] < -1.0:\n', "            if False:\n"),
+    "a return of -100% itself refused": ('if h["return"] < -1.0:', 'if h["return"] <= -1.0:'),
+    "a negative cost_rate refused by the walk only": ('            if h["cost_rate"] < 0:\n', "            if False:\n"),
+    "a cost_rate of 0.0 refused": ('if h["cost_rate"] < 0:', 'if h["cost_rate"] <= 0:'),
+    "a symbol listed twice read once": ('            if h["symbol"] in book:\n', "            if False:\n"),
     "a tolerance wide enough to hide the drift term": ("TOLERANCE = 2e-6", "TOLERANCE = 1e-3"),
     "a tolerance 4.5 times too wide": ("TOLERANCE = 2e-6", "TOLERANCE = 9e-6"),
+    "a tolerance of 0.0000024": ("TOLERANCE = 2e-6", "TOLERANCE = 2.4e-6"),
+    "a tolerance of 0.0000016": ("TOLERANCE = 2e-6", "TOLERANCE = 1.6e-6"),
+    "a null or empty turnover read as the house rule": ('cm.get("turnover", "round_trip")',
+                                                        'cm.get("turnover") or "round_trip"'),
+    "true read as a number": ("and not isinstance(x, bool) and math.isfinite(x)", "and math.isfinite(x)"),
+    "an infinite value read as a number": ("and not isinstance(x, bool) and math.isfinite(x)",
+                                           "and not isinstance(x, bool) and x == x"),
     "rounded, then compared": (COMPARED, 'if round(got, 6) != r["portfolio_return"]]}'),
     "a row that books nothing read as a row without its list": ('        if "holdings_full" not in r:\n',
                                                                 '        if not r.get("holdings_full"):\n'),

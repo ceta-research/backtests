@@ -20,11 +20,13 @@ For each file:
 Only portfolio_return is checked. A --exit-method both file lists its main book, so its _ltp series can't be
 recomputed from it, and the script says so.
 
-Exit 0, 1 when a row doesn't reproduce, and 2 when a file is refused, with the reason: no cost_model (a
---no-costs run, or a file older than the key), an unknown turnover, an invested row without holdings_full
-(rerun the leg with --full-holdings), a holdings_full that isn't a list, an item without its symbol, an item
-whose return or cost_rate is missing or not a finite number, a row whose portfolio_return is null or not a
-finite number, a return under -100%, or a top level that isn't one leg (an exchange_comparison.json).
+Exit 0, 1 when a row doesn't reproduce, and 2 when a file is refused, with the reason: a file that can't be
+opened or isn't JSON, a top level that isn't one leg (an exchange_comparison.json), no cost_model (a --no-costs
+run, or a file older than the key), an unknown turnover, a row or an item that isn't an object, an invested row
+without holdings_full (rerun the leg with --full-holdings), a holdings_full that isn't a list, an item without
+its symbol, a symbol listed twice in one row, an item whose return or cost_rate is missing or not a finite
+number, a return under -100% or a negative cost_rate (on either convention), or a row whose portfolio_return
+is null or not a finite number.
 --json writes one record per checked file: file, convention, rows_checked, worst_gap, and each convention's
 cagr and excess_cagr. Gate 15 of verify_floor_guard.py runs the check (problem) on every committed data-checks
 file whose cost_model carries turnover. Offline.
@@ -72,9 +74,12 @@ def _number(x):
 
 def books(res):
     """Every period row's book, in order: {symbol: (return before costs, cost_rate)} from its holdings_full, {}
-    for a row that books nothing, None for a cash row. Raises Refusal for a row or an item it can't read."""
+    for a row that books nothing, None for a cash row. Raises Refusal for a row or an item it can't read, and for
+    a value no book can hold (a return under -100%, a negative cost_rate), on either convention."""
     out = []
-    for r in res["period_data"]:
+    for i, r in enumerate(res["period_data"]):
+        if not isinstance(r, dict):
+            raise Refusal(f"row {i} is not an object")
         day = r.get("rebalance_date")
         if "holdings_full" not in r:
             if period_state(r) == INVESTED or r.get("stocks_held"):
@@ -83,13 +88,23 @@ def books(res):
             continue
         if not isinstance(r["holdings_full"], list):
             raise Refusal(f"{day}: holdings_full is not a list")
+        book = {}
         for h in r["holdings_full"]:
+            if not isinstance(h, dict):
+                raise Refusal(f"{day}: an item that is not an object")
             if not h.get("symbol"):
                 raise Refusal(f"{day}: an item without symbol")
             for key in ("return", "cost_rate"):
                 if not _number(h.get(key)):
                     raise Refusal(f"{day}: {h['symbol']}'s {key} is missing or not a finite number")
-        out.append({h["symbol"]: (h["return"], h["cost_rate"]) for h in r["holdings_full"]})
+            if h["return"] < -1.0:
+                raise Refusal(f"{day}: {h['symbol']}'s return is under -100%")
+            if h["cost_rate"] < 0:
+                raise Refusal(f"{day}: {h['symbol']}'s cost_rate is negative")
+            if h["symbol"] in book:
+                raise Refusal(f"{day}: {h['symbol']} is listed twice")
+            book[h["symbol"]] = (h["return"], h["cost_rate"])
+        out.append(book)
     return out
 
 
@@ -100,7 +115,7 @@ def recompute(res, how):
     if how == "trades":
         try:
             costs = trade_costs(period_books)
-        except ValueError as e:   # a return no book can hold
+        except ValueError as e:   # the walk's own refusal: books() has refused the values it names today
             raise Refusal(str(e)) from None
         return [sum(x for x, _ in b.values()) / len(b) - c if b else 0.0 for b, c in zip(period_books, costs)]
     return [sum(apply_costs(x, rate) for x, rate in b.values()) / len(b) if b else 0.0 for b in period_books]
@@ -111,13 +126,14 @@ def check(res):
     lists (rebalance date, stored, recomputed) for each row not within TOLERANCE of its recompute, one whose
     recompute is not a number among them. Raises Refusal for a file it can't read."""
     own = convention(res)
+    new = recompute(res, own)   # reads every row and item first, so a row that isn't an object is refused there
     for r in res["period_data"]:
         if not _number(r.get("portfolio_return")):
             raise Refusal(f"{r.get('rebalance_date')}: portfolio_return is null or not a finite number")
-    pairs = list(zip(res["period_data"], recompute(res, own)))
+    pairs = list(zip(res["period_data"], new))
     return {"convention": own, "rows_checked": len(res["period_data"]),
             "worst_gap": max((abs(got - r["portfolio_return"]) for r, got in pairs), default=0.0),
-            "bad": [(r["rebalance_date"], r["portfolio_return"], got) for r, got in pairs
+            "bad": [(r.get("rebalance_date"), r["portfolio_return"], got) for r, got in pairs
                     if not abs(got - r["portfolio_return"]) <= TOLERANCE]}
 
 
@@ -172,6 +188,17 @@ def report(path, res):
                  "worst_gap": got["worst_gap"], **fig}
 
 
+def load(path):
+    """The results file at path. Raises Refusal for one that can't be opened or isn't JSON."""
+    try:
+        with open(path) as fh:
+            return json.load(fh)
+    except OSError as e:
+        raise Refusal(f"the file can't be opened ({e.strerror or e})") from None
+    except ValueError as e:
+        raise Refusal(f"the file is not JSON ({e})") from None
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("files", nargs="+", metavar="RESULTS.json")
@@ -179,10 +206,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
     worst, records = 0, []
     for path in args.files:
-        with open(path) as fh:
-            res = json.load(fh)
         try:
-            got, record = report(path, res)
+            got, record = report(path, load(path))
         except Refusal as e:
             print(f"{path}: REFUSED: {e}")
             worst = 2
