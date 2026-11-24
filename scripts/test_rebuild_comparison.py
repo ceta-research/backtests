@@ -383,12 +383,13 @@ def legs_end_on_one_date(mod):
 def holdings_lists_stay_in_the_leg_files(mod):
     """A --full-holdings leg file lists every booked name per period (holdings_full). Its comparison node leaves
     the lists out, on a rebuild, on --only and in --check, keeps every other key of each row, and the leg file
-    itself is not written."""
+    itself is not written. The leg starts in cash, so its first row has no list, and has two invested rows."""
     def rows(full):
-        held = {"rebalance_date": "2025-01-01", "portfolio_return": 0.01, "stocks_held": 2, "holdings": "X,Y"}
-        if full:
-            held["holdings_full"] = [{"symbol": s, "return": 0.01, "cost_rate": 0.005} for s in "XY"]
-        return [held, {"rebalance_date": "2025-04-01", "portfolio_return": 0.0, "stocks_held": 0}]
+        held = [{"rebalance_date": d, "portfolio_return": 0.01, "stocks_held": 2, "holdings": "X,Y"}
+                for d in ("2025-04-01", "2025-07-01")]
+        for r in held if full else []:
+            r["holdings_full"] = [{"symbol": s, "return": 0.01, "cost_rate": 0.005} for s in "XY"]
+        return [{"rebalance_date": "2025-01-01", "portfolio_return": 0.0, "stocks_held": 0}, *held]
 
     files = {f"returns_{k}.json": node(k, c, period_data=rows(True)) for k, c in (("A", 1.0), ("B", 2.0))}
     lean = {k: node(k, c, period_data=rows(False)) for k, c in (("A", 1.0), ("B", 2.0))}
@@ -402,7 +403,7 @@ def holdings_lists_stay_in_the_leg_files(mod):
     t.passes("--only", "B")
     need(t.data() == lean, f"--only B wrote {t.data()}")
     t = Topic(mod, "some-topic", files, {"A": files["returns_A.json"], "B": lean["B"]})
-    t.refused("--check", says="A: differs from returns_A.json at .period_data[0].holdings_full: only in the comparison file")
+    t.refused("--check", says="A: differs from returns_A.json at .period_data[1].holdings_full: only in the comparison file")
 
 
 CHECKS = [default_naming, rebuild_keeps_key_order, adapter_dogs_of_dow, dogs_run_all_node_disagrees,
@@ -484,6 +485,11 @@ MUTANTS = {
     "the holdings lists copied into the comparison file": (
         "    per = {k: lean(v) for k, v in per.items()}", "    per = dict(per)"),
     "a period row cut to its date": ('if k != "holdings_full"}', 'if k == "rebalance_date"}'),
+    "the lists looked for in the first period row only": (
+        'not any(isinstance(r, dict) and "holdings_full" in r for r in rows):',
+        'not (rows and isinstance(rows[0], dict) and "holdings_full" in rows[0]):'),
+    "the lists taken out of the first period row only": ("else r for r in rows]}",
+                                                         "else r for r in rows[:1]] + rows[1:]}"),
     # --check
     "--check compares CAGR only": (
         "            d = first_diff(prev, new[key])\n",
