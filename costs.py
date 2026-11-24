@@ -176,9 +176,14 @@ def trade_costs(books):
         That rate is one period old: the new book carries no rate for a name it leaves out, whether
         the screen didn't pick the name or the series couldn't book it.
 
+    The trades are those of the names the series booked: a bought name it can't book pays no entry, a
+    held name it can't book is charged as leaving, and a series that drops a name with no exit price has
+    costs that read the exit side, as its returns do.
+
     A cash period sells the position at those rates. The sale is charged to the last invested period,
-    and the cash period itself costs 0.0: a cash row stores one return for every series, and two series'
-    sales differ, so the row can't carry them. The last book is not sold: it is still held at the run's end.
+    whose book it sells, and the cash period itself costs 0.0: the series has no book there. A row that
+    is cash for every series could not carry the sale in any case: it stores one return for all of them,
+    and their sales differ. The last book is not sold: it is still held at the run's end.
 
     Each sum is math.fsum's, so a cost doesn't depend on the order of a book's names.
     """

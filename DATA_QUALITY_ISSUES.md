@@ -8,7 +8,7 @@ Last updated: 2026-11-13
 
 ## ASX (Australian Securities Exchange)
 
-**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun. `scripts/split_check.py` reads the leg's results file and confirms every split or consolidation that adjClose carries unadjusted; the check passes when no confirmed artifact moves the leg's excess by 0.15pp or more, alone or all rebuilt together. It can't see a split under 1.8x with no `splits_calendar` row (Root cause, below). asset-growth's check of 2026-11-11, on its November 2026 books, found none that large: every confirmed artifact rebuilt moves Australia -0.04pp. 52-week-high's code ranks Australia too, and its check follows its rerun.
+**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun. `scripts/split_check.py` reads the leg's results file and confirms every split or consolidation that adjClose carries unadjusted; the check passes when no confirmed artifact moves the leg's excess by 0.15pp or more, alone or all rebuilt together. It can't see a split under 1.8x with no `splits_calendar` row (Root cause, below). asset-growth's check of 2026-11-11, on its November 2026 books, found none that large: every confirmed artifact rebuilt moves Australia -0.04pp. 52-week-high's code ranks Australia too, and no check of its leg has been run yet.
 **Issue:** FMP `adjClose` has incorrect stock split/consolidation adjustments
 **Severity:** Fatal (produces 58%+ CAGR artifacts)
 
@@ -46,7 +46,7 @@ ORDER BY price_ratio DESC
 
 ## SAO (Sao Paulo Stock Exchange, Brazil)
 
-**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun, as for ASX above. asset-growth's check of 2026-11-11 found no artifact moving its Brazil leg by 0.15pp. It rests on one person's call: CEAB3.SA's -47.5% on 2026-10-26, which the check's round-ratio test flags as a candidate, is a real drop, the sell-off after Brazil's election. SBT News gives CEAB3 -41.7% from 23 October to 9 November, matching the vendor's 13.84 to 8.07, and no split is on record. A rerun of the check on that file passes `--not-artifact CEAB3.SA:2026-07-01:2026-10-26`. With it the leg nets +0.084pp: three bonus issues adjClose hadn't absorbed (CMIG3.SA's in 2010 and 2021, DEXP4.SA's in 2025), rebuilt with the bonus shares restored. 52-week-high's code ranks Brazil too, and its check follows its rerun.
+**Status:** Ranked in a topic once the split check passes on the leg at that topic's rerun, as for ASX above. asset-growth's check of 2026-11-11 found no artifact moving its Brazil leg by 0.15pp. It rests on one person's call: CEAB3.SA's -47.5% on 2026-10-26, which the check's round-ratio test flags as a candidate, is a real drop, the sell-off after Brazil's election. SBT News gives CEAB3 -41.7% from 23 October to 9 November, matching the vendor's 13.84 to 8.07, and no split is on record. A rerun of the check on that file passes `--not-artifact CEAB3.SA:2026-07-01:2026-10-26`. With it the leg nets +0.084pp: three bonus issues adjClose hadn't absorbed (CMIG3.SA's in 2010 and 2021, DEXP4.SA's in 2025), rebuilt with the bonus shares restored. 52-week-high's code ranks Brazil too, and no check of its leg has been run yet.
 **Issue:** Same FMP `adjClose` issue as ASX
 **Severity:** Fatal (produces 3,250% single-year returns)
 
@@ -1630,7 +1630,7 @@ BCE-PY.TO with BCE-PA.TO in 9 years, the last at the 2024 rebalance, which exits
 rules ur-3, in fcf-conversion, fix the renamed pairs below by line starts or hand entries,
 and end two dead lines; asset-growth's committed files predate ur-3. BC88.L, ABG.AX, SHA.DE, 9511.SR
 and CORE-PREF.ST are open; ur-4's hand list removes BC88.L and CORE-PREF.ST, and its line starts
-begin SHA0.DE after SHA.DE's last bar. 52-week-high's code runs ur-4; its results follow its rerun.
+begin SHA0.DE after SHA.DE's last bar. 52-week-high's code runs ur-4; its committed results predate it.
 
 GUD Holdings was renamed Amotiv on 2024-06-18. AOV.AX, the new line, carries GUD's price history
 under a different ISIN, with the same close on every July bar from 1990 to 2024, so the same-ISIN
@@ -2035,7 +2035,7 @@ among them).
 ## Cost tiers are USD but market caps are local currency (found 2026-08-17)
 
 **Status:** Capability added to `costs.py`; two callers migrated (sector-momentum, and fcf-conversion, its committed results included) and 52-week-high's code (its committed results predate it), which also charges trades where the others charge a round trip a period (`cost_model.turnover`); the rest not yet
-**Affects:** every backtest that calls `tiered_cost()` (80 of them)
+**Affects:** every backtest that calls `tiered_cost()` (77 of them)
 **Severity:** Minor. Understates costs outside the US, concentrated in Asia.
 
 `DEFAULT_TIERS` in `costs.py` is calibrated in USD ($10B / $2B breakpoints), but
@@ -2095,15 +2095,15 @@ in the company's reporting currency, so Hong Kong's CNY reporters are tiered at 
 a currency near 7.25, and the UK's USD reporters at 0.79.
 
 `52-week-high`'s code converts the same way, tiering each booked name on its checked cap
-(check M), records `cost_model` as fcf-conversion does, and lists each name's one-way tier as
-`cost_rate` in its `--full-holdings` list. Its code is also the first on the `trades` cost
+(check M), records `cost_model` as fcf-conversion does, with one more key, and lists each name's
+one-way tier as `cost_rate` in its `--full-holdings` list. Its code is also the first on the `trades` cost
 convention (`"turnover": "trades"` in `cost_model`; METHODOLOGY.md, "Transaction Costs"): it
 charges only real trades, each sized to the trade, where the topics that charge through
 `costs.apply_costs` charge each booked name a round trip every period. So `cost_rate` is the
 rate on what the name trades at that rebalance, and on its sale at the next one if it leaves.
 `scripts/cost_conventions.py` prints a leg's CAGR and excess under both conventions from its
-`--full-holdings` file. Its committed results are the October 2026 run's, on the unconverted
-tiers and the round trip, and the same residual applies.
+`--full-holdings` file. 52-week-high's committed results are the October 2026 run's, on the
+unconverted tiers and the round trip, and the same residual applies.
 
 ---
 
