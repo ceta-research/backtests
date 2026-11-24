@@ -13,10 +13,11 @@ carried book with drift where one tier falls and one rises, an exit at the rate 
 no name of the new book has) beside an entry, an unchanged book with equal returns (nothing to pay), a book that
 doubles in size, a cash sale at drifted weights, two cash periods in a row, re-entry, a name at -100% that leaves
 at no weight beside a survivor that keeps the whole position, a period that books nothing, a book all at -100%,
-which leaves no position, and a book that shrinks with a position held. SHORT holds a run that starts in cash, a
-one-period run and an empty one. ORDER is one book typed in two insertion orders, on values whose left-to-right
-sums differ: the costs must be bit-equal. OFF_RANGE holds the returns no book can hold (under -100%, not
-finite): each must raise ValueError.
+which leaves no position, and a book that shrinks with a position held, its leaver on a higher rate than a name
+that stays. SHORT holds a run that starts in cash, a one-period run, a run that ends in cash (its sale lands on
+the last invested period though no book follows) and an empty one. ORDER is one book typed in two insertion
+orders, on values whose left-to-right sums differ: the costs must be bit-equal. OFF_RANGE holds the returns no
+book can hold (under -100%, not finite): each must raise ValueError.
 
 Every mutant of costs.py must fail a check, and by a wrong answer, not an error.
 
@@ -81,18 +82,23 @@ RUN = [
     # 10 entries from an empty position, 1/2 x 0.003 + 1/2 x 0.001 = 0.002. Both names end at -100%, so the sum
     #    of (1 + r) is zero and no position is left.
     ({"B": (-1.0, MID), "C": (-1.0, LO)}, 0.002),
-    # 11 entries from an empty position, (0.005 + 0.003 + 0.001)/3 = 0.003.
+    # 11 entries from an empty position, (0.001 + 0.003 + 0.005)/3 = 0.003.
     #    End weights: A 1.5/3.5 = 3/7, B 2/7, C 2/7.
-    ({"A": (0.5, HI), "B": (0.0, MID), "C": (0.0, LO)}, 0.003),
+    ({"A": (0.5, LO), "B": (0.0, MID), "C": (0.0, HI)}, 0.003),
     # 12 the book shrinks to two with a position held: A trades |1/2 - 3/7| = 1/14 at 0.003 and B |1/2 - 2/7| =
-    #    3/14 at 0.005, 0.018/14; C sells 2/7 at its 0.001, 0.004/14: 0.022/14 = 11/7000. (A target of 1/3, one
-    #    over the larger book, would give 0.017/21.) The run ends invested and pays no sale.
-    ({"A": (0.0, MID), "B": (0.0, HI)}, 11 / 7000),
+    #    3/14 at 0.005, 0.018/14; C sells 2/7 at its 0.005, the highest rate in the position, 0.020/14: 0.038/14 =
+    #    19/7000. (At a flat 0.1%, or at A's 0.1%, the lowest rate held, C's sale would read 0.004/14 and the row
+    #    11/7000. A target of 1/3, one over the larger book, would give 0.041/21.) The run ends invested and pays
+    #    no sale.
+    ({"A": (0.0, MID), "B": (0.0, HI)}, 19 / 7000),
 ]
 SHORT = {
     "a run that starts in cash": ([None, None, {"A": (0.10, HI)}], [0.0, 0.0, 0.005]),
     # entries only, 1/2 x 0.005 + 1/2 x 0.001, and no sale at the end
     "a one-period run": ([{"A": (0.10, HI), "B": (0.20, LO)}], [0.003]),
+    # A enters whole at 0.005 and is sold whole at 0.005 when the cash period comes: 0.010 on the invested period.
+    # No book follows the cash period, and the sale is still charged.
+    "a run that ends in cash": ([{"A": (0.10, HI)}, None], [0.010, 0.0]),
     "no period": ([], []),
 }
 # One book in two insertion orders, then the same names carried. 1.1 + 1.2 + 1.3 + 1.7 and the second period's
@@ -156,8 +162,12 @@ MUTANTS = {
     "an exit at the rate the name entered on": ("((1.0 + r) / total, rate)",
                                                 "((1.0 + r) / total, held.get(s, (0.0, rate))[1])"),
     "an exit at the new book's first name's rate": (EXIT, EXIT.replace("w * rate", "w * next(iter(book.values()))[1]")),
+    "an exit at a flat 0.1%": (EXIT, EXIT.replace("w * rate", "w * 0.001")),
+    "an exit at the lowest rate in the position": (EXIT, EXIT.replace("w * rate", "w * min(x for _, x in held.values())")),
     "an exit charged nothing": (f"        {EXIT}\n", ""),
     "no sale in a cash period": (f"                terms[last] += {SALE}\n", "                pass\n"),
+    "no sale when no book follows the cash period": ("            if held:\n",
+                                                     "            if held and any(books[i + 1:]):\n"),
     "the cash sale on the cash period": (f"terms[last] += {SALE}", f"terms[i] += {SALE}"),
     "the cash sale at equal weights": (f"terms[last] += {SALE}",
                                        "terms[last] += [rate / len(held) for w, rate in held.values()]"),
