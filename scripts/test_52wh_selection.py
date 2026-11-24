@@ -63,7 +63,9 @@ drop series books one name and the LTP series two, one of them a name carried in
 shows whose book it was charged on; then a cash quarter, whose sale lands on the last invested row though no
 quarter follows. A flat quarter whose only cost is float noise stores 0.0, not -0.0, and one whose only cost is its
 drift back to equal weight (under 0.0001, on a mean of 0.0) pays it, in drop and in each of both's two series. The
---verbose line says its return and its excess are before costs when costs are on. The quarterly
+--verbose line says its return and its excess are before costs when costs are on. A value the walk refuses (a
+price that is not a number, as an exit bar and as an LTP fill) stops the run with a message that names the
+quarter's rebalance date and the series' key, the row after a cash quarter and the LTP series among them. The quarterly
 run window, with test_latest_window_topics' 2026 bars: pinned to 2026-11-06, the last row is the partial
 2026-10-01 period, its window exits and the benchmark's priced on the end date's close, a name with no bar after
 2026-10-30 filled at its last bar, CAGR over span_years and the run window's keys written; main() takes
@@ -821,38 +823,71 @@ BAR_DATES = WALK_DATES + TAIL_DATES   # the dates WALK_BARS', WALK_FILLS' and th
 
 
 class WalkFills:
-    """LtpExits as run_backtest uses it: fill() gives WALK_FILLS' price to a name with an entry and no exit, and
-    fills lists each one as holdings_full reads it."""
+    """LtpExits as run_backtest uses it: fill() gives a name with an entry and no exit its price in `table`
+    (WALK_FILLS unless one is passed), and fills lists each one as holdings_full reads it."""
 
-    def __init__(self):
-        self.fills = []
+    def __init__(self, table=None):
+        self.fills, self.table = [], WALK_FILLS if table is None else table
 
     def fill(self, symbols, entry_prices, exit_prices, entry_date, exit_date, **_kw):
-        got = {s: v for s, v in WALK_FILLS.get(BAR_DATES.index(entry_date), {}).items()
+        got = {s: v for s, v in self.table.get(BAR_DATES.index(entry_date), {}).items()
                if s in symbols and exit_prices.get(s) is None and entry_prices.get(s) is not None}
         self.fills += [{"symbol": s, "entry_date": entry_date.isoformat(), "last_bar": bar} for s, (_, bar) in got.items()]
         return {s: px for s, (px, _) in got.items()}
 
 
-def walk_run(mod, mode, use_costs=True, verbose=False, tail=False):
-    """run_backtest over WALK_DATES in one exit mode, with full holdings: its rows. tail: over TAIL_DATES too."""
+def walk_run(mod, mode, use_costs=True, verbose=False, tail=False, bars=None, fills=None, full=True):
+    """run_backtest over WALK_DATES in one exit mode, with full holdings: its rows. tail: over TAIL_DATES too.
+    bars: {symbol: {date index: price}} read over WALK_BARS'. fills: a table read in WALK_FILLS' place. full:
+    False for a run without full holdings."""
     con = duckdb.connect()
     con.execute("CREATE TABLE prices_cache(symbol VARCHAR, trade_epoch BIGINT, adjClose DOUBLE, close DOUBLE,"
                 " high DOUBLE, volume DOUBLE)")
     con.executemany("INSERT INTO prices_cache VALUES (?, ?, ?, ?, ?, 1e6)",
-                    [(s, ep(BAR_DATES[q] + timedelta(days=1)), px, px, px) for s, bars in WALK_BARS.items()
-                     for q, px in bars.items()])
+                    [(s, ep(BAR_DATES[q] + timedelta(days=1)), px, px, px) for s, own in WALK_BARS.items()
+                     for q, px in {**own, **(bars or {}).get(s, {})}.items()])
     screens = WALK_SCREEN + TAIL_SCREEN
     mod.MIN_STOCKS = 2
     mod.screen_stocks = lambda con, d, *a, **k: [(s, WALK_CAP[rate], 1.0)
                                                  for s, rate in screens[BAR_DATES.index(d)].items()]
     mod.get_benchmark_return = lambda con, sym, d, *a, **k: None if d == WALK_DATES[0] else 0.02
-    dc = du.DataChecks("uncapped", mod.DATA_CHECKS, full_holdings=True)
+    dc = du.DataChecks("uncapped", mod.DATA_CHECKS, full_holdings=full)
     try:
         return mod.run_backtest(con, BAR_DATES if tail else WALK_DATES, 0.0, use_costs=use_costs, fx=1.0, dc=dc,
-                                exit_method=mode, ltp=None if mode == "drop" else WalkFills(), verbose=verbose)
+                                exit_method=mode, ltp=None if mode == "drop" else WalkFills(fills), verbose=verbose)
     finally:
         con.close()
+
+
+# A value the walk refuses stops the run after its loop, and the message names the quarter by its rebalance date
+# and the series by its key, where the walk gives the book's place in the series. Each damage is one price that is
+# not a number, on a run without full holdings (with them, the lists' own check stops a run on such a bar first):
+#  A's exit bar of quarter 3, the quarter after the cash one. The main series books A there in every mode, so the
+#  message names portfolio_return and 2020-10-01. Counted over the invested quarters only, place 3 would read
+#  2021-07-01.
+#  G's last traded price in quarter 4, under both. The main series books no name there and the LTP series books
+#  G's fill, so the message names portfolio_return_ltp and 2021-01-01.
+NOT_A_NUMBER = float("nan")
+WALK_REFUSAL = "a booked return under -100% or not finite"
+WALK_REFUSED = [("drop", {"bars": {"A": {4: NOT_A_NUMBER}}}, f"2020-10-01, portfolio_return: {WALK_REFUSAL}"),
+                ("ltp", {"bars": {"A": {4: NOT_A_NUMBER}}}, f"2020-10-01, portfolio_return: {WALK_REFUSAL}"),
+                ("both", {"bars": {"A": {4: NOT_A_NUMBER}}}, f"2020-10-01, portfolio_return: {WALK_REFUSAL}"),
+                ("both", {"fills": {4: {"G": (NOT_A_NUMBER, "2021-02-15")}}},
+                 f"2021-01-01, portfolio_return_ltp: {WALK_REFUSAL}")]
+
+
+def refusal_failures(src):
+    """Each run of WALK_REFUSED raises ValueError with its message. Any other raise, or none, is a wrong answer."""
+    out = []
+    for mode, damage, want in WALK_REFUSED:
+        try:
+            walk_run(load(src), mode, full=False, **damage)
+            got = "no raise"
+        except Exception as e:
+            got = f"{type(e).__name__}: {e}"
+        if got != f"ValueError: {want}":
+            out.append(f"a price that is not a number ({mode}, {sorted(damage)[0]}): {got}, want ValueError: {want}")
+    return out
 
 
 # The --verbose line of quarter 1, printed inside the loop, where a row's costs aren't known yet: its return
@@ -941,7 +976,8 @@ def walk_failures(src):
     in cash. A no-costs run in each mode never calls the cost walk and books WALK_GROSS, and each costed row has
     the keys of the same row run without costs, in the same order. The ltp run and the no-costs run in both are
     verbose: quarter 1's line is WALK_LINE, labelled before costs only when costs are on. A flat quarter stores
-    0.0, and one that only trades its drift pays for it (flat_row_failures)."""
+    0.0, and one that only trades its drift pays for it (flat_row_failures). A value the walk refuses is named by
+    its quarter's rebalance date and its series' key (refusal_failures)."""
     said = {True: io.StringIO(), False: io.StringIO()}
     try:
         runs = {mode: walk_run(load(src), mode) for mode in ("drop", "both")}
@@ -957,7 +993,7 @@ def walk_failures(src):
             return ["a no-costs run calls the cost walk"]
     except Exception as e:
         return [f"error: {type(e).__name__}: {e}"]
-    out = flat_row_failures(src)
+    out = flat_row_failures(src) + refusal_failures(src)
     for costs_on, note in ((True, " before costs"), (False, "")):
         if WALK_LINE.format(note) not in said[costs_on].getvalue().splitlines():
             out.append(f"the verbose line with costs {'on' if costs_on else 'off'} is not {WALK_LINE.format(note)!r}: "
@@ -982,6 +1018,8 @@ CASH_BUYABLE = ('            note_cash()\n            if verbose:\n'
 LTP_BOOK = 'note_book("portfolio_return_ltp", c_ltp, rates_ltp, mean_ltp)'
 WALKED = "trade_costs([b for _, b, _ in periods])"
 COSTED = "            if b:\n"
+REFUSAL_DAY = 'day = periods[int(place.split()[1])][0]["rebalance_date"]'
+REFUSAL_SAYS = 'raise ValueError(f"{day}, {key}: {why}") from None'
 WALK_MUTANTS = {   # each must fail walk_failures on a wrong row, not an error
     "a book taken before the entry-side cash check": (
         CASH_BUYABLE, CASH_BUYABLE.replace("note_cash()", "[note_book(k, clean, rates, 0.0) for k in list(series)]")),
@@ -1020,6 +1058,13 @@ WALK_MUTANTS = {   # each must fail walk_failures on a wrong row, not an error
     "the verbose line's excess not labelled before costs": (':+.1f}%{note}"', ':+.1f}%"'),
     "the verbose line labelled before costs on a no-costs run": ('note = " before costs" if use_costs else ""',
                                                                  'note = " before costs"'),
+    # the next four fail on the message a refused run raises (refusal_failures), which is its answer
+    "a value the walk refuses left named by its place in the series": (REFUSAL_SAYS, "raise"),
+    "a value the walk refuses named for the main series, whichever series held it": (
+        REFUSAL_SAYS, REFUSAL_SAYS.replace("{key}", "{SERIES[0]}")),
+    "a value the walk refuses dated by its quarter's exit": (REFUSAL_DAY, REFUSAL_DAY.replace("rebalance_date", "exit_date")),
+    "a value the walk refuses dated by its place among the invested quarters": (
+        REFUSAL_DAY, REFUSAL_DAY.replace("periods[", "[p for p in periods if p[1]][")),
 }
 
 

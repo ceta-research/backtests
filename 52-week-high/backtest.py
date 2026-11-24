@@ -398,7 +398,8 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
     Costs follow the "trades" convention (costs.trade_costs): each series pays for the trades its own books make.
     The loop keeps each series' book and mean return per row, and the costs come off after it, when every cost
-    that lands on a row is known: its rebalance's trades, and its book's sale when the next period is cash."""
+    that lands on a row is known: its rebalance's trades, and its book's sale when the next period is cash or
+    books no name. A value the walk refuses raises ValueError with its row's rebalance date and its series' key."""
     results = []
     dc = dc if dc is not None else DataChecks("uncapped", DATA_CHECKS)
     win = win if win is not None else RunWindow.typed()
@@ -553,7 +554,12 @@ def run_backtest(con, rebalance_dates, mktcap_min, use_costs=True, verbose=False
 
     # Costs: each series' rows less the cost of its trades. A row is rounded once, from its mean before costs.
     for key, periods in series.items():
-        costs = trade_costs([b for _, b, _ in periods])
+        try:
+            costs = trade_costs([b for _, b, _ in periods])
+        except ValueError as e:   # the walk says "period N: why", N the book's place in its series
+            place, why = str(e).split(": ", 1)
+            day = periods[int(place.split()[1])][0]["rebalance_date"]
+            raise ValueError(f"{day}, {key}: {why}") from None
         for (row, b, mean), cost in zip(periods, costs):
             if b:
                 row[key] = round(mean - cost, 6) + 0.0   # + 0.0: a flat row less float noise is 0.0, not -0.0
