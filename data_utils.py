@@ -1873,6 +1873,225 @@ FACTOR_HAND = (
     ("EXPN.L", "2011-07-01", "2012-07-01", "rebuilt", 0.1606, None, 0.933156, ("fcf-conversion/LSE",),
      "two adjClose bases: adjClose / close sits near 0.50 before 2011-12-28 and near 0.84 from it (0.52 in log) on "
      "a 5.291p dividend, 0.6% of the close, the close up 0.9% that day; close plus the 5.291p and 13.929p dividends"),
+    ("LT.NS", "2004-04-01", "2004-07-01", "rebuilt", None, (-0.202547, -0.146545), -0.384654, ("52-week-high/NSE",),
+     "Larsen & Toubro's cement demerger, effective 2004-05-14 (L&T's press release of 2004-07-06): per 10 old shares "
+     "holders got 5 new L&T shares and 4 UltraTech CemCo shares (L&T's investor FAQ, undated), the new L&T shares "
+     "listing 2004-06-23 and CemCo 2004-08-24 (NSE press releases of 2004-06-22 and 2004-08-20); NSE's daily price "
+     "files show the old shares trading to 2004-05-21, so the vendor's 1:2 factor on 2004-05-19 is three trading days "
+     "early and cancels inside the holding, and adjClose books the L&T shares alone; close per original share plus 0.4 "
+     "CemCo share, which had no price at the exit, valued from its first close of 260.20 to Grasim's open offer of Rs "
+     "342.60 (Business Standard, 2004-05-28)"),
+    ("ANANDRATHI.NS", "2026-04-01", "2026-07-01", "rebuilt", 0.242807, None, -0.379808, ("52-week-high/NSE",),
+     "Anand Rathi Wealth's 1-for-1 bonus issue, record date 2026-06-03 (NSE circular NSE/CML/74407 of 2026-05-26), the "
+     "shares trading ex-bonus that day in NSE's daily price file: adjClose and the close both step x0.504 and the "
+     "vendor's row calls it a 2:1 split; close per original share plus the Rs 7 final dividend of record date "
+     "2026-05-15 (the company's letter of 2026-04-20), reinvested at that day's close of 3,583.10"),
+    ("MBAPL.NS", "2026-07-01", "2026-10-01", "rebuilt", 0.354129, None, -0.729174, ("52-week-high/NSE",),
+     "Madhya Bharat Agro Products' sub-division of 1 share into 5, record and ex date 2026-07-03 (NSE Clearing "
+     "circular NCL/CMPT/74989 of 2026-07-02 and the company's letter of 2026-06-24): adjClose and the close both step "
+     "x0.207 that day, the vendor not yet applying its 5:1 row; close per original share, 5 x 163.66 against 604.30, "
+     "no cash paid in the holding"),
+    ("PGIL.NS", "2026-07-01", "2026-10-01", "rebuilt", 0.220664, None, -0.389668, ("52-week-high/NSE",),
+     "Pearl Global Industries' 1-for-1 bonus issue, record date 2026-09-11 (NSE circular NSE/CML/76251 of 2026-09-09), "
+     "the shares trading ex-bonus that day in NSE's daily price file: adjClose and the close both step x0.499 and the "
+     "vendor's row calls it a 2:1 split; close per original share, 2 x 1,266.50 against 2,075.10, no cash paid in the "
+     "holding"),
+    ("CAL.L", "2001-04-01", "2001-07-01", "rebuilt", 0.076738, None, -0.990058, ("52-week-high/LSE",),
+     "Capital & Regional's bars run on two bases on alternating days (adjClose / close near 0.43 or near 0.0038), the "
+     "close on the second 1.041475 times the first (55 of its 129 such closes in 2001 divide back to a first-base "
+     "close to the penny); the entry bar is on the first and the exit bar on the second; close on one basis, 1174.27 / "
+     "1.041475 against 1047.15, with no cash ex in the window (final 3.25p ex 2001-03-28 and interim 2.5p ex "
+     "2001-09-19, per its RNS notices of 2001-03-19 and 2001-09-11)"),
+    ("REL.L", "2008-01-01", "2008-04-01", "rebuilt", -0.018287, None, 0.129081, ("52-week-high/LSE",),
+     "Reed Elsevier PLC's 82.0p special distribution with 58 new shares for every 67 (press release of 2007-12-13), ex "
+     "and effective 2008-01-07: the close carries no consolidation (it falls 2.1% that day) and adjClose books the "
+     "82.0p on every old share, missing the 58 for 67; 58/67 of a share at 666.0p against 671.5p, with the 82.0p "
+     "reinvested at 660.5p, the ex-date close"),
+    ("DLAR.L", "2008-10-01", "2009-01-01", "rebuilt", None, (0.0234, 0.0841), 1.44724, ("52-week-high/LSE",),
+     "De La Rue's 2008 return of cash, 305p a share with 25 new shares for every 39 (RNS of 2008-10-21), the new "
+     "shares dealing from 2008-11-17, when the close steps x1.23 and adjClose x2.29; the terms keep the price level, "
+     "so the old share's last price is taken as the new shares' first open (865.35p) or close (816.86p) in the "
+     "vendor's non-split series, which matches the company's 882.50p price in its RNS of 2009-01-15; the 305p and the "
+     "13.7p interim (ex 2008-12-10) reinvested at their ex-date closes"),
+    ("AEP.L", "2026-04-01", "2026-07-01", "rebuilt", -0.138124, None, -0.915556, ("52-week-high/LSE",),
+     "AEP Plantations split each share into 10, the new shares dealing from 2026-06-25 (RNS of 2026-06-22); the "
+     "vendor's adjClose and close both divide by 10 from 2026-06-22 and not before, so the holding books the whole "
+     "fall; 10 new shares at 152p against 1800p, with the 33.0285p final dividend (RNS of 2026-06-23, record "
+     "2026-06-19, ex 2026-06-18 on the vendor's row) reinvested at that day's 1600p close"),
+    ("DB1.DE", "2001-07-01", "2001-10-01", "rebuilt", -0.057072, None, -0.552972, ("52-week-high/XETRA",),
+     "Deutsche Börse's close changes scale on 2001-07-24 with no corporate action: against the quarter closes in its "
+     "2001 annual report, on the basis of its 1:10 split, it is half the price before (20.85 x 2 = 41.70 on "
+     "2001-06-29) and a quarter of it after (9.68 x 4 = 38.72 on 2001-09-28), and its Q2 2001 report's daily-close "
+     "chart shows no fall that day; close on one scale, 20.15 x 2 = 40.30 to 9.50 x 4 = 38.00, no cash paid"),
+    ("DB1.DE", "2001-10-01", "2002-01-01", "rebuilt", 0.152632, None, 3.61272, ("52-week-high/XETRA",),
+     "Deutsche Börse's close changes scale on days with no corporate action: against the quarter closes in its 2001 "
+     "annual report, on the basis of its 1:10 split of 2001-06-01 (38.72 on 2001-09-28, 43.21 on 2001-12-28), and the "
+     "daily-close charts of its Q2 2001 and Q1 2002 reports, the close is a quarter of the price on trading days from "
+     "2001-07-24 to 2001-12-28 and the price itself from 2002-01-02; close on that scale, 9.50 x 4 = 38.00 to 43.80, "
+     "no cash paid"),
+    ("SDF.DE", "2001-10-01", "2002-01-01", "rebuilt", None, (0.21975, 0.223225), -0.364444, ("52-week-high/XETRA",),
+     "K+S's close runs on two bases: its 2003 annual report's 2001 Xetra high and low (22.30, 15.69), divided by 4 as "
+     "its 2010 report restates 2001's 21.90 close as 5.48, are 1.054 times the vendor's highest and lowest 2001 close "
+     "(5.29, 3.72), while 5.48 is the vendor's close of 2001-12-28, its first bar on the second basis; entry bar on "
+     "the first, exit bar on the second; close on one basis, 5.50 against 4.27 x 1.053 to 1.056, no cash ex in the "
+     "window (one dividend a year after the May AGM, per the 2001-03-15 ad hoc release and the 2002 annual report)"),
+    ("4062.T", "2025-10-01", "2026-01-01", "rebuilt", 0.563906, None, -0.218047, ("52-week-high/JPX",),
+     "Ibiden split each share into 2, record date 2025-12-31 and ex-rights 2025-12-29 (the company's notice of "
+     "2025-10-30, the Tokyo Stock Exchange's ex-rights table for December 2025; one split, which the vendor lists "
+     "twice); adjClose and the close carry it unadjusted (both x0.500 on 2025-12-29). Per original share: 2 x the "
+     "7,158 exit close over the 9,154 entry close, with no dividend going ex in the holding"),
+    ("6592.T", "2025-10-01", "2026-01-01", "rebuilt", 0.173457, None, -0.426354, ("52-week-high/JPX",),
+     "Mabuchi Motor split each share into 2, record date 2025-12-31 and ex-rights 2025-12-29 (the company's notice of "
+     "2025-08-14, the Tokyo Stock Exchange's ex-rights table for December 2025; one split, which the vendor lists "
+     "twice); adjClose and the close carry it unadjusted (both x0.501 on 2025-12-29). Per original share: 2 x the "
+     "1,441 exit close over the 2,512 entry close, with the 67 yen year-end dividend per pre-split share (record date "
+     "2025-12-31, the company's notice of 2026-02-13) reinvested at the 1,469 close of 2025-12-29"),
+    ("6454.T", "2026-01-01", "2026-04-01", "rebuilt", -0.006081, None, -0.757019, ("52-week-high/JPX",),
+     "Max Co., Ltd. split each share into 4, record date 2026-03-31 and ex-rights 2026-03-30 (the company's notice of "
+     "2026-01-30, the Tokyo Stock Exchange's ex-rights table for March 2026); adjClose and the close carry it "
+     "unadjusted (adjClose x0.245, the close x0.250 on 2026-03-27, the bar before the ex-rights date). Per original "
+     "share: 4 x the 1,679 exit close over the 6,910 entry close, with the 148 yen year-end dividend (record date "
+     "2026-03-31, the company's notice of 2026-04-30), which the split notice said would be paid on the pre-split "
+     "count, reinvested at the 1,635 close of 2026-03-30"),
+    ("7380.T", "2026-01-01", "2026-04-01", "rebuilt", 0.301345, None, -0.743664, ("52-week-high/JPX",),
+     "Juroku Financial Group split each share into 5, record date 2026-03-31 and ex-rights 2026-03-30 (the company's "
+     "notice of 2026-01-29, the Tokyo Stock Exchange's ex-rights table for March 2026); adjClose and the close carry "
+     "it unadjusted (adjClose x0.203, the close x0.205 on 2026-03-27, the bar before the ex-rights date). Per original "
+     "share: 5 x the 1,861 exit close over the 7,260 entry close, with the 140 yen year-end dividend per pre-split "
+     "share (record date 2026-03-31, the results summary of 2026-05-14) reinvested at the 1,825 close of 2026-03-30"),
+    ("2264.T", "2026-04-01", "2026-07-01", "rebuilt", 0.057642, None, -0.735589, ("52-week-high/JPX",),
+     "Morinaga Milk Industry split each share into 4, record date 2026-06-30 and ex-rights 2026-06-29 (the company's "
+     "notice of 2026-05-13, the Tokyo Stock Exchange's ex-rights table for June 2026); adjClose and the close carry it "
+     "unadjusted (both x0.254 on 2026-06-29). Per original share: 4 x the 1,316.5 exit close over the 4,979 entry "
+     "close, with no dividend going ex in the holding"),
+    ("8309.T", "2026-07-01", "2026-10-01", "rebuilt", 0.128853, None, -0.721565, ("52-week-high/JPX",),
+     "Sumitomo Mitsui Trust Group split each common share into 4, record date 2026-07-31 and ex-rights 2026-07-30 (the "
+     "company's notice of 2026-05-14, the Tokyo Stock Exchange's ex-rights table for July 2026); adjClose and the "
+     "close carry it unadjusted (both x0.253 on 2026-07-29, the bar before the ex-rights date). Per original share: 4 "
+     "x the 1,743 exit close over the 6,260 entry close, with the 23.75 yen second-quarter-end dividend per post-split "
+     "share (the half-year results of 2026-11-12; record date 30 September under the articles, per the annual "
+     "securities report of 2026-06-17) reinvested at the 1,750 close of 2026-09-29, the vendor's ex-date"),
+    ("8377.T", "2026-07-01", "2026-10-01", "rebuilt", 0.258319, None, -0.875578, ("52-week-high/JPX",),
+     "Hokuhoku Financial Group split each share into 10, record date 2026-09-30 and ex-rights 2026-09-29 (the "
+     "company's notice of 2026-07-24, the Tokyo Stock Exchange's ex-rights table for September 2026); the vendor's "
+     "split row is inverted, a 10-into-1 consolidation, and adjClose and the close carry the split unadjusted "
+     "(adjClose x0.0989, the close x0.0998 on 2026-09-28, the bar before the ex-rights date). Per original share: 10 x "
+     "the 877.3 exit close over the 7,051 entry close, with the 95 yen interim dividend per pre-split share (record "
+     "date 2026-09-30, the half-year results of 2026-11-09) reinvested at the 838.4 close of 2026-09-29"),
+    ("8388.T", "2026-07-01", "2026-10-01", "rebuilt", 0.471626, None, -0.708344, ("52-week-high/JPX",),
+     "The Awa Bank split each share into 5, record date 2026-09-30 and ex-rights 2026-09-29 (the bank's notice of "
+     "2026-08-25, the Tokyo Stock Exchange's ex-rights table for September 2026); adjClose and the close carry it "
+     "unadjusted (adjClose x0.200, the close x0.202 on 2026-09-28, the bar before the ex-rights date). Per original "
+     "share: 5 x the 2,202 exit close over the 7,550 entry close, with the 100 yen interim dividend per pre-split "
+     "share (record date 2026-09-30, the bank's notice of 2026-11-13) reinvested at the 2,185 close of 2026-09-29"),
+    ("000601.SZ", "2005-10-01", "2006-01-01", "rebuilt", 0.021008, None, -0.740574, ("52-week-high/SHZ_SHH",),
+     "ShaoNeng's vendor bars run on two price levels and carry volume on closed days: the entry bar, 2005-10-03, falls "
+     "in the National Day closure and the exit bar, 2006-01-09, holds the next session's close, so adjClose / close "
+     "drifts to 0.129; no cash or distribution went ex from 2005-10-03 to 2006-01-09 (the company's notices on CNINFO "
+     "of 2005-08-12, 2005-12-23, 2006-01-06 and 2006-02-21: the 2004 dividend ex 2005-08-19, the reform halt from "
+     "2005-12-23 to 2006-01-06, the reform shares of 2006-02-23); close return on the exchange's closes of the first "
+     "sessions after the rebalance and exit dates, 4.76 on 2005-10-10 to 4.86 on 2006-01-09 (Eastmoney and Tencent "
+     "daily bars), no cash paid"),
+    ("600879.SS", "2005-10-01", "2006-01-01", "real", None, None, -0.0289855, ("52-week-high/SHZ_SHH",),
+     "Long March Rocket Technology's (now China Aerospace Times Electronics) entry bar (2005-10-03) and exit bar "
+     "(2006-01-03) fall on market closures, where the vendor's bars sit on two divisors (adjClose / close drifts to "
+     "0.595); no cash or distribution went ex in the holding (the company's notices on CNINFO of 2005-06-03, "
+     "2005-12-19, 2005-12-30 and 2006-02-08: the 2004 dividend ex 2005-06-09, the reform halt from 2005-12-19 to "
+     "2006-01-03, the reform shares ex 2006-02-10); adjClose stands as a no-change call, the reading turning on which "
+     "session stands for each closed day: -2.4% at the prices in force (11.21 to 10.94) and +7.0% at the next sessions "
+     "(11.22 on 2005-10-10 to 12.01 on 2006-01-04; Eastmoney's and Tencent's daily bars)"),
+    ("0004.HK", "2002-04-01", "2002-07-01", "rebuilt", 0.005688, None, 2.36644, ("52-week-high/HKSE",),
+     "Wharf's vendor bars sit on two price levels, the traded close over 3.40 and over 1.07, the entry on the lower "
+     "and the exit on the upper, and adjClose books the HK$0.50 final dividend on the lower level, a step of 8.2% for "
+     "a payout of 2.5%; on those divisors the vendor's highs match, to HK$0.03, the monthly highs in the company's "
+     "circulars of 2002-04-30 and 2003-04-29 (18.70, 20.90, 19.60, 18.80 for March, April, June, July), and its "
+     "filings from March to July 2002 hold no corporate action; close plus the HK$0.50 dividend (results announcement "
+     "of 2002-03-18), ex 2002-05-29 by the vendor's and Tencent's dividend records and reinvested at that day's close "
+     "of 19.85, from Tencent's daily closes of 18.40 on 2002-04-02 and 18.05 on 2002-07-02"),
+    ("000120.KS", "2009-04-01", "2009-07-01", "rebuilt", 0.147024, None, 1.69823, ("52-week-high/KSC",),
+     "Korea Express's paid capital reduction, 43.22% of its shares cancelled at KRW 171,000 each, record date "
+     "2009-04-21 (the company's DART filings of 2009-02-03 and 2009-03-20, which expected trading to halt from "
+     "2009-04-20 to 2009-05-14, and the bars carry no trade on those days): adjClose books the cash as a dividend and "
+     "keeps the full share count, and the close rebases by the 2839:5000 ratio on the first halt bar; per original "
+     "share 0.5678 of a share at the 81,200 exit close plus KRW 73,906 reinvested at 82,000, the first close after the "
+     "halt"),
+    ("POW.TO", "2000-10-01", "2001-01-01", "rebuilt", 0.152354, None, 1.30238, ("52-week-high/TSX",),
+     "Power Corporation's closes double on 2000-11-24 (16.90 to 33.85) and stay there, with no split, consolidation or "
+     "first listing found for 2000 (a decision of the Ontario, Alberta and British Columbia securities commissions of "
+     "2000-12-21 gives the shares as listed on the Toronto Stock Exchange, 196,516,872 outstanding at 1999-12-31) and "
+     "no step in another vendor's monthly series; the line has one-day half bars on US holidays and its 2004 "
+     "two-for-one split unadjusted, and adjClose takes the C$0.15 dividend of 2000-12-06 on the later level, so the "
+     "earlier closes read as the post-2004 basis; priced on one basis, the entry close doubled, plus that dividend at "
+     "the ex-date close"),
+    ("OVV.TO", "2002-04-01", "2002-07-01", "rebuilt", -0.047476, None, 0.80508, ("52-week-high/TSX",),
+     "EnCana (now Ovintiv): adjClose over close steps x1.895 on 2002-04-08, the first bar after the merger with "
+     "Alberta Energy closed on 2002-04-05, a share exchange in which AEC holders got 1.472 shares each and no payment "
+     "to this line was found (EnCana's 6-K of 2002-11-05), while the close moves 1.0%; close plus the regular 10 cent "
+     "quarterly dividend (the rate in the same 6-K), ex 2002-06-12 by the vendor's dividend row, 0.25 on the close's "
+     "basis"),
+    ("NEWA-B.ST", "2002-07-01", "2002-10-01", "rebuilt", -0.092308, None, -0.546092, ("52-week-high/STO",),
+     "New Wave Group's 2:1 split, the first day after it 2002-07-30 (Skatteverket's share history; the 2003 annual "
+     "report's share capital table), which the close and adjClose both carry unadjusted (x0.496 that day); priced per "
+     "original share, 14.75 x 2 against 32.50, with no payout found in the holding (the SEK 3.00 dividend was put to "
+     "the AGM of 2002-05-28, and adjClose over close holds from the entry bar to the exit)"),
+    ("KINV-B.ST", "2018-04-01", "2018-07-01", "rebuilt", 0.053835, None, 0.844208, ("52-week-high/STO",),
+     "the 2018-05-24 dividend row reads SEK 159.22, about 19 times Kinnevik's real SEK 8.25 cash dividend that day "
+     "(its AGM release of 2018-05-21), and adjClose over close steps x1.797 against the x1.027 the real dividend "
+     "gives; close plus the SEK 8.25 on the close's basis (4.6655, the close being 0.5655 of Nasdaq Stockholm's)"),
+    ("SNT.JO", "2007-04-01", "2007-07-01", "rebuilt", None, (0.093452, 0.0949), 0.213951, ("52-week-high/JNB",),
+     "Santam's empowerment scheme made holders sell 10% of the shares held as at 2007-05-21 to a BEE company at R82 "
+     "(Santam's annual report for 2007); the 9:10 split row of 2007-05-25 reads it as a consolidation, and adjClose "
+     "steps x3.26 and back twice with the close flat; per original share 0.9 share plus 820c, the cash reinvested at "
+     "the ex-date close, which is not on record, so a range over the sessions 2007-05-14 to 2007-05-25: 10,113c on "
+     "2007-04-02 to 11,370c on 2007-07-02; the 2006 final dividend's step in adjClose is on 2007-03-16, before the "
+     "entry"),
+    ("TKG.JO", "2009-04-01", "2009-07-01", "rebuilt", 0.114956, None, 0.683719, ("52-week-high/JNB",),
+     "Telkom unbundled Vodacom one for one, ex 2009-05-18, and paid a R19.00 special dividend ex 2009-05-25 (Telkom's "
+     "circular of 2009-03-02, its revised salient dates of 2009-04-17 and its note on the unbundling of May 2009, on "
+     "Form 6-K); the close already carries both at a factor of 3.003, and adjClose adds the dividend again (x1.48 on "
+     "2009-05-25 against the close's x0.9965); per original share from 10,609c on 2009-04-02 (VOD.JO's bar: before "
+     "Vodacom listed it carries Telkom's closes, equal to the circular's daily table of 21 January to 20 February 2009 "
+     "on 21 of its 23 days) to the vendor's whole-cent 4,000c on 2009-07-02, with the Vodacom share reinvested at the "
+     "2009-05-18 closes (5,880c against 6,000c) and the R19.00 at the 2009-05-25 close (3,850c)"),
+    ("GSF.OL", "2026-04-01", "2026-07-01", "rebuilt", -0.262484, None, -0.6384, ("52-week-high/OSL",),
+     "Grieg Seafood's NOK 35.63715 extraordinary dividend (NOK 2.04670 of it a repayment of paid-in capital), ex "
+     "2026-04-20 (its notices of 2026-04-16 and 2026-04-20): adjClose takes the payout a day early (35.96 on "
+     "2026-04-17, the close less the dividend) and is not carried back, so the booked return counts the cash as a "
+     "loss; close plus the dividend reinvested at the ex-date close of 34.28"),
+    ("4863.KL", "2008-04-01", "2008-07-01", "rebuilt", -0.043043, None, -0.693798, ("52-week-high/KLS",),
+     "Telekom Malaysia's demerger of TM International, 1 TMI share for each TM share, ex 2008-04-23 (TM's book-closure "
+     "announcement of 2008-04-11 and its Annual Report 2008): adjClose and the close fall x0.325 that day with nothing "
+     "for the distribution; close plus the 22.0 sen gross final dividend reinvested at its ex-date close of 10.90, and "
+     "the TMI share at its first traded close, 2008-04-28, reinvested at TM's 3.56 close that day: the vendor's 5.14 "
+     "for TMI (6888.KL) that day is RM7.54 on 2008's basis, since the annual report gives TMI RM5.00 and TM RM3.32 at "
+     "the 2008-10-16 grant date, when the vendor closes TMI at 3.41 and TM at 3.32"),
+    ("CSAN3.SA", "2006-07-01", "2006-10-01", "rebuilt", -0.267134, None, 1.19583, ("52-week-high/SAO",),
+     "Cosan split each share into 3 from 2006-09-01 (Fato Relevante 2006-08-31); the vendor's split-adjusted close and "
+     "adjClose step up x3.03 that day where they should run flat, its history before the split divided by 3 once too "
+     "often, while its non-split series runs on one basis across the day (161.76 to 163.36) and turnover holds (BRL "
+     "52m and 27m); per original share 205.44 on 2006-07-03 to 150.56 on 2006-10-02, with no dividend in the window (a "
+     "loss year: AGO/E minutes 2006-08-31)"),
+    ("ELET6.SA", "2007-10-01", "2008-01-01", "rebuilt", -0.123574, None, 1.27887, ("52-week-high/SAO",),
+     "no event at the exit: B3 printed Eletrobras's class B preferred at 26.30 on 2007-10-02 and 23.05 on 2008-01-02, "
+     "one ISIN and no ex mark between, while the vendor's closes from 2007-08-20 to 2007-12-28 sit at 1/2.60 of B3's "
+     "and step x2.61 back to its scale on 2008-01-02 (B3's daily quote files for 2007 and 2008); B3's closes, no cash "
+     "going ex in the window"),
+    ("JBSS3.SA", "2025-04-01", "2025-07-01", "rebuilt", 0.012414, None, 0.886816, ("52-week-high/SAO",),
+     "JBS S.A.'s shares last traded on B3 on 2025-06-06; from 2025-06-09 holders had one JBS N.V. BDR for every two "
+     "shares (Fato Relevante 2025-05-23 and 2025-05-30), and the vendor carries the BDR's price on under JBSS3.SA "
+     "(close 39.03 to 76.30, x1.955, volume 94.5m to 2.3m); 39.67 on 2025-04-02 to 74.85 / 2 on 2025-07-02, with "
+     "R$2.00 ex 2025-04-30 (Aviso aos Acionistas 2025-04-29) and R$1.00 ex 2025-05-26 (Fato Relevante 2025-05-23) "
+     "reinvested at those closes; the vendor's dividend_calendar lists both, its adjClose carries neither"),
+    ("SBSP3.SA", "2026-04-01", "2026-07-01", "rebuilt", -0.051079, None, -0.810216, ("52-week-high/SAO",),
+     "Sabesp split each share into 5, ex 2026-04-29 on holdings of the 2026-04-28 record date (its Material Facts of "
+     "2026-04-27 and 2026-04-28, on Form 6-K); the close and adjClose both fall x0.1975 that day (167.00 to 32.99, as "
+     "B3 printed them), the split not applied; per original share 157.60 on 2026-04-02 to 5 x 29.91 on 2026-07-02, no "
+     "cash going ex in the window by B3's marks"),
+    ("ORVR3.SA", "2026-07-01", "2026-10-01", "rebuilt", -0.097345, None, -0.774336, ("52-week-high/SAO",),
+     "Orizon split each share into 4, ex 2026-08-11 on holdings of 2026-08-10 (its Fato Relevante of 2026-07-10 and "
+     "Comunicado ao Mercado of 2026-08-10); the close and adjClose both fall x0.2426 that day (67.60 to 16.40, as B3 "
+     "printed them), the split not applied; per original share 79.10 on 2026-07-02 to 4 x 17.85 on 2026-10-02, no cash "
+     "going ex in the window by B3's marks"),
 )
 FACTOR_HAND_RULE = ("each band flag whose close-basis swap moves its leg's excess by review_min_pp or more is "
                     "reviewed by hand and listed by holding span (symbol, rebalance date, exit date): rebuilt (book "
