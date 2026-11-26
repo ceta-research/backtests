@@ -3882,8 +3882,7 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
                            "1-for-10 reverse split of 2023 back (8-K filed 2023-11-09), close 126.50 on 4,400 shares "
                            "and 115.00 on 2,290 either side, so they don't pin the day"),
 )
-# line starts whose earlier bars are a blank-check shell's, another company's or a fund's, or depositary receipts':
-# a price lookback starts on the first own day (renames, a merger's surviving line and a share-class change aren't)
+# the line starts whose price lookback starts on the first own day (LINE_START_RULE_V4)
 LOOKBACK_CLIP_V4 = ("1972.HK", "145990.KS", "HUSQ-B.ST", "HUSQ-A.ST", "HLM.JO", "AIP.JO", "6888.KL", "VOD.JO", "CALY",
                     "GETY", "CTOS", "GB", "FSR", "SDA", "MVST", "ECX", "GRND", "CNCK", "ARKO", "BTDR", "BWMX", "DM",
                     "ENSC", "EVEX", "GRNT", "GTI", "HHRS", "IGIC", "INDI", "LTRY", "LVRO", "NKLA", "OABI", "PERF",

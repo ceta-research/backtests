@@ -365,9 +365,7 @@ def edge_failures(mod):
 
 
 def run_failures(mod):
-    """The third leg: runs by turns, each but the last undone by the next, where a reversing step's partner is the
-    earliest later opposite step inside the reversal tolerance, up to the bar that completed its reversal, and a
-    step netted as a partner opens no pair."""
+    """The third leg: runs of 2x and 0.5x steps by turns."""
     return case_failures("RUN", mod.check_leg(*case_fixture("RUN"), []))
 
 

@@ -200,9 +200,7 @@ def steps(seq, ent, ext, split_rows):
 
 
 def classify(cands):
-    """Marks each step netted (it reverses, or it is the partner of one that does: the holding's earliest later step
-    opposite to it within 25% of its log step, up to the bar that completed the reversal; a step netted as another's
-    partner opens no pair of its own), artifact and why."""
+    """Marks each step netted (the module docstring's reversal and partner rules), artifact and why."""
     netted = set()
     for i, c in enumerate(cands):
         if c["reverses"] and i not in netted:
