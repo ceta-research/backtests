@@ -13,8 +13,10 @@ equal to close, so check F's drift stays 1 and the data checks can't see it. Fou
   4. every splits_calendar row inside a holding (after its entry bar, up to its exit bar), tested for absorption:
      adjClose stepping by the row's price factor means it wasn't adjusted.
 A date with two bars keeps one, the highest adjClose and then the highest close, as the backtests' price loaders
-do. A step that reverses nets out of the holding's return and changes nothing, and so does a later step up to the
-bar that completed the reversal, when it is the reversing step's opposite. A one-way step with a split row,
+do. A step that reverses nets out of the holding's return and changes nothing, and so does its partner: the
+holding's earliest later step opposite to it (its log step within 25% of the reversing step's, the other way) up
+to the bar that completed the reversal. A step netted as another's partner opens no pair of its own: of up, down,
+up a bar apart, the first two net out and the third stands. A one-way step with a split row,
 or whose adjClose step equals the close's at a round ratio (and isn't a reopening after zero-volume days), is an
 artifact candidate: its step is divided out of the holding's return. A split row adjClose didn't absorb is
 rebuilt with the day's traded move restored. A split row on an artifact's day is rebuilt once, as the step, and
@@ -198,11 +200,10 @@ def steps(seq, ent, ext, split_rows):
 
 
 def classify(cands):
-    """Marks each step netted (it reverses, or it undoes a step that does, on or before the bar that completed the
-    reversal), artifact and why."""
+    """Marks each step netted (the module docstring's reversal and partner rules), artifact and why."""
     netted = set()
     for i, c in enumerate(cands):
-        if c["reverses"]:
+        if c["reverses"] and i not in netted:
             netted.add(i)
             lc = math.log(c["adj_step"])
             j = next((j for j in range(i + 1, len(cands)) if (cands[j]["symbol"], cands[j]["rebalance"]) ==

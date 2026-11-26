@@ -1630,7 +1630,8 @@ BCE-PY.TO with BCE-PA.TO in 9 years, the last at the 2024 rebalance, which exits
 rules ur-3, in fcf-conversion, fix the renamed pairs below by line starts or hand entries,
 and end two dead lines; asset-growth's committed files predate ur-3. BC88.L, ABG.AX, SHA.DE, 9511.SR
 and CORE-PREF.ST are open; ur-4's hand list removes BC88.L and CORE-PREF.ST, and its line starts
-begin SHA0.DE after SHA.DE's last bar. 52-week-high's code runs ur-4; its committed results predate it.
+begin SHA0.DE after SHA.DE's last bar and ABG.AX after ABP.AX's, so under ur-4 only 9511.SR stays
+open. 52-week-high's code runs ur-4; its committed results predate it.
 
 GUD Holdings was renamed Amotiv on 2024-06-18. AOV.AX, the new line, carries GUD's price history
 under a different ISIN, with the same close on every July bar from 1990 to 2024, so the same-ISIN
@@ -1660,8 +1661,7 @@ held them in UK 2010 and 2016 to 2020, Brazil 2016, Saudi 2022 and 2023, and Swe
 for a pair no rule covers reads bars, not names, since a name test misses Platinum becoming L1 Group:
 `scripts/same_bars_scan.py` lists pairs of held lines in one leg whose first window bars match, close
 to the cent and volume, in three or more rebalance windows, less the pairs the universe rules and
-check N already cover, and runs on a rerun's legs before the install. BC88.L, ABG.AX, SHA.DE, 9511.SR
-and CORE-PREF.ST stay open.
+check N already cover, and runs on a rerun's legs before the install.
 
 The November books hold two more such pairs, each new line carrying the old one's prices under a new
 ISIN: L1G.AX beside PTM.AX (Platinum Asset Management, L1 Group since its October 2025 merger with L1

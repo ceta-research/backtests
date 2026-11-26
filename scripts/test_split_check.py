@@ -37,6 +37,17 @@ A second leg on the same periods pins the edges and the thresholds:
         prices at that day's close: neither is read;
   XP    a 0.5x step on the partial period's exit date, undone the bar after: the undoing is past the priced exit,
         so the step doesn't net out and is a round-ratio artifact.
+A third leg holds runs of 2x and 0.5x steps by turns, a bar apart, each but the last undone by the next. A reversing
+step's partner is the earliest later opposite step inside the reversal tolerance, up to the bar that completed its
+reversal, and a step netted as another's partner opens no pair of its own, so the steps net out two by two:
+  UDU    up, down, up with the close moving the same: the first two net out and the third is a round-ratio
+         artifact, its step divided out;
+  UDUDU  five such steps, the first on the day of UDU's second (a guard keyed on the date alone would block it):
+         the first four net out and the fifth stands the same way;
+  UDUD   four such steps: all four net out, nothing is rebuilt;
+  UDUF   up, down, up of adjClose on a flat close: the third step stands with no split signature, no rebuild;
+  FTQT   x4, x3, x0.25, x1/3: the x0.25 is the x4's earliest opposite step and nets with it, though the x1/3 also
+         falls inside the tolerance, so the x3 and the x1/3 stand as round-ratio artifacts and the holding stays flat.
 Every period has bars after its exit date, as the warehouse has once the run's end date has passed. Each leg's
 rebuilt excess is checked against metrics.compute_metrics on returns rebuilt here by hand (each
 holding's corrections compounded, two periods per year, the partial period's fraction), and so is each rebuild's
@@ -49,14 +60,14 @@ verdict, C's real one leaves the rebuilds, the confirmed net and the verdict as 
 on either key matches no candidate), and F's kept one stays a candidate as any other (on V's leg it stays over the
 bar until a person calls it no change), while a hand_stale span and hand events
 on spans that aren't held or rebuild nothing change nothing. main() runs the three queries per file on an
-in-memory warehouse for both legs with that call and writes the same records, its bars query reading no partial
+in-memory warehouse for every leg with that call and writes the same records, its bars query reading no partial
 holding's bar past the exit date; a key that matches no candidate is refused, and so is a symbol holding a quote
 or a semicolon, before any SQL is built. A query limit under one query's length puts each leg's lines in groups
 (with one line held in two periods): every query at or under it, each line in one group, the groups' rows,
 check_leg's record and main's record those of the one query, a limit equal to the one query's length one group,
 and a line whose windows alone pass the limit refused. The warehouse loads each table with one INSERT. Every
-mutant of split_check.py (the reversal window, the split-row window, the absorption test, the rebuild's sign,
-each threshold above and more) must trip a check.
+mutant of split_check.py (the reversal window, the partner rules, the split-row window, the absorption test, the
+rebuild's sign, each threshold above and more) must trip a check.
 
 Usage:
     python scripts/test_split_check.py [repo root]
@@ -163,9 +174,31 @@ EDGE_REBUILDS = {
     ("Z", day(P2, 110)): (-0.5, 5, 2.0, "step"), ("AF", day(P2, 130)): (-0.6, 5, 2.5, "step"),
     ("SUB", day(P1, 120)): (-0.5, 7, 2.0, "step"), ("XP", day(P3, 92)): (-0.5, 5, 2.0, "step"),
 }
+RUNS = {   # 2x and 0.5x steps by turns, a bar apart; P2 holds two so that chunk_failures' TW is held twice here too
+    "UDU": (P1, [(40, 2.0, 2.0), (41, 0.5, 0.5), (42, 2.0, 2.0)], (), ()),
+    "UDUDU": (P1, [(41, 2.0, 2.0), (42, 0.5, 0.5), (43, 2.0, 2.0), (44, 0.5, 0.5), (45, 2.0, 2.0)], (), ()),
+    "UDUD": (P2, [(40, 2.0, 2.0), (41, 0.5, 0.5), (42, 2.0, 2.0), (43, 0.5, 0.5)], (), ()),
+    "UDUF": (P2, [(40, 1.0, 2.0), (41, 1.0, 0.5), (42, 1.0, 2.0)], (), ()),
+    "FTQT": (P3, [(40, 4.0, 4.0), (41, 3.0, 3.0), (42, 0.25, 0.25), (43, 1 / 3, 1 / 3)], (), ()),
+}
+
+
+def nets(symbol, period, days):
+    return [(symbol, day(period, k), True, False, NETS) for k in days]
+
+
+RUN_STEPS = sorted(nets("UDU", P1, (40, 41)) + [("UDU", day(P1, 42), False, True, ROUND_WHY)]
+                   + nets("UDUDU", P1, range(41, 45)) + [("UDUDU", day(P1, 45), False, True, ROUND_WHY)]
+                   + nets("UDUD", P2, range(40, 44))
+                   + nets("UDUF", P2, (40, 41)) + [("UDUF", day(P2, 42), False, False, NO_SIGN)]
+                   + nets("FTQT", P3, (40, 42)) + [("FTQT", day(P3, 41), False, True, ROUND_WHY),
+                                                   ("FTQT", day(P3, 43), False, True, ROUND_WHY)])
+RUN_REBUILDS = {("UDU", day(P1, 42)): (1.0, 2, 0.5, "step"), ("UDUDU", day(P1, 45)): (1.0, 2, 0.5, "step"),
+                ("FTQT", day(P3, 41)): (0.0, 1, 1 / 3, "step"), ("FTQT", day(P3, 43)): (0.0, 1, 3.0, "step")}
 # universe: (holdings, extra bar rows, steps, split rows, rebuilds)
 CASES = {"TEST": (HOLDINGS, (), STEPS, SPLIT_ROWS, REBUILDS),
-         "EDGE": (EDGE, DUPLICATES, EDGE_STEPS, EDGE_SPLIT_ROWS, EDGE_REBUILDS)}
+         "EDGE": (EDGE, DUPLICATES, EDGE_STEPS, EDGE_SPLIT_ROWS, EDGE_REBUILDS),
+         "RUN": (RUNS, (), RUN_STEPS, [], RUN_REBUILDS)}
 PERIOD_OF = {P1[0]: 1, P2[0]: 2, P3[0]: 3}
 RATIO = [{"symbol": "A", "min_price": 1.0, "max_price": 1500.0, "price_ratio": 1500.0},
          {"symbol": "B", "min_price": 1.0, "max_price": 150.0, "price_ratio": 150.0},
@@ -329,6 +362,11 @@ def edge_failures(mod):
     if alone["verdict"] != "over the bar" or keys != [SUB_KEY]:
         out.append(f"SUB alone: verdict {alone['verdict']}, rebuilds {keys}; want over the bar with {SUB_KEY}")
     return out
+
+
+def run_failures(mod):
+    """The third leg: runs of 2x and 0.5x steps by turns."""
+    return case_failures("RUN", mod.check_leg(*case_fixture("RUN"), []))
 
 
 def not_artifact_failures(mod):
@@ -572,7 +610,7 @@ def chunk_failures(mod):
 
 
 def main_failures(mod):
-    """main() on both legs' files through the warehouse with a person's call on H: three queries a file, and the
+    """main() on every leg's file through the warehouse with a person's call on H: three queries a file, and the
     records check_leg gives on their rows with that call. A key matching no candidate is refused."""
     legs = {u: case_fixture(u) for u in CASES}
     bar_rows = [r for _, rows, _ in legs.values() for r in rows]
@@ -580,8 +618,8 @@ def main_failures(mod):
     wh = Warehouse(bar_rows, split_rows)
     report, code = run_main(mod, wh, [res for res, _, _ in legs.values()], ["--not-artifact", H_KEY])
     if report is None:
-        return [f"main on both legs with a person's call: exited {code}"]
-    out = [] if len(wh.sqls) == 6 else [f"main sent {len(wh.sqls)} queries, want 6"]
+        return [f"main on every leg with a person's call: exited {code}"]
+    out = [] if len(wh.sqls) == 3 * len(CASES) else [f"main sent {len(wh.sqls)} queries, want {3 * len(CASES)}"]
     for u, (res, _, _) in legs.items():
         ratio, got_bars, got_splits = rows_of(wh, mod.queries(res))
         want = json.loads(json.dumps(mod.check_leg(res, got_bars, got_splits, ratio, [H_KEY]), default=str))
@@ -616,8 +654,8 @@ def failures(src):
         mod.__file__ = PATH
         exec(compile(src, PATH, "exec"), mod.__dict__)
         out = []
-        for check in (leg_failures, edge_failures, not_artifact_failures, hand_failures, bar_failures, main_failures,
-                      chunk_failures):
+        for check in (leg_failures, edge_failures, run_failures, not_artifact_failures, hand_failures, bar_failures,
+                      main_failures, chunk_failures):
             try:
                 out += check(mod)
             except Exception as e:   # reported as an error: main() does not count it as a caught mutant
@@ -649,6 +687,13 @@ MUTANTS = {
         ("{epoch(r)}, {epoch(end)})", "{epoch(r)}, {epoch(plus(end, WINDOW_DAYS))})"),
         ("max(end for *_, end in sp)", "max(plus(end, WINDOW_DAYS) for *_, end in sp)")],
     "a reversal netted against any later opposite step": [(' and cands[j]["date"] <= c["undone_by"]', "")],
+    "a step netted as a partner free to open a pair": [(" and i not in netted", "")],
+    "a reversal's partner the latest match": [("for j in range(i + 1, len(cands))",
+                                               "for j in reversed(range(i + 1, len(cands)))")],
+    "a partner's guard keyed on its date alone": [
+        ("netted = set()", "netted, dates = set(), set()"),
+        ("netted.add(j)", 'netted.add(j)\n                dates.add(cands[j]["date"])'),
+        (" and i not in netted:", ' and c["date"] not in dates:')],
     "the bar that undid a reversal not netted with it": [('cands[j]["date"] <= c["undone_by"]',
                                                           'cands[j]["date"] < c["undone_by"]')],
     "an entry bar late by any number of days": [("ent = 0 if seq and seq[0][0] <= plus(reb, WINDOW_DAYS) else None",
@@ -753,9 +798,10 @@ def main():
     if survived or broken:
         print("test_split_check: FAIL (mutants survived:", survived, "; mutants that only raised:", broken, ")")
         sys.exit(1)
-    print(f"test_split_check: PASS ({len(HOLDINGS)} + {len(EDGE)} holdings, {len(STEPS)} + {len(EDGE_STEPS)} steps, "
-          f"{len(SPLIT_ROWS)} + {len(EDGE_SPLIT_ROWS)} split rows, {len(REBUILDS)} + {len(EDGE_REBUILDS)} rebuilds; "
-          f"a person's call; main's queries on both legs; {len(MUTANTS)} mutants caught)")
+    counts = lambda i: " + ".join(str(len(c[i])) for c in CASES.values())
+    print(f"test_split_check: PASS ({counts(0)} holdings, {counts(2)} steps, {counts(3)} split rows, "
+          f"{counts(4)} rebuilds; a person's call; main's queries on all {len(CASES)} legs; "
+          f"{len(MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":

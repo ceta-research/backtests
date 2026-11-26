@@ -3329,6 +3329,53 @@ NON_ORDINARY_KNOWN_V4 = tuple(e for e in NON_ORDINARY_KNOWN_V3 if e[0] not in DI
                             "median 10.19)"),
     ("GIG", "blank check", "GigCapital7, a blank-check shell, industry Shell Companies (closes 9.93 to 10.41, median "
                            "10.13)"),
+    ("AAM", "blank check", "AA Mission Acquisition, a blank-check shell, industry Shell Companies (closes 10.01 to "
+                           "10.70, median 10.30, on the first trading days of each quarter from 2024-10 to 2026-01); "
+                           "its release of 2026-01-29 (8-K exhibit 99.1) said it would redeem all public shares, "
+                           "deemed cancelled as of the close of 2026-02-02"),
+    ("APXT", "blank check", "Apex Treasury Corporation, a blank-check shell, industry Shell Companies, which its "
+                            "profile says was incorporated in 2025: it closes at 9.89 to 10.16 (median 10.03) on the "
+                            "first trading days of each quarter from 2026-01 to 2026-10; the same ticker's bars from "
+                            "2020-01 to 2021-04, before it, close at 9.75 to 16.68 on those days, and the profile's "
+                            "ipoDate is 2019-09-17"),
+    ("BSGA", "blank check", "Blue Safari Group Acquisition, a blank-check shell, industry Shell Companies (closes "
+                            "8.35 to 11.75, median 10.12): it closed its business combination with Bitdeer on "
+                            "2023-04-13 (Bitdeer's closing release of that day, filed on a 6-K 2023-04-14), its last "
+                            "bar, and BTDR carries its bars from 2021-07-28 to that day (its closes within half a "
+                            "cent on all 431 days)"),
+    ("LACQ", "blank check", "Leisure Acquisition, a blank-check shell, industry Shell Companies (closes 9.55 to "
+                            "23.99, median 10.41): its bars run from 2018-02-26 to 2021-06-02, and ENSC carries them "
+                            "at 3,600 times their closes (ENSC's close over 3,600 within half a cent of LACQ's on "
+                            "all 482 shared days); the merger with Ensysce closed 2021-06-30 (Ensysce's 8-K filed "
+                            "2021-07-07), and ENSC's bars before its first day, 2021-07-02, run on to 2021-07-01 (21 "
+                            "after 2021-06-02, the last three on no volume)"),
+    ("ENCP", "blank check", "Energem, a blank-check shell, industry Shell Companies (closes 3.50 to 12.49, median "
+                            "10.45): it completed its business combination with Graphjet on 2024-03-14 (Graphjet "
+                            "Technology's 8-K filed 2024-03-20), its last bar, and GTI carries its bars from "
+                            "2022-01-10 at 60 times their closes (GTI's close over 60 within half a cent of ENCP's "
+                            "on 537 of 538 days, all within 0.5%)"),
+    ("MUDS", "blank check", "two blank-check shells on one ticker, industry Shell Companies: Mudrick Capital "
+                            "Acquisition's bars from 2018-03-12 to 2020-05-29 close at 9.55 to 12.65 (median 10.10), "
+                            "and HYMC carries them at 10 times (HYMC's close over 10 within half a cent of MUDS's on "
+                            "all 359 days) to that day, when the business combination with Hycroft completed "
+                            "(Hycroft's 8-K12B filed 2020-06-04); the profile now names Mudrick Capital Acquisition "
+                            "Corporation II, a blank check company by its 10-K for 2021 (filed 2022-03-29), whose "
+                            "bars from 2021-01-29 to 2022-09-12 close at 9.71 to 17.68 (median 10.05), and whose "
+                            "release of 2022-09-02 said its public shares would cease trading before the open on "
+                            "2022-09-13"),
+    ("TPBA", "blank check", "TPB Acquisition Corporation I, a blank-check shell, industry Shell Companies (closes "
+                            "9.57 to 10.90, median 9.86): it closed its business combination with Lavoro on "
+                            "2023-02-28 (Lavoro's closing release, filed on a 6-K 2023-03-01), its last bar, and "
+                            "LVRO carries its bars from 2021-11-01 to that day (its closes within half a cent on all "
+                            "194 days)"),
+    ("AHPA", "blank check", "Avista Public Acquisition Corp. II, a blank-check shell, industry Shell Companies "
+                            "(closes 6.125 to 10.31, median 10.07): it closed its business combination with OmniAb "
+                            "on 2022-11-01 (OmniAb's 8-K filed 2022-11-07), its last bar, and OABI carries its bars "
+                            "from 2021-09-30 to that day (its closes within half a cent on all 182 days)"),
+    ("ZNTE", "blank check", "Zanite Acquisition, a blank-check shell, industry Shell Companies (closes 9.90 to "
+                            "14.39, median 10.15): it closed its business combination with Eve on 2022-05-09 (Eve's "
+                            "8-K filed 2022-05-13), its last bar, and EVEX carries its bars from 2021-01-07 to that "
+                            "day (the same close on 336 of 337 days)"),
     # UK preference lines named only as their company
     ("AV-A.L", "preferred", "Aviva cumulative preference shares (GB0002124963), named only as the company, closes at a "
                             "median of 133.5p; AV.L is the ordinary"),
@@ -3392,9 +3439,15 @@ NON_ORDINARY_KNOWN_V4 = tuple(e for e in NON_ORDINARY_KNOWN_V3 if e[0] not in DI
                      "and business development company, and doesn't flag isFund"),
     ("HTGC", "fund", "Hercules Capital, which its profile calls a business development company, and doesn't flag "
                      "isFund"),
-    # an Italian savings share
+    ("FSK", "fund", "FS KKR Capital, which its profile calls a business development company (BDC), and doesn't flag "
+                    "isFund"),
+    # Italian savings shares
     ("DANR.MI", "savings share", "Danieli's risparmio (savings) share line (IT0000076486), under the same company "
                                  "name as DAN.MI (IT0000076502), the ordinary share"),
+    ("TITR.MI", "savings share", "Telecom Italia's savings share line (IT0003497176, which TIM's notice soliciting "
+                                 "proxies for the savings shareholders' special meeting, dated 2025-12-30 and updated "
+                                 "2026-01-20, gives as its savings shares' ISIN), under the same company name as "
+                                 "TIT.MI (IT0005712671 in its profile), the ordinary share"),
     # depositary receipts
     ("ALIV-SDB.ST", "depositary receipt", "Autoliv, Inc.'s Swedish depository receipts (SDB in the ticker, a Swedish "
                                           "ISIN, SE0021309614)"),
@@ -3404,6 +3457,14 @@ NON_ORDINARY_KNOWN_V4 = tuple(e for e in NON_ORDINARY_KNOWN_V3 if e[0] not in DI
                                         "the profile names"),
     ("CEO", "ADR", "CNOOC's NYSE line under a US ISIN (US1261321095) on a Hong Kong company (the profile's country), "
                    "which the profile doesn't flag isAdr"),
+    ("GEEC.L", "depositary receipt", "Great Eastern Energy Corporation's global depositary receipts, each 0.5 of an "
+                                     "equity share of the Indian company, under the line's ISIN (US39032T1060), per "
+                                     "its prospectus of 2010-05-25, which expected them to deal on the London main "
+                                     "market from 2010-05-28"),
+    ("AGG.AX", "depositary receipt", "AngloGold Ashanti Limited's CHESS Depositary Interests, five to each share of "
+                                     "the South African company (ISIN ZAE000043485), whose Form 6-K of 2023-05-12 said "
+                                     "they would last trade on the ASX on 2023-06-23, the line's last bar; the profile "
+                                     "names the later English holding company, AngloGold Ashanti Plc, with no ISIN"),
     # other instruments named as their company
     ("E1AIRTELPP.NS", "partly paid", "Bharti Airtel's partly paid line (the profile name says Partly Paid Rs.1.25) "
                                      "under its own IN9 ISIN (IN9397D01014), beside BHARTIARTL.NS (INE397D01024)"),
@@ -3417,6 +3478,66 @@ NON_ORDINARY_KNOWN_V4 = tuple(e for e in NON_ORDINARY_KNOWN_V3 if e[0] not in DI
                          "expiry at 2026-02-09), under their own ISIN (US1651671802) on "
                          "EXE's CIK; its sibling EXEEZ falls to nasdaq_fifth_letter, but L isn't a fifth letter that "
                          "rule reads"),
+    ("HYMCL", "warrant", "Hycroft Mining Holding's warrants to purchase common stock (its Form 10-K for 2024, filed "
+                         "2025-03-05, lists them under HYMCL on its cover and says 9,583,334 warrants at $10.50 "
+                         "expire on 2025-10-06, and its release of 2021-01-19 says the HYMCL warrants came with its "
+                         "unit offering of 9,583,334 units completed 2020-10-06), named only as the company under "
+                         "their own ISIN (US44862P1333) on HYMC's CIK, closing at 0.002 to 2.95 (median 0.0495) to "
+                         "their last bar, 2025-10-03; L isn't a fifth letter the NASDAQ rule reads"),
+    ("ASBA", "notes", "Associated Banc-Corp's 6.625% Fixed-Rate Reset Subordinated Notes due 2033 (its Form 10-K for "
+                      "2025, filed 2026-02-12, lists them under ASBA on its cover, and its prospectus supplement dated "
+                      "2023-02-06 sets denominations of $25), named only as the company on ASB's CIK, under the "
+                      "profile's ISIN US0454876006; the first closes of its quarterly windows run 19.97 to 25.11 "
+                      "(median 24.03); ASB is the common"),
+    ("BSA", "notes", "BrightSphere's 5.125% Notes due 2031 (its Form 10-K cover for 2020 lists them as BSA beside "
+                     "BSIG, the common, and NYSE's Form 25 filed 2022-01-20 reports them called for redemption and "
+                     "suspended from trading on 2022-01-18), named only as the company under their own ISIN "
+                     "(US10948W2026), whose closes on the first trading days of each quarter from 2018-04 to 2022-01 "
+                     "sit near 25 (median 24.52, 16.01 to 25.83)"),
+    ("HCXY", "notes", "Hercules Capital's 6.25% Notes due 2033 (its pricing term sheet of 2018-09-19 gives "
+                      "denominations of $25, the symbol HCXY and ISIN US4270968476, and its 8-K of 2026-11-24 still "
+                      "lists them on its cover), named only as the company on HTGC's CIK; the first closes of its "
+                      "quarterly windows run 21.68 to 27.00 (median 25.25); HTGC, the common, is on this list as a "
+                      "fund"),
+    ("HCXZ", "notes", "Hercules Capital's 5.25% Notes due 2025 (its Form 8-A of 2018-04-26 expected them to trade on "
+                      "the NYSE as HCXZ, and its release of 2021-05-28 set their redemption at par, $25.00 a note, on "
+                      "2021-07-01), named only as the company under their own ISIN (US4270968542) on the CIK of HTGC, "
+                      "which the known list removes as a fund, whose closes on the first trading days of each quarter "
+                      "from 2018-07 to 2021-04 sit near 25 (median 25.00, 22.30 to 26.07)"),
+    ("OXLCI", "notes", "Oxford Lane Capital's 8.75% Notes due 2030 (its prospectus supplement dated 2024-06-27 offers "
+                       "them in denominations of $25 to list on Nasdaq as OXLCI, and its free-writing prospectus of "
+                       "that date gives ISIN US6915438625), named only as the company, which the profile doesn't flag "
+                       "isFund; the first closes of its quarterly windows hold near 25 (25.33 to 25.86, median 25.61); "
+                       "OXLC leaves by the fund flag, and I isn't a fifth letter the NASDAQ rule reads"),
+    ("PRS", "notes", "Prudential Financial's 5.625% Junior Subordinated Notes due 2058 (its prospectus supplement "
+                     "dated 2018-08-06 offers them in denominations of $25 and states an intent to apply to list them "
+                     "on the NYSE as PRS, and its Form 10-K cover for 2025 lists them under PRS beside PRU, the "
+                     "common), named only as the company (the profile name reads Prudential Financial, Inc. 5.62) "
+                     "under their own ISIN (US7443208050), whose closes on the first trading days of each quarter from "
+                     "2018-10 to 2026-10 sit near 25 (median 25.00, 19.54 to 28.19)"),
+    ("RZA", "debentures", "Reinsurance Group of America's 6.20% Fixed-To-Floating Rate Subordinated Debentures due "
+                          "2042 (its Form 10-K for 2021, filed 2022-02-25, lists them under RZA on its cover, its "
+                          "prospectus supplement filed 2012-08-16 sets denominations of $25, and its 8-K filed "
+                          "2022-11-10 said they would be redeemed in full on 2022-12-15), named only as the company, "
+                          "under the profile's ISIN US7593517037; its closes run 16.01 to 31.05 (median 27.18) to its "
+                          "last bar, 2022-12-14; RGA is the common"),
+    ("RZB", "debentures", "Reinsurance Group of America's 5.75% Fixed-To-Floating Rate Subordinated Debentures due "
+                          "2056 (its Form 10-K for 2021, filed 2022-02-25, lists them under RZB on its cover, its "
+                          "prospectus supplement dated 2016-06-01 sets denominations of $25, and its 8-K of "
+                          "2026-05-01 said they would be redeemed in full on 2026-06-15), named only as the company, "
+                          "under the profile's ISIN US7593518027; its closes run 15.35 to 30.27 (median 25.84) to "
+                          "its last bar, 2026-06-12; RGA is the common"),
+    ("RZC", "debentures", "Reinsurance Group of America's 7.125% Fixed-Rate Reset Subordinated Debentures due 2052 "
+                          "(its 8-K of 2026-05-01 lists them under RZC on its cover, and its prospectus supplement "
+                          "dated 2022-09-15 sets denominations of $25 and says it will apply to list them on the "
+                          "NYSE as RZC), named only as the company, under the profile's ISIN US7593518852; its "
+                          "closes run 24.84 to 27.25 (median 25.81) from its first bar, 2022-10-07; RGA is the "
+                          "common"),
+    ("STRC", "preferred", "Strategy's Variable Rate Series A Perpetual Stretch Preferred Stock (its Form 10-K cover "
+                          "for 2025 lists it on Nasdaq as STRC, and the pricing release of 2025-07-25, an 8-K exhibit, "
+                          "gives a stated amount of $100 a share), named only as the company on MSTR's CIK under its "
+                          "own ISIN (US5949728530), whose closes on the first trading days of each quarter from "
+                          "2025-10 to 2026-10 sit near 100 (median 99.47, 85.71 to 100.07)"),
     # lines that print another line's bars
     ("STM.MI", "second line", "a second MIL line of STMicroelectronics with no ISIN, last bar 2023-05-12: its closes "
                               "sit within 0.5% of STMMI.MI's (NL0000226223) on 6,034 of 6,193 shared days, and no "
@@ -3457,6 +3578,13 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
     ("SWR.L", "2025-03-15", "Smurfit Westrock (a new ISIN): its bars to 2025-03-14 carry SKG.L's (Smurfit Kappa) "
                             "volumes (3,604 of 3,620 shared days) and, from 2016, its closes (at 0.8 of them before), "
                             "and SKG.L's last bar is 2025-03-14"),
+    ("SW", "2024-07-06", "Smurfit Westrock (a new ISIN): its bars from 2015-06-24 carry WRK's (WestRock) closes, at "
+                         "0.902 of them with its volumes at 1.11 times on 224 of the 225 shared days to 2016-05-13 and "
+                         "the same close on all 2,048 from 2016-05-16 (2,047 with the same volume), with thin quotes "
+                         "before (991 of 1,767 days on no volume), and WRK's last bar is 2024-07-05; the combination "
+                         "completed 2024-07-05, each WestRock share becoming one Smurfit Westrock share and $5.00 "
+                         "(Smurfit Westrock's 8-K filed 2024-07-08), its release of 2024-07-08 said SW's NYSE trading "
+                         "would commence that morning, and the volume rose from 11.9m to 67.5m that day"),
     ("BGC", "2023-07-01", "BGC Group (a new ISIN on BGCP's CIK): its bars to 2023-06-30 carry BGCP's (BGC Partners) "
                           "closes from 2008 (at 1.555 times them before), and BGCP's last bar is 2023-06-30"),
     ("FLG", "2024-11-23", "Flagstar Financial (a new ISIN on NYCB's CIK): its bars to 2024-11-22 repeat NYCB's (New "
@@ -3472,9 +3600,114 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
                            "ticker)"),
     ("PRMB", "2024-11-20", "Primo Brands: its bars to 2024-11-19 repeat PRMW's (Primo Water) closes (all 6,531 shared "
                            "days), and PRMW's last bar is 2024-11-19"),
+    ("ALOS3.SA", "2023-11-22", "Allos (a new ISIN): its bars to 2023-11-21 repeat ALSO3.SA's (Aliansce Sonae Shopping "
+                               "Centers, the company's name before it became ALLOS) closes (3,098 of 3,168 shared days "
+                               "to the cent), and ALSO3.SA's last bar is 2023-11-21; ALLOS's notice to the market of "
+                               "2023-10-17 said its shares would trade as ALOS3 in place of ALSO3 from 2023-10-25, and "
+                               "B3's daily file prints ALSO3 last on 2023-10-24"),
+    ("MBRF3.SA", "2025-10-22", "MBRF Global Foods Company (a new ISIN): its bars to 2025-10-21 repeat MRFG3.SA's "
+                               "(Marfrig Global Foods) closes and volumes (4,533 of 4,538 shared days to the cent, "
+                               "every volume), and MRFG3.SA's last bar is 2025-10-21; the joint Material Fact of "
+                               "Marfrig and BRF of 2025-09-22, the day Marfrig's merger of BRF's shares closed, said "
+                               "Marfrig's shares would trade as MBRF3 from 2025-09-23, and B3's daily file prints "
+                               "MRFG3 last on 2025-09-22; the line has no bar after 2025-10-21 until 2026-05-20, at "
+                               "17.67 on 8.9 million shares"),
+    ("ABG.AX", "2023-09-02", "Abacus Group (a new ISIN; the profile still names it Abacus Property Group): Abacus "
+                             "Property Group's ASX releases of 2023-06-19 and 2023-07-31 said each ABP security would "
+                             "become one Abacus Group and one Abacus Storage King security as the storage business was "
+                             "de-stapled, Abacus Group trading from 2023-08-01, when both lines' closes step from 2.66 "
+                             "to 1.37; its bars to 2023-09-01 repeat ABP.AX's (Abacus Property Group) closes and "
+                             "volumes (all 5,225 shared days), and ABP.AX's last bar is 2023-09-01"),
+    ("FPR.AX", "2023-05-24", "FleetPartners Group (a new ISIN): its bars to 2023-05-23 repeat ECX.AX's (Eclipx Group, "
+                             "the company's name before its rename) closes (1,958 of 2,045 shared days to the cent, "
+                             "the rest within half a cent), and ECX.AX's last bar is 2023-05-23; the ASX code changed "
+                             "from ECX to FPR with effect from 2023-03-31 (FleetPartners' ASX release of that day)"),
+    ("SEGG", "2025-08-05", "Sports Entertainment Gaming Global (a new ISIN on LTRY's CIK): its bars from 2023-06-15, "
+                           "its first, to 2025-08-04 repeat LTRY's (Lottery.com) closes (528 of 535 shared days to "
+                           "the cent), and LTRY's last bar is 2025-08-04; Lottery.com's 8-K of 2025-07-07 said its "
+                           "shares would trade as SEGG from 2025-07-08, and the bars don't pin that day (both lines "
+                           "close 13.70 on 2025-07-07 and 13.10 on 2025-07-08)"),
+    ("CTC-A.TO", "2006-05-05", "Canadian Tire's Class A Non-Voting Shares (CA1366812024; the company's release of "
+                               "2007-02-08 gives its TSX symbols as CTC and CTC.a): the line's closes to 2006-05-04 "
+                               "are those of CTC.TO (CA1366811034, under the same company name) to within 0.5% on "
+                               "1,590 of 1,866 shared days from 1998-12-07, and on 2 of 4,878 from 2006-05-05, while "
+                               "CTC.TO trades on; the company bought Class A Non-Voting Shares back in 2006 at an "
+                               "average C$68.49 (the same release), and the line closes 129.70 on 488,500 shares on "
+                               "2006-05-04 and 62.89 on 181,600 on 2006-05-05, when CTC.TO closes 129.70 both days"),
+    # earlier bars that are another company's or a fund's, which trades on under its own ticker
     ("1972.HK", "2012-01-18", "Swire Properties: its bars to 2012-01-17 carry 0019.HK's (Swire Pacific) volumes on "
                               "3,002 of 3,046 shared days, with closes within 0.5% on 2,962, and its own price starts "
                               "2012-01-18, the profile's ipoDate, at 17.26 on 51.7 million shares"),
+    ("145990.KS", "2011-12-05", "Samyang Corporation, spun off from 000070.KS's company (Samyang Holdings Corporation) "
+                                "with a split date of 2011-11-01 in a DART filing of 2011-08-10 that expected the "
+                                "listing on 2011-12-05: its bars to 2011-10-25 repeat 000070.KS's closes on 954 of 964 "
+                                "shared days from 2007-12-27 and sit near 1.20 times them before that, it has no trade "
+                                "from 2011-10-26 to 2011-12-02, and its own price starts 2011-12-05, the listing day "
+                                "on the Korea Exchange's list of listed companies (the profile's "
+                                "ipoDate is 2011-12-04, a Sunday), at 68,000 on 70,535 shares"),
+    ("HUSQ-B.ST", "2006-06-13", "Husqvarna, spun off from Electrolux one share for one by series (Skatteverket's share "
+                                "history): its trading started on the O-list on 2006-06-13 (Husqvarna's releases of "
+                                "2006-05-22, which expected that day, and 2006-06-13); its bars to 2006-06-12 carry "
+                                "ELUX-B.ST's (Electrolux B) daily moves, within 0.2 point on 1,377 of 1,676 days to "
+                                "2006-06-06 with its closes at a steady 1.84 times Electrolux B's, and its own price "
+                                "starts 2006-06-13 at 66.66 on 10.9 million shares, up 8.1% while Electrolux B fell "
+                                "3.2%"),
+    ("HUSQ-A.ST", "2006-06-13", "Husqvarna's A shares, spun off from Electrolux one share for one by series "
+                                "(Skatteverket's share history): Husqvarna's trading started on the O-list on "
+                                "2006-06-13 (Husqvarna's releases of 2006-05-22, which expected that day, and "
+                                "2006-06-13); the line's bars to 2006-06-12 carry ELUX-A.ST's (Electrolux A) daily "
+                                "moves, within 0.2 point on 351 of the 371 day pairs to 2006-06-06 on which both thin "
+                                "lines traded, at a steady 1.41 times Electrolux A's closes (within 1% on 704 of the "
+                                "719 days both traded), and the same moves on 2006-06-08, 2006-06-09 and 2006-06-12, "
+                                "and its own price starts 2006-06-13 at 59.95 on 10,321 shares, down 13.3% while "
+                                "Electrolux A was unchanged"),
+    ("HLM.JO", "2007-06-25", "Hulamin: Tongaat-Hulett unbundled it one for one, and Tongaat-Hulett's announcement of "
+                             "2007-06-11 said it would list on the JSE from the start of business on 2007-06-25, the "
+                             "profile's ipoDate; its bars before carry Tongaat-Hulett's closes at 0.883736 of them "
+                             "(all 33 days of the daily table in Tongaat-Hulett's circular posted 2007-05-18), and its "
+                             "own price starts 2007-06-25 at 2,828 on 199,999 shares, against 12,372 on 857,843 on "
+                             "2007-06-22"),
+    ("AIP.JO", "2008-08-25", "Adcock Ingram: Tiger Brands unbundled it and it listed on the JSE on 2008-08-25 (Adcock "
+                             "Ingram's annual report for the year to 2008-09-30); its bars before carry Tiger Brands' "
+                             "prices (the report's seven Tiger Brands prices from 2005-11-01 to 2008-07-31 equal its "
+                             "closes), Tiger Brands trading on as TBS.JO, and its own price starts 2008-08-25 at "
+                             "3,405 on 4.6 million shares, against 15,850 on 981,300 on 2008-08-22"),
+    ("6888.KL", "2008-04-28", "Axiata Group (the profile's ISIN, MYL6888OO001, is the one Bursa Malaysia's listing "
+                              "circular of 2008-04-25 gives TM International, which it said would be quoted from "
+                              "2008-04-28): Telekom Malaysia distributed its TM International shares one for one, ex "
+                              "2008-04-23 (its announcement of 2008-04-11), and its Annual Report 2008 says they were "
+                              "listed on 2008-04-28; the line's bars to 2008-04-22 carry 4863.KL's (Telekom Malaysia) "
+                              "daily moves, within 0.2 point on 1,890 of 2,134 days, at 2.12 times 4863.KL's closes "
+                              "(within 0.5%) on all 734 days to 2002-10-24 and at 0.681 of them (within 1%) on 1,309 "
+                              "of the 1,401 days after, then repeat 7.42 from 2008-04-23 to 2008-04-25 while 4863.KL "
+                              "closes 3.54 to 3.62, and its own price starts 2008-04-28 at 5.14 on 40.5 million "
+                              "shares"),
+    ("VOD.JO", "2009-05-18", "Vodacom Group: Telkom unbundled it one Vodacom share for every Telkom share, and "
+                             "Telkom's note on the unbundling of 2009-05-20 says Vodacom's shares commenced trade on "
+                             "the JSE from the opening of business on 2009-05-18, the listing day its revised salient "
+                             "dates announcement of 2009-04-17 gave for the share code VOD and ISIN ZAE000132577, the "
+                             "profile's (both on Form 6-K); the line's bars before carry Telkom's closes, equal to the "
+                             "printed closes in the daily table of Telkom's circular of 2009-03-02 on 21 of its 23 "
+                             "days, with TKG.JO's (Telkom) closes at 0.333 of them on 1,108 of 1,592 shared days and "
+                             "within 5% on 1,545, and its own price starts 2009-05-18 at 5,880 on 9.45 million shares, "
+                             "against 11,300 on 9.50 million on 2009-05-15"),
+    ("CALY", "2026-01-16", "Callaway Golf: the ticker carried BlackRock Short-Term California Muni Bond ETF's bars "
+                           "from 2023-07-11 (the fund's 497 of 2024-08-06 said its ticker would change to CALI on "
+                           "2024-10-10), with bars on file to 2024-11-04, and Callaway's 8-K of 2026-01-16 expected "
+                           "its common stock to trade on the NYSE as CALY from on or about 2026-01-16, the first bar "
+                           "after the gap, at 15.14 on 2.84m shares"),
+    # first listings: the earlier bars predate the shares' first trade, and no source says whose they are
+    ("BNS", "2002-06-07", "Scotiabank: its common shares began trading on the NYSE on 2002-06-07 (the bank's Third "
+                          "Quarter Report 2002, filed on a 6-K of 2002-08-27), the profile's ipoDate, so the line's "
+                          "bars from 1999-09-13 can't be its NYSE shares: the line closes 6.00 on 4,000 shares on "
+                          "2002-06-06 and 17.41 on 256,000 on 2002-06-07, 2.90 times, while BNS.TO closes 26.63 and "
+                          "26.65, and the bank's 2002 annual report (filed on a 6-K of 2003-02-25) lists its splits as "
+                          "1976, 1984 and 1998"),
+    ("BILL.ST", "2001-11-20", "Billerud: AssiDoman distributed its Billerud shares and Billerud was listed for the "
+                              "first time on the Stockholm Stock Exchange's O-list on 2001-11-20 (Billerud's release "
+                              "of 2001-10-31, which named that day in advance, and its financial statement of "
+                              "2002-02-07); its bars before that day predate any trading in the shares, and that day "
+                              "the close fell from 145.45 to 29.17 on 9,909,750 shares against 145,576 the day before"),
     # same-ISIN pairs: the ISIN dedup already books one line a quarter, so these clear the same-bars scan
     ("BRNK.DE", "2024-04-24", "Branicks (DIC.DE's ISIN): its bars to 2024-04-23 are DIC.DE's (DIC Asset), at 0.98 of "
                               "its closes to 2022 and the same close from 2023-03-31, and DIC.DE's last bar is "
@@ -3555,11 +3788,105 @@ LINE_STARTS_V4 = LINE_STARTS_V3 + (
     ("CNCK", "2024-12-11", "Coincheck Group: Thunder Bridge Capital Partners IV (Nasdaq: THCP), a blank-check shell, "
                            "closed the business combination 2024-12-10 and CNCK began trading on Nasdaq on 2024-12-11 "
                            "(20-F filed 2024-12-16)"),
+    ("ARKO", "2020-12-23", "Arko Corp.: Haymaker Acquisition Corp. II (Nasdaq: HYAC), a blank-check shell, closed the "
+                           "business combination 2020-12-22, and ARKO began trading on Nasdaq on 2020-12-23 (ARKO's "
+                           "8-K filed 2020-12-31); the bars don't pin the day (closes 9.52 and 9.35 either side)"),
+    ("BTDR", "2023-04-14", "Bitdeer Technologies Group: Blue Safari Group Acquisition (Nasdaq: BSGA), a blank-check "
+                           "shell, closed the business combination 2023-04-13, and the closing release of 2023-04-13 "
+                           "(6-K filed 2023-04-14) said BTDR would commence trading on Nasdaq on 2023-04-14 (20-F "
+                           "filed 2023-04-19), when the close fell from 10.00 to 7.03 and the volume rose from 0.35m "
+                           "to 0.55m"),
+    ("BWMX", "2020-03-13", "Betterware de México: DD3 Acquisition Corp. (Nasdaq: DDMX), a blank-check shell, completed "
+                           "the business combination and BWMX began trading on Nasdaq the same day, 2020-03-13 "
+                           "(Betterware's 6-K of 2020-03-13); the bars don't pin the day (closes 9.10 and 9.10 either "
+                           "side, no volume on the day)"),
+    ("DM", "2020-12-10", "Desktop Metal: Trine Acquisition (NYSE: TRNE), a blank-check shell, closed the business "
+                         "combination 2020-12-09 and DM began trading on the NYSE on 2020-12-10 (8-K filed "
+                         "2020-12-14); the bars, which carry the 1-for-10 reverse split of 2024 back (8-K filed "
+                         "2024-06-10), close 247.70 on 0.88m shares and 188.80 on 0.99m either side, so they don't pin "
+                         "the day"),
+    ("ENSC", "2021-07-02", "Ensysce Biosciences: Leisure Acquisition (Nasdaq: LACQ), a blank-check shell, closed the "
+                           "merger 2021-06-30 and ENSC began trading on the Nasdaq Capital Market on 2021-07-02 (8-K "
+                           "filed 2021-07-07); the bars, which carry three reverse splits back (3,600 to one in all, "
+                           "8-Ks filed 2022-10-27, 2023-03-30 and 2024-12-03), close 52,164 on no shares on 2021-07-01 "
+                           "and 52,200 on one share on 2021-07-02, so they don't pin the day"),
+    ("EVEX", "2022-05-10", "Eve Holding: Zanite Acquisition (Nasdaq: ZNTE), a blank-check shell, closed the business "
+                           "combination 2022-05-09, and EVEX began trading on the NYSE on 2022-05-10 (Eve's 8-K filed "
+                           "2022-05-13), when the close fell from 11.32 to 8.66"),
+    ("GRNT", "2022-10-25", "Granite Ridge Resources: Executive Network Partnering Corporation (NYSE: ENPC), a "
+                           "blank-check shell, closed the business combination 2022-10-24, and GRNT began trading on "
+                           "the NYSE on 2022-10-25 (its 10-K filed 2023-03-27; the closing release of 2022-10-24 "
+                           "expected that day), when the volume rose from 0.11m to 0.17m shares, and to 0.61m the next "
+                           "day"),
+    ("GTI", "2024-03-15", "Graphjet Technology: Energem (Nasdaq: ENCP), a blank-check shell, completed the business "
+                          "combination 2024-03-14, and GTI began trading on the Nasdaq Global Market effective "
+                          "2024-03-15 (8-K filed 2024-03-20); the bars, which carry the 60-to-1 consolidation of "
+                          "2025-08-25 back (8-K filed 2025-08-15), close 735.00 on 365 shares and 708.00 on 1,920 "
+                          "either side"),
+    ("HHRS", "2023-02-27", "Hammerhead Energy: Decarbonization Plus Acquisition Corporation IV (Nasdaq: DCRD), a "
+                           "blank-check shell, closed the business combination 2023-02-23, asked Nasdaq to suspend its "
+                           "securities as of the close of trading on 2023-02-24, and HHRS began trading on Nasdaq on "
+                           "2023-02-27 (DCRD's 8-K filed 2023-02-27), when the volume rose from 0.18m to 0.51m shares"),
+    ("IGIC", "2020-03-18", "International General Insurance Holdings: Tiberius Acquisition (Nasdaq: TIBR), a "
+                           "blank-check shell, closed the business combination 2020-03-17, and IGIC began trading on "
+                           "Nasdaq on 2020-03-18 (IGI's release of that day, filed on a 6-K); the bars don't pin the "
+                           "day (closes 8.32 and 8.32 either side, no volume on the day)"),
+    ("INDI", "2021-06-11", "indie Semiconductor: Thunder Bridge Acquisition II (Nasdaq: THBR), a blank-check shell, "
+                           "completed the business combination 2021-06-10, and INDI began trading on the Nasdaq "
+                           "Capital Market on 2021-06-11 in lieu of the shell's securities (the closing release, filed "
+                           "on an 8-K 2021-06-11, and the 8-K filed 2021-06-16)"),
+    ("LTRY", "2021-11-01", "Lottery.com: Trident Acquisitions (Nasdaq: TDAC), a blank-check shell, closed the business "
+                           "combination 2021-10-29, and LTRY began trading on Nasdaq on 2021-11-01 (Lottery.com's 8-K "
+                           "filed 2021-11-04); the bars don't pin the day (closes 3,028 and 3,056 either side)"),
+    ("LVRO", "2023-03-01", "Lavoro: TPB Acquisition Corporation I (Nasdaq: TPBA), a blank-check shell, closed the "
+                           "business combination 2023-02-28, and the closing release (6-K filed 2023-03-01) expected "
+                           "LVRO to begin trading on Nasdaq on 2023-03-01 (20-F filed 2023-03-06), when the close fell "
+                           "from 10.75 to 9.50 and the volume rose from 51,200 to 126,974"),
+    ("NKLA", "2020-06-04", "Nikola: VectoIQ Acquisition (Nasdaq: VTIQ), a blank-check shell, completed the business "
+                           "combination 2020-06-03, and NKLA began trading on Nasdaq on 2020-06-04 (Nikola's 8-K filed "
+                           "2020-06-08); the bars don't pin the day (closes 1,019.10 and 1,012.50 either side)"),
+    ("OABI", "2022-11-02", "OmniAb: Avista Public Acquisition Corp. II (Nasdaq: AHPA), a blank-check shell, closed the "
+                           "business combination 2022-11-01 and OABI began trading on the Nasdaq Global Market on "
+                           "2022-11-02 (8-K filed 2022-11-07), when the close fell from 6.125 to 2.41 and the volume "
+                           "rose from 65,800 to 21.0m"),
+    ("PERF", "2022-10-31", "Perfect Corp.: Provident Acquisition (Nasdaq: PAQC), a blank-check shell, completed the "
+                           "business combination 2022-10-28, and Perfect's release of 2022-10-31 (filed on a 6-K) "
+                           "marks that day as its shares' first trading day on the NYSE, when the volume rose from 36k "
+                           "on 2022-10-27, the last bar before it, to 760k"),
+    ("SPCE", "2019-10-28", "Virgin Galactic: Social Capital Hedosophia Holdings (NYSE: IPOA), a blank-check shell, "
+                           "closed the business combination 2019-10-25, and its 8-K for that day (filed 2019-10-29) "
+                           "expected SPCE to begin trading on the NYSE on 2019-10-28, which the 10-K for 2019 (filed "
+                           "2020-02-28) gives as the day the common stock began trading there; the bars, which carry "
+                           "the 1-for-20 reverse split of 2024 back (8-K filed 2024-06-14), close 235.80 and 235.00 "
+                           "either side, and the volume rose from 0.32m to 0.64m that day"),
+    ("THCH", "2022-09-29", "TH International: Silver Crest Acquisition (Nasdaq: SLCR), a blank-check shell, closed the "
+                           "merger 2022-09-28, and THCH began trading on Nasdaq on 2022-09-29 (TH International's F-1 "
+                           "filed 2022-10-13), when the volume rose from 55k to 175k shares (closes 39.95 and 36.45 "
+                           "either side)"),
+    ("CO", "2009-11-19", "Global Cord Blood (China Cord Blood Corporation in its 20-F filed 2010-07-16): Pantheon "
+                         "China Acquisition Corp., a blank-check shell quoted on the OTC Bulletin Board as PCQC, "
+                         "closed the business combination 2009-06-30 (the shell company report filed 2009-07-07), the "
+                         "ordinary shares were quoted there from 2009-07-01 (as CNDZF by its prospectus supplement "
+                         "dated 2010-11-04), and CO was listed on the NYSE on 2009-11-19 (the 20-F of 2010-07-16), "
+                         "when the volume rose from 1,400 to 1,442,151 shares (closes 12.72 and 5.93 either side, "
+                         "after an offering at US$6.05 in the prospectus dated 2009-11-18)"),
+    ("DMS", "2020-07-16", "Digital Media Solutions: Leo Holdings Corp. (NYSE: LHC), a blank-check shell, closed the "
+                          "business combination 2020-07-15 (Digital Media Solutions' 8-K12B/A filed 2020-07-20), its "
+                          "8-K12B filed 2020-07-16 said Digital Media Solutions' stock would be listed on the NYSE as "
+                          "DMS, and NYSE's Form 25 filed 2020-07-17 says Leo's units were suspended from trading on "
+                          "2020-07-16; the bars don't pin the day (closes 146.40 and 139.58 either side)"),
+    ("HYMC", "2020-06-01", "Hycroft Mining Holding: Mudrick Capital Acquisition (Nasdaq: MUDS), a blank-check shell, "
+                           "completed the business combination 2020-05-29 (8-K12B filed 2020-06-04), and the 10-K for "
+                           "2021 (filed 2022-03-31) says HYMC began trading on the Nasdaq Capital Market on "
+                           "2020-06-01 (the 10-K for 2020 gives 2020-05-30, a Saturday); the bars, which carry the "
+                           "1-for-10 reverse split of 2023 back (8-K filed 2023-11-09), close 126.50 on 4,400 shares "
+                           "and 115.00 on 2,290 either side, so they don't pin the day"),
 )
-# line starts whose earlier bars are a blank-check shell's, another company's still trading, or depositary receipts':
-# a price lookback starts on the first own day (renames, a merger's surviving line and a share-class change aren't)
-LOOKBACK_CLIP_V4 = ("1972.HK", "GETY", "CTOS", "GB", "FSR", "SDA", "MVST", "ECX", "GRND", "CNCK", "LUMI.ST", "AU",
-                    "TTE", "TEVA", "JHX", "AZN")
+# the line starts whose price lookback starts on the first own day (LINE_START_RULE_V4)
+LOOKBACK_CLIP_V4 = ("1972.HK", "145990.KS", "HUSQ-B.ST", "HUSQ-A.ST", "HLM.JO", "AIP.JO", "6888.KL", "VOD.JO", "CALY",
+                    "GETY", "CTOS", "GB", "FSR", "SDA", "MVST", "ECX", "GRND", "CNCK", "ARKO", "BTDR", "BWMX", "DM",
+                    "ENSC", "EVEX", "GRNT", "GTI", "HHRS", "IGIC", "INDI", "LTRY", "LVRO", "NKLA", "OABI", "PERF",
+                    "SPCE", "THCH", "CO", "DMS", "HYMC", "LUMI.ST", "AU", "TTE", "TEVA", "JHX", "AZN")
 LINE_ENDS_V4 = LINE_ENDS_V3 + (
     ("BCE-PY.TO", "2025-09-30", "BCE's common price series through 2025, on the keep list: in 2026 its bars print a "
                                 "preferred's price (21.09 on 800 shares on 2026-07-03, when BCE.TO closed 30.37), and "
@@ -3569,8 +3896,8 @@ LINE_ENDS_V4 = LINE_ENDS_V3 + (
 LINE_START_RULE_V4 = LINE_START_RULE + (
     "; its earlier bars may also be another instrument's (receipts before a direct listing) or a blank-check shell's, "
     "and a merged company's first own day is then its first trading day under its new ticker; a line in "
-    "lookback_clip, whose earlier bars are a blank-check shell's, another company's still trading under its own "
-    "ticker, or depositary receipts', also has a price lookback cut at its first own day")
+    "lookback_clip, whose earlier bars are a blank-check shell's, another company's or a fund's still trading under "
+    "its own ticker, or depositary receipts', also has a price lookback cut at its first own day")
 LINE_END_RULE_V4 = LINE_END_RULE + (
     "; a line also ends when its later bars are another instrument's (BCE-PY.TO): its last own day is then the day "
     "before the last quarter ahead of those bars begins, so no quarterly book exits on them")

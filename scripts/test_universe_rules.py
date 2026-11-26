@@ -33,8 +33,9 @@ copies, as they run its load_universe (the universe fetch).
 ur-4 (cfg=UNIVERSE_RULES_V4, no topic's results store it yet, so it isn't in FROZEN_UR) is ur-3 plus the lines
 PROFILE_V4 holds (real profile rows: each added line reads known under ur-4 and None under ur-3), jpx_reit (a JPX
 line whose profile industry starts with REIT; JPX's other lines and REITs on other exchanges stay), its own rule,
-kept, line-start and line-end texts, the new line starts (de-SPAC lines, LUMI.ST and US receipt switches among them),
-lookback_clip (the starts whose earlier bars are a shell's, another company's still trading or depositary receipts',
+kept, line-start and line-end texts, the new line starts (de-SPAC lines, spin-offs, LUMI.ST, US receipt switches and
+two unclipped first listings among them),
+lookback_clip (the starts whose earlier bars are a shell's, another company's or a fund's, or depositary receipts',
 listed in the block on a leg holding one) and
 BCE-PY.TO's line end, which acts on a keep-list line. Each has must-fail mutants.
 
@@ -1004,17 +1005,20 @@ def v3_mutants():
 # ---------------------------------------------------------------- ur-4
 
 NEW_KNOWN_V4 = {
-    **dict.fromkeys(("AAC", "JWSM", "CVII", "WWAC", "CRHC", "KAHC", "PRPB", "ASZ", "BIOS", "GIG"), "blank check"),
+    **dict.fromkeys(("AAC", "JWSM", "CVII", "WWAC", "CRHC", "KAHC", "PRPB", "ASZ", "BIOS", "GIG", "AAM", "APXT",
+                     "BSGA", "LACQ", "ENCP", "MUDS", "TPBA", "AHPA", "ZNTE"), "blank check"),
     **dict.fromkeys(("AV-A.L", "AV-B.L", "GACA.L", "GACB.L", "BP-A.L", "BP-B.L", "VOLO-PREF.ST", "HEIM-PREF.ST",
-                     "NP3-PREF.ST", "NYTTO-PREF.ST", "ENRO-PREF-B.ST", "CORE-PREF.ST", "K2A-PREF.ST", "BC88.L"),
-                    "preferred"),
+                     "NP3-PREF.ST", "NYTTO-PREF.ST", "ENRO-PREF-B.ST", "CORE-PREF.ST", "K2A-PREF.ST", "BC88.L",
+                     "STRC"), "preferred"),
     **dict.fromkeys(("SAGA-D.ST", "AKEL-D.ST", "FPAR-D.ST", "SBB-D.ST", "CORE-D.ST"), "D share"),
     **dict.fromkeys(("CLDN.L", "BBGI.L", "BGHS.L", "TFGS.L", "APAX.L", "TPOS.L", "155900.KS", "SPCE.SW", "MAIN",
-                     "ARCC", "GBDC", "HTGC"), "fund"),
-    "DANR.MI": "savings share",
-    **dict.fromkeys(("ALIV-SDB.ST", "TIGO-SDB.ST", "910322.TW"), "depositary receipt"),
+                     "ARCC", "GBDC", "HTGC", "FSK"), "fund"),
+    **dict.fromkeys(("DANR.MI", "TITR.MI"), "savings share"),
+    **dict.fromkeys(("ALIV-SDB.ST", "TIGO-SDB.ST", "910322.TW", "GEEC.L", "AGG.AX"), "depositary receipt"),
     "CEO": "ADR",
-    "E1AIRTELPP.NS": "partly paid", "HGH": "debentures", "ATCOL": "notes", "EXEEL": "warrant",
+    "E1AIRTELPP.NS": "partly paid", **dict.fromkeys(("HGH", "RZA", "RZB", "RZC"), "debentures"),
+    **dict.fromkeys(("ATCOL", "ASBA", "BSA", "HCXY", "HCXZ", "OXLCI", "PRS"), "notes"),
+    **dict.fromkeys(("EXEEL", "HYMCL"), "warrant"),
     **dict.fromkeys(("STM.MI", "SIME.KL"), "second line"), **dict.fromkeys(("9086.T", "FFB.JO"), "vendor copy"),
     **dict.fromkeys(("REDD.L", "SNC.TO", "CLI"), "renamed line")}
 # US receipt lines that became directly listed ordinary shares: their first own day is the switch
@@ -1023,15 +1027,26 @@ RECEIPT_SWITCHES = {"AU": "2023-09-25", "TTE": "2025-12-08", "TEVA": "2026-09-14
 # ur-3's hand-list lines among them, which ur-4 leaves off its hand list
 DIRECT_LISTINGS = {"AZN", "JHX"}
 DESPAC = {"CTOS": "2019-08-01", "GB": "2020-08-31", "FSR": "2020-10-30", "SDA": "2023-05-18", "MVST": "2021-07-26",
-          "ECX": "2022-12-21", "GRND": "2022-11-18", "CNCK": "2024-12-11"}
+          "ECX": "2022-12-21", "GRND": "2022-11-18", "CNCK": "2024-12-11", "ARKO": "2020-12-23", "BTDR": "2023-04-14",
+          "BWMX": "2020-03-13", "DM": "2020-12-10", "ENSC": "2021-07-02", "EVEX": "2022-05-10", "GRNT": "2022-10-25",
+          "GTI": "2024-03-15", "HHRS": "2023-02-27", "IGIC": "2020-03-18", "INDI": "2021-06-11", "LTRY": "2021-11-01",
+          "LVRO": "2023-03-01", "NKLA": "2020-06-04", "OABI": "2022-11-02", "PERF": "2022-10-31", "SPCE": "2019-10-28",
+          "THCH": "2022-09-29", "CO": "2009-11-19", "DMS": "2020-07-16", "HYMC": "2020-06-01"}
+# starts whose earlier bars are another company's or fund's that trades on (six spin-offs' parents, CALY's fund)
+OTHER_BARS = {"145990.KS": "2011-12-05", "HUSQ-B.ST": "2006-06-13", "HUSQ-A.ST": "2006-06-13", "HLM.JO": "2007-06-25",
+              "AIP.JO": "2008-08-25", "6888.KL": "2008-04-28", "VOD.JO": "2009-05-18", "CALY": "2026-01-16"}
+# first listings whose earlier bars no source names: not clipped
+FIRST_LISTINGS = {"BNS": "2002-06-07", "BILL.ST": "2001-11-20"}
 NEW_STARTS_V4 = {"MER.TO": "2025-06-13", "VRN.TO": "2024-06-11", "SHA0.DE": "2024-10-29", "9A4U.SI": "2025-06-03",
-                 "SET.SI": "2025-07-11", "SWR.L": "2025-03-15", "BGC": "2023-07-01", "FLG": "2024-11-23",
-                 "GETY": "2022-07-23", "NVRI": "2023-06-17", "PSKY": "2025-08-09", "PRMB": "2024-11-20",
+                 "SET.SI": "2025-07-11", "SWR.L": "2025-03-15", "SW": "2024-07-06", "BGC": "2023-07-01",
+                 "FLG": "2024-11-23", "GETY": "2022-07-23", "NVRI": "2023-06-17", "PSKY": "2025-08-09",
+                 "PRMB": "2024-11-20", "ALOS3.SA": "2023-11-22", "MBRF3.SA": "2025-10-22", "ABG.AX": "2023-09-02",
+                 "FPR.AX": "2023-05-24", "SEGG": "2025-08-05", "CTC-A.TO": "2006-05-05",
                  "1972.HK": "2012-01-18", "BRNK.DE": "2024-04-24", "UNITDSPR.NS": "2025-03-14",
                  "NORION.ST": "2023-10-04", "SHC.L": "2023-03-07", "AD": "2025-09-09", "TXNM": "2024-08-28",
-                 "LUMI.ST": "2017-06-08", **RECEIPT_SWITCHES, **DESPAC}
-# the line starts whose earlier bars are a shell's, another company's still trading, or receipts'; renames are not
-LOOKBACK_CLIP = set(DESPAC) | set(RECEIPT_SWITCHES) | {"1972.HK", "GETY", "LUMI.ST"}
+                 "LUMI.ST": "2017-06-08", **RECEIPT_SWITCHES, **DESPAC, **OTHER_BARS, **FIRST_LISTINGS}
+# the line starts whose earlier bars are a shell's, another company's or a fund's, or receipts'; renames are not
+LOOKBACK_CLIP = set(DESPAC) | set(RECEIPT_SWITCHES) | set(OTHER_BARS) | {"1972.HK", "GETY", "LUMI.ST"}
 NEW_ENDS_V4 = {"BCE-PY.TO": "2025-09-30"}
 REFS = re.compile(r"#\d|\bcall \d|tracker|DECISIONS", re.I)
 # symbol, exchange, companyName, isin, cik, isFund, isEtf, isAdr, industry, then the ur-4 and ur-3 reasons wanted.
@@ -1056,6 +1071,23 @@ PROFILE_V4 = [
     ("BIOS", "NASDAQ", "BioPlus Acquisition Corp.", "KYG112171171", "0001856653", F, F, F, "Shell Companies", "known",
      None),
     ("GIG", "NASDAQ", "GigCapital7 Corp.", "US40500A1088", "0002023730", F, F, F, "Shell Companies", "known", None),
+    ("AAM", "NYSE", "AA Mission Acquisition Corp.", "KYG1000R1011", "0002012964", F, F, F, "Shell Companies",
+     "known", None),
+    ("APXT", "NASDAQ", "Apex Treasury Corporation Class A", "KYG041041081", "0002079253", F, F, F,
+     "Shell Companies", "known", None),
+    ("BSGA", "NASDAQ", "Blue Safari Group Acquisition Corp.", "VGG1195R1064", "0001853084", F, F, F,
+     "Shell Companies", "known", None),
+    ("LACQ", "NASDAQ", "Leisure Acquisition Corp.", "US52539T1079", "0001716947", F, F, F, "Shell Companies",
+     "known", None),
+    ("ENCP", "NASDAQ", "Energem Corp.", "KYG304491056", "0001879373", F, F, F, "Shell Companies", "known", None),
+    ("MUDS", "NASDAQ", "Mudrick Capital Acquisition Corporation II", "US6247451130", "0001820727", F, F, F,
+     "Shell Companies", "known", None),
+    ("TPBA", "NASDAQ", "TPB Acquisition Corporation I", "KYG8990L1014", "0001847090", F, F, F, "Shell Companies",
+     "known", None),
+    ("AHPA", "NASDAQ", "Avista Public Acquisition Corp. II", "KYG072471025", "0001846253", F, F, F,
+     "Shell Companies", "known", None),
+    ("ZNTE", "NASDAQ", "Zanite Acquisition Corp.", "US98907K1034", "0001823652", F, F, F, "Shell Companies",
+     "known", None),
     ("AV-A.L", "LSE", "Aviva PLC", "GB0002124963", None, F, F, F, "Insurance - Diversified", "known", None),
     ("AV-B.L", "LSE", "Aviva PLC", "GB0002114154", None, F, F, F, "Insurance - Diversified", "known", None),
     ("GACA.L", "LSE", "General Accident PLC", "GB0003692737", None, F, F, F, "Financial - Credit Services", "known",
@@ -1107,13 +1139,19 @@ PROFILE_V4 = [
      None),
     ("HTGC", "NYSE", "Hercules Capital, Inc.", "US4270965084", "0001280784", F, F, F, "Asset Management", "known",
      None),
+    ("FSK", "NYSE", "FS KKR Capital Corp.", "US3026352068", "0001422183", F, F, F, "Asset Management", "known", None),
     ("DANR.MI", "MIL", "Danieli & C. Officine Meccaniche S.p.A.", "IT0000076486", None, F, F, F,
      "Industrial - Machinery", "known", None),
+    ("TITR.MI", "MIL", "Telecom Italia S.p.A.", "IT0003497176", None, F, F, F, "Telecommunications Services", "known",
+     None),
     ("ALIV-SDB.ST", "STO", "Autoliv, Inc.", "SE0021309614", None, F, F, F, "Auto - Parts", "known", None),
     ("TIGO-SDB.ST", "STO", "Millicom International Cellular S.A.", "SE0001174970", None, F, F, F,
      "Telecommunications Services", "known", None),
     ("910322.TW", "TAI", "Tingyi (Cayman Islands) Holding Corp.", "TW0009103226", None, F, F, F, "Packaged Foods",
      "known", None),
+    ("GEEC.L", "LSE", "Great Eastern Energy Corporation Limited", "US39032T1060", None, F, F, F,
+     "Oil & Gas Exploration & Production", "known", None),
+    ("AGG.AX", "ASX", "AngloGold Ashanti Plc", None, None, F, F, F, "Gold", "known", None),
     ("TEVA", "NYSE", "Teva Pharmaceutical Industries Limited", "IL0006290147", "0000818686", F, F, F,
      "Drug Manufacturers - Specialty & Generic", None, None),
     ("TTE", "NYSE", "TotalEnergies SE", "FR0000120271", "0000879764", F, F, F, "Oil & Gas Integrated", None, None),
@@ -1131,6 +1169,28 @@ PROFILE_V4 = [
     ("ATCOL", "NASDAQ", "Atlas Corp.", "US04926V2034", "0001794846", F, F, F, "Asset Management", "known", None),
     ("EXEEL", "NASDAQ", "Expand Energy Corporation", "US1651671802", "0000895126", F, F, F, "Oil & Gas Energy",
      "known", None),
+    ("HYMCL", "NASDAQ", "Hycroft Mining Holding Corporation", "US44862P1333", "0001718405", F, F, F, "Gold", "known",
+     None),
+    ("ASBA", "NYSE", "Associated Banc-Corp", "US0454876006", "0000007789", F, F, F, "Banks - Regional", "known",
+     None),
+    ("BSA", "NYSE", "BrightSphere Investment Group plc", "US10948W2026", "0001748824", F, F, F, "Asset Management",
+     "known", None),
+    ("HCXY", "NYSE", "Hercules Capital Inc", "US4270968476", "0001280784", F, F, F, "Asset Management", "known",
+     None),
+    ("HCXZ", "NYSE", "Hercules Capital, Inc.", "US4270968542", "0001280784", F, F, F, "Asset Management", "known",
+     None),
+    ("OXLCI", "NASDAQ", "Oxford Lane Capital Corp.", "US6915438625", "0001495222", F, F, F, "Asset Management",
+     "known", None),
+    ("PRS", "NYSE", "Prudential Financial, Inc. 5.62", "US7443208050", "0001137774", F, F, F, "Insurance - Life",
+     "known", None),
+    ("RZA", "NYSE", "Reinsurance Group of America, Incorporated", "US7593517037", "0000898174", F, F, F,
+     "Insurance - Reinsurance", "known", None),
+    ("RZB", "NYSE", "Reinsurance Group of America, Incorporated", "US7593518027", "0000898174", F, F, F,
+     "Insurance - Life", "known", None),
+    ("RZC", "NYSE", "Reinsurance Group of America, Incorporated", "US7593518852", "0000898174", F, F, F,
+     "Insurance - Reinsurance", "known", None),
+    ("STRC", "NASDAQ", "Strategy Inc", "US5949728530", "0001050446", F, F, F, "Software - Application", "known",
+     None),
     ("STM.MI", "MIL", "STMicroelectronics N.V.", None, None, F, F, F, "Semiconductors", "known", None),
     ("9086.T", "JPX", "Hitachi Transport System, Ltd.", "JP3791200003", None, F, F, F,
      "Integrated Freight & Logistics", "known", None),
@@ -1147,12 +1207,18 @@ PROFILE_V4 = [
     ("CHG.L", "LSE", "Chemring Group PLC", "GB00B45C9X44", None, F, F, F, "Aerospace & Defense", None, None),
     ("DAN.MI", "MIL", "Danieli & C. Officine Meccaniche S.p.A.", "IT0000076502", None, F, F, F,
      "Industrial - Machinery", None, None),
+    ("TIT.MI", "MIL", "Telecom Italia S.p.A.", "IT0005712671", None, F, F, F, "Telecommunications Services", None,
+     None),
     ("EXE", "NASDAQ", "Expand Energy Corporation", "US1651677353", "0000895126", F, F, F,
      "Oil & Gas Exploration & Production", None, None),
     ("EXEEZ", "NASDAQ", "Expand Energy Corporation", "US1651671729", "0000895126", F, F, F, "Oil & Gas Energy",
      "nasdaq_fifth_letter", "nasdaq_fifth_letter"),
     ("HIG", "NYSE", "The Hartford Insurance Group, Inc.", "US4165151048", "0000874766", F, F, F,
      "Insurance - Diversified", None, None),
+    ("ASB", "NYSE", "Associated Banc-Corp", "US0454871056", "0000007789", F, F, F, "Banks - Regional", None, None),
+    ("RGA", "NYSE", "Reinsurance Group of America, Incorporated", "US7593516047", "0000898174", F, F, F,
+     "Insurance - Reinsurance", None, None),
+    ("HYMC", "NASDAQ", "Hycroft Mining Holding Corporation", "US44862P2083", "0001718405", F, F, F, "Gold", None, None),
     ("BHARTIARTL.NS", "NSE", "Bharti Airtel Limited", "INE397D01024", None, F, F, F, "Telecommunications Services",
      None, None),
     ("VOLO.ST", "STO", "Volati AB", "SE0009143662", None, F, F, F, "Conglomerates", None, None),
@@ -1277,7 +1343,8 @@ def v4_text_failures(m=du):
         f.append(f"ur-4's kept text {kept!r}")
     start, end = m.UNIVERSE_RULES_V4.get("line_start_rule", ""), m.UNIVERSE_RULES_V4.get("line_end_rule", "")
     if not start.startswith(m.LINE_START_RULE) or start == m.LINE_START_RULE or not all(t in start for t in (
-            "blank-check shell", "first trading day under", "lookback_clip", "price lookback", "first own day")):
+            "blank-check shell", "first trading day under", "lookback_clip", "price lookback", "first own day",
+            "or a fund's")):
         f.append(f"ur-4's line-start text {start!r}")
     if not end.startswith(m.LINE_END_RULE) or end == m.LINE_END_RULE or not all(
             t in end for t in ("another instrument's", "BCE-PY.TO", "quarterly")):
@@ -1294,9 +1361,10 @@ def leg_row(s, why=None, exchange="X"):
 def v4_line_start_failures(m=du, rules=None):
     """ur-4's line_starts: ur-3's, then NEW_STARTS_V4's, each on neither list, with an ISO day and evidence. A leg
     that keeps them all leaves each out of a screen the day before its first own day, not on it (the de-SPAC lines on
-    their first day under the new ticker, LUMI.ST on its first day as directly listed shares), lists them with ur-4's
-    line-start text, and lists the lookback_clip lines it holds under lookback_clip with their first own day; a leg
-    with no clip line, a leg that removed one, and ur-3 write no lookback_clip key, and ur-3 keeps its own text."""
+    their first day under the new ticker, LUMI.ST on its first day as directly listed shares, BNS and BILL.ST on their
+    first listing day, unclipped), lists them with ur-4's line-start text, and lists the lookback_clip lines it holds
+    under lookback_clip with their first own day; a leg with no clip line, a leg that removed one, and ur-3 write no
+    lookback_clip key, and ur-3 keeps its own text."""
     rules = m.UniverseRules if rules is None else rules
     f = []
     v4 = m.UNIVERSE_RULES_V4
@@ -1321,7 +1389,10 @@ def v4_line_start_failures(m=du, rules=None):
             f.append(f"{s}: left out the day before {d}: {s in before}, on it: {s in on}")
     for s, out, kept in (("CTOS", date(2019, 7, 1), date(2019, 10, 1)), ("GRND", date(2022, 10, 1), date(2023, 1, 1)),
                          ("GETY", date(2022, 7, 1), date(2022, 10, 1)),
-                         ("LUMI.ST", date(2017, 4, 1), date(2017, 7, 1))):
+                         ("LUMI.ST", date(2017, 4, 1), date(2017, 7, 1)), ("BNS", date(2002, 4, 1), date(2002, 7, 1)),
+                         ("ARKO", date(2020, 10, 1), date(2021, 1, 1)), ("THCH", date(2022, 7, 1), date(2022, 10, 1)),
+                         ("HLM.JO", date(2007, 4, 1), date(2007, 7, 1)), ("ENSC", date(2021, 7, 1), date(2021, 10, 1)),
+                         ("SW", date(2024, 7, 1), date(2024, 10, 1))):
         if s not in ur.not_started(out) or s in ur.not_started(kept):
             f.append(f"{s}: a quarterly screen on {out} keeps it or one on {kept} leaves it out")
     b = ur.block()
@@ -1463,11 +1534,14 @@ def v4_mutants():
             with_v4(line_start_rule=du.LINE_START_RULE_V4.replace("blank-check shell", "predecessor")), texts),
         "the line-start text without the lookback clip": (
             with_v4(line_start_rule=du.LINE_START_RULE_V4.replace("price lookback", "lookback")), texts),
+        "the lookback clip's text without a fund's bars": (
+            with_v4(line_start_rule=du.LINE_START_RULE_V4.replace("or a fund's ", "")), texts),
         "ur-3's line-end text": (with_v4(line_end_rule=du.LINE_END_RULE), texts + ends_checks),
         "a de-SPAC line start dropped": (with_v4(line_starts=starts), starts_checks),
         "LUMI.ST's first own day a day late": (with_v4(line_starts=lumi), starts_checks),
         "no lookback clip": (with_v4(lookback_clip=()), starts_checks),
         "every line start clipped": (with_v4(lookback_clip=tuple(s for s, _, _ in du.LINE_STARTS_V4)), starts_checks),
+        "a first listing clipped": (with_v4(lookback_clip=du.LOOKBACK_CLIP_V4 + ("BNS",)), starts_checks),
         "BCE-PY.TO's end dropped": (with_v4(line_ends=du.LINE_ENDS_V3), ends_checks),
         "BCE-PY.TO's end a quarter late": (with_v4(line_ends=du.LINE_ENDS_V3 + (("BCE-PY.TO", "2025-12-31", bce[2]),)),
                                            ends_checks),
