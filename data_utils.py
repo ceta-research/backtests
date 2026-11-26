@@ -4017,3 +4017,100 @@ class RowGuard:
         by_reason = {k: sum(p[k] for p in by_period) for k in self.reasons}
         return {"rule": self.rule, "dropped": sum(by_reason.values()), "by_reason": by_reason,
                 "by_period": by_period}
+
+
+# ---------------------------------------------------------------------------
+# Lag rule lr-1 (METHODOLOGY.md, Filing Lag): the day a fiscal-year row becomes readable. Opt-in per topic like the
+# universe rules: 52-week-high runs it, and every other topic keeps the 45-day lag until its own rerun.
+
+LAG_DAY = 86400
+_FOUR_MONTHS = "the annual financial report within four months of the year end"
+_THREE_MONTHS = "full-year results within three months of the year end"
+_INDIA = "SEBI LODR Regulation 33: audited annual results within 60 days of the year end"
+_KLS = ("Bursa Malaysia Main Market Listing Requirements 9.22(1): each quarterly report, the fourth with the full "
+        "year's figures, not later than 2 months after the quarter end")
+_ASX = "ASX Listing Rule 4.3B: the preliminary final report (Appendix 4E) within two months of the year end"
+_JNB = "JSE Listings Requirements 6.43: the results announcement within three months of the financial year end"
+_SES = "SGX Mainboard Rule 705(1): the full-year financial statements not later than 60 days after the year end"
+LAG_MARKETS_V1 = {   # exchange: (days after the period end, the rule they come from)
+    **{e: (120, _FOUR_MONTHS) for e in ("LSE", "XETRA", "STO", "OSL", "PAR", "MIL", "BME", "AMS", "WSE", "CPH",
+                                         "HEL", "BRU", "LIS", "VIE", "SIX", "SHZ", "SHH")},
+    **{e: (90, _THREE_MONTHS) for e in ("HKSE", "KSC", "KOE", "TAI", "TWO", "TSX", "SAO", "SET", "SAU", "JKT",
+                                        "JPX")},
+    "NSE": (60, _INDIA), "BSE": (60, _INDIA),
+    "KLS": (60, _KLS), "ASX": (60, _ASX), "JNB": (90, _JNB), "SES": (60, _SES),
+}
+LAG_RULES_V1 = {
+    "version": "lr-1",
+    "rule": ("a fiscal-year row is read from its availability day: on NYSE, NASDAQ and AMEX the earliest filing date "
+             "the vendor holds for it, after its period end and within window_days of it, else no_date_days after "
+             "the period end; on any other exchange its market's days after the period end, that market's deadline "
+             "for the first release of full-year results"),
+    "us": {"exchanges": list(US_EXCHANGES), "filing_date": "income_statement.filingDate", "window_days": 180,
+           "no_date_days": 105,
+           "source": ("Form 10-K: 90 days after the year end for a non-accelerated filer, plus the 15 days of "
+                      "Rule 12b-25")},
+    "markets": {e: {"days": d, "source": s} for e, (d, s) in LAG_MARKETS_V1.items()},
+}
+
+
+def us_filed_sql(sym_filter_sql, window_days):
+    """Each US FY row's earliest filing date after its period end and within window_days of it."""
+    return f"""
+        SELECT symbol, dateEpoch AS period_epoch, MIN(TRY_CAST(filingDate AS DATE)) AS filed
+        FROM income_statement
+        WHERE period = 'FY' AND {sym_filter_sql}
+          AND TRY_CAST(filingDate AS DATE) > TRY_CAST(date AS DATE)
+          AND TRY_CAST(filingDate AS DATE) <= TRY_CAST(date AS DATE) + {int(window_days)}
+        GROUP BY symbol, dateEpoch"""
+
+
+class LagRule:
+    """One leg's lag rule (cfg: LAG_RULES_V1): load() dates each FY row of a topic's caches (avail_epoch), and
+    block() is the results file's lag_rule block (screen inputs only: equal in drop, ltp and both)."""
+
+    def __init__(self, cfg=LAG_RULES_V1):
+        self.cfg, self.exchanges, self.us, self.rows, self.us_dated = cfg, (), False, 0, None
+
+    def days(self, exchanges):
+        """The leg's days after the period end for a row with no filing date. A leg has one: ValueError for a leg
+        with none, one that mixes markets of different days (US and others among them), or one with no entry."""
+        us = self.cfg["us"]
+        if exchanges and all(e in us["exchanges"] for e in exchanges):
+            return us["no_date_days"]
+        days = {(self.cfg["markets"].get(e) or {}).get("days") for e in exchanges or ()}
+        if None in days or len(days) != 1:
+            raise ValueError(f"lag rule {self.cfg['version']}: no one lag for the leg {list(exchanges or ())}")
+        return days.pop()
+
+    def load(self, client, con, exchanges, tables, sym_filter_sql, verbose=False):
+        """avail_epoch on every row of each table in `tables` (symbol, filing_epoch: FY rows by period end): the US
+        filing date where the vendor holds one (one query, US legs only), else filing_epoch plus the leg's days."""
+        days = self.days(exchanges)
+        self.exchanges = tuple(exchanges)
+        self.us = all(e in self.cfg["us"]["exchanges"] for e in exchanges)
+        con.execute("CREATE OR REPLACE TABLE lag_filed(symbol VARCHAR, period_epoch BIGINT, filed_epoch BIGINT)")
+        if self.us:
+            n = query_parquet(client, us_filed_sql(sym_filter_sql, self.cfg["us"]["window_days"]), con,
+                              "_lag_filed_raw", verbose=verbose)
+            if n:
+                con.execute("INSERT INTO lag_filed SELECT symbol, period_epoch, date_diff('second', TIMESTAMP"
+                            " '1970-01-01', CAST(filed AS TIMESTAMP)) FROM _lag_filed_raw")
+            con.execute("DROP TABLE _lag_filed_raw")
+        for t in tables:
+            con.execute(f"ALTER TABLE {t} ADD COLUMN avail_epoch BIGINT")
+            con.execute(f"UPDATE {t} SET avail_epoch = CAST(filing_epoch AS BIGINT) + {days * LAG_DAY}")
+            con.execute(f"UPDATE {t} SET avail_epoch = f.filed_epoch FROM lag_filed f"
+                        f" WHERE f.symbol = {t}.symbol AND f.period_epoch = {t}.filing_epoch")
+        keys = " UNION ".join(f"SELECT symbol, filing_epoch FROM {t}" for t in tables)
+        self.rows, dated = con.execute(f"SELECT count(*), count(f.filed_epoch) FROM ({keys}) k LEFT JOIN lag_filed f"
+                                       " ON f.symbol = k.symbol AND f.period_epoch = k.filing_epoch").fetchone()
+        self.us_dated = dated if self.us else None
+
+    def block(self):
+        us = self.cfg["us"]
+        markets = {e: {"days": us["no_date_days"], "source": us["source"]} if e in us["exchanges"]
+                   else dict(self.cfg["markets"][e]) for e in self.exchanges}
+        return {"version": self.cfg["version"], "rule": self.cfg["rule"],
+                "us": {k: us[k] for k in ("exchanges", "filing_date", "window_days", "no_date_days")},
+                "markets": markets, "counts": {"rows": self.rows, "us_filing_dated": self.us_dated}}
