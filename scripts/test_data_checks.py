@@ -3312,7 +3312,8 @@ def diagnostics_failures(tmp):
     os.makedirs(os.path.dirname(arm))
     shutil.copy(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json"), arm)
     blockless(os.path.join(root, "fcf-conversion", "results", "returns_SET.json"))
-    kinv = [e for e in du.DATA_CHECKS_V3["factor_hand"]["entries"] if e["symbol"] == "KINV-B.ST"]
+    kinv = [e for e in du.DATA_CHECKS_V3["factor_hand"]["entries"]
+            if e["symbol"] == "KINV-B.ST" and "asset-growth/STO" in e["found_in"]]
     leg = ARM.split("/", 1)[1]
     effects = {("fcf-conversion", leg, "KINV-B.ST", "2014-07-01"): REVIEW_EFFECTS[("asset-growth", "STO", "KINV-B.ST", "2014-07-01")],
                ("fcf-conversion", leg, "KINV-B.ST", "2020-07-01"): REVIEW_EFFECTS[("asset-growth", "STO", "KINV-B.ST", "2020-07-01")]}
