@@ -27,8 +27,9 @@ full-holdings one passes. Such a file is still read for its hand list: one that 
 hand_stale event is refused. The gate reads from each topic's backtest.py whether it writes that convention
 (52-week-high does, the other five don't), and a costed file that states none is refused in a topic that does.
 The gate also reads whether a topic's backtest.py writes lag_rule (52-week-high does): each data-checks file of
-such a topic carries lag rule lr-1's block for its leg (version, rule, US settings, each market's days and source),
-rows a whole number and the US dated count at most rows, null off the US (lag_probes). The guard's walk over the
+such a topic carries lag rule lr-1's block for its leg (version, rule, US settings, each market's days, source and
+eras: ASX's era dropped, moved or at other days is refused), rows a whole number and the US dated count at most rows
+(every row dated passes), null off the US (lag_probes). The guard's walk over the
 committed files runs on a temp root: of five files there it refuses the one whose topic writes a convention the
 file doesn't state, and the one whose topic writes lag_rule and the file has none.
 
@@ -3845,13 +3846,23 @@ def results_check_failures(problem=dc_results_problem, scan=dc_committed_problem
 
 def lag_probes():
     """(label, file, lagged, refused) for gate 15's lag-rule check: in a topic whose backtest.py writes lag_rule
-    (lagged), a data-checks file carries lr-1's block for its leg, with a whole number of rows and, on a US leg only,
-    a dated count of at most those rows; a file of another topic needs none."""
+    (lagged), a data-checks file carries lr-1's block for its leg, its markets' eras included, with a whole number of
+    rows and, on a US leg only, a dated count of at most those rows; a file of another topic needs none."""
     us, swap = ["NYSE", "NASDAQ", "AMEX"], lambda block: {**trades_file(lag=False), "lag_rule": block}
-    nse = lag_block(["NSE"], 3, None)
+    nse, asx = lag_block(["NSE"], 3, None), lag_block(["ASX"], 3, None)
+    entry, era = asx["markets"]["ASX"], asx["markets"]["ASX"]["eras"][0]
+    asx_with = lambda e: swap({**asx, "markets": {"ASX": e}})
     return (("lr-1's SET block", trades_file(), True, False), ("no block", trades_file(lag=False), True, True),
             ("no block, in a topic that writes none", trades_file(lag=False), False, False),
             ("lr-1's NSE block", swap(nse), True, False), ("lr-1's US block", swap(lag_block(us, 3, 2)), True, False),
+            ("lr-1's US block, every row dated", swap(lag_block(us, 3, 3)), True, False),
+            ("lr-1's ASX block, its era included", swap(asx), True, False),
+            ("ASX without its era", asx_with({k: v for k, v in entry.items() if k != "eras"}), True, True),
+            ("ASX's era a day earlier", asx_with({**entry, "eras": [{**era, "period_end_before": "2004-06-29"}]}),
+             True, True),
+            ("ASX's era at 60 days", asx_with({**entry, "eras": [{**era, "days": 60}]}), True, True),
+            ("NSE with ASX's era", swap({**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "eras": [era]}}}),
+             True, True),
             ("NSE at 59 days", swap({**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "days": 59}}}), True, True),
             ("NSE's source changed", swap({**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "source": "x"}}}),
              True, True),
@@ -3898,6 +3909,7 @@ GATE15_RESULTS_MUTANTS = {
                                                      "    if False:\n"),
     "a leg lr-1 gives no count passed": ("        LagRule().days(markets)\n", "        pass\n"),
     "a US leg's dated count not checked": ("count(dated) and dated <= rows if us", "True if us"),
+    "a US leg with every row dated refused": ("count(dated) and dated <= rows if us", "count(dated) and dated < rows if us"),
     "a dated count off the US passed": ("if us else dated is None", "if us else True"),
     "rows counted as True passed": ("count = lambda x: type(x) is int and x >= 0",
                                     "count = lambda x: isinstance(x, int) and x >= 0"),

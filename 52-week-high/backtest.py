@@ -651,6 +651,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     ur = UniverseRules(UNIVERSE_RULES)
     guard = SignalGuard()
     lag = LagRule(LAG_RULES)
+    lag.days(exchanges)   # refuses, before any query, a leg lr-1 gives no one count
     fx = get_fx_per_usd(exchanges)   # local currency per USD: the cost tiers' breakpoints in the leg's currency
     mktcap_threshold = get_mktcap_threshold(exchanges)
 

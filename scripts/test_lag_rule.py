@@ -7,18 +7,23 @@ date 105 days after its period end. On a US leg's typed rows, with UINTEGER epoc
 cache in two tables: a filing on the rebalance date is read that day and one the day after is not; an early filing is
 read before day 45 and a late one waits for itself past day 105; a row filed nowhere, with a null date or on its
 period end waits 105 days, on either side of the rebalance date; a filing 180 days on is read and one 181 days on is
-not; of two filings the earlier wins; a date with a time of day reads as its date; and another year's filing dates
-nothing. Both tables carry the same days, the counts are the distinct rows over them and the rows a filing dated, the
-leg's markets each show 105, and every query stays under 45,000 characters. Any other exchange waits its market's
-days whatever filing date it holds: NSE's 60, with no filing query sent and a null dated count. A US leg whose filing
-query returns no bytes dates every row at 105. A leg that mixes markets of different days, a US exchange beside
-another, an exchange with no entry (TSXV among them) or no exchange is refused; China's two exchanges share 120 days,
-and every exchange lr-1 lists has the days typed here (KLS, ASX and SES 60, JNB 90). Each mutant of data_utils.py
-must fail a check on a wrong value; the empty-result read alone fails by an error.
+not; of two filings the earlier wins; a quarterly filing dated before the FY one dates nothing; a date with a time of
+day reads as its date; and another year's filing dates nothing. Both tables carry the same days, the counts are the
+distinct rows over them and the rows a filing dated, the leg's markets each show 105, and every query stays under
+45,000 characters. Any other exchange waits its market's days whatever filing date it holds: NSE's 60, with no filing
+query sent and a null dated count. A US leg whose filing query returns no bytes dates every row at 105. Each era's
+boundary, on its own leg: the last period end before its date reads at the era's days and the first on it at the
+market's (HKSE 120 then 90 at 31 Dec 2010, SES 90 then 60 at 31 Dec 2003, ASX 75 then 60 at 30 June 2004), and the
+leg's block carries the era. Of two eras the earliest-dated one a period end is before wins, whatever their order. A
+leg that mixes markets of different days or eras, a US exchange beside another, an exchange with no entry (TSXV among
+them) or no exchange is refused; China's two exchanges share 120 days, every exchange lr-1 lists has the days and
+eras typed here (KLS, ASX and SES 60, JNB 90), and each source read against its rule's text names its rule number.
+Each mutant of data_utils.py must fail a check on a wrong value; the empty-result read alone fails by an error.
 
 Usage:
     python scripts/test_lag_rule.py [repo root]
 """
+import copy
 import os
 import sys
 import tempfile
@@ -52,30 +57,49 @@ def on(n):
 # from its period end to its availability day
 US_ROWS = [("U_ON", P), ("U_NEXT", P), ("U_EARLY", P), ("U_LATE", P), ("U_ND104", R - timedelta(days=104)),
            ("U_ND105", R - timedelta(days=105)), ("U_NULL", P), ("U_END", P), ("U_180", P), ("U_181", P),
-           ("U_TWO", P), ("U_TIME", P), ("U_OTHER", P)]
+           ("U_TWO", P), ("U_TIME", P), ("U_Q4", P), ("U_OTHER", P)]
 US_FILED = [("U_ON", P, R.isoformat()), ("U_NEXT", P, (R + timedelta(days=1)).isoformat()), ("U_EARLY", P, on(30)),
             ("U_LATE", P, on(120)), ("U_NULL", P, None), ("U_END", P, on(0)), ("U_180", P, on(180)),
             ("U_181", P, on(181)), ("U_TWO", P, on(80)), ("U_TWO", P, on(50)), ("U_TIME", P, on(50) + " 16:30:00"),
-            ("U_OTHER", P - timedelta(days=365), on(-300))]
+            ("U_Q4", P, on(60)), ("U_Q4", P, on(40), "Q4"), ("U_OTHER", P - timedelta(days=365), on(-300))]
 WANT_US = {"U_ON": 70, "U_NEXT": 71, "U_EARLY": 30, "U_LATE": 120, "U_ND104": 105, "U_ND105": 105, "U_NULL": 105,
-           "U_END": 105, "U_180": 180, "U_181": 105, "U_TWO": 50, "U_TIME": 50, "U_OTHER": 105}
-US_COUNTS = {"rows": len(US_ROWS), "us_filing_dated": 7}   # U_ON, U_NEXT, U_EARLY, U_LATE, U_180, U_TWO, U_TIME
+           "U_END": 105, "U_180": 180, "U_181": 105, "U_TWO": 50, "U_TIME": 50, "U_Q4": 60, "U_OTHER": 105}
+# U_ON, U_NEXT, U_EARLY, U_LATE, U_180, U_TWO, U_TIME, U_Q4
+US_COUNTS = {"rows": len(US_ROWS), "us_filing_dated": 8}
 US_BLOCK = {"exchanges": US, "filing_date": "income_statement.filingDate", "window_days": 180, "no_date_days": 105}
 NSE_ROWS = [("N_FILED", R - timedelta(days=50)), ("N59", R - timedelta(days=59)), ("N60", R - timedelta(days=60))]
 NSE_FILED = [("N_FILED", R - timedelta(days=50), (R - timedelta(days=30)).isoformat())]
 WANT_NSE = {"N_FILED": 60, "N59": 60, "N60": 60}
-REFUSED = (["NYSE", "LSE"], ["OTC"], ["TSXV"], ["NSE", "LSE"], [])
-# lr-1's days per exchange outside the US
+REFUSED = (["NYSE", "LSE"], ["OTC"], ["TSXV"], ["NSE", "LSE"], ["HKSE", "KSC"], [])
+# lr-1's days and eras per exchange outside the US
 WANT_DAYS = {**{e: 120 for e in ("LSE", "XETRA", "STO", "OSL", "PAR", "MIL", "BME", "AMS", "WSE", "CPH", "HEL", "BRU",
                                  "LIS", "VIE", "SIX", "SHZ", "SHH")},
              **{e: 90 for e in ("HKSE", "KSC", "KOE", "TAI", "TWO", "TSX", "SAO", "SET", "SAU", "JKT", "JPX")},
              "NSE": 60, "BSE": 60, "KLS": 60, "ASX": 60, "JNB": 90, "SES": 60}
-RULE_NUMBERS = {"KLS": "9.22(1)", "ASX": "4.3B", "JNB": "6.43", "SES": "705(1)"}   # in each looked-up source
+WANT_ERAS = {"HKSE": [{"period_end_before": "2010-12-31", "days": 120}],
+             "SES": [{"period_end_before": "2003-12-31", "days": 90}],
+             "ASX": [{"period_end_before": "2004-06-30", "days": 75}]}
+# each era's boundary on its own leg: (exchange, its FY rows, each row's days)
+ERA_LEGS = (("HKSE", [("H_IN", date(2010, 12, 30)), ("H_OUT", date(2010, 12, 31))], {"H_IN": 120, "H_OUT": 90}),
+            ("SES", [("S_IN", date(2003, 12, 30)), ("S_OUT", date(2003, 12, 31))], {"S_IN": 90, "S_OUT": 60}),
+            ("ASX", [("A_IN", date(2004, 6, 29)), ("A_OUT", date(2004, 6, 30))], {"A_IN": 75, "A_OUT": 60}))
+# two eras on HKSE, the later-dated listed first: the earliest-dated one a period end is before wins
+TWO_ERAS = [{"period_end_before": "2010-12-31", "days": 120}, {"period_end_before": "2005-01-01", "days": 150}]
+TWO_ERA_ROWS = [("H_OLD", date(2004, 12, 31)), ("H_MID", date(2005, 1, 1)), ("H_NEW", date(2010, 12, 31))]
+WANT_TWO_ERAS = {"H_OLD": 150, "H_MID": 120, "H_NEW": 90}
+# the rule number each source read against its rule's text names
+RULE_NUMBERS = {"LSE": "DTR 4.1.3", "XETRA": "§ 114(1)", "STO": "16 kap. 4 §", "OSL": "4.3.1", "MIL": "154-ter(1)",
+                "WSE": "§ 79(7)", "CPH": "rule 15", "HEL": "rule 20(i)", "SIX": "Art. 10(1)", "SHZ": "Art. 13",
+                "SHH": "Art. 13", "HKSE": "13.49(1)", "KSC": "159(1)", "KOE": "159(1)", "TAI": "Rules art. 3",
+                "TWO": "art. 36(1)(1)", "TSX": "4.2(a)", "SAO": "Art. 27 § 2", "JPX": "Art. 24(1)", "NSE": "33(3)(d)",
+                "BSE": "33(3)(d)", "KLS": "9.22(1)", "ASX": "4.3B", "JNB": "6.43", "SES": "705(1)"}
+US_RULE_NUMBERS = ("A.(2)(c)", "12b-25(b)(2)(ii)")
 
 
 def warehouse(rows, filings, ex):
     """key_metrics FY rows and a profile for each (symbol, period end) on exchange ex, and the income_statement
-    filings, its date and filingDate VARCHAR as the warehouse holds them."""
+    filings (symbol, period end, filingDate[, period: FY when absent]), its date and filingDate VARCHAR as the
+    warehouse holds them."""
     src = duckdb.connect()
     src.execute("CREATE TABLE key_metrics(symbol VARCHAR, marketCap DOUBLE, dateEpoch UINTEGER, period VARCHAR)")
     src.execute("CREATE TABLE income_statement(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch UINTEGER,"
@@ -84,33 +108,40 @@ def warehouse(rows, filings, ex):
     for sym, p in rows:
         src.execute("INSERT INTO key_metrics VALUES (?, 1e10, ?, 'FY')", [sym, ep(p)])
         src.execute("INSERT INTO profile VALUES (?, ?)", [sym, ex])
-    for sym, p, filed in filings:
-        src.execute("INSERT INTO income_statement VALUES (?, 'FY', ?, ?, ?)", [sym, p.isoformat(), ep(p), filed])
+    for sym, p, filed, *period in filings:
+        src.execute("INSERT INTO income_statement VALUES (?, ?, ?, ?, ?)",
+                    [sym, period[0] if period else "FY", p.isoformat(), ep(p), filed])
     return src
 
 
-def dated(m, rows, filings, ex, client=tdc.FakeClient):
-    """Module m's LagRule on a leg, its FY rows cached in two tables as a topic's fetch caches them: ({table: {symbol:
-    days from the period end to the availability day}}, the block, the queries sent)."""
+def dated(m, rows, filings, ex, client=tdc.FakeClient, cfg=None):
+    """Module m's LagRule (on cfg, default its LAG_RULES_V1) on a leg, its FY rows cached in two tables as a topic's
+    fetch caches them: ({table: {symbol: days from the period end to the availability day}}, the block, the queries
+    sent)."""
     c = client(warehouse(rows, filings, ex[0]))
     con = duckdb.connect()
     flt = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({', '.join(repr(e) for e in ex)}))"
     tables = ("metrics_cache", "ratios_cache")
     for t in tables:
         du.query_parquet(c, f"SELECT symbol, marketCap, dateEpoch AS filing_epoch FROM key_metrics WHERE {flt}", con, t)
-    lag = m.LagRule()
+    lag = m.LagRule(cfg) if cfg else m.LagRule()
     lag.load(c, con, ex, list(tables), flt)
     got = {t: {s: (a - f) // DAY for s, a, f in con.execute(f"SELECT symbol, avail_epoch, filing_epoch FROM {t}").fetchall()}
            for t in tables}
     return got, lag.block(), c.sqls
 
 
-def leg_failures(label, got, block, want, counts, markets):
+def leg_failures(label, got, block, want, counts, markets, eras=None):
+    """The leg's days per row in each table, its counts, and its block's markets: the days `markets` in leg order,
+    each with its eras (default WANT_ERAS; none where absent)."""
+    eras = WANT_ERAS if eras is None else eras
     out = [f"{label}: {t} days {d}, want {want}" for t, d in got.items() if d != want]
     if block["counts"] != counts:
         out.append(f"{label}: counts {block['counts']}, want {counts}")
     if {e: v["days"] for e, v in block["markets"].items()} != markets or list(block["markets"]) != list(markets):
         out.append(f"{label}: markets {block['markets']}, want the days {markets} in leg order")
+    if {e: v.get("eras") for e, v in block["markets"].items()} != {e: eras.get(e) for e in markets}:
+        out.append(f"{label}: eras {[v.get('eras') for v in block['markets'].values()]}, want {eras}")
     return out
 
 
@@ -131,6 +162,15 @@ def unit_failures(m):
         got, b, _ = dated(m, [("U_ND", P)], [], US, client=tdc.EmptyBytesClient)
         out += leg_failures("US, no filing", got, b, {"U_ND": 105}, {"rows": 1, "us_filing_dated": 0},
                             {e: 105 for e in US})
+        for ex, rows, want in ERA_LEGS:
+            got, b, _ = dated(m, rows, [], [ex])
+            out += leg_failures(f"{ex}'s era", got, b, want, {"rows": len(rows), "us_filing_dated": None},
+                                {ex: WANT_DAYS[ex]})
+        cfg = copy.deepcopy(m.LAG_RULES_V1)
+        cfg["markets"]["HKSE"]["eras"] = TWO_ERAS
+        got, b, _ = dated(m, TWO_ERA_ROWS, [], ["HKSE"], cfg=cfg)
+        out += leg_failures("two eras", got, b, WANT_TWO_ERAS, {"rows": len(TWO_ERA_ROWS), "us_filing_dated": None},
+                            {"HKSE": 90}, eras={"HKSE": TWO_ERAS})
         for ex in REFUSED:
             try:
                 out.append(f"{ex} not refused: {m.LagRule().days(ex)} days")
@@ -141,8 +181,11 @@ def unit_failures(m):
         markets = m.LAG_RULES_V1["markets"]
         if {e: v["days"] for e, v in markets.items()} != WANT_DAYS:
             out.append(f"lr-1's days {sorted((e, v['days']) for e, v in markets.items())}, want {sorted(WANT_DAYS.items())}")
+        if {e: v["eras"] for e, v in markets.items() if "eras" in v} != WANT_ERAS:
+            out.append(f"lr-1's eras {[(e, v['eras']) for e, v in markets.items() if 'eras' in v]}, want {WANT_ERAS}")
         out += [f"{e}'s source {markets[e]['source']!r} names no {n}" for e, n in RULE_NUMBERS.items()
                 if n not in markets[e]["source"]]
+        out += [f"the US source names no {n}" for n in US_RULE_NUMBERS if n not in m.LAG_RULES_V1["us"]["source"]]
     except Exception as e:   # reported as an error: main() requires most mutants to fail on a value
         out.append(f"error: {type(e).__name__}: {e}")
     return out
@@ -164,15 +207,37 @@ MUTANTS = {   # text replacements on data_utils.py
                                         "SET avail_epoch = GREATEST(f.filed_epoch, CAST(filing_epoch AS BIGINT)"
                                         " + 45 * 86400) FROM"),
     "filing dates on every leg": ("        if self.us:\n", "        if True:\n"),
+    "a quarterly filing dates a FY row": ("WHERE period = 'FY' AND {sym_filter_sql}", "WHERE {sym_filter_sql}"),
     "India at 59 days": ('"NSE": (60, _INDIA)', '"NSE": (59, _INDIA)'),
     "India at 61 days": ('"NSE": (60, _INDIA)', '"NSE": (61, _INDIA)'),
     "Malaysia at 59 days": ('"KLS": (60, _KLS)', '"KLS": (59, _KLS)'),
     "Australia at 62 days": ('"ASX": (60, _ASX)', '"ASX": (62, _ASX)'),
     "South Africa at 120 days": ('"JNB": (90, _JNB)', '"JNB": (120, _JNB)'),
     "Singapore at 90 days": ('"SES": (60, _SES)', '"SES": (90, _SES)'),
-    "TSXV at three months": ('"TSX", "SAO"', '"TSX", "TSXV", "SAO"'),
-    "an unknown exchange passes": ("if None in days or len(days) != 1:", "if len(days) != 1:"),
-    "two lags in one leg pass": ("if None in days or len(days) != 1:", "if None in days or len(days) < 1:"),
+    "TSXV at three months": ('"TWO": (90, _TAIWAN),', '"TWO": (90, _TAIWAN), "TSXV": (90, _THREE_MONTHS),'),
+    "Hong Kong's era dropped": ('"HKSE": [{"period_end_before": "2010-12-31", "days": 120}],', ""),
+    "Hong Kong's era a day later": ('"2010-12-31", "days": 120', '"2011-01-01", "days": 120'),
+    "Hong Kong's era a day earlier": ('"2010-12-31", "days": 120', '"2010-12-30", "days": 120'),
+    "Hong Kong's era at 119 days": ('"2010-12-31", "days": 120', '"2010-12-31", "days": 119'),
+    "Singapore's era dropped": ('"SES": [{"period_end_before": "2003-12-31", "days": 90}],', ""),
+    "Singapore's era a day later": ('"2003-12-31", "days": 90', '"2004-01-01", "days": 90'),
+    "Singapore's era a day earlier": ('"2003-12-31", "days": 90', '"2003-12-30", "days": 90'),
+    "Singapore's era at 89 days": ('"2003-12-31", "days": 90', '"2003-12-31", "days": 89'),
+    "Australia's era dropped": ('"ASX": [{"period_end_before": "2004-06-30", "days": 75}],', ""),
+    "Australia's era a day later": ('"2004-06-30", "days": 75', '"2004-07-01", "days": 75'),
+    "Australia's era a day earlier": ('"2004-06-30", "days": 75', '"2004-06-29", "days": 75'),
+    "Australia's era at 74 days": ('"2004-06-30", "days": 75', '"2004-06-30", "days": 74'),
+    "eras not read": ("if eras else str(int(days))", "if False else str(int(days))"),
+    "an era's date read inclusively": ("AS BIGINT) < {utc_epoch(", "AS BIGINT) <= {utc_epoch("),
+    "the latest-dated era wins": ('key=lambda x: x["period_end_before"])',
+                                  'key=lambda x: x["period_end_before"], reverse=True)'),
+    "the block drops the eras": ('copy.deepcopy(self.cfg["markets"][e])',
+                                 '{k: v for k, v in self.cfg["markets"][e].items() if k != "eras"}'),
+    "two eras in one leg pass": ("any(x != eras[0] for x in eras)", "False"),
+    "ASX's deadline cited as 4.3A": ("ASX Listing Rule 4.3B:", "ASX Listing Rule 4.3A:"),
+    "Taiwan's first release left out": ('"TAI": (90, _TAIWAN + ', '"TAI": (90, _TAIWAN or '),
+    "an unknown exchange passes": ("if None in days or len(set(days))", "if len(set(days))"),
+    "two lags in one leg pass": ("len(set(days)) != 1", "len(set(days)) < 1"),
     "every row counted as dated": ("count(f.filed_epoch)", "count(*)"),
     "a non-US leg's count is 0": ("self.us_dated = dated if self.us else None", "self.us_dated = dated"),
     "rows counted per table": (' " UNION ".join(', ' " UNION ALL ".join('),
@@ -206,7 +271,9 @@ def main():
         print("test_lag_rule: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
         sys.exit(1)
     print(f"test_lag_rule: PASS ({len(US_ROWS)} US rows, {len(NSE_ROWS)} NSE rows, an empty filing result,"
-          f" {len(REFUSED)} refused legs, {len(WANT_DAYS)} markets' days; {len(MUTANTS)} mutants caught)")
+          f" {sum(len(rows) for _, rows, _ in ERA_LEGS)} era boundary rows on {len(ERA_LEGS)} legs,"
+          f" {len(TWO_ERA_ROWS)} rows under two eras, {len(REFUSED)} refused legs, {len(WANT_DAYS)} markets' days,"
+          f" {len(RULE_NUMBERS)} sources' rule numbers; {len(MUTANTS)} mutants caught)")
 
 
 if __name__ == "__main__":

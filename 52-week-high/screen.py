@@ -5,8 +5,8 @@ It runs the backtest's own fetch and screen on that one date (backtest.fetch_dat
 data checks dc-3 on, so it ranks as the backtest does:
   - Universe: ordinary shares under universe rules ur-4 (load_universe, then the screen's semi-join on its
     universe table), less the lines its line starts and line ends leave out on the day.
-  - Size: market cap over the leg's threshold, read as check M's cap_used (the latest FY row dated at least 45 days
-    before the day, over check M's divisor). The floor is in the reporting currency, as in the backtest.
+  - Size: market cap over the leg's threshold, read as check M's cap_used (the latest FY row readable on the day
+    under lag rule lr-1, over check M's divisor). The floor is in the reporting currency, as in the backtest.
   - Signal: close / MAX(high) over the 252 bars ending at the last traded bar in the 10 days to the day
     [George & Hwang 2004], 100 bars at least; one line per security.
   - Picks: the top 30 by proximity ratio, exact ties to the larger cap_used, then the symbol. They come before the

@@ -753,7 +753,7 @@ def lag_block(exchanges, rows, us_dated):
 
 def lag_results_problem(res):
     """Why a lag-rule topic's results file can't stand on its lag_rule block, or None: the block is lr-1's for the
-    leg's exchanges (its version, rule, US settings, and each market's days and source), rows is a whole number,
+    leg's exchanges (its version, rule, US settings, and each market's days, source and eras), rows is a whole number,
     and us_filing_dated one of at most rows on a US leg and null on any other."""
     b = res.get("lag_rule")
     if not isinstance(b, dict) or not isinstance(b.get("markets"), dict) or not isinstance(b.get("counts"), dict):
@@ -1993,10 +1993,22 @@ def main():
     lags = lambda block: dc_results_problem({**on, "lag_rule": block}, lagged=True)
     us, nse = LAG_RULES_V1["us"]["exchanges"], lag_block(["NSE"], 3, None)
     nse59 = {**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "days": 59}}}
+    hk = lag_block(["HKSE"], 3, None)
+    hk_entry, hk_era = hk["markets"]["HKSE"], hk["markets"]["HKSE"]["eras"][0]
+    hk_with = lambda entry: {**hk, "markets": {"HKSE": entry}}
     for label, got, want in (
             ("a file without lag_rule, in a topic that writes it", dc_results_problem(on, lagged=True), True),
             ("lr-1's block for NSE", lags(nse), False),
             ("lr-1's block for the US", lags(lag_block(us, 3, 2)), False),
+            ("lr-1's block for a US leg with every row dated", lags(lag_block(us, 3, 3)), False),
+            ("lr-1's block for HKSE, its era included", lags(hk), False),
+            ("an HKSE block without its era", lags(hk_with({k: v for k, v in hk_entry.items() if k != "eras"})), True),
+            ("an HKSE block with its era a day later",
+             lags(hk_with({**hk_entry, "eras": [{**hk_era, "period_end_before": "2011-01-01"}]})), True),
+            ("an HKSE block with its era at 90 days",
+             lags(hk_with({**hk_entry, "eras": [{**hk_era, "days": 90}]})), True),
+            ("an NSE block with an era", lags({**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "eras": [hk_era]}}}),
+             True),
             ("a block with NSE at 59 days", lags(nse59), True),
             ("a block of another version", lags({**nse, "version": "lr-0"}), True),
             ("a TSXV block", lags({**nse, "markets": {"TSXV": {"days": 90}}}), True),

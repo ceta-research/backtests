@@ -36,7 +36,8 @@ and DEADLINE's row, 50 days old and under the floor, which the 45-day lag read, 
 line over the floor. On NYSE a row is read from its filing date: on the rebalance date itself (US_ON), not the day
 before its filing (US_NEXT ranks on its older row), and before day 45 (US_EARLY); a row with no filing date is read 105
 days after its period end (US_ND105) and not 104 (US_ND104). lr-1 has a day count for the exchanges of every preset
---global runs. Their mutants must trip a wrong book, not an error.
+--global runs, and run_single refuses a TSXV leg before it sends a query. Their mutants must trip a wrong book, not
+an error.
 
 Check T on the ranking cache, with data checks on: on a closed rebalance date a line's traded copy moves, so the
 line ranks on its last traded bar before it, while a copy 40 days back, outside every fetch window, stays in the
@@ -1298,9 +1299,10 @@ FX_MUTANTS = {"Malaysia's rate left out": ('"KLS": 4.46,', "")}
 
 
 def lag_cover_failures(src=SRC):
-    """The presets of src's presets_to_run that lag rule lr-1 gives no day count: LagRule.days refuses the leg."""
+    """The presets of src's presets_to_run that lag rule lr-1 gives no day count: LagRule.days refuses the leg.
+    run_single refuses a TSXV leg with a ValueError before it sends a query."""
     try:
-        presets = global_presets(src)
+        presets, mod = global_presets(src), load(src)
     except Exception as e:
         return [f"error: {type(e).__name__}: {e}"]
     out = []
@@ -1309,11 +1311,21 @@ def lag_cover_failures(src=SRC):
             du.LagRule().days(ex)
         except ValueError as e:
             out.append(f"preset {name}: {e}")
+    client, raised = tdc.FakeClient(duckdb.connect()), None
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            mod.run_single(client, ["TSXV"], "TSXV", "quarterly", True, 0.02, False, None, win=du.RunWindow.typed(2025))
+    except Exception as e:   # the refusal, or the empty warehouse's error on a fetch that ran first
+        raised = e
+    if not isinstance(raised, ValueError) or client.sqls:
+        out.append(f"run_single on a TSXV leg: {type(raised).__name__} after {len(client.sqls)} queries, want a"
+                   " ValueError before any")
     return out
 
 
 LAG_COVER_MUTANTS = {"a TSXV leg in --global": ('            ("canada",      ["TSX"]),\n',
-                                                '            ("canada",      ["TSX", "TSXV"]),\n')}
+                                                '            ("canada",      ["TSX", "TSXV"]),\n'),
+                     "a refused leg fetched first": ("    lag.days(exchanges)   # refuses", "    None   # refuses")}
 
 
 # The live screen (screen.py): the backtest's fetch and screen on one date, with data checks on.
@@ -1656,7 +1668,8 @@ def main():
           f" SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window, {len(WINDOW_MUTANTS)} mutants caught;"
           f" check T, {len(T_MUTANTS)} mutants caught; the gate's legs, {len(LEG_MUTANTS)} mutants caught;"
           f" the cost rates, {len(FX_MUTANTS)} mutants caught; lag rule lr-1 on {len(LAG_NSE) + len(LAG_US)} listings"
-          f" ({len(LAG_MUTANTS)} of the first mutants) and on every --global leg, {len(LAG_COVER_MUTANTS)} mutant caught;"
+          f" ({len(LAG_MUTANTS)} of the first mutants), on every --global leg and on a refused leg,"
+          f" {len(LAG_COVER_MUTANTS)} mutants caught;"
           f" the trades convention over {len(WALK_SCREEN)} typed"
           f" quarters and {len(TAIL_SCREEN)} more that end in cash, {len(WALK_MUTANTS)} mutants caught; the live"
           f" screen, {len(SCREEN_MUTANTS)} mutants caught)")
