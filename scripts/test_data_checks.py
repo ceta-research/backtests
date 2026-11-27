@@ -26,8 +26,12 @@ from its holdings_full or the lists are missing: 52-week-high's plain synthetic 
 full-holdings one passes. Such a file is still read for its hand list: one that reproduces and carries a
 hand_stale event is refused. The gate reads from each topic's backtest.py whether it writes that convention
 (52-week-high does, the other five don't), and a costed file that states none is refused in a topic that does.
-The guard's walk over the committed files runs on a temp root: of four files there it refuses the one whose
-topic writes a convention the file doesn't state.
+The gate also reads whether a topic's backtest.py writes lag_rule (52-week-high does): each data-checks file of
+such a topic carries lag rule lr-1's block for its leg (version, rule, US settings, each market's days, source and
+eras: ASX's era dropped, moved or at other days is refused), rows a whole number and the US dated count at most rows
+(every row dated passes), null off the US (lag_probes). The guard's walk over the
+committed files runs on a temp root: of five files there it refuses the one whose topic writes a convention the
+file doesn't state, and the one whose topic writes lag_rule and the file has none.
 
 dc-2's check S (stale repeats): in T's windows a run of 4 identical traded rows loses rows 2-4 while
 runs of 3, a new volume or a new close each day, a run split across two windows and the benchmark
@@ -117,7 +121,7 @@ from data_utils import (DATA_CHECKS_V1, DataChecks, clean_price_cache, mark_nvdr
 from gate_ltp import check_stage_a, has_ltp_keys, strip_ltp, first_diff   # noqa: E402
 import scan_results_invariant as sri   # noqa: E402
 from verify_floor_guard import (dc_wiring, dc_uses, dc_results_problem, dc_committed_problems,  # noqa: E402
-                                writes_turnover, DATA_CHECKS_TOPICS)
+                                writes_turnover, writes_lag_rule, lag_block, DATA_CHECKS_TOPICS)
 from test_floor_guard import NO_RETURN_CAP   # noqa: E402
 
 BASE = "e1ecb7c"   # backtests main before data checks
@@ -2486,6 +2490,7 @@ def run_topic(topic, src, run_mode, data_checks, tmp, full_holdings=False, win=N
 ITEM_KEYS = {"symbol", "entry_bar", "entry_price", "exit_bar", "exit_price", "exit", "return"}
 # each item also records its name's one-way cost tier (cost_rate); these topics charge trades (costs.trade_costs)
 COST_RATE_TOPICS = {"52-week-high"}
+LAG_RULE_TOPICS = {"52-week-high"}   # their results carry lag rule lr-1's block (data_utils.LagRule)
 
 
 def holdings_full_failures(topic, src, tmp):
@@ -3673,6 +3678,14 @@ def gate15_failures():
             check(m != src, f"gate 15's turnover mutant found nothing to change in {t}")
             if writes_turnover(ast.parse(m)):
                 f.append(f"gate 15 reads {t} without its turnover key as still writing the convention")
+        # and whether they carry lag rule lr-1's block
+        if writes_lag_rule(ast.parse(src)) != (t in LAG_RULE_TOPICS):
+            f.append(f"gate 15 reads {t} as {'writing' if t not in LAG_RULE_TOPICS else 'not writing'} lag_rule")
+        if t in LAG_RULE_TOPICS:
+            m = src.replace('"lag_rule": lag.block(),', "", 1)
+            check(m != src, f"gate 15's lag_rule mutant found nothing to change in {t}")
+            if writes_lag_rule(ast.parse(m)):
+                f.append(f"gate 15 reads {t} without its lag_rule key as still writing it")
     # a capped topic that drops its cap without opting in: every form of a None cap is a use
     ld = open(os.path.join(ROOT, "low-debt", "backtest.py")).read()
     gn = open(os.path.join(ROOT, "graham-net-net", "backtest.py")).read()
@@ -3701,15 +3714,17 @@ def bce_file(entry, exit_):
             "period_data": [{"rebalance_date": entry, "exit_date": exit_, "holdings": "BCE.TO,BCE-PY.TO"}]}
 
 
-def trades_file(stored=0.095, full=True, turnover="trades"):
+def trades_file(stored=0.095, full=True, turnover="trades", lag=True):
     """A mode-on file whose cost_model states `turnover` (None: no key): one name entered at 0.5% and up 10%,
-    which reads 0.095 when trades are charged and 0.09 on a round trip. full: the row lists its holdings."""
+    which reads 0.095 when trades are charged and 0.09 on a round trip. full: the row lists its holdings. lag: it
+    carries lag rule lr-1's block for a SET leg, as 52-week-high's code writes."""
     row = {"rebalance_date": "2025-01-01", "exit_date": "2025-04-01", "portfolio_return": stored, "stocks_held": 1,
            "holdings": "A"}
     if full:
         row["holdings_full"] = [{"symbol": "A", "return": 0.1, "cost_rate": 0.005}]
     cm = {"function": "costs.tiered_cost", "fx_per_usd": 1.0, **({"turnover": turnover} if turnover else {})}
-    return {"data_checks": {"mode": "on"}, "cost_model": cm, "period_data": [row]}
+    return {"data_checks": {"mode": "on"}, "cost_model": cm, "period_data": [row],
+            **({"lag_rule": lag_block(["SET"], 1, None)} if lag else {})}
 
 
 def trades_dc3_file(stale=False):
@@ -3734,16 +3749,18 @@ def trades_dc3_file(stale=False):
 
 def committed_scan_failures(scan=dc_committed_problems):
     """Gate 15's walk over the committed files (dc_committed_problems), on a temp root. 52-week-high's own
-    backtest.py, which writes its turnover convention, sits beside two results files with a data_checks block:
-    one that states the trades convention and reproduces, and one with a two-key cost_model and round-trip rows,
-    as the code before the convention wrote. fcf-conversion's backtest.py, which writes no convention, sits beside
-    that same two-key file, and so does a source typed here, under asset-growth's name, that holds a turnover key
-    outside its cost_model. All four are counted, and only 52-week-high's two-key file is refused, for the
-    convention it doesn't state."""
-    old = "52-week-high/results/returns_OLD.json"
+    backtest.py, which writes its turnover convention and lag rule lr-1's block, sits beside three results files
+    with a data_checks block and the lag block: one that states the trades convention and reproduces, and one with
+    a two-key cost_model and round-trip rows, as the code before the convention wrote; and a third that reproduces
+    and has no lag block. fcf-conversion's backtest.py, which writes neither, sits beside that same two-key file
+    with no lag block, and so does a source typed here, under asset-growth's name, that holds a turnover key outside
+    its cost_model. All five are counted, and only 52-week-high's two are refused: the two-key file for the
+    convention it doesn't state, and the third for its missing lag block."""
+    old, nolag = "52-week-high/results/returns_OLD.json", "52-week-high/results/returns_NOLAG.json"
     files = {"52-week-high/results/returns_GOOD.json": trades_file(), old: trades_file(stored=0.09, turnover=None),
-             "fcf-conversion/results/returns_OLD.json": trades_file(stored=0.09, turnover=None),
-             "asset-growth/results/returns_OLD.json": trades_file(stored=0.09, turnover=None)}
+             nolag: trades_file(lag=False),
+             "fcf-conversion/results/returns_OLD.json": trades_file(stored=0.09, turnover=None, lag=False),
+             "asset-growth/results/returns_OLD.json": trades_file(stored=0.09, turnover=None, lag=False)}
     with tempfile.TemporaryDirectory() as tmp:
         for t in ("52-week-high", "fcf-conversion", "asset-growth"):
             os.makedirs(os.path.join(tmp, t, "results"))
@@ -3758,9 +3775,11 @@ def committed_scan_failures(scan=dc_committed_problems):
             n, found = scan(pathlib.Path(tmp))
         except Exception as e:   # the guard calls it: a raise stops every gate after it
             return [f"the walk over committed files raises {type(e).__name__}: {e}"]
-    if n != len(files) or [p for p, _ in found] != [old] or "turnover" not in found[0][1]:
+    why = dict(found)
+    if n != len(files) or sorted(why) != sorted([old, nolag]) or "turnover" not in why[old] or \
+            "lag_rule" not in why[nolag]:
         return [f"the walk over committed files counts {n} with a block and refuses {found}, want {len(files)} and "
-                f"{old} for its turnover"]
+                f"{old} for its turnover, {nolag} for its lag_rule"]
     return []
 
 
@@ -3776,8 +3795,9 @@ def results_check_failures(problem=dc_results_problem, scan=dc_committed_problem
     the same file with a hand_stale event is refused.
     In a topic whose backtest.py writes its convention (stated), a costed file must state it: a two-key
     cost_model there is refused, with or without lists, while a no-costs file, a file with no cost_model and one
-    with no data_checks block have none to state. The walk over a root's committed files hands each to this check
-    with its topic's reading (committed_scan_failures)."""
+    with no data_checks block have none to state. In a topic whose backtest.py writes lag_rule, each of lag_probes'
+    files is refused or passed as it says. The walk over a root's committed files hands each to this check with its
+    topic's reading (committed_scan_failures)."""
     f = []
     sto = json.load(open(os.path.join(ROOT, "asset-growth", "results", "returns_STO.json")))
     no_return, null_turnover, empty_turnover = trades_file(), trades_file(), trades_file()
@@ -3814,10 +3834,51 @@ def results_check_failures(problem=dc_results_problem, scan=dc_committed_problem
         if not answered or bool(why) != bad:
             label = res if len(json.dumps(res)) < 500 else f"a dc-3 file of {len(res['period_data'])} rows, bad={bad}"
             f.append(f"dc_results_problem({label}{', in a topic that writes its convention' if stated else ''}) {why}")
+    for label, res, lagged, bad in lag_probes():
+        try:
+            why, answered = problem(res, False, lagged), True
+        except Exception as e:
+            why, answered = f"raises {type(e).__name__}", False
+        if not answered or bool(why) != bad:
+            f.append(f"dc_results_problem on {label}{', in a topic that writes lag_rule' if lagged else ''}: {why}")
     return f + committed_scan_failures(scan)
 
 
+def lag_probes():
+    """(label, file, lagged, refused) for gate 15's lag-rule check: in a topic whose backtest.py writes lag_rule
+    (lagged), a data-checks file carries lr-1's block for its leg, its markets' eras included, with a whole number of
+    rows and, on a US leg only, a dated count of at most those rows; a file of another topic needs none."""
+    us, swap = ["NYSE", "NASDAQ", "AMEX"], lambda block: {**trades_file(lag=False), "lag_rule": block}
+    nse, asx = lag_block(["NSE"], 3, None), lag_block(["ASX"], 3, None)
+    entry, era = asx["markets"]["ASX"], asx["markets"]["ASX"]["eras"][0]
+    asx_with = lambda e: swap({**asx, "markets": {"ASX": e}})
+    return (("lr-1's SET block", trades_file(), True, False), ("no block", trades_file(lag=False), True, True),
+            ("no block, in a topic that writes none", trades_file(lag=False), False, False),
+            ("lr-1's NSE block", swap(nse), True, False), ("lr-1's US block", swap(lag_block(us, 3, 2)), True, False),
+            ("lr-1's US block, every row dated", swap(lag_block(us, 3, 3)), True, False),
+            ("lr-1's ASX block, its era included", swap(asx), True, False),
+            ("ASX without its era", asx_with({k: v for k, v in entry.items() if k != "eras"}), True, True),
+            ("ASX's era a day earlier", asx_with({**entry, "eras": [{**era, "period_end_before": "2004-06-29"}]}),
+             True, True),
+            ("ASX's era at 60 days", asx_with({**entry, "eras": [{**era, "days": 60}]}), True, True),
+            ("NSE with ASX's era", swap({**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "eras": [era]}}}),
+             True, True),
+            ("NSE at 59 days", swap({**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "days": 59}}}), True, True),
+            ("NSE's source changed", swap({**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "source": "x"}}}),
+             True, True),
+            ("another version", swap({**nse, "version": "lr-0"}), True, True),
+            ("a TSXV leg", swap({**nse, "markets": {"TSXV": {"days": 90, "source": "x"}}}), True, True),
+            ("a US leg with no dated count", swap(lag_block(us, 3, None)), True, True),
+            ("a US leg dating more rows than it has", swap(lag_block(us, 3, 4)), True, True),
+            ("a SET leg with a dated count", swap(lag_block(["SET"], 3, 0)), True, True),
+            ("rows counted as True", swap(lag_block(["SET"], True, None)), True, True),
+            ("negative rows", swap(lag_block(["SET"], -1, None)), True, True),
+            ("a block that is not a dict", swap("lr-1"), True, True),
+            ("a file with no data_checks block", {}, True, False))
+
+
 STATED = "stated = src.exists() and writes_turnover(ast.parse(src.read_text()))"
+LAGGED = "lagged = src.exists() and writes_lag_rule(ast.parse(src.read_text()))"
 GATE15_RESULTS_MUTANTS = {
     "BCE-PY.TO tested on the entry date": ('(r.get("exit_date") or "") >= BCE_PY_FROM',
                                            '(r.get("rebalance_date") or "") >= BCE_PY_FROM'),
@@ -3835,12 +3896,23 @@ GATE15_RESULTS_MUTANTS = {
     "a costed file that states no convention passed in a topic that writes one": (
         '    if stated and cm is not None and not (isinstance(cm, dict) and "turnover" in cm):\n', "    if False:\n"),
     "a no-costs file asked to state a convention": ("if stated and cm is not None and not (", "if stated and not ("),
-    "the committed files never handed to the results check": ("            why = dc_results_problem(res, stated)\n",
-                                                              "            why = None\n"),
+    "the committed files never handed to the results check": (
+        "            why = dc_results_problem(res, stated, lagged)\n", "            why = None\n"),
     "no topic read as writing its convention": (STATED, "stated = False"),
     "every topic read as writing its convention": (STATED, "stated = True"),
     "a turnover key anywhere in the source read as the convention": (
         'isinstance(k, ast.Constant) and k.value == "cost_model" and any(', "any("),
+    "no topic read as writing lag_rule": (LAGGED, "lagged = False"),
+    "every topic read as writing lag_rule": (LAGGED, "lagged = True"),
+    "a lag-rule topic's block not checked": ("    if lagged:\n", "    if False:\n"),
+    "a block other than lr-1's for its leg passed": ("    if b != lag_block(markets, rows, dated):\n",
+                                                     "    if False:\n"),
+    "a leg lr-1 gives no count passed": ("        LagRule().days(markets)\n", "        pass\n"),
+    "a US leg's dated count not checked": ("count(dated) and dated <= rows if us", "True if us"),
+    "a US leg with every row dated refused": ("count(dated) and dated <= rows if us", "count(dated) and dated < rows if us"),
+    "a dated count off the US passed": ("if us else dated is None", "if us else True"),
+    "rows counted as True passed": ("count = lambda x: type(x) is int and x >= 0",
+                                    "count = lambda x: isinstance(x, int) and x >= 0"),
 }
 
 

@@ -16,6 +16,7 @@ Usage:
     dates = generate_rebalance_dates(2000, 2025, "semi-annual")
 """
 
+import copy
 import json
 import math
 import os
@@ -1282,7 +1283,6 @@ class RunWindow:
 
     def for_leg(self, name):
         """This window for one leg: its own data_end, and a grid of its own."""
-        import copy
         w = copy.copy(self)
         w.data_end = (self.data_end_by_market or {}).get(name)
         w.partial_exit = w.last_rebalance = w.offset_days = w.period_days = None
@@ -4017,3 +4017,158 @@ class RowGuard:
         by_reason = {k: sum(p[k] for p in by_period) for k in self.reasons}
         return {"rule": self.rule, "dropped": sum(by_reason.values()), "by_reason": by_reason,
                 "by_period": by_period}
+
+
+# ---------------------------------------------------------------------------
+# Lag rule lr-1 (METHODOLOGY.md, Filing Lag): the day a fiscal-year row becomes readable. Opt-in per topic like the
+# universe rules: 52-week-high runs it, and every other topic keeps the 45-day lag until its own rerun.
+
+LAG_DAY = 86400
+_FOUR_MONTHS = "the annual financial report within four months of the year end"   # no national rule read
+_THREE_MONTHS = "full-year results within three months of the year end"            # no rule text read
+_INDIA = ("SEBI LODR Regulation 33(3)(d): audited annual results within sixty days from the end of the financial "
+          "year")
+_CHINA = ("CSRC Information Disclosure Measures (Order No. 226) Art. 13: the annual report within four months of the "
+          "year end")
+_KOREA = "FSCMA Art. 159(1): the business report within 90 days after the end of each business year"
+_TAIWAN = ("Securities and Exchange Act art. 36(1)(1): the audited annual financial report within three months of "
+           "the year end")
+_KLS = ("Bursa Malaysia Main Market Listing Requirements 9.22(1): each quarterly report, the fourth with the full "
+        "year's figures, not later than 2 months after the quarter end")
+_ASX = "ASX Listing Rule 4.3B: the preliminary final report (Appendix 4E) within two months of the year end"
+_JNB = "JSE Listings Requirements 6.43: the results announcement within three months of the financial year end"
+_SES = "SGX Mainboard Rule 705(1): the full-year financial statements not later than 60 days after the year end"
+LAG_MARKETS_V1 = {   # exchange: (days after the period end, the rule they come from)
+    "LSE": (120, "FCA DTR 4.1.3: the annual financial report at the latest four months after the year end"),
+    "XETRA": (120, "WpHG § 114(1) and HGB § 325(4): the annual financial report within four months of the year end"),
+    "STO": (120, "Lag (2007:528) 16 kap. 4 §: the annual report within four months of the year end"),
+    "OSL": (120, "Oslo Rule Book II 4.3.1: the annual report no later than four months after the year end"),
+    "MIL": (120, "TUF art. 154-ter(1): the annual financial report within four months of the year end"),
+    "WSE": (120, "Regulation of the Minister of Finance of 29 March 2018 § 79(7): the annual report no later than "
+                 "four months after the year end"),
+    "CPH": (120, "Nasdaq Copenhagen Supplement A rule 15: the annual financial report no later than four months "
+                 "after the year end"),
+    "HEL": (120, "Nasdaq Helsinki Supplement B rule 20(i): the annual financial statement no later than four months "
+                 "after the year end"),
+    "SIX": (120, "SIX Directive on Financial Reporting Art. 10(1): the annual report within four months of the "
+                 "balance sheet date"),
+    "SHZ": (120, _CHINA), "SHH": (120, _CHINA),
+    **{e: (120, _FOUR_MONTHS) for e in ("PAR", "BME", "AMS", "BRU", "LIS", "VIE")},
+    "HKSE": (90, "HKEX Main Board Listing Rule 13.49(1): the preliminary results not later than three months after "
+                 "the year end"),
+    "KSC": (90, _KOREA), "KOE": (90, _KOREA),
+    "TAI": (90, _TAIWAN + "; from 2024 the first release is the board-approved annual statements due within 75 days "
+                          "under the TWSE's Information Filing Rules art. 3"),
+    "TWO": (90, _TAIWAN),
+    "TSX": (90, "NI 51-102 s. 4.2(a): the audited annual financial statements by the 90th day after the year end "
+                "for a non-venture issuer"),
+    "SAO": (90, "CVM Resolution 80 Art. 27 § 2: the financial statements within three months of the year end for "
+                "a domestic issuer"),
+    "JPX": (90, "FIEA Art. 24(1): the securities report within three months after the end of the business year"),
+    **{e: (90, _THREE_MONTHS) for e in ("SET", "SAU", "JKT")},
+    "NSE": (60, _INDIA), "BSE": (60, _INDIA),
+    "KLS": (60, _KLS), "ASX": (60, _ASX), "JNB": (90, _JNB), "SES": (60, _SES),
+}
+LAG_ERAS_V1 = {   # exchange: its earlier deadlines, each for a row whose period end is before its date
+    "HKSE": [{"period_end_before": "2010-12-31", "days": 120}],   # Rule 13.49(1)'s four months
+    "SES": [{"period_end_before": "2003-12-31", "days": 90}],     # three months, a 12-month year begun before 2003
+    "ASX": [{"period_end_before": "2004-06-30", "days": 75}],     # the preliminary final report's 75 days
+}
+LAG_RULES_V1 = {
+    "version": "lr-1",
+    "rule": ("a fiscal-year row is read from its availability day: on NYSE, NASDAQ and AMEX the earliest filing date "
+             "the vendor holds for it, after its period end and within window_days of it, else no_date_days after "
+             "the period end; on any other exchange its market's days after the period end, the deadline its source "
+             "names, or for a period end before an era's period_end_before date the days of the earliest such era"),
+    "us": {"exchanges": list(US_EXCHANGES), "filing_date": "income_statement.filingDate", "window_days": 180,
+           "no_date_days": 105,
+           "source": ("Form 10-K General Instruction A.(2)(c): 90 days after the year end for a filer neither large "
+                      "accelerated nor accelerated, plus the 15 days of Rule 12b-25(b)(2)(ii)")},
+    "markets": {e: {"days": d, "source": s, **({"eras": LAG_ERAS_V1[e]} if e in LAG_ERAS_V1 else {})}
+                for e, (d, s) in LAG_MARKETS_V1.items()},
+}
+
+
+def us_filed_sql(sym_filter_sql, window_days):
+    """Each US FY row's earliest filing date after its period end and within window_days of it."""
+    return f"""
+        SELECT symbol, dateEpoch AS period_epoch, MIN(TRY_CAST(filingDate AS DATE)) AS filed
+        FROM income_statement
+        WHERE period = 'FY' AND {sym_filter_sql}
+          AND TRY_CAST(filingDate AS DATE) > TRY_CAST(date AS DATE)
+          AND TRY_CAST(filingDate AS DATE) <= TRY_CAST(date AS DATE) + {int(window_days)}
+        GROUP BY symbol, dateEpoch"""
+
+
+def lag_days_sql(days, eras):
+    """A row's days after its period end (filing_epoch) as SQL: the earliest-dated era whose period_end_before date
+    the period end is before, else days."""
+    whens = "".join(f" WHEN CAST(filing_epoch AS BIGINT) < {utc_epoch(date.fromisoformat(x['period_end_before']))}"
+                    f" THEN {int(x['days'])}" for x in sorted(eras, key=lambda x: x["period_end_before"]))
+    return f"(CASE{whens} ELSE {int(days)} END)" if eras else str(int(days))
+
+
+class LagRule:
+    """One leg's lag rule (cfg: LAG_RULES_V1): load() dates each FY row of a topic's caches (avail_epoch), and
+    block() is the results file's lag_rule block (screen inputs only: equal in drop, ltp and both)."""
+
+    def __init__(self, cfg=LAG_RULES_V1, exchanges=(), rows=0, us_dated=None):
+        """exchanges, rows and us_dated: a leg's counts as load() sets them, for a block built without a load."""
+        self.cfg = cfg
+        self.exchanges, self.us, self.rows, self.us_dated = tuple(exchanges), self.us_leg(exchanges), rows, us_dated
+
+    def us_leg(self, exchanges):
+        """True for a leg of one or more exchanges, every one of them a US exchange."""
+        return bool(exchanges) and all(e in self.cfg["us"]["exchanges"] for e in exchanges)
+
+    def schedule(self, exchanges):
+        """(days, eras): the leg's days after the period end for a row with no filing date, and its markets' eras.
+        A leg has one: ValueError for a leg with none, one that mixes markets of different days or eras (US and
+        others among them), or one with no entry."""
+        us, markets = self.cfg["us"], self.cfg["markets"]
+        if self.us_leg(exchanges):
+            return us["no_date_days"], []
+        days = [(markets.get(e) or {}).get("days") for e in exchanges or ()]
+        eras = [(markets.get(e) or {}).get("eras", []) for e in exchanges or ()]
+        if None in days or len(set(days)) != 1 or any(x != eras[0] for x in eras):
+            raise ValueError(f"lag rule {self.cfg['version']}: no one lag for the leg {list(exchanges or ())}")
+        return days[0], eras[0]
+
+    def days(self, exchanges):
+        """The leg's days for a row with no filing date and no era (schedule)."""
+        return self.schedule(exchanges)[0]
+
+    def load(self, client, con, exchanges, tables, sym_filter_sql, verbose=False):
+        """avail_epoch on every row of each table in `tables` (symbol, filing_epoch: FY rows by period end): the US
+        filing date where the vendor holds one (one query, US legs only), else filing_epoch plus the leg's days, or
+        the days of the earliest-dated era whose period_end_before date the period end is before."""
+        days, eras = self.schedule(exchanges)
+        self.exchanges = tuple(exchanges)
+        self.us = self.us_leg(exchanges)
+        con.execute("CREATE OR REPLACE TABLE lag_filed(symbol VARCHAR, period_epoch BIGINT, filed_epoch BIGINT)")
+        if self.us:
+            n = query_parquet(client, us_filed_sql(sym_filter_sql, self.cfg["us"]["window_days"]), con,
+                              "_lag_filed_raw", verbose=verbose)
+            if n:
+                con.execute("INSERT INTO lag_filed SELECT symbol, period_epoch, date_diff('second', TIMESTAMP"
+                            " '1970-01-01', CAST(filed AS TIMESTAMP)) FROM _lag_filed_raw")
+            con.execute("DROP TABLE _lag_filed_raw")
+        for t in tables:
+            con.execute(f"ALTER TABLE {t} ADD COLUMN avail_epoch BIGINT")
+            con.execute(f"UPDATE {t} SET avail_epoch = CAST(filing_epoch AS BIGINT) + {lag_days_sql(days, eras)}"
+                        f" * {LAG_DAY}")
+            con.execute(f"UPDATE {t} SET avail_epoch = f.filed_epoch FROM lag_filed f"
+                        f" WHERE f.symbol = {t}.symbol AND f.period_epoch = {t}.filing_epoch")
+        keys = " UNION ALL ".join(f"SELECT symbol, filing_epoch FROM {t}" for t in tables)
+        self.rows, dated = con.execute(f"SELECT count(*), count(f.filed_epoch) FROM (SELECT DISTINCT symbol,"
+                                       f" filing_epoch FROM ({keys})) k LEFT JOIN lag_filed f"
+                                       " ON f.symbol = k.symbol AND f.period_epoch = k.filing_epoch").fetchone()
+        self.us_dated = dated if self.us else None
+
+    def block(self):
+        us = self.cfg["us"]
+        markets = {e: {"days": us["no_date_days"], "source": us["source"]} if e in us["exchanges"]
+                   else copy.deepcopy(self.cfg["markets"][e]) for e in self.exchanges}
+        return {"version": self.cfg["version"], "rule": self.cfg["rule"],
+                "us": {k: us[k] for k in ("exchanges", "filing_date", "window_days", "no_date_days")},
+                "markets": markets, "counts": {"rows": self.rows, "us_filing_dated": self.us_dated}}

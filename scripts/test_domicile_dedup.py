@@ -427,7 +427,8 @@ FY_TABLES = {
     "income_statement": {
         "revenue": (790.0, 800.0, 820.0, 850.0, 900.0, 1000.0),         # growth 5.9% -> 11.1%: accelerating
         "netIncome": then(80.0, 100.0), "grossProfit": then(300.0, 400.0),
-        "weightedAverageShsOut": 1e12},                 # price x shares above every marketCap: dogs-of-dow sizes on the cap
+        "weightedAverageShsOut": 1e12,                  # price x shares above every marketCap: dogs-of-dow sizes on the cap
+        "filingDate": ""},                              # no date: 52-week-high's NYSE leg reads each row at 105 days
     "cash_flow_statement": {
         "freeCashFlow": rising(150.0, 10.0), "operatingCashFlow": 200.0,
         "commonDividendsPaid": -50.0},                  # covered 3x by free cash flow

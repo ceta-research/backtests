@@ -33,7 +33,8 @@ Gates:
                BCE-PY.TO in a period exiting on or after BCE_PY_FROM, and one whose cost_model
                states its turnover convention reproduces each row from its holdings_full
                (scripts/cost_conventions.py); where a topic's backtest.py writes that
-               convention, each of its committed files with a cost_model states one
+               convention, each of its committed files with a cost_model states one; where it
+               writes lag_rule, each of its committed data-checks files carries lr-1's block
 
 Usage:  python scripts/verify_floor_guard.py
 """
@@ -45,9 +46,10 @@ import re
 import subprocess
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+sys.path[:0] = [str(pathlib.Path(__file__).resolve().parent), str(pathlib.Path(__file__).resolve().parent.parent)]
 import cost_conventions   # noqa: E402  (gate 15 on a results file that states its cost convention)
 import factor_review   # noqa: E402  (gate 15 on dc-3 results)
+from data_utils import LAG_RULES_V1, LagRule   # noqa: E402  (gate 15 on a lag-rule topic's results)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FLOOR_NAMES = ("MIN_STOCKS", "MIN_PORTFOLIO_STOCKS")
@@ -735,19 +737,57 @@ def writes_turnover(tree):
     return False
 
 
-def dc_results_problem(res, stated=False):
+def writes_lag_rule(tree):
+    """True for a backtest.py that writes a lag_rule key into a dict: its results carry lag rule lr-1's block
+    (data_utils.LagRule)."""
+    return any(isinstance(n, ast.Dict) and any(isinstance(k, ast.Constant) and k.value == "lag_rule" for k in n.keys)
+               for n in ast.walk(tree))
+
+
+def lag_block(exchanges, rows, us_dated):
+    """LagRule's block for a leg of these exchanges with these counts: what lr-1 writes into a results file."""
+    return LagRule(exchanges=exchanges, rows=rows, us_dated=us_dated).block()
+
+
+def lag_results_problem(res):
+    """Why a lag-rule topic's results file can't stand on its lag_rule block, or None: the block is lr-1's for the
+    leg's exchanges (its version, rule, US settings, and each market's days, source and eras), rows is a whole number,
+    and us_filing_dated one of at most rows on a US leg and null on any other."""
+    b = res.get("lag_rule")
+    if not isinstance(b, dict) or not isinstance(b.get("markets"), dict) or not isinstance(b.get("counts"), dict):
+        return "no lag_rule block with its markets and counts: the topic's backtest.py writes one (rerun the leg)"
+    markets, rows, dated = list(b["markets"]), b["counts"].get("rows"), b["counts"].get("us_filing_dated")
+    try:
+        LagRule().days(markets)
+    except ValueError as e:
+        return f"lag_rule markets: {e}"
+    if b != lag_block(markets, rows, dated):
+        return f"lag_rule is not {LAG_RULES_V1['version']}'s block for {markets}: a stale rule, US setting or market entry"
+    count = lambda x: type(x) is int and x >= 0
+    us = LagRule().us_leg(markets)
+    if not count(rows) or not (count(dated) and dated <= rows if us else dated is None):
+        return f"lag_rule counts {b['counts']}: us_filing_dated is at most rows on a US leg and null elsewhere"
+    return None
+
+
+def dc_results_problem(res, stated=False, lagged=False):
     """Why a results file of an opted-in topic can't be committed, or None. A file with no data_checks
     block predates the opt-in; the uncapped attribution arm is never published; BCE-PY.TO is held only in
     periods that exit before BCE_PY_FROM (res and its rows may lack keys: the self-test probes do); a file
     whose cost_model states its turnover convention carries holdings_full, and each row reproduces from it.
     stated: the topic's backtest.py writes that convention (writes_turnover), so a file of its with a cost_model
-    must state one: a file that doesn't comes from older code."""
+    must state one: a file that doesn't comes from older code. lagged: it writes lag_rule (writes_lag_rule), so a
+    file of its carries lr-1's block (lag_results_problem)."""
     if not isinstance(res, dict) or "data_checks" not in res:
         return None
     b = res["data_checks"]
     mode = b.get("mode") if isinstance(b, dict) else None
     if mode != "on":
         return f"data_checks mode {mode!r}: only mode 'on' is published"
+    if lagged:
+        why = lag_results_problem(res)
+        if why:
+            return why
     bce = [r.get("rebalance_date") for r in res.get("period_data") or []
            if "BCE-PY.TO" in held_symbols(r) and (r.get("exit_date") or "") >= BCE_PY_FROM]
     if bce:
@@ -767,18 +807,19 @@ def dc_results_problem(res, stated=False):
 def dc_committed_problems(root):
     """(n, problems) over the committed results/*.json of every opted-in topic under root: n files that carry a
     data_checks block, and (path, why) for each file dc_results_problem refuses. Each topic's files are read with
-    what its own backtest.py says of the turnover convention."""
+    what its own backtest.py says of the turnover convention and the lag rule."""
     n, found = 0, []
     for t in DATA_CHECKS_TOPICS:
         src = root / t / "backtest.py"
         stated = src.exists() and writes_turnover(ast.parse(src.read_text()))
+        lagged = src.exists() and writes_lag_rule(ast.parse(src.read_text()))
         for p in sorted((root / t / "results").rglob("*.json")):
             try:
                 res = json.loads(p.read_text())
             except ValueError:
                 continue
             n += isinstance(res, dict) and "data_checks" in res
-            why = dc_results_problem(res, stated)
+            why = dc_results_problem(res, stated, lagged)
             if why:
                 found.append((str(p.relative_to(root)), why))
     return n, found
@@ -1839,7 +1880,7 @@ def main():
           f"{len(DATA_CHECKS_TOPICS) - len({t for t, _, _ in wiring15})}/{len(DATA_CHECKS_TOPICS)} opted-in "
           f"topics fully wired ({sum(used15.values())} uses); {n_res15} committed results carry a data_checks "
           f"block, {len(results15)} with a problem (not mode on, a hand-list fault, a cost convention that isn't "
-          f"stated or doesn't reproduce, or BCE-PY.TO in a period exiting from {BCE_PY_FROM})")
+          f"stated or doesn't reproduce, no or stale lag_rule, or BCE-PY.TO in a period exiting from {BCE_PY_FROM})")
     for b in stray15:
         print("    NOT OPTED IN:", b)
     for b in wiring15:
@@ -1945,6 +1986,41 @@ def main():
         if bool(got) != want:
             print(f"    SELF-TEST FAIL: gate 15 reads {label} wrong")
             fails.append(("gate 15 convention probe", label))
+    # A topic whose backtest.py writes lag_rule: each data-checks file of its carries lr-1's block for its leg.
+    on = {"data_checks": {"mode": "on"}}
+    lags = lambda block: dc_results_problem({**on, "lag_rule": block}, lagged=True)
+    us, nse = LAG_RULES_V1["us"]["exchanges"], lag_block(["NSE"], 3, None)
+    nse59 = {**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "days": 59}}}
+    hk = lag_block(["HKSE"], 3, None)
+    hk_entry, hk_era = hk["markets"]["HKSE"], hk["markets"]["HKSE"]["eras"][0]
+    hk_with = lambda entry: {**hk, "markets": {"HKSE": entry}}
+    for label, got, want in (
+            ("a file without lag_rule, in a topic that writes it", dc_results_problem(on, lagged=True), True),
+            ("lr-1's block for NSE", lags(nse), False),
+            ("lr-1's block for the US", lags(lag_block(us, 3, 2)), False),
+            ("lr-1's block for a US leg with every row dated", lags(lag_block(us, 3, 3)), False),
+            ("lr-1's block for HKSE, its era included", lags(hk), False),
+            ("an HKSE block without its era", lags(hk_with({k: v for k, v in hk_entry.items() if k != "eras"})), True),
+            ("an HKSE block with its era a day later",
+             lags(hk_with({**hk_entry, "eras": [{**hk_era, "period_end_before": "2011-01-01"}]})), True),
+            ("an HKSE block with its era at 90 days",
+             lags(hk_with({**hk_entry, "eras": [{**hk_era, "days": 90}]})), True),
+            ("an NSE block with an era", lags({**nse, "markets": {"NSE": {**nse["markets"]["NSE"], "eras": [hk_era]}}}),
+             True),
+            ("a block with NSE at 59 days", lags(nse59), True),
+            ("a block of another version", lags({**nse, "version": "lr-0"}), True),
+            ("a TSXV block", lags({**nse, "markets": {"TSXV": {"days": 90}}}), True),
+            ("a US block with no dated count", lags(lag_block(us, 3, None)), True),
+            ("a US block dating more rows than it has", lags(lag_block(us, 3, 4)), True),
+            ("an NSE block with a dated count", lags(lag_block(["NSE"], 3, 0)), True),
+            ("a block counting True rows", lags(lag_block(["NSE"], True, None)), True),
+            ("a block that is not a dict", lags("lr-1"), True),
+            ("a file without lag_rule, in a topic that writes none", dc_results_problem(on), False),
+            ("a backtest that writes lag_rule", writes_lag_rule(ast.parse('out.update({"lag_rule": lag.block()})\n')), True),
+            ("lag_rule outside a dict", writes_lag_rule(ast.parse('lag_rule = lag.block()\nkey = "lag_rule"\n')), False)):
+        if bool(got) != want:
+            print(f"    SELF-TEST FAIL: gate 15 reads {label} wrong")
+            fails.append(("gate 15 lag-rule probe", label))
 
     print()
     print("ALL GATES PASS" if not fails else f"GATE FAILURES: {len(fails)}")

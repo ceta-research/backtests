@@ -19,7 +19,8 @@ Universe: ordinary shares only (data_utils universe rules ur-4, METHODOLOGY.md):
         company holds one line; a line whose earlier history copies another line's enters on its first own day
         (ur-4 line_starts), its 252-bar frame starting there too when those bars are another company's or
         instrument's (lookback_clip); a line whose later rows are not its listing's leaves after its last own day
-        (line_ends). MCap > exchange threshold (key_metrics FY, check M's cap_used). Price > $1.
+        (line_ends). MCap > exchange threshold (key_metrics FY readable under lag rule lr-1, check M's cap_used).
+        Price > $1.
 Portfolio: Equal weight top 30. Cash if < 10 qualify.
 Rebalancing: Quarterly (Jan/Apr/Jul/Oct), from 2000 to the latest close (METHODOLOGY.md, "Run Window").
 Costs: costs.tiered_cost on each booked name's cap_used, its USD tiers converted at the leg's
@@ -61,7 +62,8 @@ from data_utils import (query_parquet, get_prices, RunWindow, with_partial_year,
                         campaign_listing_condition, campaign_listing_label, isin_dedup_sql, load_isin_map,
                         DATA_CHECKS_V3, DataChecks, clean_price_cache, mark_nvdr_twins, load_cap_check,
                         load_splits, empty_cap_check, cap_used_sql, CAP_FAIL_TEST,
-                        UniverseRules, load_universe, UNIVERSE_RULES_V4, without_lines_sql, RowGuard, guarded_sql)
+                        UniverseRules, load_universe, LagRule, LAG_RULES_V1, UNIVERSE_RULES_V4, without_lines_sql,
+                        RowGuard, guarded_sql)
 from metrics import (compute_metrics, format_metrics,
                      period_accounting)
 from costs import tiered_cost, trade_costs, get_fx_per_usd
@@ -82,6 +84,7 @@ MIN_ENTRY_PRICE = 1.0        # Skip sub-$1 entry prices (price data artifacts)
 # hand list) clean the inputs, and every kept move over +100% or under -50% is listed in the results.
 DATA_CHECKS = DATA_CHECKS_V3
 UNIVERSE_RULES = UNIVERSE_RULES_V4
+LAG_RULES = LAG_RULES_V1
 # The booked series, each with its own book: the main one, and under --exit-method both the LTP one.
 SERIES = ("portfolio_return", "portfolio_return_ltp")
 
@@ -91,12 +94,12 @@ FETCH_THREADS = 2
 
 
 def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap_min=None, dc=None, ur=None,
-                       win=None):
+                       win=None, lag=None):
     """Fetch all data needed for 52-week high proximity backtest.
 
     Populates DuckDB tables:
         universe(symbol VARCHAR): ordinary lines only
-        metrics_cache(symbol, marketCap, filing_epoch, period)
+        metrics_cache(symbol, marketCap, filing_epoch, period, avail_epoch)
             -- used for point-in-time market cap filter only
         prices_cache(symbol, trade_epoch, adjClose, close, high, volume)
             -- extended window: 52W lookback + entry date per rebalance date
@@ -106,10 +109,13 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     cleans the grid's windows [d, d + 11] only: a lookback keeps the rows outside them (untraded rows among them).
     ur: a data_utils.UniverseRules (UNIVERSE_RULES), which records the lines the ordinary-shares rule removes.
     win: the leg's data_utils.RunWindow; its fetch_end cuts the price windows at the run's end date.
+    lag: a data_utils.LagRule (LAG_RULES), which dates each FY row's availability day (avail_epoch).
     Returns DuckDB connection or None.
     """
     checks = dc is not None and dc.on
     ur = ur if ur is not None else UniverseRules(UNIVERSE_RULES)
+    lag = lag if lag is not None else LagRule(LAG_RULES)
+    lag.days(exchanges)   # refuses, before any query, a leg lr-1 gives no one count
     win = win if win is not None else RunWindow.typed()
     # Campaign listing rule; sym_filter_sql carries it into the market-cap and price fetches.
     listing_cond = campaign_listing_condition(exchanges)
@@ -154,6 +160,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     count = query_parquet(client, metrics_sql, con, "metrics_cache", verbose=verbose,
                           memory_mb=FETCH_MEMORY_MB, threads=FETCH_THREADS)
     print(f"    -> {count} market cap rows")
+    lag.load(client, con, exchanges, ["metrics_cache"], sym_filter_sql, verbose=verbose)
 
     # Check M (the floor reads cap_used) and the splits check F flags; cap_check stays empty when off.
     # metrics_cache keeps FY rows with no ROE, so check M reads every FY row over the floor.
@@ -255,10 +262,10 @@ def _candidates_sql(target_date, cap_test, events=False, clips=None):
     """The screen's candidates on target_date among the lines in `universe` with a bar in the lookback, each with
     its proximity ratio, market cap and signal_guard (SignalGuard.RULE's reason; NULL when ranked).
 
-    The floor reads cap_used (check M): each line's latest FY row dated by the 45-day cutoff (the first `?`), its
-    cap over check M's divisor, NULL for an ineligible row. cap_test is the floor clause ("km.cap_used > ?", or
-    CAP_FAIL_TEST for M's events, which also read km_epoch and raw_cap). The candidates carry cap_used as
-    marketCap, so the tie-break and the cost tier read it. clips: _frame_start_sql's.
+    The floor reads cap_used (check M): each line's latest FY row readable on the rebalance date (avail_epoch <= R,
+    the first `?`; data_utils.LagRule), its cap over check M's divisor, NULL for an ineligible row. cap_test is the
+    floor clause ("km.cap_used > ?", or CAP_FAIL_TEST for M's events, which also read km_epoch and raw_cap). The
+    candidates carry cap_used as marketCap, so the tie-break and the cost tier read it. clips: _frame_start_sql's.
 
     proximity_ratio = close(S) / MAX(high) over the 252 bars ending at S, untraded (zero or NULL volume)
     bars included, S being the latest bar in [R - 10d, R] with volume > 0; a line with no such bar, or with fewer
@@ -285,7 +292,7 @@ def _candidates_sql(target_date, cap_test, events=False, clips=None):
                 ROW_NUMBER() OVER (PARTITION BY m.symbol ORDER BY m.filing_epoch DESC, m.marketCap DESC NULLS LAST) AS rn
             FROM metrics_cache m
             LEFT JOIN cap_check cc ON cc.symbol = m.symbol AND cc.filing_epoch = m.filing_epoch
-            WHERE m.filing_epoch <= ?
+            WHERE m.avail_epoch <= ?
         ),
         eligible AS (
             SELECT km.symbol, km.cap_used AS marketCap{extra}
@@ -352,7 +359,7 @@ def screen_stocks(con, target_date, mktcap_min, verbose=False, offset_days=1, dc
     (SignalGuard) records the unranked candidates.
     Returns list of (symbol, market_cap, proximity_ratio), the market cap being cap_used.
     """
-    cutoff_epoch = utc_epoch(target_date - timedelta(days=45))
+    cutoff_epoch = utc_epoch(target_date)
     late = ur.not_started(target_date) if ur is not None else []
     gone = ur.ended(target_date) if ur is not None else []
     left_out = late + gone
@@ -644,6 +651,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     dc = DataChecks(data_checks, DATA_CHECKS, full_holdings=full_holdings)
     ur = UniverseRules(UNIVERSE_RULES)
     guard = SignalGuard()
+    lag = LagRule(LAG_RULES)
     fx = get_fx_per_usd(exchanges)   # local currency per USD: the cost tiers' breakpoints in the leg's currency
     mktcap_threshold = get_mktcap_threshold(exchanges)
 
@@ -663,7 +671,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     rebalance_dates = win.grid(2000, frequency, months=DEFAULT_REBALANCE_MONTHS, offset_days=offset_days)
     t0 = time.time()
     con = fetch_data_via_api(cr, exchanges, rebalance_dates, verbose=verbose,
-                             mktcap_min=mktcap_threshold, dc=dc, ur=ur, win=win)
+                             mktcap_min=mktcap_threshold, dc=dc, ur=ur, win=win, lag=lag)
     if con is None:
         print("No data available. Skipping.")
         return None
@@ -736,6 +744,7 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     output.update({
         "universe_rules": ub,            # the fetch's removals and the screen's stand-ins: equal in drop, ltp and both
         "signal_guard": gb,              # the screen only: equal in drop, ltp and both
+        "lag_rule": lag.block(),         # the screen's FY reads: equal in drop, ltp and both
         "cost_model": {"function": "costs.tiered_cost", "fx_per_usd": fx, "turnover": "trades"} if use_costs else None,
     })
     if ltp_block:
@@ -895,6 +904,7 @@ def main():
         return
 
     # Single exchange mode
+    LagRule(LAG_RULES).days(exchanges)   # refuses a leg lr-1 gives no one count, before the run window's query
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     win = RunWindow.from_args(args, cr, {universe_name: exchanges})

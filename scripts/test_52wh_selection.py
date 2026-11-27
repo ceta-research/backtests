@@ -29,6 +29,16 @@ REIT is out on JPX and kept on another leg; a fund the fetch caches is never ran
 and CLR rank on their last own day and not the day after; GETY, a lookback_clip start, ranks on its own bars
 only, its first own day's among them, and DOC, a rename, on the 252 bars ending at its signal bar.
 
+Lag rule lr-1 (data_utils.LagRule), through the topic's fetch: the size floor, the book's cap and the tie-break read
+each line's latest FY row readable on the rebalance date. On NSE that is 60 days after the period end: a row 60 days
+old is read and one 59 days old is not (EDGE_LAG and IN_LAG among the signal lines, EDGE60 and IN59 in the lag case),
+and DEADLINE's row, 50 days old and under the floor, which the 45-day lag read, waits while its FY2019 row holds the
+line over the floor. On NYSE a row is read from its filing date: on the rebalance date itself (US_ON), not the day
+before its filing (US_NEXT ranks on its older row), and before day 45 (US_EARLY); a row with no filing date is read 105
+days after its period end (US_ND105) and not 104 (US_ND104). lr-1 has a day count for the exchanges of every preset
+--global runs, and run_single and main refuse a TSXV leg before they send a query. Their mutants must trip a wrong book, not
+an error.
+
 Check T on the ranking cache, with data checks on: on a closed rebalance date a line's traded copy moves, so the
 line ranks on its last traded bar before it, while a copy 40 days back, outside every fetch window, stays in the
 lookback. The fetch runs check T, its sibling rule on, before the oscillation filter: a one-day spike outside every
@@ -41,7 +51,8 @@ holdings_full, every booked name in that order, changing nothing else; check N k
 line, which holds the slot, and the NVDR stands in for an ordinary line with no entry bar; check M reads INFL.BK's
 FY rows, which carry no ROE, so its inflated cap fails the floor at every rebalance and it is never held; the SAO
 company's preferred line stands in for its ordinary line in every invested book. The results file carries data_checks,
-universe_rules, signal_guard (its count on every rebalance, equal in drop and ltp) and cost_model after
+universe_rules, signal_guard (its count on every rebalance, equal in drop and ltp), lag_rule (lr-1's block for SET,
+its rows counted and none dated by a filing, equal in drop, ltp and the no-costs run) and cost_model after
 isin_dedup (the tiers at 35 baht a dollar on the "trades" convention, its keys in the order function, fx_per_usd,
 turnover, and null on --no-costs), the fetch asks for no
 MTUM, entry_unpriced and the data checks' counts on each row, and in each holdings_full item the name's one-way
@@ -117,7 +128,8 @@ PREV = date(2020, 1, 1)                 # the rebalance date before R: its fetch
 EX = "NSE"                              # a leg with no listing rule
 FLOOR = 5e8
 FY18, FY19 = date(2018, 12, 31), date(2019, 12, 31)
-AT_CUTOFF, IN_LAG = D - timedelta(days=45), D - timedelta(days=44)
+NSE_DAYS = du.LAG_RULES_V1["markets"][EX]["days"]   # lag rule lr-1: an NSE row is readable 60 days after its period end
+AT_CUTOFF, IN_LAG = D - timedelta(days=NSE_DAYS), D - timedelta(days=NSE_DAYS - 1)
 
 
 def ep(d):
@@ -152,12 +164,13 @@ def untraded(bars, days, **cols):
     return bars
 
 
-def line(bars, cap=1e10, isin=None, filings=None, after=((1, 5.0),), dup=(), at=D, **profile):
+def line(bars, cap=1e10, isin=None, filings=None, after=((1, 5.0),), dup=(), at=D, filed=(), **profile):
     """One listing. `after`: (day, adjClose) bars past R, each closing on a new high the signal must not read.
-    Bars are keyed by days from `at` (default D). profile: its profile row's other columns (companyName, isFund,
-    industry ...)."""
+    Bars are keyed by days from `at` (default D). filed: (period end, filingDate) rows of its income_statement, which
+    a US leg's lag rule reads. profile: its profile row's other columns (companyName, isFund, industry ...)."""
     rows = [(k, *v) for k, v in bars.items()] + [(k, adj, 1000.0, 1000.0, 1e6) for k, adj in after] + list(dup)
-    return {"bars": rows, "filings": filings or [(FY19, cap)], "isin": isin, "at": at, "profile": profile}
+    return {"bars": rows, "filings": filings or [(FY19, cap)], "isin": isin, "at": at, "filed": list(filed),
+            "profile": profile}
 
 
 SIGNAL = {
@@ -213,7 +226,7 @@ SIGNAL = {
     "CAP_OUT": line(bar(flat(120, 1000.0), 0, adj=1101.0, close=1101.0)),
     # under the floor, and stale: the signal guard counts only the lines over the floor
     "SMALL_STALE": line(flat(120, end=-11), cap=FLOOR),
-    # size floor on the latest filing at the 45-day cutoff
+    # size floor on the latest filing readable on R (NSE's 60 days under lag rule lr-1)
     "ABOVE": line(flat(120), cap=FLOOR + 1),
     "AT_FLOOR": line(flat(120), cap=FLOOR),
     "EDGE_LAG": line(flat(120), filings=[(AT_CUTOFF, 5e10)]),
@@ -253,6 +266,20 @@ CAP_RULES = {"DIV_AT": ("cap_over_k", 10.0), "DIV_OVER": ("cap_over_k", 10.0), "
              "TIE_RAW": ("cap_over_k", 100.0), "INELIG_STALE": ("ineligible", None)}
 CAP_EVENTS = [("DIV_AT", "cap_over_k"), ("INELIG", "ineligible")]   # over the floor on the raw cap, not on cap_used
 SIGNAL_GUARD = {"no_traded_bar": 2, "short_history": 1}   # STALE and TV_STALE; H99
+# Lag rule lr-1: NSE's rows wait 60 days, where the 45-day lag read DEADLINE's 50-day-old row (under the floor: out)
+# and IN59; a NYSE row is read from its filing date, else 105 days after its period end. Each line's older FY row is
+# the one read while its latest isn't.
+LAG_NSE = {"DEADLINE": line(flat(120), filings=[(FY19, 4.4e10), (D - timedelta(days=50), 1e5)]),
+           "EDGE60": line(flat(120), filings=[(AT_CUTOFF, 5.1e10)]),
+           "IN59": line(flat(120), filings=[(IN_LAG, 5.2e10)])}
+US_P, US_EARLY_P = D - timedelta(days=70), D - timedelta(days=30)
+LAG_US = {"US_ON": line(flat(120), filings=[(FY18, 3.1e10), (US_P, 4.1e10)], filed=[(US_P, D.isoformat())]),
+          "US_NEXT": line(flat(120), filings=[(FY18, 3.2e10), (US_P, 4.2e10)],
+                          filed=[(US_P, (D + timedelta(days=1)).isoformat())]),
+          "US_EARLY": line(flat(120), filings=[(FY18, 3.5e10), (US_EARLY_P, 4.5e10)],
+                           filed=[(US_EARLY_P, (D - timedelta(days=5)).isoformat())]),
+          "US_ND104": line(flat(120), filings=[(FY18, 3.3e10), (D - timedelta(days=104), 4.3e10)]),
+          "US_ND105": line(flat(120), filings=[(FY18, 3.4e10), (D - timedelta(days=105), 4.4e10)])}
 
 
 def signal_book(off, e11):
@@ -278,6 +305,9 @@ EXPECT = {
     "check M's events": CAP_EVENTS,
     "signal guard": {"keys": ["rule", "dropped", "by_reason", "by_period"], "dropped": 3, "by_reason": SIGNAL_GUARD,
                      "by_period": [{"rebalance_date": D.isoformat(), **SIGNAL_GUARD}]},
+    "lag rule, NSE": [("EDGE60", 5.1e10, 1.0), ("DEADLINE", 4.4e10, 1.0)],
+    "lag rule, NYSE": [("US_EARLY", 4.5e10, 1.0), ("US_ND105", 4.4e10, 1.0), ("US_ON", 4.1e10, 1.0),
+                       ("US_ND104", 3.3e10, 1.0), ("US_NEXT", 3.2e10, 1.0)],
 }
 
 
@@ -296,11 +326,17 @@ PROFILE = (("isin", "VARCHAR"), ("isActivelyTrading", "BOOLEAN"), ("currency", "
 
 def seed(uni, ex):
     """The made-up warehouse on leg `ex`: profile (the isin map's and the universe rules' columns: each line named by
-    its symbol, live, in the leg's currency, no fund or ADR flag unless its profile says), key_metrics, stock_eod."""
+    its symbol, live, in the leg's currency, no fund or ADR flag unless its profile says), key_metrics, stock_eod, and
+    income_statement with the lines' filing dates (filingDate VARCHAR, as the warehouse holds it)."""
     src = duckdb.connect()
     src.execute("CREATE TABLE profile(symbol VARCHAR, exchange VARCHAR, "
                 + ", ".join(f"{c} {t}" for c, t in PROFILE) + ")")
     src.execute("CREATE TABLE key_metrics(symbol VARCHAR, marketCap DOUBLE, dateEpoch BIGINT, period VARCHAR)")
+    src.execute("CREATE TABLE income_statement(symbol VARCHAR, period VARCHAR, date VARCHAR, dateEpoch BIGINT,"
+                " filingDate VARCHAR)")
+    filed = [(s, "FY", p.isoformat(), ep(p), f) for s, x in uni.items() for p, f in x["filed"]]
+    if filed:
+        src.execute("INSERT INTO income_statement VALUES " + values(filed))
     src.execute("CREATE TABLE stock_eod(symbol VARCHAR, date DATE, dateEpoch BIGINT, adjClose DOUBLE, close DOUBLE,"
                 " high DOUBLE, volume DOUBLE)")
     base = {"isActivelyTrading": True, "currency": du.leg_quote_currency([ex]), "cik": None, "isFund": False,
@@ -330,6 +366,7 @@ def failures(src):
         # [PREV, D]: bars older than R-390 are in the cache, as on every date but a run's first; [D]: the first
         sig, first, cut = cache(mod, SIGNAL, [PREV, D]), cache(mod, SIGNAL, [D]), cache(mod, CUT, [PREV, D])
         caps = cache(mod, CAPS, [PREV, D])
+        lag_nse, lag_us = cache(mod, LAG_NSE, [PREV, D]), cache(mod, LAG_US, [PREV, D], ex="NYSE")
         caps.executemany("INSERT INTO cap_check (symbol, filing_epoch, rule, cap_div) VALUES (?, ?, ?, ?)",
                          [(s, ep(FY19), rule, div) for s, (rule, div) in CAP_RULES.items()])
         du.mark_nvdr_twins(caps)   # the twin key's columns, as a data-checks run has them
@@ -338,11 +375,13 @@ def failures(src):
                "signal, entry same day": mod.screen_stocks(sig, D, FLOOR, offset_days=0),
                "signal, first rebalance date": mod.screen_stocks(first, D, FLOOR, offset_days=1),
                "ties at the cut": mod.screen_stocks(cut, D, FLOOR, offset_days=1),
-               "check M": mod.screen_stocks(caps, D, FLOOR, offset_days=1, dc=dc)}
+               "check M": mod.screen_stocks(caps, D, FLOOR, offset_days=1, dc=dc),
+               "lag rule, NSE": mod.screen_stocks(lag_nse, D, FLOOR, offset_days=1),
+               "lag rule, NYSE": mod.screen_stocks(lag_us, D, FLOOR, offset_days=1)}
         got["check M's events"] = sorted((e["symbol"], e["rule"]) for e in dc.events if e["check"] == "cap")
         b = guard.block()
         got["signal guard"] = {"keys": list(b), **{k: b[k] for k in ("dropped", "by_reason", "by_period")}}
-        for con in (sig, first, cut, caps):
+        for con in (sig, first, cut, caps, lag_nse, lag_us):
             con.close()
     except Exception as e:  # a mutant that breaks the module fails loudly
         return [f"error: {type(e).__name__}: {e}"]
@@ -357,7 +396,9 @@ START_BAR = "              AND trade_epoch >= {start_epoch}\n"
 START = "    start_epoch = utc_epoch(target_date - timedelta(days=HIGH_WINDOW_FETCH))\n"   # the screen's window start
 FETCH_START = "fetch_start = d - timedelta(days=HIGH_WINDOW_FETCH)\n"                      # the fetch's
 TARGET = "    target_epoch = utc_epoch(target_date)\n"
-LAG = "cutoff_epoch = utc_epoch(target_date - timedelta(days=45))"
+LAG = "cutoff_epoch = utc_epoch(target_date)"                                         # lag rule lr-1: the rebalance date
+CUT_AT = "            WHERE m.avail_epoch <= ?\n"                                       # a row readable by then
+LOAD = '    lag.load(client, con, exchanges, ["metrics_cache"], sym_filter_sql, verbose=verbose)\n'   # the fetch dates rows
 CUT_BY = "ORDER BY proximity_ratio DESC, marketCap DESC NULLS LAST, symbol\n"
 WRAP = "FROM ({isin_dedup_sql(pool, target_date, offset_days, MIN_ENTRY_PRICE,"
 TWIN_KEY = 'twin_key=(dc is not None and dc.on) or bool(UNIVERSE_RULES.get("class_twins")))'
@@ -392,6 +433,16 @@ TRADED_MUTANTS = {
     "traded-only fetch": (FETCH_PASS, FETCH_PASS + "          AND volume > 0\n"),
     "zero-volume duplicate sorts before the traded bar (ascending volume)": (FRAMES_BY, FRAMES_BY.replace(" DESC NULLS LAST", "")),
     "NULL-volume duplicate sorts before the traded bar": (FRAMES_BY, FRAMES_BY.replace("NULLS LAST", "NULLS FIRST")),
+}
+# Lag rule lr-1's mutants: each must trip a check on a wrong book, not an error.
+LAG_MUTANTS = {
+    "the 45-day cutoff back": (CUT_AT, "            WHERE m.filing_epoch <= ? - 45 * 86400\n"),
+    "the period end, not the availability day": (CUT_AT, "            WHERE m.filing_epoch <= ?\n"),
+    "availability exclusive": (CUT_AT, "            WHERE m.avail_epoch < ?\n"),
+    "cutoff a day late": (LAG, LAG.replace("target_date)", "target_date + timedelta(days=1))")),
+    "cutoff a day early": (LAG, LAG.replace("target_date)", "target_date - timedelta(days=1))")),
+    "the fetch dates rows the old way": (LOAD, '    con.execute("ALTER TABLE metrics_cache ADD COLUMN avail_epoch BIGINT")\n'
+                                               '    con.execute("UPDATE metrics_cache SET avail_epoch = filing_epoch + 45 * 86400")\n'),
 }
 MUTANTS = {
     # the old bug and its neighbours: any dividend adjustment on either side of the ratio
@@ -439,18 +490,15 @@ MUTANTS = {
     "a stale line counted as short history": ("THEN 'no_traded_bar'", "THEN 'short_history'"),
     "check M's events on unranked lines": ("_signaled(without_lines_sql(sql(CAP_FAIL_TEST, events=True), left_out))",
                                            "without_lines_sql(sql(CAP_FAIL_TEST, events=True), left_out)"),
-    # the size floor: latest filing at the 45-day cutoff first, then the test on cap_used (check M)
+    # the size floor: the latest readable filing first (lag rule lr-1), then the test on cap_used (check M)
     "size floor inclusive": (FLOOR_TEST, 'sql("km.cap_used >= ?")'),
     "no size floor": (FLOOR_TEST, 'sql("? IS NOT NULL")'),
     "the floor on the raw cap": (FLOOR_TEST, 'sql("km.marketCap > ?")'),
     "the book and the tie-break on the raw cap": ("SELECT km.symbol, km.cap_used AS marketCap",
                                                   "SELECT km.symbol, km.marketCap AS marketCap"),
     "check M's events not recorded": ("dc.caps(con, ", "(lambda *a: None)(con, "),
-    "size test before latest": ("            WHERE m.filing_epoch <= ?\n",
-                                "            WHERE m.filing_epoch <= ? AND m.marketCap > 500000000\n"),
-    "no lag": (LAG, "cutoff_epoch = utc_epoch(target_date)"),
-    "lag a day short": (LAG, LAG.replace("45", "44")),
-    "lag a day long": (LAG, LAG.replace("45", "46")),
+    "size test before latest": (CUT_AT, "            WHERE m.avail_epoch <= ? AND m.marketCap > 500000000\n"),
+    **LAG_MUTANTS,
     # the cut: proximity, then larger cap, then symbol, 30 names
     "ties by symbol only (the old cut)": (CUT_BY, "ORDER BY proximity_ratio DESC, symbol\n"),
     "smaller cap first": (CUT_BY, CUT_BY.replace("marketCap DESC", "marketCap ASC")),
@@ -495,6 +543,12 @@ SET_RATE = 0.005   # the synthetic caps, about 5e10 baht, are about 1.4B dollars
 # but the first, short_history when a bar falls in the 10 days to R (71 each) and no_traded_bar otherwise (31 each);
 # and DLST.BK's four quarters from its delisting until its last bar leaves the lookback (no_traded_bar)
 SET_GUARD = {"no_traded_bar": 66, "short_history": 142}
+# lag rule lr-1's block on the SET leg: 90 days, every FY row the fetch caches counted, none dated by a filing (not US)
+SET_LAG = {"version": "lr-1", "rule": du.LAG_RULES_V1["rule"],
+           "us": {"exchanges": ["NYSE", "NASDAQ", "AMEX"], "filing_date": "income_statement.filingDate",
+                  "window_days": 180, "no_date_days": 105},
+           "markets": {"SET": {"days": 90, "source": du.LAG_RULES_V1["markets"]["SET"]["source"]}},
+           "counts": {"rows": 864, "us_filing_dated": None}}
 NO_ROE = "INFL.BK"   # an inflated FY cap on rows with no ROE (wh52_source): check M must read them
 ROW_KEYS = ("entry_unpriced","entry_bars_moved", "exit_bars_moved", "entries_lost", "exits_lost", "twins_collapsed",
             "cap_excluded", "factor_flags")
@@ -540,7 +594,8 @@ def results_failures(src):
     """run_single on the synthetic SET leg, --end-year 2025: 103 quarterly periods from 2000-01-01; each invested
     row's holdings names every booked name (books of more than 10, so a cut shows); --full-holdings adds
     holdings_full, every booked name in the holdings' order, and changes nothing else. The results file: after
-    isin_dedup come data_checks, universe_rules, signal_guard (SET_GUARD) and cost_model (then the LTP keys), the
+    isin_dedup come data_checks, universe_rules, signal_guard (SET_GUARD), lag_rule (SET_LAG in each run) and
+    cost_model (then the LTP keys), the
     fetch asks for no MTUM, cost_model the tiers at 35
     baht a dollar on the trades convention (COST_MODEL, its keys in that order), the rate run_single passes to
     run_backtest, and null on a no-costs run;
@@ -579,10 +634,12 @@ def results_failures(src):
     for name, res in (("ltp", plain), ("no costs", free), ("drop", drop)):
         keys = list(res)
         tail = keys[keys.index("isin_dedup") + 1:] if "isin_dedup" in keys else keys
-        want = (["data_checks", "universe_rules", "signal_guard", "cost_model"]
+        want = (["data_checks", "universe_rules", "signal_guard", "lag_rule", "cost_model"]
                 + (["exit_method", "ltp"] if name != "drop" else []))
         if tail != want:
             out.append(f"{name}: keys after isin_dedup {tail}, want {want}")
+        if json.dumps(res.get("lag_rule")) != json.dumps(SET_LAG):   # its keys' order too
+            out.append(f"{name}: lag_rule {res.get('lag_rule')}, want {SET_LAG}")
         cm = res.get("cost_model", "missing")   # its keys' order too: the order is the file's bytes
         if cm != (None if name == "no costs" else COST_MODEL) or (cm and list(cm) != list(COST_MODEL)):
             out.append(f"{name}: cost_model {cm}, want {COST_MODEL} in that order (null on a no-costs run)")
@@ -632,6 +689,8 @@ def results_failures(src):
     return out + tdc.stand_in_failures(plain)
 
 
+GUARD_KEY = '        "signal_guard": gb,              # the screen only: equal in drop, ltp and both\n'
+LAG_KEY = '        "lag_rule": lag.block(),         # the screen\'s FY reads: equal in drop, ltp and both\n'
 RESULT_MUTANTS = {
     "holdings cut to 10 names": ('"holdings": ",".join(sym for sym, _, _ in clean),',
                                  '"holdings": ",".join(sym for sym, _, _ in clean[:10]),'),
@@ -665,6 +724,9 @@ RESULT_MUTANTS = {
     "MTUM fetched again": ("            symbol IN ({bench_list})\n",
                            "            symbol IN ({bench_list})\n            OR symbol = 'MTUM'\n"),
     "check M on the rows with an ROE only": ("require_roe=False", "require_roe=True"),
+    "lag_rule not written": (LAG_KEY, ""),
+    "the fetch builds its own rule": ("win=win, lag=lag)", "win=win)"),
+    "lag_rule before signal_guard": (GUARD_KEY + LAG_KEY, LAG_KEY + GUARD_KEY),
 }
 
 
@@ -1236,6 +1298,51 @@ def fx_failures(costs_src, src=SRC):
 FX_MUTANTS = {"Malaysia's rate left out": ('"KLS": 4.46,', "")}
 
 
+def lag_cover_failures(src=SRC):
+    """The presets of src's presets_to_run that lag rule lr-1 gives no day count: LagRule.days refuses the leg.
+    run_single and main refuse a TSXV leg with a ValueError before they send a query."""
+    try:
+        presets, mod = global_presets(src), load(src)
+    except Exception as e:
+        return [f"error: {type(e).__name__}: {e}"]
+    out = []
+    for name, ex in presets.items():
+        try:
+            du.LagRule().days(ex)
+        except ValueError as e:
+            out.append(f"preset {name}: {e}")
+    client, raised = tdc.FakeClient(duckdb.connect()), None
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            mod.run_single(client, ["TSXV"], "TSXV", "quarterly", True, 0.02, False, None, win=du.RunWindow.typed(2025))
+    except Exception as e:   # the refusal, or the empty warehouse's error on a fetch that ran first
+        raised = e
+    if not isinstance(raised, ValueError) or client.sqls:
+        out.append(f"run_single on a TSXV leg: {type(raised).__name__} after {len(client.sqls)} queries, want a"
+                   " ValueError before any")
+    made, raised, argv = [], None, sys.argv
+    mod.CetaResearch = lambda **k: made.append(tdc.FakeClient(duckdb.connect())) or made[-1]
+    sys.argv = ["backtest.py", "--exchange", "TSXV"]
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            mod.main()
+    except Exception as e:   # the refusal, or the empty warehouse's error on the run window's query
+        raised = e
+    finally:
+        sys.argv = argv
+    if not isinstance(raised, ValueError) or any(c.sqls for c in made):
+        out.append(f"main on a TSXV leg: {type(raised).__name__} after {sum(len(c.sqls) for c in made)} queries,"
+                   " want a ValueError before any")
+    return out
+
+
+LAG_COVER_MUTANTS = {"a TSXV leg in --global": ('            ("canada",      ["TSX"]),\n',
+                                                '            ("canada",      ["TSX", "TSXV"]),\n'),
+                     "a refused leg fetched first": ("    lag.days(exchanges)   # refuses", "    None   # refuses"),
+                     "main's window query first": ("    LagRule(LAG_RULES).days(exchanges)   # refuses",
+                                                   "    None   # refuses")}
+
+
 # The live screen (screen.py): the backtest's fetch and screen on one date, with data checks on.
 SCREEN_PATH = os.path.join(ROOT, "52-week-high", "screen.py")
 with open(SCREEN_PATH) as fh:
@@ -1548,12 +1655,13 @@ def mutant_results(mutants, check, must_book=(), src=SRC):
 
 
 def main():
-    base = (legs_failures(SRC) + fx_failures(COSTS_SRC) + walk_failures(SRC) + screen_failures(SCREEN_SRC)
-            + failures(SRC) + rules_failures(SRC) + run_failures(SRC) + partial_failures(SRC) + t_failures(SRC))
+    base = (legs_failures(SRC) + fx_failures(COSTS_SRC) + lag_cover_failures(SRC) + walk_failures(SRC)
+            + screen_failures(SCREEN_SRC) + failures(SRC) + rules_failures(SRC) + run_failures(SRC)
+            + partial_failures(SRC) + t_failures(SRC))
     if base:
         print("test_52wh_selection: FAIL", base)
         sys.exit(1)
-    survived, errored = mutant_results(MUTANTS, failures, TRADED_MUTANTS)
+    survived, errored = mutant_results(MUTANTS, failures, {**TRADED_MUTANTS, **LAG_MUTANTS})
     s1, e1 = mutant_results(RULE_MUTANTS, rules_failures, RULE_MUTANTS)
     s2, e2 = mutant_results(RESULT_MUTANTS, run_failures, RESULT_MUTANTS)
     s3, _ = mutant_results(WINDOW_MUTANTS, partial_failures)
@@ -1562,7 +1670,9 @@ def main():
     s6, e6 = mutant_results(SCREEN_MUTANTS, screen_failures, SCREEN_MUTANTS, src=SCREEN_SRC)
     s7, e7 = mutant_results(FX_MUTANTS, fx_failures, FX_MUTANTS, src=COSTS_SRC)
     s8, e8 = mutant_results(WALK_MUTANTS, walk_failures, WALK_MUTANTS)
-    survived, errored = survived + s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8, errored + e1 + e2 + e4 + e5 + e6 + e7 + e8
+    s9, e9 = mutant_results(LAG_COVER_MUTANTS, lag_cover_failures, LAG_COVER_MUTANTS)
+    survived = survived + s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9
+    errored = errored + e1 + e2 + e4 + e5 + e6 + e7 + e8 + e9
     survived += leg_file_survivors()
     if survived or errored:
         print("test_52wh_selection: FAIL (mutants survived:", survived, "; caught only by an error:", errored, ")")
@@ -1572,7 +1682,10 @@ def main():
           f" universe rules ur-4 on {n_rules} listings, {len(RULE_MUTANTS)} mutants caught; the run on the synthetic"
           f" SET leg, {len(RESULT_MUTANTS)} mutants caught; the run window, {len(WINDOW_MUTANTS)} mutants caught;"
           f" check T, {len(T_MUTANTS)} mutants caught; the gate's legs, {len(LEG_MUTANTS)} mutants caught;"
-          f" the cost rates, {len(FX_MUTANTS)} mutants caught; the trades convention over {len(WALK_SCREEN)} typed"
+          f" the cost rates, {len(FX_MUTANTS)} mutants caught; lag rule lr-1 on {len(LAG_NSE) + len(LAG_US)} listings"
+          f" ({len(LAG_MUTANTS)} of the first mutants), on every --global leg and on a refused leg,"
+          f" {len(LAG_COVER_MUTANTS)} mutants caught;"
+          f" the trades convention over {len(WALK_SCREEN)} typed"
           f" quarters and {len(TAIL_SCREEN)} more that end in cash, {len(WALK_MUTANTS)} mutants caught; the live"
           f" screen, {len(SCREEN_MUTANTS)} mutants caught)")
 
