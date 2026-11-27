@@ -1300,7 +1300,7 @@ FX_MUTANTS = {"Malaysia's rate left out": ('"KLS": 4.46,', "")}
 
 def lag_cover_failures(src=SRC):
     """The presets of src's presets_to_run that lag rule lr-1 gives no day count: LagRule.days refuses the leg.
-    run_single refuses a TSXV leg with a ValueError before it sends a query."""
+    run_single and main refuse a TSXV leg with a ValueError before they send a query."""
     try:
         presets, mod = global_presets(src), load(src)
     except Exception as e:
@@ -1320,12 +1320,27 @@ def lag_cover_failures(src=SRC):
     if not isinstance(raised, ValueError) or client.sqls:
         out.append(f"run_single on a TSXV leg: {type(raised).__name__} after {len(client.sqls)} queries, want a"
                    " ValueError before any")
+    made, raised, argv = [], None, sys.argv
+    mod.CetaResearch = lambda **k: made.append(tdc.FakeClient(duckdb.connect())) or made[-1]
+    sys.argv = ["backtest.py", "--exchange", "TSXV"]
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            mod.main()
+    except Exception as e:   # the refusal, or the empty warehouse's error on the run window's query
+        raised = e
+    finally:
+        sys.argv = argv
+    if not isinstance(raised, ValueError) or any(c.sqls for c in made):
+        out.append(f"main on a TSXV leg: {type(raised).__name__} after {sum(len(c.sqls) for c in made)} queries,"
+                   " want a ValueError before any")
     return out
 
 
 LAG_COVER_MUTANTS = {"a TSXV leg in --global": ('            ("canada",      ["TSX"]),\n',
                                                 '            ("canada",      ["TSX", "TSXV"]),\n'),
-                     "a refused leg fetched first": ("    lag.days(exchanges)   # refuses", "    None   # refuses")}
+                     "a refused leg fetched first": ("    lag.days(exchanges)   # refuses", "    None   # refuses"),
+                     "main's window query first": ("    LagRule(LAG_RULES).days(exchanges)   # refuses",
+                                                   "    None   # refuses")}
 
 
 # The live screen (screen.py): the backtest's fetch and screen on one date, with data checks on.

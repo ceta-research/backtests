@@ -111,14 +111,13 @@ def warehouse(rows, filings, ex):
     return src
 
 
-def dated(m, rows, filings, ex, client=tdc.FakeClient, cfg=None):
-    """Module m's LagRule (on cfg, default its LAG_RULES_V1) on a leg, its FY rows cached in two tables as a topic's
-    fetch caches them: ({table: {symbol: days from the period end to the availability day}}, the block, the queries
-    sent)."""
+def dated(m, rows, filings, ex, client=tdc.FakeClient, cfg=None, tables=("metrics_cache", "ratios_cache")):
+    """Module m's LagRule (on cfg, default its LAG_RULES_V1) on a leg, its FY rows cached in `tables` (two by
+    default) as a topic's fetch caches them: ({table: {symbol: days from the period end to the availability day}},
+    the block, the queries sent)."""
     c = client(warehouse(rows, filings, ex[0]))
     con = duckdb.connect()
     flt = f"symbol IN (SELECT DISTINCT symbol FROM profile WHERE exchange IN ({', '.join(repr(e) for e in ex)}))"
-    tables = ("metrics_cache", "ratios_cache")
     for t in tables:
         du.query_parquet(c, f"SELECT symbol, marketCap, dateEpoch AS filing_epoch FROM key_metrics WHERE {flt}", con, t)
     lag = m.LagRule(cfg) if cfg else m.LagRule()
@@ -150,12 +149,17 @@ def unit_failures(m):
         out += leg_failures("US", got, b, WANT_US, US_COUNTS, {e: 105 for e in US})
         if list(b) != ["version", "rule", "us", "markets", "counts"] or b["version"] != "lr-1" or b["us"] != US_BLOCK:
             out.append(f"US block {list(b)}, version {b['version']}, us {b['us']}")
+        if any(v["source"] != m.LAG_RULES_V1["us"]["source"] for v in b["markets"].values()):
+            out.append(f"US block sources {[v['source'] for v in b['markets'].values()]}, want the US rule's")
         if max(map(len, sqls)) >= MAX_SQL:
             out.append(f"a query of {max(map(len, sqls))} characters")
         got, b, sqls = dated(m, NSE_ROWS, NSE_FILED, ["NSE"])
         out += leg_failures("NSE", got, b, WANT_NSE, {"rows": len(NSE_ROWS), "us_filing_dated": None}, {"NSE": 60})
         if any("income_statement" in q for q in sqls):
             out.append("a non-US leg reads filing dates")
+        got, b, _ = dated(m, NSE_ROWS + NSE_ROWS[:1], NSE_FILED, ["NSE"], tables=("metrics_cache",))
+        out += leg_failures("NSE, one table with a row twice", got, b, WANT_NSE,
+                            {"rows": len(NSE_ROWS), "us_filing_dated": None}, {"NSE": 60})
         got, b, _ = dated(m, [("U_ND", P)], [], US, client=tdc.EmptyBytesClient)
         out += leg_failures("US, no filing", got, b, {"U_ND": 105}, {"rows": 1, "us_filing_dated": 0},
                             {e: 105 for e in US})
@@ -237,7 +241,8 @@ MUTANTS = {   # text replacements on data_utils.py
     "two lags in one leg pass": ("len(set(days)) != 1", "len(set(days)) < 1"),
     "every row counted as dated": ("count(f.filed_epoch)", "count(*)"),
     "a non-US leg's count is 0": ("self.us_dated = dated if self.us else None", "self.us_dated = dated"),
-    "rows counted per table": (' " UNION ".join(', ' " UNION ALL ".join('),
+    "rows counted with repeats": ("FROM (SELECT DISTINCT symbol,", "FROM (SELECT symbol,"),
+    "the US source not the rule's": ('"source": us["source"]', '"source": "x"'),
     "the empty result read": ("            if n:\n", "            if True:\n"),
 }
 BY_ERROR = {"the empty result read"}   # an empty result has no columns: reading it raises

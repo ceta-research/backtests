@@ -904,6 +904,7 @@ def main():
         return
 
     # Single exchange mode
+    LagRule(LAG_RULES).days(exchanges)   # refuses a leg lr-1 gives no one count, before the run window's query
     risk_free_rate = get_risk_free_rate(exchanges, args.risk_free_rate)
     cr = CetaResearch(api_key=args.api_key, base_url=args.base_url)
     win = RunWindow.from_args(args, cr, {universe_name: exchanges})

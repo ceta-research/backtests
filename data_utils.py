@@ -4159,8 +4159,9 @@ class LagRule:
                         f" * {LAG_DAY}")
             con.execute(f"UPDATE {t} SET avail_epoch = f.filed_epoch FROM lag_filed f"
                         f" WHERE f.symbol = {t}.symbol AND f.period_epoch = {t}.filing_epoch")
-        keys = " UNION ".join(f"SELECT symbol, filing_epoch FROM {t}" for t in tables)
-        self.rows, dated = con.execute(f"SELECT count(*), count(f.filed_epoch) FROM ({keys}) k LEFT JOIN lag_filed f"
+        keys = " UNION ALL ".join(f"SELECT symbol, filing_epoch FROM {t}" for t in tables)
+        self.rows, dated = con.execute(f"SELECT count(*), count(f.filed_epoch) FROM (SELECT DISTINCT symbol,"
+                                       f" filing_epoch FROM ({keys})) k LEFT JOIN lag_filed f"
                                        " ON f.symbol = k.symbol AND f.period_epoch = k.filing_epoch").fetchone()
         self.us_dated = dated if self.us else None
 
