@@ -980,7 +980,7 @@ The fundamental screens other than 52-week-high's code apply a 45-day lag: at a 
 
 **Implementation:** Screening queries filter on the statement's period-end date (`dateEpoch`, named `filing_epoch` in the code): `filing_epoch <= rebalance_date - 45 days`. No other screen reads the date a statement was filed or accepted. Earlier versions of this document said the screens used a filing date. They didn't.
 
-52-week-high's code runs lag rule lr-1 instead. Its fetch gives each fiscal-year row an availability day (`avail_epoch`): on NYSE, NASDAQ and AMEX the row's earliest filing date within 180 days of its period end, else 105 days after it, and elsewhere its market's deadline counted from the period end. The screen reads a row with `avail_epoch` on or before the rebalance date ([Filing Lag](#filing-lag)).
+52-week-high's code runs lag rule lr-1 instead ([Filing Lag](#filing-lag)).
 
 **Limitation:** In the 45-day topics the lag counts from the fiscal period end, not from the filing. US annual reports are filed 60 to 90 days after the fiscal year end, and deadlines can be longer in other markets, so a screen can read figures that weren't public on the rebalance date. The rerun topics' published runs rebalance on the first day of January, April, July or October. A year that ended on December 31 is first used on April 1, 91 or 92 days later, in the quarterly and April topics, and later than that in the July and January topics. A year that ended 45 to 90 days before a rebalance is the exposed case in the US. How many holdings that affects, and what it does to a result, isn't measured. Not fixed outside 52-week-high's code, whose rule has its own limits ([Filing Lag](#filing-lag)).
 

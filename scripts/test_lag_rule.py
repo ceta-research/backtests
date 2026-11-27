@@ -27,7 +27,7 @@ import copy
 import os
 import sys
 import tempfile
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 import duckdb
 
@@ -37,16 +37,13 @@ DU_PATH = os.path.join(ROOT, "data_utils.py")
 sys.path[:0] = [ROOT, os.path.join(ROOT, "scripts")]
 import data_utils as du   # noqa: E402
 import test_data_checks as tdc   # noqa: E402  (its fake clients and topic_from_text)
+from split_check import MAX_SQL   # noqa: E402
 
 R = date(2020, 4, 1)                 # the rebalance date
 P = R - timedelta(days=70)           # most rows' period end
 DAY = 86400
 US = ["NYSE", "NASDAQ", "AMEX"]
-MAX_SQL = 45000                      # scripts/split_check.py's bound, under the API's 50,000-character limit
-
-
-def ep(d):
-    return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp())
+ep = du.utc_epoch
 
 
 def on(n):

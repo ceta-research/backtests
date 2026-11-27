@@ -746,9 +746,7 @@ def writes_lag_rule(tree):
 
 def lag_block(exchanges, rows, us_dated):
     """LagRule's block for a leg of these exchanges with these counts: what lr-1 writes into a results file."""
-    lag = LagRule()
-    lag.exchanges, lag.rows, lag.us_dated = tuple(exchanges), rows, us_dated
-    return lag.block()
+    return LagRule(exchanges=exchanges, rows=rows, us_dated=us_dated).block()
 
 
 def lag_results_problem(res):
@@ -766,7 +764,7 @@ def lag_results_problem(res):
     if b != lag_block(markets, rows, dated):
         return f"lag_rule is not {LAG_RULES_V1['version']}'s block for {markets}: a stale rule, US setting or market entry"
     count = lambda x: type(x) is int and x >= 0
-    us = all(e in LAG_RULES_V1["us"]["exchanges"] for e in markets)
+    us = LagRule().us_leg(markets)
     if not count(rows) or not (count(dated) and dated <= rows if us else dated is None):
         return f"lag_rule counts {b['counts']}: us_filing_dated is at most rows on a US leg and null elsewhere"
     return None

@@ -4112,15 +4112,21 @@ class LagRule:
     """One leg's lag rule (cfg: LAG_RULES_V1): load() dates each FY row of a topic's caches (avail_epoch), and
     block() is the results file's lag_rule block (screen inputs only: equal in drop, ltp and both)."""
 
-    def __init__(self, cfg=LAG_RULES_V1):
-        self.cfg, self.exchanges, self.us, self.rows, self.us_dated = cfg, (), False, 0, None
+    def __init__(self, cfg=LAG_RULES_V1, exchanges=(), rows=0, us_dated=None):
+        """exchanges, rows and us_dated: a leg's counts as load() sets them, for a block built without a load."""
+        self.cfg = cfg
+        self.exchanges, self.us, self.rows, self.us_dated = tuple(exchanges), self.us_leg(exchanges), rows, us_dated
+
+    def us_leg(self, exchanges):
+        """True for a leg of one or more exchanges, every one of them a US exchange."""
+        return bool(exchanges) and all(e in self.cfg["us"]["exchanges"] for e in exchanges)
 
     def schedule(self, exchanges):
         """(days, eras): the leg's days after the period end for a row with no filing date, and its markets' eras.
         A leg has one: ValueError for a leg with none, one that mixes markets of different days or eras (US and
         others among them), or one with no entry."""
         us, markets = self.cfg["us"], self.cfg["markets"]
-        if exchanges and all(e in us["exchanges"] for e in exchanges):
+        if self.us_leg(exchanges):
             return us["no_date_days"], []
         days = [(markets.get(e) or {}).get("days") for e in exchanges or ()]
         eras = [(markets.get(e) or {}).get("eras", []) for e in exchanges or ()]
@@ -4138,7 +4144,7 @@ class LagRule:
         the days of the earliest-dated era whose period_end_before date the period end is before."""
         days, eras = self.schedule(exchanges)
         self.exchanges = tuple(exchanges)
-        self.us = all(e in self.cfg["us"]["exchanges"] for e in exchanges)
+        self.us = self.us_leg(exchanges)
         con.execute("CREATE OR REPLACE TABLE lag_filed(symbol VARCHAR, period_epoch BIGINT, filed_epoch BIGINT)")
         if self.us:
             n = query_parquet(client, us_filed_sql(sym_filter_sql, self.cfg["us"]["window_days"]), con,

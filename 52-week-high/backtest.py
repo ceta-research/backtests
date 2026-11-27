@@ -115,6 +115,7 @@ def fetch_data_via_api(client, exchanges, rebalance_dates, verbose=False, mktcap
     checks = dc is not None and dc.on
     ur = ur if ur is not None else UniverseRules(UNIVERSE_RULES)
     lag = lag if lag is not None else LagRule(LAG_RULES)
+    lag.days(exchanges)   # refuses, before any query, a leg lr-1 gives no one count
     win = win if win is not None else RunWindow.typed()
     # Campaign listing rule; sym_filter_sql carries it into the market-cap and price fetches.
     listing_cond = campaign_listing_condition(exchanges)
@@ -651,7 +652,6 @@ def run_single(cr, exchanges, universe_name, frequency, use_costs,
     ur = UniverseRules(UNIVERSE_RULES)
     guard = SignalGuard()
     lag = LagRule(LAG_RULES)
-    lag.days(exchanges)   # refuses, before any query, a leg lr-1 gives no one count
     fx = get_fx_per_usd(exchanges)   # local currency per USD: the cost tiers' breakpoints in the leg's currency
     mktcap_threshold = get_mktcap_threshold(exchanges)
 
