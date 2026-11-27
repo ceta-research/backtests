@@ -70,7 +70,7 @@ US_BLOCK = {"exchanges": US, "filing_date": "income_statement.filingDate", "wind
 NSE_ROWS = [("N_FILED", R - timedelta(days=50)), ("N59", R - timedelta(days=59)), ("N60", R - timedelta(days=60))]
 NSE_FILED = [("N_FILED", R - timedelta(days=50), (R - timedelta(days=30)).isoformat())]
 WANT_NSE = {"N_FILED": 60, "N59": 60, "N60": 60}
-REFUSED = (["NYSE", "LSE"], ["OTC"], ["TSXV"], ["NSE", "LSE"], ["HKSE", "KSC"], [])
+REFUSED = (["NYSE", "LSE"], ["OTC"], ["TSXV"], ["NSE", "LSE"], ["HKSE", "KSC"], ["ASX", "SES"], [])
 # lr-1's days and eras per exchange outside the US
 WANT_DAYS = {**{e: 120 for e in ("LSE", "XETRA", "STO", "OSL", "PAR", "MIL", "BME", "AMS", "WSE", "CPH", "HEL", "BRU",
                                  "LIS", "VIE", "SIX", "SHZ", "SHH")},

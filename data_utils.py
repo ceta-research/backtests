@@ -4057,8 +4057,8 @@ LAG_MARKETS_V1 = {   # exchange: (days after the period end, the rule they come 
     "HKSE": (90, "HKEX Main Board Listing Rule 13.49(1): the preliminary results not later than three months after "
                  "the year end"),
     "KSC": (90, _KOREA), "KOE": (90, _KOREA),
-    "TAI": (90, _TAIWAN + "; the first release is the board-approved annual statements due within 75 days under "
-                          "the TWSE's Information Filing Rules art. 3"),
+    "TAI": (90, _TAIWAN + "; from 2024 the first release is the board-approved annual statements due within 75 days "
+                          "under the TWSE's Information Filing Rules art. 3"),
     "TWO": (90, _TAIWAN),
     "TSX": (90, "NI 51-102 s. 4.2(a): the audited annual financial statements by the 90th day after the year end "
                 "for a non-venture issuer"),
