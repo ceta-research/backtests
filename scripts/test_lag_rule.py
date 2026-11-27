@@ -9,9 +9,9 @@ read before day 45 and a late one waits for itself past day 105; a row filed now
 period end waits 105 days, on either side of the rebalance date; a filing 180 days on is read and one 181 days on is
 not; of two filings the earlier wins; a quarterly filing dated before the FY one dates nothing; a date with a time of
 day reads as its date; and another year's filing dates nothing. Both tables carry the same days, the counts are the
-distinct rows over them and the rows a filing dated, the leg's markets each show 105, and every query stays under
-45,000 characters. Any other exchange waits its market's days whatever filing date it holds: NSE's 60, with no filing
-query sent and a null dated count. A US leg whose filing query returns no bytes dates every row at 105. Each era's
+distinct rows over them and the rows a filing dated, the leg's markets each show 105 with the US rule's source, and
+every query stays under 45,000 characters. Any other exchange waits its market's days whatever filing date it holds:
+NSE's 60, with no filing query sent and a null dated count, and in one table holding a row twice that row counts once. A US leg whose filing query returns no bytes dates every row at 105. Each era's
 boundary, on its own leg: the last period end before its date reads at the era's days and the first on it at the
 market's (HKSE 120 then 90 at 31 Dec 2010, SES 90 then 60 at 31 Dec 2003, ASX 75 then 60 at 30 June 2004), and the
 leg's block carries the era. Of two eras the earliest-dated one a period end is before wins, whatever their order. A

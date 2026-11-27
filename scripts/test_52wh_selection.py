@@ -36,7 +36,7 @@ and DEADLINE's row, 50 days old and under the floor, which the 45-day lag read, 
 line over the floor. On NYSE a row is read from its filing date: on the rebalance date itself (US_ON), not the day
 before its filing (US_NEXT ranks on its older row), and before day 45 (US_EARLY); a row with no filing date is read 105
 days after its period end (US_ND105) and not 104 (US_ND104). lr-1 has a day count for the exchanges of every preset
---global runs, and run_single refuses a TSXV leg before it sends a query. Their mutants must trip a wrong book, not
+--global runs, and run_single and main refuse a TSXV leg before they send a query. Their mutants must trip a wrong book, not
 an error.
 
 Check T on the ranking cache, with data checks on: on a closed rebalance date a line's traded copy moves, so the
